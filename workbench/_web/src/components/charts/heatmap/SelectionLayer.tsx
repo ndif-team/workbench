@@ -17,9 +17,12 @@ interface SelectionRect {
 interface UseSelectionClickProps {
     canvasRef: RefObject<HTMLCanvasElement>
     data: HeatmapData
+    mode?: "annotation" | "zoom"
+    enabled?: boolean
+    onZoomComplete?: (bounds: { minRow: number, maxRow: number, minCol: number, maxCol: number }) => void
 }
 
-const useSelectionClick = ({ canvasRef, data }: UseSelectionClickProps) => {
+const useSelectionClick = ({ canvasRef, data, mode = 'annotation', enabled = true, onZoomComplete }: UseSelectionClickProps) => {
     const { pendingAnnotation, setPendingAnnotation } = useAnnotations()
     const [isSelecting, setIsSelecting] = useState(false)
     const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null)
@@ -223,6 +226,7 @@ const useSelectionClick = ({ canvasRef, data }: UseSelectionClickProps) => {
 
     // Handle click from Nivo canvas
     const handleCellClick = useCallback((cell: any) => {
+        if (!enabled) return
         if (!chartId) return
 
         // Extract row and column indices from the cell data
@@ -247,6 +251,13 @@ const useSelectionClick = ({ canvasRef, data }: UseSelectionClickProps) => {
             const minRow = Math.min(selectionRect.startY, rowIndex)
             const maxRow = Math.max(selectionRect.startY, rowIndex)
 
+            if (mode === 'zoom') {
+                onZoomComplete?.({ minRow, maxRow, minCol, maxCol })
+                setIsSelecting(false)
+                setSelectionRect(null)
+                return
+            }
+
             const cells = new Set<string>()
             for (let row = minRow; row <= maxRow; row++) {
                 for (let col = minCol; col <= maxCol; col++) {
@@ -262,10 +273,11 @@ const useSelectionClick = ({ canvasRef, data }: UseSelectionClickProps) => {
             // setSelectionRect(null)
             setIsSelecting(false)
         }
-    }, [selectionRect, data.rows, chartId, setPendingAnnotation])
+    }, [selectionRect, data.rows, chartId, setPendingAnnotation, mode, enabled, onZoomComplete])
 
     // Handle mouse move on the container (for selection preview)
     const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (!enabled) return
         if (!isSelecting || !selectionRect) return
 
         const rect = canvasRef.current?.getBoundingClientRect()
@@ -282,7 +294,7 @@ const useSelectionClick = ({ canvasRef, data }: UseSelectionClickProps) => {
                 endY: cell.row
             } : null)
         }
-    }, [selectionRect, getCellFromPosition])
+    }, [selectionRect, getCellFromPosition, enabled, isSelecting])
 
     return {
         handleCellClick,

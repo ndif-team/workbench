@@ -1,7 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Heatmap } from "./Heatmap";
 import { HeatmapData } from "@/types/charts";
 import { RangeSelector } from "../RangeSelector";
+import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
+import { useAnnotations } from "@/stores/useAnnotations";
 
 type Range = [number, number];
 type RangeWithId = {
@@ -22,6 +25,10 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
     const [xRanges, setXRanges] = useState<RangeWithId[]>([]);
     const [yRanges, setYRanges] = useState<RangeWithId[]>([]);
 
+    const [isZoomSelecting, setIsZoomSelecting] = useState(false);
+
+    const { setPendingAnnotation } = useAnnotations();
+
     // Calculate the bounds for the range selectors
     const xMax = useMemo(() => {
         if (!data.rows.length || !data.rows[0].data.length) return 100;
@@ -32,6 +39,34 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
         if (!data.rows.length) return 100;
         return data.rows.length - 1;
     }, [data]);
+
+    const xMin = 0;
+    const yMin = 0;
+
+    // X range step input (default to 10 segments)
+    const defaultXStep = useMemo(() => {
+        const width = xMax - xMin;
+        return Math.max(1, Math.floor(width / 10));
+    }, [xMax, xMin]);
+    const [xStepInput, setXStepInput] = useState<number>(defaultXStep);
+
+    useEffect(() => {
+        // Initialize default when ranges are empty and step hasn't been set yet
+        if (xRanges.length === 0) {
+            setXStepInput(defaultXStep);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [defaultXStep]);
+
+    // Default Y to last 10 tokens when empty
+    useEffect(() => {
+        if (yRanges.length === 0 && yMax >= 0) {
+            const start = Math.max(yMin, yMax - 9);
+            const end = yMax;
+            setYRanges([{ id: `y-default-${Date.now()}`, range: [start, end] }]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [yMax]);
 
     // Filter the heatmap data based on selected ranges
     const filteredData = useMemo(() => {
@@ -65,6 +100,40 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
         };
     }, [data, xRanges, yRanges]);
 
+    const handleZoomComplete = (bounds: { minRow: number, maxRow: number, minCol: number, maxCol: number }) => {
+        // Map filtered indices back to absolute indices
+        const hasX = xRanges.length > 0;
+        const hasY = yRanges.length > 0;
+
+        const xOffset = hasX ? Math.floor(xRanges[0].range[0]) : 0;
+        const yOffset = hasY ? Math.floor(yRanges[0].range[0]) : 0;
+
+        const absMinCol = Math.max(xMin, Math.min(xMax, xOffset + bounds.minCol));
+        const absMaxCol = Math.max(xMin, Math.min(xMax, xOffset + bounds.maxCol));
+        const absMinRow = Math.max(yMin, Math.min(yMax, yOffset + bounds.minRow));
+        const absMaxRow = Math.max(yMin, Math.min(yMax, yOffset + bounds.maxRow));
+
+        const currentX = hasX ? xRanges[0].range : [xMin, xMax] as Range;
+        const currentY = hasY ? yRanges[0].range : [yMin, yMax] as Range;
+
+        const newX: Range = [
+            Math.max(currentX[0], Math.min(absMinCol, absMaxCol)),
+            Math.min(currentX[1], Math.max(absMinCol, absMaxCol))
+        ];
+        const newY: Range = [
+            Math.max(currentY[0], Math.min(absMinRow, absMaxRow)),
+            Math.min(currentY[1], Math.max(absMinRow, absMaxRow))
+        ];
+
+        setXRanges([{ id: `x-zoom-${Date.now()}`, range: newX }]);
+        setYRanges([{ id: `y-zoom-${Date.now()}`, range: newY }]);
+
+        // Exit zoom selection mode
+        setIsZoomSelecting(false);
+    };
+
+    const sanitizedXStep = Number.isFinite(xStepInput) && xStepInput > 0 ? xStepInput : 1;
+
     return (
         <div className="flex flex-col h-full m-2 border rounded bg-muted">
             <div className="flex h-[10%] gap-2 p-4 lg:p-8 justify-between">
@@ -95,25 +164,68 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
 
                 <div className="flex items-center gap-2">
                     <RangeSelector
-                        min={0}
+                        min={xMin}
                         max={xMax}
                         ranges={xRanges}
                         onRangesChange={setXRanges}
+                        maxRanges={1}
                         axisLabel="X Range"
+                        step={sanitizedXStep}
                     />
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            min={1}
+                            max={Math.max(1, xMax - xMin)}
+                            step={1}
+                            value={xStepInput}
+                            onChange={(e) => {
+                                const val = Number(e.target.value);
+                                if (Number.isNaN(val)) {
+                                    setXStepInput(1);
+                                } else {
+                                    setXStepInput(Math.max(1, Math.min(val, Math.max(1, xMax - xMin))))
+                                }
+                            }}
+                            className="w-20 h-8 border rounded px-2 text-xs bg-background"
+                            aria-label="X Range Step"
+                            title="X Range Step"
+                        />
+                    </div>
 
                     <RangeSelector
-                        min={0}
+                        min={yMin}
                         max={yMax}
                         ranges={yRanges}
                         onRangesChange={setYRanges}
+                        maxRanges={1}
                         axisLabel="Y Range"
                     />
+
+                    <Button
+                        variant={isZoomSelecting ? "default" : "outline"}
+                        size="icon"
+                        onClick={() => {
+                            const next = !isZoomSelecting;
+                            setIsZoomSelecting(next);
+                            if (next) {
+                                // Disable annotation creation while zooming
+                                setPendingAnnotation(null);
+                            }
+                        }}
+                        aria-pressed={isZoomSelecting}
+                        title={isZoomSelecting ? "Exit zoom selection" : "Enter zoom selection"}
+                    >
+                        <Search className="w-4 h-4" />
+                    </Button>
                 </div>
             </div>
             <div className="flex h-[90%] w-full">
                 <Heatmap
                     data={filteredData}
+                    selectionMode={isZoomSelecting ? 'zoom' : 'annotation'}
+                    selectionEnabled={true}
+                    onZoomComplete={handleZoomComplete}
                 />
             </div>
         </div>

@@ -10,14 +10,20 @@ import useSelectionClick from './SelectionLayer';
 
 interface HeatmapProps {
     data: HeatmapData
+    selectionMode?: 'annotation' | 'zoom'
+    selectionEnabled?: boolean
+    onZoomComplete?: (bounds: { minRow: number, maxRow: number, minCol: number, maxCol: number }) => void
 }
 
 export function Heatmap({
     data,
+    selectionMode = 'annotation',
+    selectionEnabled = true,
+    onZoomComplete,
 }: HeatmapProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
 
-    const { handleCellClick, handleMouseMove } = useSelectionClick({ canvasRef, data })
+    const { handleCellClick, handleMouseMove } = useSelectionClick({ canvasRef, data, mode: selectionMode, enabled: selectionEnabled, onZoomComplete })
 
     // Resolve all CSS variables in the theme to concrete colors for Canvas compatibility
     const resolvedTheme = useMemo(() => resolveThemeCssVars(heatmapTheme), [])
