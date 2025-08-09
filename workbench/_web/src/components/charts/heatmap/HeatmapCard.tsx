@@ -3,7 +3,7 @@ import { Heatmap } from "./Heatmap";
 import { HeatmapData } from "@/types/charts";
 import { RangeSelector } from "../RangeSelector";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, RotateCcw } from "lucide-react";
 import { useAnnotations } from "@/stores/useAnnotations";
 
 type Range = [number, number];
@@ -134,6 +134,13 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
 
     const sanitizedXStep = Number.isFinite(xStepInput) && xStepInput > 0 ? xStepInput : 1;
 
+    const handleReset = () => {
+        setXRanges([]);
+        setYRanges([]);
+        setIsZoomSelecting(false);
+        setPendingAnnotation(null);
+    };
+
     return (
         <div className="flex flex-col h-full m-2 border rounded bg-muted">
             <div className="flex h-[10%] gap-2 p-4 lg:p-8 justify-between">
@@ -217,6 +224,15 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
                         title={isZoomSelecting ? "Exit zoom selection" : "Enter zoom selection"}
                     >
                         <Search className="w-4 h-4" />
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleReset}
+                        title="Reset ranges"
+                    >
+                        <RotateCcw className="w-4 h-4" />
                     </Button>
                 </div>
             </div>
