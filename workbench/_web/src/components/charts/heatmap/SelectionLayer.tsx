@@ -20,9 +20,11 @@ interface UseSelectionClickProps {
     mode?: "annotation" | "zoom"
     enabled?: boolean
     onZoomComplete?: (bounds: { minRow: number, maxRow: number, minCol: number, maxCol: number }) => void
+    dimXBinsRange?: [number, number] | null
+    dimYRowsRange?: [number, number] | null
 }
 
-const useSelectionClick = ({ canvasRef, data, mode = 'annotation', enabled = true, onZoomComplete }: UseSelectionClickProps) => {
+const useSelectionClick = ({ canvasRef, data, mode = 'annotation', enabled = true, onZoomComplete, dimXBinsRange = null, dimYRowsRange = null }: UseSelectionClickProps) => {
     const { pendingAnnotation, setPendingAnnotation } = useAnnotations()
     const [isSelecting, setIsSelecting] = useState(false)
     const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null)
@@ -155,6 +157,24 @@ const useSelectionClick = ({ canvasRef, data, mode = 'annotation', enabled = tru
         const dpr = window.devicePixelRatio || 1
         ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
 
+        // Draw dim overlays outside selected ranges for context
+        if (dimXBinsRange) {
+            const [selStart, selEnd] = dimXBinsRange
+            const leftBounds = selStart > 0 ? { minRow: 0, maxRow: dims.numRows - 1, minCol: 0, maxCol: selStart - 1 } : null
+            const rightBounds = selEnd < dims.numCols - 1 ? { minRow: 0, maxRow: dims.numRows - 1, minCol: selEnd + 1, maxCol: dims.numCols - 1 } : null
+            const style = { fillStyle: 'rgba(0,0,0,0.1)', strokeStyle: 'transparent', lineWidth: 0 }
+            if (leftBounds) drawBoundingRect(ctx, leftBounds, dims, style)
+            if (rightBounds) drawBoundingRect(ctx, rightBounds, dims, style)
+        }
+        if (dimYRowsRange) {
+            const [selStart, selEnd] = dimYRowsRange
+            const topBounds = selStart > 0 ? { minRow: 0, maxRow: selStart - 1, minCol: 0, maxCol: dims.numCols - 1 } : null
+            const bottomBounds = selEnd < dims.numRows - 1 ? { minRow: selEnd + 1, maxRow: dims.numRows - 1, minCol: 0, maxCol: dims.numCols - 1 } : null
+            const style = { fillStyle: 'rgba(0,0,0,0.1)', strokeStyle: 'transparent', lineWidth: 0 }
+            if (topBounds) drawBoundingRect(ctx, topBounds, dims, style)
+            if (bottomBounds) drawBoundingRect(ctx, bottomBounds, dims, style)
+        }
+
         // Draw existing annotations
         if (annotations && chartId) {
             annotations.forEach(annotation => {
@@ -186,7 +206,7 @@ const useSelectionClick = ({ canvasRef, data, mode = 'annotation', enabled = tru
                 lineWidth: 2
             })
         }
-    }, [selectionRect, getCellDimensions, annotations, chartId, getCellBounds, drawBoundingRect])
+    }, [selectionRect, getCellDimensions, annotations, chartId, getCellBounds, drawBoundingRect, dimXBinsRange, dimYRowsRange])
 
     // Handle canvas resize with proper DPI scaling
     useEffect(() => {

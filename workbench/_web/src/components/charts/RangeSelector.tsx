@@ -110,7 +110,11 @@ export function RangeSelector({
         <DropdownMenu open={open} onOpenChange={handleOpenChange}>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className={cn("w-full justify-between", className)}>
-                    {axisLabel}
+                    {isSingleMode
+                        ? (ranges.length > 0
+                            ? `${axisLabel.replace(/\s*Range/i, '').trim()}: ${ranges[0].range[0]}-${ranges[0].range[1]}`
+                            : `Set ${axisLabel.toLowerCase()}`)
+                        : axisLabel}
                     <ChevronDown className="h-4 w-4 ml-2" />
                 </Button>
             </DropdownMenuTrigger>
