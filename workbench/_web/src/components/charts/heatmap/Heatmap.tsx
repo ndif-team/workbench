@@ -51,6 +51,7 @@ export function Heatmap({
                     legendOffset: 40,
                     tickSize: 0,
                     tickPadding: 10,
+                    format: (value) => String(value),
                 }}
                 axisLeft={{
                     tickSize: 0,

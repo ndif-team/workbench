@@ -193,9 +193,16 @@ const useSelectionClick = ({ canvasRef, data, mode = 'annotation', enabled = tru
 
         // Draw current selection rectangle
         if (selectionRect) {
+            // Translate absolute x values to column indices
+            const firstRow = data.rows[0]
+            const toIdx = (xVal: number) => firstRow.data.findIndex(c => c.x === xVal)
+            const startXIdx = toIdx(selectionRect.startX)
+            const endXIdx = toIdx(selectionRect.endX)
+            if (startXIdx === -1 || endXIdx === -1) return
+
             const bounds = {
-                minCol: Math.min(selectionRect.startX, selectionRect.endX),
-                maxCol: Math.max(selectionRect.startX, selectionRect.endX),
+                minCol: Math.min(startXIdx, endXIdx),
+                maxCol: Math.max(startXIdx, endXIdx),
                 minRow: Math.min(selectionRect.startY, selectionRect.endY),
                 maxRow: Math.max(selectionRect.startY, selectionRect.endY)
             }
@@ -206,7 +213,7 @@ const useSelectionClick = ({ canvasRef, data, mode = 'annotation', enabled = tru
                 lineWidth: 2
             })
         }
-    }, [selectionRect, getCellDimensions, annotations, chartId, getCellBounds, drawBoundingRect, dimXBinsRange, dimYRowsRange])
+    }, [selectionRect, getCellDimensions, annotations, chartId, getCellBounds, drawBoundingRect, dimXBinsRange, dimYRowsRange, data.rows])
 
     // Handle canvas resize with proper DPI scaling
     useEffect(() => {
@@ -251,23 +258,23 @@ const useSelectionClick = ({ canvasRef, data, mode = 'annotation', enabled = tru
 
         // Extract row and column indices from the cell data
         const rowIndex = data.rows.findIndex(r => r.id === cell.serieId)
-        const colIndex = cell.data.x
+        const colIndexXValue = cell.data.x
         
-        if (rowIndex === -1 || colIndex === undefined) return
+        if (rowIndex === -1 || colIndexXValue === undefined) return
 
         if (!isSelecting) {
             // Start new selection
             setIsSelecting(true)
             setSelectionRect({
-                startX: colIndex,
+                startX: colIndexXValue,
                 startY: rowIndex,
-                endX: colIndex,
+                endX: colIndexXValue,
                 endY: rowIndex
             })
         } else if (selectionRect) {
             // Finalize selection
-            const minCol = Math.min(selectionRect.startX, colIndex)
-            const maxCol = Math.max(selectionRect.startX, colIndex)
+            const minCol = Math.min(selectionRect.startX, colIndexXValue)
+            const maxCol = Math.max(selectionRect.startX, colIndexXValue)
             const minRow = Math.min(selectionRect.startY, rowIndex)
             const maxRow = Math.max(selectionRect.startY, rowIndex)
 
@@ -308,13 +315,15 @@ const useSelectionClick = ({ canvasRef, data, mode = 'annotation', enabled = tru
         const cell = getCellFromPosition(x, y)
 
         if (cell) {
+            const firstRow = data.rows[0]
+            const xVal = firstRow.data[cell.col]?.x
             setSelectionRect(prev => prev ? {
                 ...prev,
-                endX: cell.col,
+                endX: typeof xVal === 'number' ? xVal : Number(xVal),
                 endY: cell.row
             } : null)
         }
-    }, [selectionRect, getCellFromPosition, enabled, isSelecting])
+    }, [selectionRect, getCellFromPosition, enabled, isSelecting, data.rows])
 
     return {
         handleCellClick,

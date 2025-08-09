@@ -84,9 +84,11 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
         };
     }, [data, yRanges]);
 
-    // Downsample X axis according to step by taking every Nth column
+    // Downsample X axis according to step by taking every Nth column, and dim outside X selection by zeroing y
     const displayedData = useMemo(() => {
         const stride = Math.max(1, Math.floor(sanitizedXStep));
+        const hasXRange = xRanges.length > 0;
+        const [xSelStart, xSelEnd] = hasXRange ? xRanges[0].range : [xMin, xMax];
         if (!yFilteredData.rows.length || !yFilteredData.rows[0].data.length) return yFilteredData;
 
         return {
@@ -95,22 +97,25 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
                 const sampled = row.data
                     .map((cell, idx) => ({ cell, idx }))
                     .filter(({ idx }) => idx % stride === 0)
-                    .map(({ cell }, di) => ({ ...cell, x: di }));
+                    .map(({ cell, idx }) => {
+                        const inX = idx >= xSelStart && idx <= xSelEnd;
+                        return { ...cell, y: inX ? cell.y : 0 };
+                    });
                 return { ...row, data: sampled };
             })
         };
-    }, [yFilteredData, sanitizedXStep]);
+    }, [yFilteredData, sanitizedXStep, xRanges, xMin, xMax]);
 
     const handleZoomComplete = (bounds: { minRow: number, maxRow: number, minCol: number, maxCol: number }) => {
         const hasX = xRanges.length > 0;
         const hasY = yRanges.length > 0;
 
-        const stride = Math.max(1, Math.floor(sanitizedXStep));
-        const xOffset = 0; // we keep full X in view; mapping uses stride only
+        const xOffset = 0;
         const yOffset = hasY ? Math.floor(yRanges[0].range[0]) : 0;
 
-        const absMinCol = Math.max(xMin, Math.min(xMax, xOffset + bounds.minCol * stride));
-        const absMaxCol = Math.max(xMin, Math.min(xMax, xOffset + bounds.maxCol * stride));
+        // bounds.minCol/maxCol are absolute x values from data
+        const absMinCol = Math.max(xMin, Math.min(xMax, xOffset + bounds.minCol));
+        const absMaxCol = Math.max(xMin, Math.min(xMax, xOffset + bounds.maxCol));
         const absMinRow = Math.max(yMin, Math.min(yMax, yOffset + bounds.minRow));
         const absMaxRow = Math.max(yMin, Math.min(yMax, yOffset + bounds.maxRow));
 
@@ -255,8 +260,6 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
                     selectionMode={isZoomSelecting ? 'zoom' : 'annotation'}
                     selectionEnabled={true}
                     onZoomComplete={handleZoomComplete}
-                    dimXBinsRange={dimXBinsRange}
-                    dimYRowsRange={null}
                 />
             </div>
         </div>
