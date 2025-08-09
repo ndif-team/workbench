@@ -18,7 +18,6 @@ interface HeatmapCardProps {
 }
 
 
-
 export const HeatmapCard = ({ data }: HeatmapCardProps) => {
     const [title, setTitle] = useState("");
     const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -57,8 +56,9 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
         if (xRanges.length === 0) {
             setXStepInput(defaultXStep);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [defaultXStep]);
+
+    const sanitizedXStep = Number.isFinite(xStepInput) && xStepInput > 0 ? xStepInput : 1;
 
     // Default Y to last 10 tokens when empty
     useEffect(() => {
@@ -70,15 +70,11 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [yMax]);
 
-    // Filter the heatmap data based on selected ranges
+    // Filter the heatmap data based on selected ranges and apply stepping
     const filteredData = useMemo(() => {
-        // If no ranges selected, return all data
-        if (xRanges.length === 0 && yRanges.length === 0) {
-            return data;
-        }
-
         const xRange = xRanges[0]?.range || [xMin, xMax];
         const yRange = yRanges[0]?.range || [yMin, yMax];
+        const stride = Math.max(1, Math.floor(sanitizedXStep));
 
         return {
             ...data,
@@ -88,15 +84,27 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
                     const inYRange = yIndex >= yRange[0] && yIndex <= yRange[1];
                     if (!inYRange) return null;
 
-                    // Filter cells based on X range
+                    // Apply X range filtering and stepping
+                    const filteredAndSampled = row.data
+                        .map((cell, idx) => ({ cell, idx }))
+                        .filter(({ idx }) => {
+                            // First check if within X range
+                            const inXRange = idx >= xRange[0] && idx <= xRange[1];
+                            if (!inXRange) return false;
+                            // Then apply stepping (take every Nth element)
+                            const relativeIdx = idx - xRange[0];
+                            return relativeIdx % stride === 0;
+                        })
+                        .map(({ cell }) => cell);
+
                     return {
                         ...row,
-                        data: row.data.filter((_, xIndex) => xIndex >= xRange[0] && xIndex <= xRange[1])
+                        data: filteredAndSampled
                     };
                 })
                 .filter(row => row !== null) as typeof data.rows
         };
-    }, [data, xRanges, yRanges, xMin, xMax, yMin, yMax]);
+    }, [data, xRanges, yRanges, xMin, xMax, yMin, yMax, sanitizedXStep]);
 
     const handleZoomComplete = (bounds: { minRow: number, maxRow: number, minCol: number, maxCol: number }) => {
         const hasX = xRanges.length > 0;
@@ -127,8 +135,6 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
 
         setIsZoomSelecting(false);
     };
-
-    const sanitizedXStep = Number.isFinite(xStepInput) && xStepInput > 0 ? xStepInput : 1;
 
     const handleReset = () => {
         setXRanges([]);
