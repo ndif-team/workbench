@@ -5,6 +5,7 @@ import { RangeSelector } from "../RangeSelector";
 import { Button } from "@/components/ui/button";
 import { Search, RotateCcw } from "lucide-react";
 import { useAnnotations } from "@/stores/useAnnotations";
+import { useLensWorkspace } from "@/stores/useLensWorkspace";
 
 type Range = [number, number];
 type RangeWithId = {
@@ -28,6 +29,7 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
     const [isZoomSelecting, setIsZoomSelecting] = useState(false);
 
     const { setPendingAnnotation } = useAnnotations();
+    const { tokenData } = useLensWorkspace();
 
     // Calculate the bounds for the range selectors
     const xMax = useMemo(() => {
@@ -68,43 +70,33 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [yMax]);
 
-    // Filter the heatmap data based on selected ranges (only Y filtering; X stays full and is visually dimmed)
-    const yFilteredData = useMemo(() => {
-        if (yRanges.length === 0) return data;
+    // Filter the heatmap data based on selected ranges
+    const filteredData = useMemo(() => {
+        // If no ranges selected, return all data
+        if (xRanges.length === 0 && yRanges.length === 0) {
+            return data;
+        }
+
+        const xRange = xRanges[0]?.range || [xMin, xMax];
+        const yRange = yRanges[0]?.range || [yMin, yMax];
 
         return {
             ...data,
             rows: data.rows
                 .map((row, yIndex) => {
-                    const inYRange = yRanges.some(r => yIndex >= r.range[0] && yIndex <= r.range[1]);
+                    // Check if this row index is within Y range
+                    const inYRange = yIndex >= yRange[0] && yIndex <= yRange[1];
                     if (!inYRange) return null;
-                    return row;
+
+                    // Filter cells based on X range
+                    return {
+                        ...row,
+                        data: row.data.filter((_, xIndex) => xIndex >= xRange[0] && xIndex <= xRange[1])
+                    };
                 })
                 .filter(row => row !== null) as typeof data.rows
         };
-    }, [data, yRanges]);
-
-    // Downsample X axis according to step by taking every Nth column, and dim outside X selection by zeroing y
-    const displayedData = useMemo(() => {
-        const stride = Math.max(1, Math.floor(sanitizedXStep));
-        const hasXRange = xRanges.length > 0;
-        const [xSelStart, xSelEnd] = hasXRange ? xRanges[0].range : [xMin, xMax];
-        if (!yFilteredData.rows.length || !yFilteredData.rows[0].data.length) return yFilteredData;
-
-        return {
-            ...yFilteredData,
-            rows: yFilteredData.rows.map((row) => {
-                const sampled = row.data
-                    .map((cell, idx) => ({ cell, idx }))
-                    .filter(({ idx }) => idx % stride === 0)
-                    .map(({ cell, idx }) => {
-                        const inX = idx >= xSelStart && idx <= xSelEnd;
-                        return { ...cell, y: inX ? cell.y : 0 };
-                    });
-                return { ...row, data: sampled };
-            })
-        };
-    }, [yFilteredData, sanitizedXStep, xRanges, xMin, xMax]);
+    }, [data, xRanges, yRanges, xMin, xMax, yMin, yMax]);
 
     const handleZoomComplete = (bounds: { minRow: number, maxRow: number, minCol: number, maxCol: number }) => {
         const hasX = xRanges.length > 0;
@@ -113,7 +105,6 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
         const xOffset = 0;
         const yOffset = hasY ? Math.floor(yRanges[0].range[0]) : 0;
 
-        // bounds.minCol/maxCol are absolute x values from data
         const absMinCol = Math.max(xMin, Math.min(xMax, xOffset + bounds.minCol));
         const absMaxCol = Math.max(xMin, Math.min(xMax, xOffset + bounds.maxCol));
         const absMinRow = Math.max(yMin, Math.min(yMax, yOffset + bounds.minRow));
@@ -144,20 +135,14 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
         setYRanges([]);
         setIsZoomSelecting(false);
         setPendingAnnotation(null);
+        // reset step to default showing at most 10 layers
+        setXStepInput(defaultXStep);
     };
 
-    // Compute dim ranges in the currently displayed data space for X only
-    const dimXBinsRange: [number, number] | null = useMemo(() => {
-        if (xRanges.length === 0) return null;
-        const stride = Math.max(1, Math.floor(sanitizedXStep));
-        const [minXSel, maxXSel] = xRanges[0].range;
-        const diStart = Math.ceil(minXSel / stride);
-        const diEnd = Math.floor(maxXSel / stride);
-        if (diEnd < diStart) return null;
-        return [diStart, diEnd];
-    }, [xRanges, sanitizedXStep]);
-
-    // Y dimming omitted since we filter Y rows for clarity and performance
+    const formatYValue = (v: number) => {
+        const token = tokenData?.[v]?.text ?? "";
+        return token ? `${token} (${v})` : String(v);
+    };
 
     return (
         <div className="flex flex-col h-full m-2 border rounded bg-muted">
@@ -225,6 +210,7 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
                         onRangesChange={setYRanges}
                         maxRanges={1}
                         axisLabel="Y Range"
+                        formatValue={formatYValue}
                     />
 
                     <Button
@@ -256,7 +242,7 @@ export const HeatmapCard = ({ data }: HeatmapCardProps) => {
             </div>
             <div className="flex h-[90%] w-full">
                 <Heatmap
-                    data={displayedData}
+                    data={filteredData}
                     selectionMode={isZoomSelecting ? 'zoom' : 'annotation'}
                     selectionEnabled={true}
                     onZoomComplete={handleZoomComplete}
