@@ -9,11 +9,8 @@ export function tokenizeLocal(text: string): Token[] {
     const parts = text.match(regex) || [];
     let idx = 0;
     for (const part of parts) {
-        // Merge consecutive whitespace except newlines into single space token
+        // Skip whitespace segments except newlines; keep newlines as their own token(s)
         if (/^\s+$/.test(part) && !/\n/.test(part)) {
-            const trimmed = " ";
-            tokens.push({ idx, id: idx, text: trimmed, targetIds: [] });
-            idx++;
             continue;
         }
         tokens.push({ idx, id: idx, text: part, targetIds: [] });
@@ -122,6 +119,44 @@ export function computeInitialDiffGroups(src: Token[], dst: Token[]): { sourceGr
     const sourceGroups: RangeGroup[] = collapseToGroups(differingA);
     const destGroups: RangeGroup[] = collapseToGroups(differingB);
     return { sourceGroups, destGroups };
+}
+
+// Compute initial alignment groups based purely on token counts.
+// If lengths are equal → no groups. If one side is longer by d tokens,
+// create a single contiguous group of size (d + 1) on the longer side
+// starting at the first mismatch index (case-insensitive), and a single-token
+// group at the same index on the shorter side.
+export function computeInitialAlignGroups(src: Token[], dst: Token[]): { sourceGroups: RangeGroup[]; destGroups: RangeGroup[] } {
+    const n = src.length;
+    const m = dst.length;
+    if (n === 0 || m === 0) return { sourceGroups: [], destGroups: [] };
+    if (n === m) return { sourceGroups: [], destGroups: [] };
+
+    const a = src.map(t => t.text.toLowerCase());
+    const b = dst.map(t => t.text.toLowerCase());
+
+    const minLen = Math.min(n, m);
+    let idx = 0;
+    while (idx < minLen && a[idx] === b[idx]) idx++;
+    if (idx >= minLen) idx = minLen - 1; // all matched up to shorter length; place group at last common index
+
+    if (n > m) {
+        const d = n - m;
+        const start = idx;
+        const end = Math.min(n - 1, idx + d); // group d+1 tokens when possible
+        return {
+            sourceGroups: [{ start, end }],
+            destGroups: [{ start: idx, end: idx }],
+        };
+    } else {
+        const d = m - n;
+        const start = idx;
+        const end = Math.min(m - 1, idx + d);
+        return {
+            sourceGroups: [{ start: idx, end: idx }],
+            destGroups: [{ start, end }],
+        };
+    }
 }
 
 function collapseToGroups(flags: boolean[]): RangeGroup[] {

@@ -4,6 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import PatchControls from "./PatchControls";
 import PatchProvider, { usePatch } from "./PatchProvider";
 import TokenStrip from "./TokenStrip";
+import React, { useRef } from "react";
+import ConnectionsOverlay from "./ConnectionsOverlay";
 
 function InnerSimplePatchArea() {
     const {
@@ -15,7 +17,10 @@ function InnerSimplePatchArea() {
         setIsEditing,
         notAligned,
         isAlignMode,
+        isConnectMode,
     } = usePatch();
+
+    const containerRef = useRef<HTMLDivElement>(null);
 
     return (
         <div className="flex flex-col p-2 gap-2">
@@ -37,7 +42,7 @@ function InnerSimplePatchArea() {
                     />
                 </div>
             ) : (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 relative" ref={containerRef}>
                     {isAlignMode && notAligned && (
                         <div className="text-amber-600 text-sm">Not aligned: group counts do not match</div>
                     )}
@@ -47,6 +52,7 @@ function InnerSimplePatchArea() {
                     <div className="flex flex-col w-full px-3 py-2 border rounded bg-card">
                         <TokenStrip side="destination" />
                     </div>
+                    {isConnectMode && <ConnectionsOverlay containerRef={containerRef} />}
                 </div>
             )}
         </div>

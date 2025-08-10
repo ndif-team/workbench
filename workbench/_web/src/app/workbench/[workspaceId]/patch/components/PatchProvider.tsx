@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Token } from "@/types/models";
-import { computeInitialDiffGroups, tokenizeLocal } from "./tokenUtils";
+import { computeInitialAlignGroups, tokenizeLocal } from "./tokenUtils";
 
 export type PatchSide = "source" | "destination";
 
@@ -165,7 +165,7 @@ export default function PatchProvider({ children }: { children: React.ReactNode 
         clearSelections();
         // Auto-initialize alignment groups to diff regions
         if (src.length > 0 && dst.length > 0) {
-            const { sourceGroups, destGroups } = computeInitialDiffGroups(src, dst);
+            const { sourceGroups, destGroups } = computeInitialAlignGroups(src, dst);
             setSourceAlignGroups(sourceGroups);
             setDestAlignGroups(destGroups);
         }
