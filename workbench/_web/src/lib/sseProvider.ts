@@ -63,7 +63,13 @@ interface SSEData<T> {
   data: T;
 }
 
-const listenToSSE = <T>(url: string): Promise<T> => {
+const listenToSSE = async <T>(url: string): Promise<T> => {
+  // E2E fallback: fetch JSON once instead of establishing SSE
+  if (process.env.NEXT_PUBLIC_E2E === 'true') {
+    const response = await fetch(`${config.backendUrl}${url}`);
+    return (await response.json()) as T;
+  }
+
   return new Promise((resolve, reject) => {
     let result: T | null = null;
     const { setJobStatus } = useWorkspace.getState();

@@ -4,7 +4,22 @@ import postgres from 'postgres';
 
 config({ path: '.env' }); // or .env.local
 
-const connectionString = process.env.DATABASE_URL!;
+const isE2E = process.env.NEXT_PUBLIC_E2E === 'true';
 
-const client = postgres(connectionString, { prepare: false })
-export const db = drizzle({ client });
+let dbImpl: ReturnType<typeof drizzle>;
+
+if (isE2E) {
+  // @ts-ignore - provide a very small mock API used in server actions
+  dbImpl = {
+    select: () => ({ from: () => ({ where: () => [], innerJoin: () => [], orderBy: () => [], limit: () => [] }) }),
+    update: () => ({ set: () => ({ where: () => ({}) }) }),
+    insert: () => ({ values: () => ({ returning: () => [{ id: 'e2e-id', createdAt: new Date().toISOString() }] }) }),
+    delete: () => ({ where: () => ({}) }),
+  } as unknown as ReturnType<typeof drizzle>;
+} else {
+  const connectionString = process.env.DATABASE_URL!;
+  const client = postgres(connectionString, { prepare: false });
+  dbImpl = drizzle({ client });
+}
+
+export const db = dbImpl;

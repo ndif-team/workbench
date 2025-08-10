@@ -10,6 +10,10 @@ export function LogoutButton() {
     const router = useRouter();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+    if (process.env.NEXT_PUBLIC_E2E === "true") {
+        return null;
+    }
+
     const handleLogout = async () => {
         setIsLoggingOut(true);
         const supabase = createClient();

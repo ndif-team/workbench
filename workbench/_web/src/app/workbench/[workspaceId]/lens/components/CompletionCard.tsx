@@ -155,6 +155,8 @@ export function CompletionCard({ initialConfig }: CompletionCardProps) {
                         onKeyDown={handleKeyDown}
                         className="w-full h-24"
                         placeholder="Enter your prompt here."
+                        data-testid="prompt-textarea"
+                        aria-label="Prompt Textarea"
                     />
                 ) : (
                     <div
@@ -162,6 +164,8 @@ export function CompletionCard({ initialConfig }: CompletionCardProps) {
                             "flex w-full h-24 px-3 py-2 border overflow-y-auto",
                             showTokenArea ? "rounded-t-lg" : "rounded-lg"
                         )}
+                        data-testid="token-area-container"
+                        aria-label="Token Area Container"
                     >
                         <TokenArea
                             config={config}
@@ -177,6 +181,8 @@ export function CompletionCard({ initialConfig }: CompletionCardProps) {
                     id="tokenize-button"
                     onClick={handleTokenize}
                     className="absolute bottom-2 right-2"
+                    data-testid="tokenize-button"
+                    aria-label="Tokenize"
                 >
                     Tokenize
                 </Button>
@@ -191,6 +197,8 @@ export function CompletionCard({ initialConfig }: CompletionCardProps) {
                         <Button
                             size="icon"
                             onClick={handleCreateHeatmap}
+                            data-testid="create-heatmap-button"
+                            aria-label="Create Heatmap"
                         >
                             <Grid3x3 className="w-4 h-4" />
                         </Button>
@@ -198,6 +206,8 @@ export function CompletionCard({ initialConfig }: CompletionCardProps) {
                             size="icon"
                             onClick={handleCreateLineChart}
                             disabled={config.token.targetIds.length === 0}
+                            data-testid="create-line-button"
+                            aria-label="Create Line Chart"
                         >
                             <ChartLine className="w-4 h-4" />
                         </Button>
@@ -208,39 +218,6 @@ export function CompletionCard({ initialConfig }: CompletionCardProps) {
                         />
                     </div>
 
-                    {/* <div className="flex gap-2 ml-4">
-                        {!isSelectingToken ? (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    setIsSelectingToken(true);
-                                }}
-                                className="text-xs"
-                            >
-                                Reselect
-                            </Button>
-                        ) : (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    setIsSelectingToken(false);
-                                }}
-                                className="text-xs"
-                            >
-                                Cancel
-                            </Button>
-                        )}
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={handleClear}
-                            className="text-xs"
-                        >
-                            <RotateCcw className="w-4 h-4" />
-                        </Button>
-                    </div> */}
                 </div>
             )}
         </div>

@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  if (process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_E2E === 'true') {
+  if (process.env.NEXT_PUBLIC_E2E === 'true') {
     return NextResponse.next({ request })
   }
   return await updateSession(request)

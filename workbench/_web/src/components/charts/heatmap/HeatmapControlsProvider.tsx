@@ -231,7 +231,7 @@ export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = (
 
     return (
         <HeatmapControlsContext.Provider value={contextValue}>
-            <div className="flex h-[10%] gap-2 p-4 lg:p-8 justify-between">
+            <div className="flex h-[10%] gap-2 p-4 lg:p-8 justify-between" data-testid="heatmap-controls">
                 {isEditingTitle ? (
                     <input
                         value={title}
@@ -245,11 +245,13 @@ export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = (
                         placeholder="Untitled Chart"
                         className="text-xl font-bold p-0 m-0 border-primary border overflow-clip rounded bg-transparent w-64"
                         autoFocus
+                        aria-label="Chart Title"
                     />
                 ) : (
                     <h1
                         className="text-xl font-bold cursor-pointer border rounded border-transparent w-64 overflow-clip items-center flex hover:border-border transition-opacity p-0 m-0"
                         onClick={() => setIsEditingTitle(true)}
+                        data-testid="chart-title"
                     >
                         {title || "Untitled Chart"}
                     </h1>
@@ -282,6 +284,7 @@ export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = (
                             className="w-20 h-8 border rounded px-2 text-xs bg-background"
                             aria-label="X Range Step"
                             title="X Range Step"
+                            data-testid="x-range-step"
                         />
                     </div>
 
@@ -300,11 +303,13 @@ export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = (
                         onClick={() => toggleZoomSelecting()}
                         aria-pressed={isZoomSelecting}
                         title={isZoomSelecting ? "Exit zoom selection" : "Enter zoom selection"}
+                        data-testid="zoom-toggle"
+                        aria-label="Toggle Zoom Selection"
                     >
                         <Search className="w-4 h-4" />
                     </Button>
 
-                    <Button variant="outline" size="icon" onClick={handleReset} title="Reset ranges">
+                    <Button variant="outline" size="icon" onClick={handleReset} title="Reset ranges" data-testid="reset-ranges" aria-label="Reset Ranges">
                         <RotateCcw className="w-4 h-4" />
                     </Button>
                 </div>

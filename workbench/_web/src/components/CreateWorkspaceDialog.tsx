@@ -54,11 +54,11 @@ export function CreateWorkspaceDialog({ userId }: CreateWorkspaceDialogProps) {
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                <Button className="px-4 py-2">
+                <Button className="px-4 py-2" data-testid="create-workspace-open">
                     Create Workspace
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px]" aria-label="Create Workspace Dialog">
                 <DialogHeader>
                     <DialogTitle>Create New Workspace</DialogTitle>
                     <DialogDescription>
@@ -74,6 +74,8 @@ export function CreateWorkspaceDialog({ userId }: CreateWorkspaceDialogProps) {
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Enter workspace name..."
                             required
+                            data-testid="create-workspace-input"
+                            aria-label="Workspace Name"
                         />
                     </div>
                 </div>
@@ -83,12 +85,16 @@ export function CreateWorkspaceDialog({ userId }: CreateWorkspaceDialogProps) {
                         variant="outline"
                         onClick={() => setOpen(false)}
                         disabled={createWorkspaceMutation.isPending}
+                        data-testid="create-workspace-cancel"
+                        aria-label="Cancel Create Workspace"
                     >
                         Cancel
                     </Button>
                     <Button 
                         onClick={handleSubmit}
                         disabled={!name.trim() || createWorkspaceMutation.isPending}
+                        data-testid="create-workspace-confirm"
+                        aria-label="Confirm Create Workspace"
                     >
                         {createWorkspaceMutation.isPending ? "Creating..." : "Create Workspace"}
                     </Button>

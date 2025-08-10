@@ -17,7 +17,14 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
 
     const { data: workspaces, isLoading } = useQuery({
         queryKey: ["workspaces"],
-        queryFn: () => getWorkspaces(userId),
+        queryFn: async () => {
+            if (process.env.NEXT_PUBLIC_E2E === "true") {
+                return [
+                    { id: "ws-e2e-1", name: "E2E Workspace", userId, public: false },
+                ];
+            }
+            return getWorkspaces(userId);
+        },
     });
 
     const handleDeleteWorkspace = (e: React.MouseEvent, workspaceId: string) => {
@@ -38,23 +45,25 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
 
     return (
         <>
-            <div className="flex justify-end mb-6">
+            <div className="flex justify-end mb-6" data-testid="workspaces-header">
                 <CreateWorkspaceDialog userId={userId} />
             </div>
             
             {!workspaces || workspaces.length === 0 ? (
-                <div className="text-center py-8">
+                <div className="text-center py-8" data-testid="workspaces-empty-state">
                     <p className="text-muted-foreground mb-4">No workspaces found</p>
                     <p className="text-sm text-muted-foreground/70">Create a new workspace to get started</p>
                 </div>
             ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-4" data-testid="workspaces-list">
                     {workspaces.map((workspace) => {
                         return (
                             <Link
                                 key={workspace.id}
                                 href={`/workbench/${workspace.id}/lens`}
                                 className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                                data-testid={`workspace-item-${workspace.id}`}
+                                aria-label={`Open workspace ${workspace.name}`}
                             >
                                 <div className="flex justify-between items-start">
                                     <div>
@@ -76,6 +85,8 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
                                             size="sm"
                                             onClick={(e) => handleDeleteWorkspace(e, workspace.id)}
                                             className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                            aria-label={`Delete workspace ${workspace.name}`}
+                                            data-testid={`workspace-delete-${workspace.id}`}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>

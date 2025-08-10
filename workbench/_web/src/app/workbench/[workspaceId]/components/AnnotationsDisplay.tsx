@@ -93,7 +93,7 @@ export function AnnotationsDisplay() {
 
     return (
         <>
-            <div className="h-12 px-3 py-2 border-b items-center flex">
+            <div className="h-12 px-3 py-2 border-b items-center flex" data-testid="annotations-header">
                 Annotations
             </div>
 
@@ -101,7 +101,7 @@ export function AnnotationsDisplay() {
 
 
                 {pendingAnnotation && (
-                    <Card className="p-4 mb-2 rounded">
+                    <Card className="p-4 mb-2 rounded" data-testid="pending-annotation-card">
                         <div className="space-y-3">
                             <div>
                                 <div className="flex items-center gap-2 text-sm font-medium mb-1">
@@ -118,6 +118,8 @@ export function AnnotationsDisplay() {
                                 value={annotationText}
                                 onChange={(e) => setAnnotationText(e.target.value)}
                                 className="min-h-[80px]"
+                                data-testid="annotation-textarea"
+                                aria-label="Annotation Text"
                             />
 
                             <div className="flex gap-2">
@@ -126,6 +128,8 @@ export function AnnotationsDisplay() {
                                     onClick={handleSaveAnnotation}
                                     disabled={!annotationText.trim() || isCreating}
                                     className="flex-1"
+                                    data-testid="annotation-save"
+                                    aria-label="Save Annotation"
                                 >
                                     Save
                                 </Button>
@@ -135,6 +139,8 @@ export function AnnotationsDisplay() {
                                     onClick={handleCancelAnnotation}
                                     disabled={isCreating}
                                     className="flex-1"
+                                    data-testid="annotation-cancel"
+                                    aria-label="Cancel Annotation"
                                 >
                                     Cancel
                                 </Button>
@@ -146,14 +152,14 @@ export function AnnotationsDisplay() {
                 <ScrollArea className="flex-1">
                     <div className="space-y-2">
                         {annotations.length === 0 && !pendingAnnotation && (
-                            <div className="text-center py-8 text-muted-foreground">
+                            <div className="text-center py-8 text-muted-foreground" data-testid="annotations-empty">
                                 <p className="text-sm">No annotations yet</p>
                                 <p className="text-xs mt-1">Click on the chart to add annotations</p>
                             </div>
                         )}
 
                         {annotations.map((annotation) => (
-                            <Card key={annotation.id} className="p-3 rounded">
+                            <Card key={annotation.id} className="p-3 rounded" data-testid={`annotation-item-${annotation.id}`}>
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
@@ -174,6 +180,8 @@ export function AnnotationsDisplay() {
                                         variant="ghost"
                                         className="h-6 w-6 p-0 flex-shrink-0"
                                         onClick={() => handleDeleteAnnotation(annotation.id)}
+                                        data-testid={`annotation-delete-${annotation.id}`}
+                                        aria-label={`Delete annotation ${annotation.id}`}
                                     >
                                         <X className="h-3 w-3" />
                                     </Button>

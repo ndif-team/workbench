@@ -4,12 +4,15 @@
   "private": true,
   "scripts": {
     "copy-env": "node scripts/copy-env.js",
-    "dev": "npm run copy-env && next dev -p 3000 --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "format": "prettier --write .",
-    "knip": "knip"
+    "dev": "node scripts/copy-env.js && bunx next dev -p 3000 --turbopack",
+    "build": "bunx next build",
+    "start": "bunx next start",
+    "lint": "bunx next lint",
+    "format": "bunx prettier --write .",
+    "knip": "bunx knip",
+    "test:e2e": "bunx playwright test",
+    "test:e2e:ui": "bunx playwright test --ui",
+    "test:e2e:codegen": "bunx playwright codegen http://localhost:3000"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.10.0",
@@ -84,6 +87,7 @@
     "knip": "^5.62.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "@playwright/test": "^1.48.0"
   }
 }
