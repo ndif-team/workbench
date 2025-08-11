@@ -1,8 +1,10 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { LineGraphData } from "@/types/charts";
 import { Line } from "./Line";
 import { RangeSelector } from "../RangeSelector";
 import { useSetChartTitle } from "@/lib/api/chartApi";
+import { Button } from "@/components/ui/button";
+import { toPng } from "html-to-image";
 
 type Range = [number, number];
 type RangeWithId = {
@@ -20,6 +22,7 @@ export const LineCard = ({ data, chartId, initialTitle = "" }: LineCardProps) =>
     const [title, setTitle] = useState(initialTitle);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const { mutate: saveTitle } = useSetChartTitle();
+    const captureRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
         setTitle(initialTitle || "");
@@ -81,6 +84,23 @@ export const LineCard = ({ data, chartId, initialTitle = "" }: LineCardProps) =>
         }
     };
 
+    const handleExportPng = async () => {
+        if (!captureRef.current) return;
+        try {
+            const dataUrl = await toPng(captureRef.current, {
+                cacheBust: true,
+                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--background") || "#ffffff",
+                pixelRatio: 2,
+            });
+            const link = document.createElement("a");
+            link.download = `${title || "chart"}.png`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error("Failed to export PNG", err);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full m-2 border rounded bg-muted">
             <div className="flex h-[10%] gap-2 p-4 lg:p-8 justify-between">
@@ -126,9 +146,10 @@ export const LineCard = ({ data, chartId, initialTitle = "" }: LineCardProps) =>
                         axisLabel="Y Range"
                         step={0.01}
                     />
+                    <Button variant="outline" size="sm" onClick={handleExportPng}>Export PNG</Button>
                 </div>
             </div>
-            <div className="flex h-[90%] w-full">
+            <div className="flex h=[90%] w-full" ref={captureRef}>
                 <Line 
                     data={filteredData}
                     yRange={yRange}

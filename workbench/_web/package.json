@@ -41,8 +41,6 @@
     "@types/d3": "^7.4.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/sortablejs": "^1.15.8",
-    "@uiw/react-markdown-preview": "^5.1.5",
-    "@uiw/react-md-editor": "^4.0.8",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -72,7 +70,10 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^11.1.0",
     "zod": "^3.25.74",
-    "zustand": "^5.0.5"
+    "zustand": "^5.0.5",
+    "@uiw/react-md-editor": "^4.0.3",
+    "@uiw/react-markdown-preview": "^5.1.0",
+    "html-to-image": "^1.11.11"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
