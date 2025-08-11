@@ -4,6 +4,7 @@ import { useAnnotations } from "@/stores/useAnnotations";
 import { Button } from "@/components/ui/button";
 import { RangeSelector } from "../RangeSelector";
 import { Search, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 
 
 type Range = [number, number];
@@ -61,9 +62,11 @@ export const useHeatmapControls = () => {
 interface HeatmapControlsProviderProps {
     data: HeatmapData;
     children: ReactNode;
+    chartId?: string;
+    initialName?: string;
 }
 
-export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = ({ data, children }) => {
+export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = ({ data, children, chartId, initialName }) => {
     // Calculate bounds
     const bounds = useMemo(() => {
         const xMax = data.rows.length && data.rows[0].data.length ? data.rows[0].data.length - 1 : 100;
@@ -206,6 +209,24 @@ export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = (
     const [title, setTitle] = useState("");
     const [isEditingTitle, setIsEditingTitle] = useState(false);
 
+    useEffect(() => {
+        setTitle(initialName || "");
+    }, [initialName]);
+
+    const handleTitleBlur = async () => {
+        setIsEditingTitle(false);
+        if (!chartId) return;
+        try {
+            await fetch(`/api/charts/${chartId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: title || "Untitled Chart" }),
+            });
+            toast.success("Saved");
+        } catch (e) {
+            toast.error("Failed to save title");
+        }
+    };
 
     const contextValue: HeatmapControlsContextValue = {
         // Range State
@@ -213,15 +234,12 @@ export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = (
         yRanges,
         setXRanges,
         setYRanges,
-
         // Step State
         xStepInput,
         setXStepInput,
-
         // Computed Values
         bounds,
         filteredData,
-
         // Zoom State
         isZoomSelecting,
         setIsZoomSelecting,
@@ -236,10 +254,10 @@ export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = (
                     <input
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        onBlur={() => setIsEditingTitle(false)}
+                        onBlur={handleTitleBlur}
                         onKeyDown={(e) => {
                             if (e.key === "Enter") {
-                                setIsEditingTitle(false);
+                                (e.target as HTMLInputElement).blur();
                             }
                         }}
                         placeholder="Untitled Chart"
@@ -300,7 +318,6 @@ export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = (
                         className="h-8 w-8"
                         onClick={() => toggleZoomSelecting()}
                         aria-pressed={isZoomSelecting}
-
                         title={isZoomSelecting ? "Exit zoom selection" : "Enter zoom selection"}
                     >
                         <Search className="w-4 h-4" />

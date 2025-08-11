@@ -13,7 +13,7 @@ export default function ChartCardsSidebar() {
     const router = useRouter();
     const { activeTab, setActiveTab, selectedModel } = useWorkspace();
 
-    const { data: charts, isLoading } = useQuery<ToolTypedChart[]>({
+    const { data: charts = [], isLoading } = useQuery<ToolTypedChart[]>({
         queryKey: ["chartsForSidebar", workspaceId],
         queryFn: () => getChartsForSidebar(workspaceId as string),
     });

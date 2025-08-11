@@ -21,7 +21,9 @@ export const charts = pgTable("charts", {
 
     data: jsonb("data").$type<ChartData>(),
     type: varchar("type", { enum: chartTypes, length: 32 }),
+    name: varchar("name", { length: 256 }).notNull().default("Untitled Chart"),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
 
 export const configTypes = [
@@ -57,6 +59,15 @@ export const annotations = pgTable("annotations", {
     type: varchar("type", { enum: annotationTypes, length: 32 }).notNull(),
 });
 
+// New documents table for Overview content per workspace
+export const documents = pgTable("documents", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }).notNull().unique(),
+    content: jsonb("content").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
 // Generate types from schema
 export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
@@ -72,6 +83,9 @@ export type NewChartConfigLink = typeof chartConfigLinks.$inferInsert;
 
 export type Annotation = typeof annotations.$inferSelect;
 export type NewAnnotation = typeof annotations.$inferInsert;
+
+export type Document = typeof documents.$inferSelect;
+export type NewDocument = typeof documents.$inferInsert;
 
 // Specific chart config types
 export type LensConfig = Omit<Config, 'data'> & {

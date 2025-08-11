@@ -1,7 +1,17 @@
-import { useState, useMemo, type RefObject } from "react";
+import { useState, useMemo, type RefObject, useEffect } from "react";
 import { LineGraphData } from "@/types/charts";
 import { Line } from "./Line";
 import { RangeSelector } from "../RangeSelector";
+import { toast } from "sonner";
+
+// Helper to update chart name
+async function updateChartName(chartId: string, name: string) {
+    await fetch(`/api/charts/${chartId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+    });
+}
 
 type Range = [number, number];
 type RangeWithId = {
@@ -12,11 +22,17 @@ type RangeWithId = {
 interface LineCardProps {
     data: LineGraphData;
     captureRef?: RefObject<HTMLDivElement>;
+    chartId?: string;
+    initialName?: string;
 }
 
-export const LineCard = ({ data, captureRef }: LineCardProps) => {
-    const [title, setTitle] = useState("");
+export const LineCard = ({ data, captureRef, chartId, initialName }: LineCardProps) => {
+    const [title, setTitle] = useState(initialName || "");
     const [isEditingTitle, setIsEditingTitle] = useState(false);
+
+    useEffect(() => {
+        setTitle(initialName || "");
+    }, [initialName]);
 
     const [xRanges, setXRanges] = useState<RangeWithId[]>([]);
     const [yRanges, setYRanges] = useState<RangeWithId[]>([]);
@@ -67,6 +83,17 @@ export const LineCard = ({ data, captureRef }: LineCardProps) => {
         };
     }, [data, xRange]);
 
+    const handleTitleBlur = async () => {
+        setIsEditingTitle(false);
+        if (!chartId) return;
+        try {
+            await updateChartName(chartId, title || "Untitled Chart");
+            toast.success("Saved");
+        } catch (e) {
+            toast.error("Failed to save title");
+        }
+    };
+
     return (
         <div className="flex flex-col h-full m-2 border rounded bg-muted">
             <div className="flex h-[10%] gap-2 p-4 lg:p-8 justify-between">
@@ -74,10 +101,10 @@ export const LineCard = ({ data, captureRef }: LineCardProps) => {
                     <input
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        onBlur={() => setIsEditingTitle(false)}
+                        onBlur={handleTitleBlur}
                         onKeyDown={(e) => {
                             if (e.key === "Enter") {
-                                setIsEditingTitle(false);
+                                (e.target as HTMLInputElement).blur();
                             }
                         }}
                         placeholder="Untitled Chart"

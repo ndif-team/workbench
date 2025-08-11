@@ -33,31 +33,30 @@ export function ChartDisplay() {
     const handleCopyPng = useCallback(async () => {
         if (!captureRef.current) return;
         try {
-            const blob = await toBlob(captureRef.current, {
-                cacheBust: true,
-                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--background") || "#ffffff",
-                pixelRatio: 2,
-            });
+            const blob = await toBlob(captureRef.current);
             if (!blob) return;
-            type ClipboardItemCtor = new (items: Record<string, Blob>) => ClipboardItem;
-            const ClipboardItemClass = (globalThis as unknown as { ClipboardItem?: ClipboardItemCtor }).ClipboardItem;
-            if (!ClipboardItemClass) {
-                console.error("Clipboard image write is not supported in this browser.");
-                return;
-            }
-            const item = new ClipboardItemClass({ "image/png": blob });
-            await navigator.clipboard.write([item as unknown as ClipboardItem]);
-            toast.success("Copied to clipboard");
-        } catch (err) {
-            console.error("Failed to copy PNG", err);
+            await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+            toast.success("Chart copied as PNG");
+        } catch (error) {
+            toast.error("Failed to copy image");
         }
     }, []);
 
-    if (isLoadingSingle) return (
-        <div className="flex-1 flex h-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-    );
+    if (isLoadingSingle) {
+        return (
+            <div className="flex-1 flex items-center justify-center">
+                <Loader2 className="animate-spin" />
+            </div>
+        );
+    }
+
+    if (!activeChart) {
+        return (
+            <div className="flex-1 flex h-full items-center relative justify-center border m-2 border-dashed rounded">
+                <div className="text-muted-foreground">No chart data</div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex-1 flex h-full flex-col overflow-hidden custom-scrollbar relative">
@@ -74,14 +73,11 @@ export function ChartDisplay() {
             </div>
 
             {activeChart && activeChart.type === "heatmap" && (activeChart.data !== null) ? (
-                <HeatmapCard captureRef={captureRef} data={activeChart.data as HeatmapData} />
+                <HeatmapCard chartId={activeChart.id} initialName={(activeChart as any).name} captureRef={captureRef} data={activeChart.data as HeatmapData} />
             ) : activeChart && activeChart.data !== null ? (
-                <LineCard captureRef={captureRef} data={activeChart.data as LineGraphData} />
+                <LineCard chartId={activeChart.id} initialName={(activeChart as any).name} captureRef={captureRef} data={activeChart.data as LineGraphData} />
             ) : (
                 <div className="flex-1 flex h-full items-center relative justify-center border m-2 border-dashed rounded">
-                    {jobStatus !== "idle" && <BorderBeam duration={5}
-                        size={300}
-                        className="from-transparent bg-primary to-transparent" />}
                     <div className="text-muted-foreground">No chart data</div>
                 </div>
             )}
