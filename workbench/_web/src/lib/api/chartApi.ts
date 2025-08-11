@@ -1,6 +1,6 @@
 import config from "@/lib/config";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { setChartData, createChart, deleteChart, createLensChartPair, createPatchChartPair } from "@/lib/queries/chartQueries";
+import { setChartData, createChart, deleteChart, createLensChartPair, createPatchChartPair, setChartTitle } from "@/lib/queries/chartQueries";
 import sseService from "@/lib/sseProvider";
 import { LensConfigData } from "@/types/lens";
 import { PatchingConfig } from "@/types/patching";
@@ -168,3 +168,17 @@ export const useCreatePatchChartPair = () => {
         },
     });
 };
+
+export const useSetChartTitle = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ chartId, title }: { chartId: string; title: string }) => {
+            await setChartTitle(chartId, title);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["chartById"] });
+            queryClient.invalidateQueries({ queryKey: ["lensCharts"] });
+            queryClient.invalidateQueries({ queryKey: ["chartsForSidebar"] });
+        }
+    })
+}

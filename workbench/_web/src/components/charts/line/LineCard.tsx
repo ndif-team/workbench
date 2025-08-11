@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { LineGraphData } from "@/types/charts";
 import { Line } from "./Line";
 import { RangeSelector } from "../RangeSelector";
+import { useSetChartTitle } from "@/lib/api/chartApi";
 
 type Range = [number, number];
 type RangeWithId = {
@@ -11,11 +12,18 @@ type RangeWithId = {
 
 interface LineCardProps {
     data: LineGraphData
+    chartId: string;
+    initialTitle?: string;
 }
 
-export const LineCard = ({ data }: LineCardProps) => {
-    const [title, setTitle] = useState("");
+export const LineCard = ({ data, chartId, initialTitle = "" }: LineCardProps) => {
+    const [title, setTitle] = useState(initialTitle);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const { mutate: saveTitle } = useSetChartTitle();
+
+    useEffect(() => {
+        setTitle(initialTitle || "");
+    }, [initialTitle]);
 
     const [xRanges, setXRanges] = useState<RangeWithId[]>([]);
     const [yRanges, setYRanges] = useState<RangeWithId[]>([]);
@@ -66,6 +74,13 @@ export const LineCard = ({ data }: LineCardProps) => {
         };
     }, [data, xRange]);
 
+    const commitTitle = () => {
+        setIsEditingTitle(false);
+        if ((title || "").trim() !== (initialTitle || "").trim()) {
+            saveTitle({ chartId, title: title.trim() });
+        }
+    };
+
     return (
         <div className="flex flex-col h-full m-2 border rounded bg-muted">
             <div className="flex h-[10%] gap-2 p-4 lg:p-8 justify-between">
@@ -73,10 +88,10 @@ export const LineCard = ({ data }: LineCardProps) => {
                     <input
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        onBlur={() => setIsEditingTitle(false)}
+                        onBlur={commitTitle}
                         onKeyDown={(e) => {
                             if (e.key === "Enter") {
-                                setIsEditingTitle(false);
+                                commitTitle();
                             }
                         }}
                         placeholder="Untitled Chart"

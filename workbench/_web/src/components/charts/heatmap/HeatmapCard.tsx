@@ -6,12 +6,14 @@ import { CanvasProvider } from "./CanvasProvider";
 
 interface HeatmapCardProps {
     data: HeatmapData
+    chartId: string;
+    initialTitle?: string;
 }
 
-export const HeatmapCard = ({ data }: HeatmapCardProps) => {
+export const HeatmapCard = ({ data, chartId, initialTitle = "" }: HeatmapCardProps) => {
     return (
         <div className="flex flex-col h-full m-2 border rounded bg-muted">
-            <HeatmapControlsProvider data={data}>
+            <HeatmapControlsProvider data={data} chartId={chartId} initialTitle={initialTitle}>
                 <div className="flex h-[90%] w-full">
                     <CanvasProvider>
                         <Heatmap />

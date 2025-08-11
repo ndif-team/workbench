@@ -20,6 +20,7 @@ export interface HeatmapHighlight {
 export interface HeatmapData {
     rows: HeatmapRow[];
     highlights?: HeatmapHighlight[];
+    title?: string;
 }
 
 export interface Position {
@@ -34,6 +35,7 @@ export interface Line {
 
 export interface LineGraphData {
     lines: Line[];
+    title?: string;
 }
 
 export type ChartData = LineGraphData | HeatmapData;

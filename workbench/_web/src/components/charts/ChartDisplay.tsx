@@ -60,9 +60,9 @@ export function ChartDisplay() {
             </div>
 
             {activeChart && activeChart.type === "heatmap" && (activeChart.data !== null) ? (
-                <HeatmapCard data={activeChart.data as HeatmapData} />
+                <HeatmapCard data={activeChart.data as HeatmapData} chartId={activeChart.id} initialTitle={(activeChart.data as any)?.title || ""} />
             ) : activeChart && activeChart.data !== null ? (
-                <LineCard data={activeChart.data as LineGraphData} />
+                <LineCard data={activeChart.data as LineGraphData} chartId={activeChart.id} initialTitle={(activeChart.data as any)?.title || ""} />
             ) : (
                 <div className="flex-1 flex h-full items-center justify-center">
                     <div className="text-muted-foreground">No chart selected</div>

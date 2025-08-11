@@ -4,6 +4,7 @@ import { useAnnotations } from "@/stores/useAnnotations";
 import { Button } from "@/components/ui/button";
 import { RangeSelector } from "../RangeSelector";
 import { Search, RotateCcw } from "lucide-react";
+import { useSetChartTitle } from "@/lib/api/chartApi";
 
 
 type Range = [number, number];
@@ -61,9 +62,11 @@ export const useHeatmapControls = () => {
 interface HeatmapControlsProviderProps {
     data: HeatmapData;
     children: ReactNode;
+    chartId: string;
+    initialTitle?: string;
 }
 
-export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = ({ data, children }) => {
+export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = ({ data, children, chartId, initialTitle = "" }) => {
     // Calculate bounds
     const bounds = useMemo(() => {
         const xMax = data.rows.length && data.rows[0].data.length ? data.rows[0].data.length - 1 : 100;
@@ -203,8 +206,20 @@ export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = (
         setXStepInput(1);
     };
 
-    const [title, setTitle] = useState("");
+    const [title, setTitle] = useState(initialTitle);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const { mutate: saveTitle } = useSetChartTitle();
+
+    useEffect(() => {
+        setTitle(initialTitle || "");
+    }, [initialTitle]);
+
+    const commitTitle = () => {
+        setIsEditingTitle(false);
+        if ((title || "").trim() !== (initialTitle || "").trim()) {
+            saveTitle({ chartId, title: title.trim() });
+        }
+    };
 
 
     const contextValue: HeatmapControlsContextValue = {
@@ -236,10 +251,10 @@ export const HeatmapControlsProvider: React.FC<HeatmapControlsProviderProps> = (
                     <input
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        onBlur={() => setIsEditingTitle(false)}
+                        onBlur={commitTitle}
                         onKeyDown={(e) => {
                             if (e.key === "Enter") {
-                                setIsEditingTitle(false);
+                                commitTitle();
                             }
                         }}
                         placeholder="Untitled Chart"

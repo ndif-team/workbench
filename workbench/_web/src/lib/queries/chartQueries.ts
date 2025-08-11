@@ -16,6 +16,15 @@ export const getChartData = async (chartId: string): Promise<ChartData> => {
     return chart?.data as ChartData;
 };
 
+// Update only the title inside the chart data JSON safely
+export const setChartTitle = async (chartId: string, title: string): Promise<void> => {
+    const [chart] = await db.select().from(charts).where(eq(charts.id, chartId));
+    if (!chart) return;
+    const data = (chart.data || {}) as ChartData;
+    const nextData = { ...data, title } as ChartData;
+    await db.update(charts).set({ data: nextData }).where(eq(charts.id, chartId));
+};
+
 // Fetch a single chart by id including its type and data
 export const getChartById = async (chartId: string): Promise<Chart | null> => {
     const [chart] = await db.select().from(charts).where(eq(charts.id, chartId));
