@@ -62,4 +62,5 @@ export type ToolTypedChart = {
     toolType: ToolType | null;
     createdAt: Date;
     annotationCount: number;
+    thumbnailUrl?: string | null;
 };

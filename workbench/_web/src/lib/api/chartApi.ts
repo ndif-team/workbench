@@ -1,6 +1,6 @@
 import config from "@/lib/config";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { setChartData, createChart, deleteChart, createLensChartPair, createPatchChartPair, updateChartName } from "@/lib/queries/chartQueries";
+import { setChartData, createChart, deleteChart, createLensChartPair, createPatchChartPair, updateChartName, upsertChartThumbnail } from "@/lib/queries/chartQueries";
 import sseService from "@/lib/sseProvider";
 import { LensConfigData } from "@/types/lens";
 import { PatchingConfig } from "@/types/patching";
@@ -28,6 +28,7 @@ const getLensLine = async (lensRequest: { completion: LensConfigData; chartId: s
 
 export const useLensLine = () => {
     const queryClient = useQueryClient();
+    const { requestThumbnailCapture } = useWorkspace();
 
     return useMutation({
         mutationFn: async ({lensRequest, configId}: { lensRequest: { completion: LensConfigData; chartId: string }; configId: string }) => {
@@ -45,6 +46,7 @@ export const useLensLine = () => {
                 queryClient.invalidateQueries({
                     queryKey: ["chartById", variables.lensRequest.chartId],
                 });
+                requestThumbnailCapture(variables.lensRequest.chartId);
             }
             queryClient.invalidateQueries({ 
                 queryKey: ["unlinkedCharts"] 
@@ -80,6 +82,7 @@ const getLensGrid = async (lensRequest: { completion: LensConfigData; chartId: s
 
 export const useLensGrid = () => {
     const queryClient = useQueryClient();
+    const { requestThumbnailCapture } = useWorkspace();
 
     return useMutation({
         mutationFn: async ({ lensRequest, configId }: { lensRequest: {completion: LensConfigData; chartId: string}; configId: string }) => {
@@ -97,6 +100,7 @@ export const useLensGrid = () => {
                 queryClient.invalidateQueries({
                     queryKey: ["chartById", variables.lensRequest.chartId],
                 });
+                requestThumbnailCapture(variables.lensRequest.chartId);
             }
             queryClient.invalidateQueries({ 
                 queryKey: ["unlinkedCharts"] 

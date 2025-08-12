@@ -1,9 +1,9 @@
 import { useWorkspace } from "@/stores/useWorkspace";
 import { Copy, Loader2, PanelRight, PanelRightClose } from "lucide-react";
 import { getChartById } from "@/lib/queries/chartQueries";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { useMemo, useRef, useCallback } from "react";
+import { useMemo, useRef, useCallback, useEffect } from "react";
 import { HeatmapData, LineGraphData } from "@/types/charts";
 
 import { HeatmapCard } from "./heatmap/HeatmapCard";
@@ -14,11 +14,30 @@ import { toBlob } from "html-to-image";
 import { toast } from "sonner";
 import { BorderBeam } from "../magicui/border-beam";
 import { HeatmapChart } from "@/db/schema";
+import { getThumbnailPath, uploadThumbnailPublic } from "@/lib/supabase/client";
+import { saveChartThumbnailUrl as saveThumbnailUrl } from "@/actions/thumbnails";
+
+export async function captureChartAsBlob(el: HTMLElement): Promise<Blob | null> {
+    try {
+        const blob = await toBlob(el, {
+            cacheBust: true,
+            backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--background") || "#ffffff",
+            pixelRatio: 1, // Low-res for thumbnail
+            width: Math.min(el.clientWidth, 480),
+        });
+        return blob;
+    } catch (e) {
+        console.error("Failed to capture thumbnail", e);
+        return null;
+    }
+}
 
 export function ChartDisplay() {
-    const { annotationsOpen, setAnnotationsOpen, jobStatus } = useWorkspace();
+    const { annotationsOpen, setAnnotationsOpen, jobStatus, thumbnailChartId, thumbnailCaptureNonce, clearThumbnailRequest } = useWorkspace();
     const params = useParams<{ workspaceId?: string; chartId?: string }>();
     const chartIdParam = params?.chartId as string | undefined;
+
+    const queryClient = useQueryClient();
 
     // Fetch the single chart by id
     const { data: singleChart, isLoading: isLoadingSingle } = useQuery({
@@ -30,6 +49,29 @@ export function ChartDisplay() {
     const activeChart = useMemo(() => singleChart || null, [singleChart]);
 
     const captureRef = useRef<HTMLDivElement | null>(null);
+
+    // Respond to thumbnail capture requests
+    useEffect(() => {
+        const shouldCapture = thumbnailChartId && captureRef.current && (thumbnailChartId === chartIdParam);
+        if (!shouldCapture) return;
+        (async () => {
+            try {
+                const blob = await captureChartAsBlob(captureRef.current!);
+                if (!blob) return;
+                const workspaceId = params?.workspaceId as string;
+                const path = getThumbnailPath(workspaceId, thumbnailChartId!);
+                const publicUrl = await uploadThumbnailPublic(blob, path);
+                await saveThumbnailUrl(thumbnailChartId!, publicUrl);
+                // refresh sidebar list to show thumbnail
+                await queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", workspaceId] });
+            } catch (e) {
+                console.error("Thumbnail upload failed", e);
+            } finally {
+                clearThumbnailRequest();
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [thumbnailCaptureNonce]);
 
     const handleCopyPng = useCallback(async () => {
         if (!captureRef.current) return;

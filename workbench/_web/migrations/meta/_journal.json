@@ -8,6 +8,13 @@
       "when": 1754971499247,
       "tag": "0000_workable_quasimodo",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1754971499250,
+      "tag": "0001_chart_thumbnails",
+      "breakpoints": true
     }
   ]
 }

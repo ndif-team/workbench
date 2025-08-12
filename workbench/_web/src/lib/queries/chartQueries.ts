@@ -2,7 +2,7 @@
 
 import type { ChartData, ToolTypedChart, BasicChart, BasicChartWithTool } from "@/types/charts";
 import { db } from "@/db/client";
-import { charts, configs, chartConfigLinks, NewChart, Chart, LensConfig, Config, annotations } from "@/db/schema";
+import { charts, configs, chartConfigLinks, NewChart, Chart, LensConfig, Config, annotations, chartThumbnails } from "@/db/schema";
 import { LensConfigData } from "@/types/lens";
 import { PatchingConfig } from "@/types/patching";
 import { eq, and, asc, notExists, or, desc, sql } from "drizzle-orm";
@@ -136,6 +136,22 @@ export const getAllChartsByType = async (workspaceId?: string): Promise<Record<s
     return chartsByType;
 };
 
+// Save or update a chart thumbnail url
+export const upsertChartThumbnail = async (chartId: string, url: string) => {
+    const existing = await db.select().from(chartThumbnails).where(eq(chartThumbnails.chartId, chartId)).limit(1);
+    if (existing.length > 0) {
+        await db.update(chartThumbnails).set({ url }).where(eq(chartThumbnails.chartId, chartId));
+        return { chartId, url };
+    }
+    const [created] = await db.insert(chartThumbnails).values({ chartId, url }).returning();
+    return created;
+};
+
+export const getChartThumbnail = async (chartId: string): Promise<string | null> => {
+    const rows = await db.select().from(chartThumbnails).where(eq(chartThumbnails.chartId, chartId)).limit(1);
+    return rows.length > 0 ? (rows[0].url as string) : null;
+};
+
 // Minimal chart info for sidebar cards with config type and annotation count
 export const getChartsForSidebar = async (workspaceId: string): Promise<ToolTypedChart[]> => {
     const rows = await db
@@ -145,13 +161,15 @@ export const getChartsForSidebar = async (workspaceId: string): Promise<ToolType
             createdAt: charts.createdAt,
             toolType: configs.type,
             annotationCount: sql<number>`count(${annotations.id})`,
+            thumbnailUrl: chartThumbnails.url,
         })
         .from(charts)
         .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
         .leftJoin(configs, eq(chartConfigLinks.configId, configs.id))
         .leftJoin(annotations, eq(annotations.chartId, charts.id))
+        .leftJoin(chartThumbnails, eq(chartThumbnails.chartId, charts.id))
         .where(eq(charts.workspaceId, workspaceId))
-        .groupBy(charts.id, charts.createdAt, charts.type, configs.type)
+        .groupBy(charts.id, charts.createdAt, charts.type, configs.type, chartThumbnails.url)
         .orderBy(desc(charts.createdAt));
 
     return rows.map((r) => ({
@@ -160,7 +178,8 @@ export const getChartsForSidebar = async (workspaceId: string): Promise<ToolType
         toolType: (r.toolType as "lens" | "patch" | null) ?? null,
         createdAt: r.createdAt as Date,
         annotationCount: Number(r.annotationCount ?? 0),
-    }));
+        thumbnailUrl: (r.thumbnailUrl ?? null) as string | null,
+    } as ToolTypedChart));
 };
 
 export const getChartsBasic = async (workspaceId: string): Promise<BasicChart[]> => {

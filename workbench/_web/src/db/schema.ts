@@ -66,6 +66,14 @@ export const documents = pgTable("documents", {
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
+// New table to store chart thumbnail URLs
+export const chartThumbnails = pgTable("chart_thumbnails", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chartId: uuid("chart_id").references(() => charts.id, { onDelete: "cascade" }).notNull(),
+    url: varchar("url", { length: 2048 }).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
 // Generate types from schema
 export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
@@ -93,3 +101,6 @@ export type HeatmapChart = Omit<Chart, 'data'> & {
 export type LensConfig = Omit<Config, 'data'> & {
     data: LensConfigData;
 };
+
+export type ChartThumbnail = typeof chartThumbnails.$inferSelect;
+export type NewChartThumbnail = typeof chartThumbnails.$inferInsert;

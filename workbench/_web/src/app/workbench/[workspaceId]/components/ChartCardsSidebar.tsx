@@ -9,6 +9,7 @@ import { useWorkspace } from "@/stores/useWorkspace";
 import { useCreateLensChartPair, useCreatePatchChartPair, useDeleteChart } from "@/lib/api/chartApi";
 import { useCreateDocument, useGetDocumentsForWorkspace } from "@/lib/api/documentApi";
 import { Document } from "@/db/schema";
+import Image from "next/image";
 
 export default function ChartCardsSidebar() {
     const params = useParams<{ workspaceId: string, chartId?: string, overviewId?: string }>();
@@ -137,6 +138,29 @@ export default function ChartCardsSidebar() {
         );
     };
 
+    const Thumbnail = ({ url }: { url: string | null | undefined }) => {
+        const width = 48;
+        const height = 32;
+        if (!url) {
+            return (
+                <div className="w-12 h-8 rounded bg-muted flex items-center justify-center text-[10px] text-muted-foreground">img</div>
+            );
+        }
+        return (
+            <div className="relative w-12 h-8 overflow-hidden rounded border">
+                <Image
+                    src={url}
+                    alt="chart thumbnail"
+                    fill
+                    sizes="48px"
+                    style={{ objectFit: "cover" }}
+                    loading="lazy"
+                    placeholder="empty"
+                />
+            </div>
+        );
+    };
+
     return (
         <div className="flex h-full flex-col overflow-hidden">
             <div className="h-12 px-3 py-2 border-b flex items-center">
@@ -192,6 +216,7 @@ export default function ChartCardsSidebar() {
                             onClick={() => handleChartClick(chart)}
                         >
                             <div className="flex items-start gap-2">
+                                <Thumbnail url={chart.thumbnailUrl} />
                                 <div className="mt-1">
                                     {renderToolIcon(chart.toolType)}
                                 </div>

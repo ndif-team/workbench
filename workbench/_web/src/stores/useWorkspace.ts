@@ -10,9 +10,14 @@ interface WorkspaceState {
 
     selectedModel: Model | null;
     setSelectedModel: (model: Model | null) => void;
+
+    thumbnailChartId: string | null;
+    thumbnailCaptureNonce: number;
+    requestThumbnailCapture: (chartId: string) => void;
+    clearThumbnailRequest: () => void;
 }
 
-export const useWorkspace = create<WorkspaceState>()((set) => ({
+export const useWorkspace = create<WorkspaceState>()((set, get) => ({
     jobStatus: "idle",
     setJobStatus: (jobStatus: string) => set({ jobStatus }),
 
@@ -21,4 +26,11 @@ export const useWorkspace = create<WorkspaceState>()((set) => ({
 
     selectedModel: null,
     setSelectedModel: (model: Model | null) => set({ selectedModel: model }),
+
+    thumbnailChartId: null,
+    thumbnailCaptureNonce: 0,
+    requestThumbnailCapture: (chartId: string) => {
+        set({ thumbnailChartId: chartId, thumbnailCaptureNonce: get().thumbnailCaptureNonce + 1 });
+    },
+    clearThumbnailRequest: () => set({ thumbnailChartId: null }),
 }));
