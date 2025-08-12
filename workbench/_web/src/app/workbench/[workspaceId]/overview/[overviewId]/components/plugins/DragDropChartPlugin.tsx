@@ -30,12 +30,14 @@ export function DragDropChartPlugin() {
     const indicator = document.createElement("div");
     indicator.style.position = "absolute";
     indicator.style.height = "2px";
-    indicator.style.background = "var(--primary)";
+    indicator.style.background = "hsl(var(--primary))"; // ensure CSS var usage matches theme
     indicator.style.left = "0";
     indicator.style.right = "0";
     indicator.style.opacity = "0";
     indicator.style.pointerEvents = "none";
     indicator.style.transform = "translateY(-1px)";
+    indicator.style.zIndex = "50";
+    indicator.style.borderRadius = "1px";
     indicatorRef.current = indicator;
 
     // Append to nearest relatively positioned wrapper for correct coordinates
@@ -54,7 +56,6 @@ export function DragDropChartPlugin() {
       editor.getEditorState().read(() => {
         const root = $getRoot();
         const children = root.getChildren();
-        let placed = false;
 
         for (let i = 0; i < children.length; i++) {
           const block = children[i] as ElementNode;
@@ -64,7 +65,6 @@ export function DragDropChartPlugin() {
           const mid = rect.top + rect.height / 2;
           if (clientY < mid) {
             topY = rect.top;
-            placed = true;
             break;
           }
           topY = rect.bottom; // default to after this block
