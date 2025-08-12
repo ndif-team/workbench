@@ -16,6 +16,7 @@ CREATE TABLE "charts" (
 	"workspace_id" uuid NOT NULL,
 	"name" varchar(256) DEFAULT 'Untitled Chart' NOT NULL,
 	"data" jsonb,
+	"thumbnail_url" varchar(2048),
 	"type" varchar(32),
 	"created_at" timestamp DEFAULT now() NOT NULL
 );

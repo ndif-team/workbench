@@ -1,5 +1,5 @@
 {
-  "id": "e059197c-1daf-412e-a641-aa68c1dab6fa",
+  "id": "dcc8e766-0c60-47fc-babb-2fa5b6edec6e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -142,6 +142,12 @@
         "data": {
           "name": "data",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "thumbnail_url": {
+          "name": "thumbnail_url",
+          "type": "varchar(2048)",
           "primaryKey": false,
           "notNull": false
         },
