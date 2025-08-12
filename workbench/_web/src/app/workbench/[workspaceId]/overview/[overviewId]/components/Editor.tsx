@@ -23,6 +23,7 @@ import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
 import { OnChangePlugin } from './plugins/OnChangePlugin';
 import { SlashCommandPlugin } from './plugins/SlashCommandPlugin';
 import { ChartEmbedNode } from './nodes/ChartEmbedNode';
+import { DragDropChartPlugin } from './plugins/DragDropChartPlugin';
 
 const theme = {
     ltr: 'ltr',
@@ -159,6 +160,7 @@ export function Editor() {
                             <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
                             <AutoFocusPlugin />
                             <SlashCommandPlugin />
+                            <DragDropChartPlugin />
                         </div>
                     </div>
                 </div>

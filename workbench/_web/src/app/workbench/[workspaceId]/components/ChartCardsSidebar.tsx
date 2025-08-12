@@ -190,6 +190,16 @@ export default function ChartCardsSidebar() {
                             key={chart.id}
                             className={`p-3 cursor-pointer rounded transition-all ${isSelected ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
                             onClick={() => handleChartClick(chart)}
+                            draggable
+                            onDragStart={(e) => {
+                                try {
+                                    e.dataTransfer.setData(
+                                        "application/x-chart",
+                                        JSON.stringify({ chartId: chart.id, chartType: chart.chartType ?? null })
+                                    );
+                                    e.dataTransfer.effectAllowed = "copy";
+                                } catch {}
+                            }}
                         >
                             <div className="flex items-start gap-2">
                                 <div className="mt-1">
