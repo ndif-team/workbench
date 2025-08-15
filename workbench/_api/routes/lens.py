@@ -98,13 +98,17 @@ async def listen_line(job_id: str):
     return jobs.get_job(job_id)
 
 
+class TokenProb(BaseModel):
+    id: str
+    prob: float
+
 class GridLensRequest(BaseModel):
     model: str
     prompt: str
 
-
 class GridCell(Point):
     label: str
+    data: list[TokenProb]
 
 class GridRow(BaseModel):
     # Token ID
@@ -124,18 +128,32 @@ def heatmap(req: GridLensRequest, state: AppState):
     pred_ids = []
     probs = []
 
-    def _compute_top_probs(logits_BLV: t.Tensor):
+    def _compute_top_probs(logits_BLV: t.Tensor, top_k: int = 3):
         relevant_tokens_LV = logits_BLV[0, :, :]
 
         probs_LV = t.nn.functional.softmax(relevant_tokens_LV, dim=-1)
-        pred_ids_L = relevant_tokens_LV.argmax(dim=-1)
 
-        # Gather probabilities over the predicted tokens
-        pred_ids_L1 = pred_ids_L.unsqueeze(1)
-        probs_L = t.gather(probs_LV, 1, pred_ids_L1).squeeze()
+        # TODO: 0.5 :'(
+        #top_k_probs, top_k_ids = t.topk(probs_LV, top_k, dim=-1)
 
-        pred_ids.append(pred_ids_L.save())
-        probs.append(probs_L.save())
+        pred_ids_LK = []
+        top_probs_LK = []
+
+        # Create a working copy to avoid modifying original
+        working_probs = probs_LV.clone()
+        
+        for i in range(top_k):
+            pred_ids_L = working_probs.argmax(dim=-1)
+            pred_ids_LK.append(working_probs.argmax(dim=-1))
+
+            probs_L = t.gather(working_probs, 1, pred_ids_L.unsqueeze(1)).squeeze()   
+            top_probs_LK.append(probs_L)
+            
+            # Set found maxima to -inf to find next maximum
+            working_probs.scatter_(-1, pred_ids_L.unsqueeze(-1), float('-inf'))
+
+        pred_ids.append(t.stack(pred_ids_LK, dim=0).save())
+        probs.append(t.stack(top_probs_LK, dim=0).save())
 
     with model.trace(req.prompt, remote=state.remote):
         for layer in model.model.layers[:-1]:
@@ -168,8 +186,9 @@ async def execute_grid(
         points = [
             GridCell(
                 x=layer_idx,
-                y=prob[seq_idx],
-                label=tok.decode(pred_id[seq_idx]),
+                y=prob[0][seq_idx],
+                label=tok.decode(pred_id[0][seq_idx]),
+                data=[TokenProb(id=tok.decode(ids[seq_idx]), prob=probs[seq_idx]) for ids, probs in zip(pred_id, prob)]
             )
             for layer_idx, (prob, pred_id) in enumerate(zip(probs, pred_ids))
         ]

@@ -1,9 +1,16 @@
+import { intersectAll } from "drizzle-orm/pg-core";
 import { LensConfigData } from "./lens";
 import { PatchingConfig } from "./patching";
+
+export interface TokenProb {
+    id: string;
+    prob: number;
+}
 
 export interface HeatmapCell {
     x: string | number;
     y: number | null;
+    data: TokenProb[];
     label?: string;
 }
 
