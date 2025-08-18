@@ -5,6 +5,7 @@ import { useDebouncedCallback } from "use-debounce"
 import { useCreateView, useUpdateView } from "@/lib/api/viewApi"
 import { getView } from "@/lib/queries/viewQueries"
 import { useQuery } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/queryKeys"
 
 interface ViewContextValue {
     view: View | null
@@ -39,7 +40,7 @@ export const ViewProvider = ({ chartId, children }: ViewProviderProps) => {
     const { mutateAsync: createView } = useCreateView()
 
     const { data, isSuccess: isViewSuccess } = useQuery<{view: View, chartType: ChartType} | null>({
-        queryKey: ["views", chartId],
+        queryKey: queryKeys.views.byChart(chartId),
         queryFn: () => getView(chartId),
         enabled: !!chartId,
     })

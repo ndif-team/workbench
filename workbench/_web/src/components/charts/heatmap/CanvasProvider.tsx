@@ -19,6 +19,7 @@ interface Tooltip {
     xVal: string | number
     yVal: number | null
     color: string
+    topTokens?: { token: string; prob: number }[]
 }
 
 const CanvasContext = createContext<CanvasContextValue | null>(null)
@@ -123,11 +124,13 @@ export const CanvasProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
         const firstRow = data.rows[0]
         const xVal = firstRow?.data[cell.col]?.x ?? ""
-        const yVal = data.rows[cell.row]?.data[cell.col]?.y ?? null
+        const cellData = data.rows[cell.row]?.data[cell.col]
+        const yVal = cellData?.y ?? null
+        const topTokens = cellData?.topTokens
         const color = valueToBlue(typeof yVal === 'number' ? yVal : null)
         const left = e.clientX + 12
         const top = e.clientY - 12
-        setTooltip({ visible: true, left, top, xVal, yVal, color })
+        setTooltip({ visible: true, left, top, xVal, yVal, color, topTokens })
     }, [selectionCanvasRef, data])
 
     const handleLeave = useCallback(() => {
@@ -157,6 +160,16 @@ export const CanvasProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         <span>x: {String(tooltip.xVal)}</span>
                         <span>y: {tooltip.yVal === null ? '—' : tooltip.yVal.toFixed(2)}</span>
                     </div>
+                    {tooltip.topTokens && tooltip.topTokens.length > 0 && (
+                        <div className="mt-1">
+                            {tooltip.topTokens.slice(0, 5).map((t, i) => (
+                                <div key={i} className="flex justify-between gap-3">
+                                    <span className="font-mono">{t.token.replace(/\s/g, '\u2423')}</span>
+                                    <span>{t.prob.toFixed(3)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
             {children}

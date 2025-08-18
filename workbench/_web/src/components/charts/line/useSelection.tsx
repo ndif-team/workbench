@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useLineCanvas } from "./LineCanvasProvider";
 import { useLineData } from "./LineDataProvider";
 import { lineMargin as margin } from "../theming";
-import { SelectionBounds } from "@/types/charts";
+import { SelectionBounds, LineViewData } from "@/types/charts";
 import { drawRectPx, clear } from "./draw";
+import { useLineView } from "../ViewProvider";
+import { useDeleteView } from "@/lib/api/viewApi";
 
 interface UseSelectionProps {
     rafRef: React.MutableRefObject<number | null>;
@@ -13,6 +15,18 @@ export const useSelection = ({ rafRef }: UseSelectionProps) => {
     const { lineCanvasRef, getNearestX } = useLineCanvas();
     const [activeSelection, setActiveSelection] = useState<SelectionBounds | null>(null);
     const { setXRange, setYRange, xRange, yRange, bounds } = useLineData();
+    const { view, isViewSuccess, persistView, cancelPersistView } = useLineView();
+    const { mutateAsync: deleteView } = useDeleteView();
+
+    // Initialize active selection/annotation from saved view
+    useEffect(() => {
+        if (isViewSuccess && view) {
+            const data = view.data as LineViewData;
+            if (data && data.annotation) {
+                setActiveSelection(data.annotation);
+            }
+        }
+    }, [isViewSuccess, view]);
 
     const selectionRef = useRef<SelectionBounds | null>(null);
     const didDragRef = useRef<boolean>(false);
@@ -63,7 +77,8 @@ export const useSelection = ({ rafRef }: UseSelectionProps) => {
     const clearSelection = useCallback(async () => {
         setActiveSelection(null);
         selectionRef.current = null;
-    }, [setActiveSelection]);
+        cancelPersistView();
+    }, [setActiveSelection, cancelPersistView]);
 
     // Zoom into the active selection
     const zoomIntoActiveSelection = useCallback(async (activeSelection: SelectionBounds | null) => {
@@ -91,6 +106,14 @@ export const useSelection = ({ rafRef }: UseSelectionProps) => {
         const newYMax = Math.max(yMinData, yMaxData);
         setXRange([newXMin, newXMax]);
         setYRange([newYMin, newYMax]);
+
+        // Persist view with bounds and annotation
+        const persisted: LineViewData = {
+            bounds: { xMin: newXMin, xMax: newXMax, yMin: newYMin, yMax: newYMax },
+            selectedLineIds: [],
+            annotation: { xMin, xMax, yMin, yMax },
+        };
+        persistView(persisted);
     }, [lineCanvasRef, clearSelection, setXRange, setYRange, xRange, yRange]);
 
     // Reset the zoom to the default range
@@ -98,7 +121,11 @@ export const useSelection = ({ rafRef }: UseSelectionProps) => {
         await clearSelection();
         setXRange([bounds.xMin, bounds.xMax]);
         setYRange([0, 1]);
-    }, [clearSelection, setXRange, setYRange, bounds]);
+        // Delete stored view if exists
+        if (view) {
+            await deleteView({ id: view.id, chartId: view.chartId });
+        }
+    }, [clearSelection, setXRange, setYRange, bounds, view, deleteView]);
 
     // Draw the selection rectangle
     useEffect(() => {

@@ -37,6 +37,8 @@ export function CompletionCard({ initialConfig }: CompletionCardProps) {
 
     // Workspace display state
     const [showTokenArea, setShowTokenArea] = useState(false);
+    // Settings visibility behavior: initially hidden; when token area is visible, dim settings but keep interactive
+    const [settingsDimmed, setSettingsDimmed] = useState(false);
 
     const { mutateAsync: getExecuteSelected, isPending: isExecuting } = useExecuteSelected();
     const { mutateAsync: updateChartConfigMutation } = useUpdateChartConfig();
@@ -93,6 +95,7 @@ export function CompletionCard({ initialConfig }: CompletionCardProps) {
         const tokens = await encodeText(config.prompt, selectedModel.name);
         setTokenData(tokens);
         setShowTokenArea(true);
+        setSettingsDimmed(true);
 
         // Set the token to the last token in the list
         const temporaryConfig: LensConfigData = {
@@ -160,6 +163,7 @@ export function CompletionCard({ initialConfig }: CompletionCardProps) {
         setConfig(cleanedConfig);
         setTokenData([]);
         setShowTokenArea(false);
+        setSettingsDimmed(false);
         setPredictions([]);
 
         // Focus the textarea and place cursor at the end after state updates
@@ -221,9 +225,15 @@ export function CompletionCard({ initialConfig }: CompletionCardProps) {
 
             </div>
 
-            {(showTokenArea && predictions.length > 0 && !isExecuting) && (
+            {(predictions.length > 0 && !isExecuting) && (
                 <div
-                    className="border p-2 flex flex-col items-center gap-3 bg-muted rounded"
+                    className={cn(
+                        "border p-2 flex flex-col items-center gap-3 bg-muted rounded transition",
+                        settingsDimmed ? "opacity-60 blur-[1px] hover:opacity-100 hover:blur-0" : "opacity-100"
+                    )}
+                    onMouseDown={() => {
+                        if (settingsDimmed) setSettingsDimmed(false);
+                    }}
                 >
                     <div className="flex w-full justify-between items-center">
                         <div className="flex items-center p-1 max-h-8 bg-background rounded-lg">

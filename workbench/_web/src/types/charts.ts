@@ -7,6 +7,7 @@ export interface HeatmapCell {
     x: string | number;
     y: number | null;
     label?: string;
+    topTokens?: { token: string; prob: number }[];
 }
 
 export interface HeatmapRow {

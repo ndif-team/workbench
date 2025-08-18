@@ -16,6 +16,7 @@ import SimplePatchArea from "./components/patch/SimplePatchArea";
 import { ChartDisplay } from "@/components/charts/ChartDisplay";
 import { getConfigForChart } from "@/lib/queries/chartQueries";
 import { Loader2, Search, ReplaceAll, X } from "lucide-react";
+import { queryKeys } from "@/lib/queryKeys";
 
 
 const tools = [
@@ -31,8 +32,8 @@ export default function ChartPage() {
     useModels();
 
     const { data: config, isLoading: isConfigLoading } = useQuery({
-        queryKey: ["chartConfig", chartId],
-        queryFn: () => getConfigForChart(chartId),
+        queryKey: queryKeys.charts.config(chartId as string),
+        queryFn: () => getConfigForChart(chartId as string),
         enabled: !!chartId,
     });
 

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useMemo, ReactNode } from "react";
+import React, { createContext, useContext, useState, useMemo, ReactNode, useEffect } from "react";
 import { LineChart } from "@/db/schema";
 import { LineGraphData, Range, SelectionBounds } from "@/types/charts";
+import { useLineView } from "../ViewProvider";
 
 interface LineDataContextValue {
     // Range State
@@ -55,6 +56,18 @@ export const LineDataProvider: React.FC<LineDataProviderProps> = ({ chart, child
 
     const [xRange, setXRange] = useState<Range>([bounds.xMin, bounds.xMax]);
     const [yRange, setYRange] = useState<Range>([0, 1]);
+
+    // Initialize ranges from saved view if present
+    const { view, isViewSuccess } = useLineView();
+    useEffect(() => {
+        if (isViewSuccess && view) {
+            const data = view.data as { bounds?: SelectionBounds } | undefined;
+            if (data && data.bounds) {
+                setXRange([data.bounds.xMin, data.bounds.xMax]);
+                setYRange([data.bounds.yMin, data.bounds.yMax]);
+            }
+        }
+    }, [isViewSuccess, view]);
 
     // Filter the data based on X range only
     // Y range truncates incorrectly ish

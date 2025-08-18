@@ -14,6 +14,7 @@ import { LensConfigData } from "@/types/lens";
 import { PatchingConfig } from "@/types/patching";
 import { useCapture } from "@/components/providers/CaptureProvider";
 import { LineGraphData, HeatmapData, ChartData, ChartView } from "@/types/charts";
+import { queryKeys } from "@/lib/queryKeys";
 
 const getLensLine = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
     try {
@@ -54,17 +55,18 @@ export const useLensLine = () => {
         onSuccess: (data, variables) => {
             // Invalidate queries to refresh the UI with updated data
             queryClient.invalidateQueries({
-                queryKey: ["lensCharts"],
+                queryKey: queryKeys.charts.all,
             });
             // Ensure the single-chart view refreshes as well
-            queryClient.invalidateQueries({
-                queryKey: ["chartById", variables.lensRequest.chartId],
-            }).then(() => {
-
-                setTimeout(() => {
-                    captureChartThumbnail(variables.lensRequest.chartId);
-                }, 500);
-            });
+            queryClient
+                .invalidateQueries({
+                    queryKey: queryKeys.charts.byId(variables.lensRequest.chartId),
+                })
+                .then(() => {
+                    setTimeout(() => {
+                        captureChartThumbnail(variables.lensRequest.chartId);
+                    }, 500);
+                });
         },
         onError: (error, variables) => {
             console.error("Error fetching logit lens data:", error);
@@ -111,18 +113,19 @@ export const useLensGrid = () => {
         onSuccess: (data, variables) => {
             // Invalidate queries to refresh the UI with updated data
             queryClient.invalidateQueries({
-                queryKey: ["lensCharts"],
+                queryKey: queryKeys.charts.all,
             });
             // Ensure the single-chart view refreshes as well
-            queryClient.invalidateQueries({
-                queryKey: ["chartById", variables.lensRequest.chartId],
-            }).then(() => {
-                
-                // Wait for chart to rerender before capturing thumbnail
-                setTimeout(() => {
-                    captureChartThumbnail(variables.lensRequest.chartId);
-                }, 500);
-            });
+            queryClient
+                .invalidateQueries({
+                    queryKey: queryKeys.charts.byId(variables.lensRequest.chartId),
+                })
+                .then(() => {
+                    // Wait for chart to rerender before capturing thumbnail
+                    setTimeout(() => {
+                        captureChartThumbnail(variables.lensRequest.chartId);
+                    }, 500);
+                });
         },
         onError: (error, variables) => {
             console.error("Error fetching logit lens data:", error);
@@ -162,8 +165,8 @@ export const useDeleteChart = () => {
     return useMutation({
         mutationFn: (chartId: string) => deleteChart(chartId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["lensCharts"] });
-            queryClient.invalidateQueries({ queryKey: ["chartsForSidebar"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar("") });
         },
     });
 };
@@ -189,7 +192,7 @@ export const useCreateLensChartPair = () => {
         },
         onSuccess: ({ chart }) => {
             // Refresh charts and configs
-            queryClient.invalidateQueries({ queryKey: ["lensCharts"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.all });
             queryClient.invalidateQueries({ queryKey: ["chartConfig"] });
             queryClient.invalidateQueries({ queryKey: ["chartsForSidebar"] });
         },
@@ -222,7 +225,7 @@ export const useCreatePatchChartPair = () => {
         },
         onSuccess: ({ chart }) => {
             // Refresh charts and configs
-            queryClient.invalidateQueries({ queryKey: ["patchCharts"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.patchAll });
             queryClient.invalidateQueries({ queryKey: ["chartConfig"] });
             queryClient.invalidateQueries({ queryKey: ["chartsForSidebar"] });
         },
@@ -235,8 +238,8 @@ export const useCopyChart = () => {
     return useMutation({
         mutationFn: (chartId: string) => copyChart(chartId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["lensCharts"] });
-            queryClient.invalidateQueries({ queryKey: ["patchCharts"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.patchAll });
             queryClient.invalidateQueries({ queryKey: ["chartsForSidebar"] });
         },
     });

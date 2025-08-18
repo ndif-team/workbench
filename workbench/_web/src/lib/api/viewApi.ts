@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createView, deleteView, updateView } from "@/lib/queries/viewQueries";
 import { NewView } from "@/db/schema";
 import type { ChartView } from "@/types/charts";
+import { queryKeys } from "@/lib/queryKeys";
 
 export const useCreateView = () => {
     const queryClient = useQueryClient();
@@ -12,7 +13,7 @@ export const useCreateView = () => {
             return view;
         },
         onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ["views", variables.chartId] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.views.byChart(variables.chartId) });
             console.log("Successfully created view");
         },
         onError: (error) => {
@@ -30,7 +31,7 @@ export const useDeleteView = () => {
             await deleteView(id);
         },
         onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ["views", variables.chartId] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.views.byChart(variables.chartId) });
             console.log("Successfully deleted view");
         },
         onError: (error) => {
@@ -48,7 +49,7 @@ export const useUpdateView = () => {
             return view;
         },
         onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ["views", variables.chartId] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.views.byChart(variables.chartId) });
             console.log("Successfully updated view");
         },
         onError: (error) => {
