@@ -45,7 +45,7 @@ export function ChartDisplay() {
 
     return (
         <div className="flex-1 flex h-full flex-col overflow-hidden custom-scrollbar relative">
-            <div className="px-2 py-2 flex items-center bg-background justify-end h-12 border-b">
+            <div className="px-2 py-2 flex items-center justify-end h-12 border-b">
                 <div className="flex items-center gap-2">
                     <CodeExport chartId={chart?.id} chartType={chart?.type as ("line" | "heatmap" | null | undefined)} />
                     <Button variant="outline" size="sm" onClick={onCopyPng}><Copy className="h-4 w-4" /> Copy</Button>

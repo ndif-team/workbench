@@ -21,7 +21,7 @@ const baseTheme = {
                 strokeWidth: 1
             },
             text: {
-                fontSize: 11,
+                fontSize: '.75rem',
                 fontFamily: fontFamily,
                 fill: 'hsl(var(--muted-foreground))',
                 outlineColor: 'transparent'

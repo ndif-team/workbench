@@ -39,35 +39,36 @@ export default function ChartPage() {
     const activeTool = tools.find(t => t.key === config?.type);
 
     return (
-        <div className="flex flex-1 min-h-0">
-            <ResizablePanelGroup
-                direction="horizontal"
-                className="flex flex-1 min-h-0 h-full"
-            >
-                <ResizablePanel className="h-full" defaultSize={20} minSize={10}>
-                    <ChartCardsSidebar />
-                </ResizablePanel>
-                <ResizableHandle className="w-[0.8px]" />
-                <ResizablePanel className="h-full" defaultSize={30} minSize={25}>
-                    <div className="flex items-center justify-between border-b h-12 px-2 py-2">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 border rounded transition-colors bg-muted text-foreground">
-                            {activeTool?.icon}
-                            {activeTool?.name || ""}
+        <div className="size-full flex min-h-0">
+            <div className="w-[20vw]">
+                <ChartCardsSidebar />
+            </div>
+            <div className="flex-1 min-h-0 pb-2 pr-2">
+                <ResizablePanelGroup
+                    direction="horizontal"
+                    className="flex size-full rounded bg-secondary border"
+                >
+                    <ResizablePanel className="h-full" defaultSize={30} minSize={25}>
+                        <div className="flex items-center justify-between border-b h-12 px-2 py-2">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 border rounded transition-colors bg-muted text-foreground">
+                                {activeTool?.icon}
+                                {activeTool?.name || ""}
+                            </div>
                         </div>
-                    </div>
-                    {
-                        isConfigLoading ?
-                            <div className="flex flex-1 items-center p-4 justify-center">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            </div> :
-                            isLens ? <LensArea /> : <SimplePatchArea />
-                    }
-                </ResizablePanel>
-                <ResizableHandle className="w-[0.8px]" />
-                <ResizablePanel defaultSize={50} minSize={30}>
-                    <ChartDisplay />
-                </ResizablePanel>
-            </ResizablePanelGroup>
+                        {
+                            isConfigLoading ?
+                                <div className="flex flex-1 items-center p-4 justify-center">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                </div> :
+                                isLens ? <LensArea /> : <SimplePatchArea />
+                        }
+                    </ResizablePanel>
+                    <ResizableHandle className="w-[0.8px]" />
+                    <ResizablePanel defaultSize={50} minSize={30}>
+                        <ChartDisplay />
+                    </ResizablePanel>
+                </ResizablePanelGroup>
+            </div>
         </div>
     );
 }

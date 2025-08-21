@@ -87,9 +87,9 @@ export default function ChartCardsSidebar() {
 
     return (
         <div className="flex h-full flex-col overflow-hidden">
-            <div className="h-12 px-3 py-2 border-b flex items-center justify-between">
+            {/* <div className="h-12 px-3 py-2 flex items-center justify-between">
                 <span className="text-sm font-medium">Charts</span>
-            </div>
+            </div> */}
             <div className="p-2 space-y-2 overflow-auto">
                 {(isChartsLoading || isReportsLoading) && (
                     <div className="text-xs text-muted-foreground px-2 py-6 text-center">Loading...</div>
@@ -128,7 +128,7 @@ export default function ChartCardsSidebar() {
                             );
                         })
                 )}
-                <div className="flex flex-row h-24 gap-2">
+                <div className="flex flex-row h-12 gap-2">
                     <button
                         className="size-full flex items-center text-xs border rounded border-dashed bg-muted/50 justify-center"
                         onClick={() => handleCreate("lens")}

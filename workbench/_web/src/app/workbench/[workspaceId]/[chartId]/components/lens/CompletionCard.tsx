@@ -199,14 +199,14 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                         onChange={(e) => { handlePromptChange(e); autoResizeTextarea(); }}
                         onKeyDown={handleKeyDown}
                         onBlur={handleTextareaBlur}
-                        className="w-full !text-sm min-h-48 !leading-5"
+                        className="w-full !text-sm bg-card min-h-48 !leading-5"
                         placeholder="Enter your prompt here."
                     />
                 ) : (
                     <div
                         ref={tokenContainerRef}
                         className={cn(
-                            "flex w-full px-3 py-2 border rounded min-h-48",
+                            "flex w-full px-3 py-2 bg-card border rounded min-h-48",
                             isExecuting ? "cursor-progress" : "cursor-text"
                         )}
                         onClick={() => {
@@ -253,16 +253,16 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                 >
                     {/* Prevent pointer events when overlay is active */}
                     <div className={cn(
-                        "flex flex-col size-full border p-2 items-center gap-3 bg-muted rounded",
+                        "flex flex-col size-full border p-2 items-center gap-3 bg-card rounded",
                         (editingText || isExecuting) ? "pointer-events-none" : "pointer-events-auto"
                     )}>
                         <div className="flex w-full justify-between items-center">
-                            <div className="flex items-center p-1 h-8 bg-background rounded-lg">
+                            <div className="flex items-center p-1 h-8 bg-background rounded">
                                 <button
                                     onClick={() => handleCreateHeatmap(config)}
                                     className={cn(
-                                        "flex items-center gap-2 px-2 py-0.5 rounded-lg text-xs",
-                                        chartType === "heatmap" ? "bg-accent border" : "bg-background"
+                                        "flex items-center gap-2 px-2 py-0.5 rounded text-xs bg-transparent",
+                                        chartType === "heatmap" && "bg-popover border"
                                     )}
                                 >
                                     <Grid3x3 className="w-4 h-4" />
@@ -272,8 +272,8 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                                     onClick={() => handleCreateLineChart(config)}
                                     disabled={config.token.targetIds.length === 0}
                                     className={cn(
-                                        "flex items-center gap-2 px-2 py-0.5 rounded-lg text-xs",
-                                        chartType === "line" ? "bg-accent border" : "bg-background"
+                                        "flex items-center gap-2 px-2 py-0.5 rounded text-xs bg-transparent",
+                                        chartType === "line" && "bg-popover border"
                                     )}
                                 >
                                     <ChartLine className="w-4 h-4" />

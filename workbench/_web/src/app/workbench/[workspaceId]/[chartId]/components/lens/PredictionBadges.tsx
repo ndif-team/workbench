@@ -207,8 +207,8 @@ export const PredictionBadges = ({
                 className={cn(
                     "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium cursor-pointer transition-colors",
                     isHighlighted
-                        ? "bg-accent border border-primary"
-                        : "bg-muted border border-input"
+                        ? "bg-popover border border-primary"
+                        : "bg-popover border border-input"
                 )}
                 onClick={(e) => {
                     e.preventDefault();
@@ -336,7 +336,7 @@ const selectStyles: StylesConfig<TokenOption, true, GroupBase<TokenOption>> = {
     }),
     control: (base, state) => ({
         ...base,
-        backgroundColor: "hsl(var(--background))",
+        backgroundColor: "hsl(var(--background  ))",
         borderColor: state.isFocused
             ? "hsl(var(--ring))"
             : "hsl(var(--input))",
@@ -376,7 +376,6 @@ const selectStyles: StylesConfig<TokenOption, true, GroupBase<TokenOption>> = {
         minWidth: 2,
         paddingLeft: 2,
     }),
-
     menu: (base) => ({
         ...base,
         backgroundColor: "hsl(var(--popover))",

@@ -21,7 +21,7 @@ interface LineCardProps {
 
 export const LineCard = ({ chart, captureRef, pending }: LineCardProps) => {
     return (
-        <div className="flex flex-col h-full m-2 border rounded bg-muted">
+        <div className="flex flex-col size-full rounded-br">
             {pending ? (
                 <PendingLine />
             ) : (
@@ -39,7 +39,7 @@ export const LineCard = ({ chart, captureRef, pending }: LineCardProps) => {
 
 const PendingLine = () => {
     return (
-        <div className="flex flex-col h-full w-full relative">
+        <div className="flex flex-col size-full relative">
             <div className="flex h-[10%] gap-2 items-end p-4 lg:p-8 justify-end">
                 <div className="flex items-center gap-2">
                     <Button
@@ -106,8 +106,21 @@ const InteractiveLine = ({ captureRef }: { captureRef: RefObject<HTMLDivElement>
     };
 
     return (
-        <div className="flex flex-col size-full">
-            <div className="flex h-[10%] gap-2 items-center p-4 lg:p-8 justify-end">
+        <div className="flex flex-col pt-4 size-full">
+            <Line
+                    lines={lines}
+                    yRange={yRange}
+                    onLegendClick={toggleLineHighlight}
+                    highlightedLineIds={highlightedLineIds}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={handleMouseLeave}
+                    onClick={onClick}
+                    lineCanvasRef={lineCanvasRef}
+                    crosshairCanvasRef={crosshairCanvasRef}
+                    useTooltip={true}
+                />
+            {/* <div className="flex h-[10%] gap-2 items-center p-4 lg:p-8 justify-end">
                 <Button
                     variant={activeSelection ? "default" : "outline"}
                     size="sm"
@@ -136,7 +149,7 @@ const InteractiveLine = ({ captureRef }: { captureRef: RefObject<HTMLDivElement>
                     crosshairCanvasRef={crosshairCanvasRef}
                     useTooltip={true}
                 />
-            </div>
+            </div> */}
         </div>
     );
 }

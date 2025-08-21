@@ -14,7 +14,7 @@ export default function WorkbenchLayout({
 }>) {
     return (
         <div className="flex flex-col h-screen">
-            <header className="border-b p-2 flex items-center justify-between">
+            <header className="p-2 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <img
                         src="/images/NDIF.png"
@@ -34,9 +34,11 @@ export default function WorkbenchLayout({
                     <UserDropdown />
                 </nav>
             </header>
-            <CaptureProvider>
-                {children}
-            </CaptureProvider>
+            <main className="flex-1 min-h-0 overflow-hidden">
+                <CaptureProvider>
+                    {children}
+                </CaptureProvider>
+            </main>
         </div>
     );
 }
