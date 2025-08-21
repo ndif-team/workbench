@@ -29,25 +29,33 @@ export const Tooltip = () => {
 
     return (
         <div
-            className="absolute top-[5%] z-30 pointer-events-none"
-            style={{ left: Math.max(0, hoverSnappedXPx - 80) }}
+            className="absolute top-[5%] z-30 w-36 pointer-events-none"
+            style={{ left: Math.max(0, hoverSnappedXPx - 120) }}
         >
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs rounded px-2 py-1 shadow-sm whitespace-nowrap">
-                <div className="font-medium mb-1">x = {String(hoverSnappedXValue)}</div>
+            <div className="bg-background border text-xs rounded px-2 py-1 shadow-sm whitespace-nowrap">
+                <div className="font-bold mb-1 text-foreground">Layer {String(hoverSnappedXValue)}</div>
                 {lines.map((line, index) => {
                     const p = line.data.find(pt => pt.x === hoverSnappedXValue);
                     if (!p) return null;
                     const isNearest = nearestLineIdAtX && String(line.id) === nearestLineIdAtX;
                     const color = lineColors[index % lineColors.length];
                     return (
-                        <div key={String(line.id)} className="flex items-center gap-2">
+                        <div key={String(line.id)} className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <span className={cn(
+                                    "w-3 h-1 rounded-full",
+                                    isNearest ? "opacity-100" : "opacity-25"
+                                )} style={{ backgroundColor: color }} />
+                                <span className={cn(
+                                    isNearest ? "font-bold text-foreground" : "text-muted-foreground"
+                                )}>
+                                    {line.id}:
+                                </span>
+                            </div>
                             <span className={cn(
-                                "w-3 h-1 rounded-full",
-                                isNearest ? "opacity-100" : "opacity-25"
-                            )} style={{ backgroundColor: color }} />
-                            <span className={isNearest ? "font-bold" : undefined}>
-                                {line.id}: {p.y.toFixed(3)}
-                            </span>
+                                "font-mono",
+                                isNearest ? "font-bold text-foreground" : "text-muted-foreground"
+                            )}>{p.y.toFixed(3)}</span>
                         </div>
                     );
                 })}
