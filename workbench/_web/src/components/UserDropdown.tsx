@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useEffect, useState } from "react"
 import { User } from "lucide-react"
+import type { User as SupabaseUser } from "@supabase/supabase-js"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -13,9 +14,11 @@ import { useRouter } from "next/navigation"
 import { Button } from "./ui/button"
 import { createClient } from "@/lib/supabase/client"
 
+type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null }
+
 export function UserDropdown() {
     const router = useRouter();
-    const [currentUser, setCurrentUser] = useState<any | null>(null);
+    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     useEffect(() => {
@@ -53,7 +56,7 @@ export function UserDropdown() {
             <DropdownMenuContent align="end" className="w-48">
                 <div className="flex flex-col border-b py-1.5 px-1">   
                     <span className="px-1 text-sm font-semibold">Account</span>
-                    <span className="px-1 text-sm">{currentUser?.email}</span>
+                    <span className="px-1 text-sm">{(currentUser?.is_anonymous || !currentUser?.email) ? "Guest" : currentUser?.email}</span>
                 </div>
                 <DropdownMenuItem disabled={isLoggingOut} onClick={handleLogout}>
                     {isLoggingOut ? "Logging out..." : "Logout"}

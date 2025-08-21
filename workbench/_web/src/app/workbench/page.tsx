@@ -1,10 +1,9 @@
-"use server";
-
 import { createClient } from "@/lib/supabase/server";
 import { ModelsDisplay } from "@/app/workbench/components/ModelsDisplay";
 import { WorkspaceList } from "@/app/workbench/components/WorkspaceList";
 import { LogoutButton } from "@/app/workbench/components/LogoutButton";
 import { redirect } from "next/navigation";
+export const dynamic = 'force-dynamic'
 
 export default async function WorkbenchPage() {
     const supabase = await createClient();
@@ -15,6 +14,8 @@ export default async function WorkbenchPage() {
         redirect("/login");
     }
 
+    const displayName = (user as any)?.is_anonymous || !user.email ? "Guest" : user.email
+
     return (
         <>
             <div className="p-6">
@@ -22,7 +23,7 @@ export default async function WorkbenchPage() {
                     <div>
                         <h1 className="text-2xl font-bold">Workbench</h1>
                         <p className="text-sm text-muted-foreground">
-                            Logged in as: {user.email} (ID: {user.id})
+                            Logged in as: {displayName} (ID: {user.id})
                         </p>
                     </div>
                     <LogoutButton />

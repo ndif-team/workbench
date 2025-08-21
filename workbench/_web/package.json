@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@codemirror/lang-python": "^6.2.1",
+    "@hcaptcha/react-hcaptcha": "^1.12.1",
     "@huggingface/transformers": "^3.7.2",
     "@lexical/code": "^0.34.0",
     "@lexical/link": "^0.34.0",

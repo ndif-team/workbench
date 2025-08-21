@@ -5,6 +5,7 @@
       "name": "nextjs-shadcn",
       "dependencies": {
         "@codemirror/lang-python": "^6.2.1",
+        "@hcaptcha/react-hcaptcha": "^1.12.1",
         "@huggingface/transformers": "^3.7.2",
         "@lexical/code": "^0.34.0",
         "@lexical/link": "^0.34.0",
@@ -265,6 +266,10 @@
     "@floating-ui/react-dom": ["@floating-ui/react-dom@2.1.5", "", { "dependencies": { "@floating-ui/dom": "^1.7.3" }, "peerDependencies": { "react": ">=16.8.0", "react-dom": ">=16.8.0" } }, "sha512-HDO/1/1oH9fjj4eLgegrlH3dklZpHtUYYFiVwMUwfGvk9jWDRWqkklA2/NFScknrcNSspbV868WjXORvreDX+Q=="],
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.10", "", {}, "sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ=="],
+
+    "@hcaptcha/loader": ["@hcaptcha/loader@2.0.1", "", {}, "sha512-L36qqdOmv8fL6VBZcH34JUI0/SvC5KPOZ5N/m+5pQAPPhtXXRdU4o9iosZr12hWAM2qf5hC92kmi+XdqxKOEZQ=="],
+
+    "@hcaptcha/react-hcaptcha": ["@hcaptcha/react-hcaptcha@1.12.1", "", { "dependencies": { "@babel/runtime": "^7.17.9", "@hcaptcha/loader": "^2.0.1" }, "peerDependencies": { "react": ">= 16.3.0", "react-dom": ">= 16.3.0" } }, "sha512-/A08MOAHa5L9B8UfNRkTR/+x2dOyfk3pI1/qgXI4NpDl/z4CjnSxaYCDtkbD21vEocN1KKCggQD3wJ7OcY494w=="],
 
     "@huggingface/jinja": ["@huggingface/jinja@0.5.1", "", {}, "sha512-yUZLld4lrM9iFxHCwFQ7D1HW2MWMwSbeB7WzWqFYDWK+rEb+WldkLdAJxUPOmgICMHZLzZGVcVjFh3w/YGubng=="],
 
