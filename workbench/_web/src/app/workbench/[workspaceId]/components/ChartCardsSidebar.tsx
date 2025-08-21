@@ -9,6 +9,8 @@ import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
 import { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function ChartCardsSidebar() {
     const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -87,15 +89,12 @@ export default function ChartCardsSidebar() {
 
     return (
         <div className="flex h-full flex-col overflow-hidden">
-            {/* <div className="h-12 px-3 py-2 flex items-center justify-between">
-                <span className="text-sm font-medium">Charts</span>
-            </div> */}
-            <div className="p-2 space-y-2 overflow-auto">
+            <div className="px-3 space-y-3 overflow-auto">
                 {(isChartsLoading || isReportsLoading) && (
-                    <div className="text-xs text-muted-foreground px-2 py-6 text-center">Loading...</div>
+                    <div className="text-xs text-muted-foreground px-3 py-6 text-center">Loading...</div>
                 )}
                 {(!charts || charts.length === 0) && (!reports || reports.length === 0) && !isChartsLoading && !isReportsLoading && (
-                    <div className="text-xs text-muted-foreground px-2 py-6 text-center">No charts or reports yet. Create one to get started.</div>
+                    <div className="text-xs text-muted-foreground px-3 py-6 text-center">No charts or reports yet. Create one to get started.</div>
                 )}
                 {(charts && reports) && (
                     [...charts.map((c) => ({ type: "chart" as const, item: c })), ...reports.map((r) => ({ type: "report" as const, item: r }))]
@@ -128,21 +127,25 @@ export default function ChartCardsSidebar() {
                             );
                         })
                 )}
-                <div className="flex flex-row h-12 gap-2">
-                    <button
-                        className="size-full flex items-center text-xs border rounded border-dashed bg-muted/50 justify-center"
+                <div className="flex flex-row h-8 gap-3 text-sm">
+                    <Button
+                        // className="size-full flex items-center gap-2 border rounded border-dashed bg-muted/50 justify-center"
+                        variant="outline"
                         onClick={() => handleCreate("lens")}
                         disabled={isCreatingPatch}
                     >
-                        <span>+ Lens</span>
-                    </button>
-                    <button
-                        className="size-full flex items-center text-xs border rounded border-dashed bg-muted/50 justify-center"
+                        <Plus className="w-4 h-4" />
+                        <span> Lens</span>
+                    </Button>
+                    <Button
+                        // className="size-full flex items-center gap-2 border rounded border-dashed bg-muted/50 justify-center"
+                        variant="outline"
                         onClick={handleOverviewClick}
                         disabled={isCreatingLens}
                     >
-                        <span>+ Report</span>
-                    </button>
+                        <Plus className="w-4 h-4" />
+                        <span>Report</span>
+                    </Button>
                 </div>
             </div>
         </div>

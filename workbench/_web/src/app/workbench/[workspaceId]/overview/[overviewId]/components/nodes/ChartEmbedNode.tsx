@@ -136,7 +136,7 @@ function ChartEmbedComponent({ nodeKey, chartId, chartType }: { nodeKey: NodeKey
       }}
       tabIndex={0}
     >
-      <div className="text-xs text-muted-foreground mb-2">{name}</div>
+      <div className="text-xs text-muted-foreground mb-3">{name}</div>
       {!chart ? (
         <div className="text-sm text-muted-foreground">Loading chart…</div>
       ) : type === "line" && chart.data ? (

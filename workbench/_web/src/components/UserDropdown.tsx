@@ -54,7 +54,7 @@ export function UserDropdown() {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-                <div className="flex flex-col border-b py-1.5 px-1">   
+                <div className="flex flex-col border-b py-2.5 px-1">   
                     <span className="px-1 text-sm font-semibold">Account</span>
                     <span className="px-1 text-sm">{(currentUser?.is_anonymous || !currentUser?.email) ? "Guest" : currentUser?.email}</span>
                 </div>

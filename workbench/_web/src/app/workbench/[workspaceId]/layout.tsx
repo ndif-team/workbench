@@ -14,8 +14,8 @@ export default function WorkbenchLayout({
 }>) {
     return (
         <div className="flex flex-col h-screen">
-            <header className="p-2 flex items-center justify-between">
-                <div className="flex items-center gap-4">
+            <header className="p-3 pl-5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
                     <img
                         src="/images/NDIF.png"
                         alt="NDIF Logo"
@@ -28,7 +28,7 @@ export default function WorkbenchLayout({
                     />
                 </div>
 
-                <nav className="flex gap-2 items-center">
+                <nav className="flex gap-3 items-center">
                     <WorkbenchStatus />
                     <ModeToggle />
                     <UserDropdown />

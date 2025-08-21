@@ -11,6 +11,8 @@ import { useCrosshair } from "./useCrosshair";
 import { useLineClick } from "./useLineClick";
 import { LineHoverProvider, useLineHover } from "./LineHoverProvider";
 import { useAnnotationSelection } from "./useAnnotationSelection";
+import CodeExport from "@/app/workbench/[workspaceId]/components/CodeExport";
+import { CopyImage } from "../CopyImage";
 
 
 interface LineCardProps {
@@ -21,14 +23,14 @@ interface LineCardProps {
 
 export const LineCard = ({ chart, captureRef, pending }: LineCardProps) => {
     return (
-        <div className="flex flex-col size-full rounded-br">
+        <div className="flex flex-col size-full">
             {pending ? (
                 <PendingLine />
             ) : (
                 <LineDataProvider chart={chart}>
                     <LineCanvasProvider>
                         <LineHoverProvider>
-                            <InteractiveLine captureRef={captureRef}/>
+                            <InteractiveLine captureRef={captureRef} chart={chart} />
                         </LineHoverProvider>
                     </LineCanvasProvider>
                 </LineDataProvider>
@@ -40,8 +42,8 @@ export const LineCard = ({ chart, captureRef, pending }: LineCardProps) => {
 const PendingLine = () => {
     return (
         <div className="flex flex-col size-full relative">
-            <div className="flex h-[10%] gap-2 items-end p-4 lg:p-8 justify-end">
-                <div className="flex items-center gap-2">
+            <div className="flex h-[10%] gap-3 items-end p-4 lg:p-8 justify-end">
+                <div className="flex items-center gap-3">
                     <Button
                         variant="outline"
                         size="sm"
@@ -66,7 +68,7 @@ const PendingLine = () => {
     );
 }
 
-const InteractiveLine = ({ captureRef }: { captureRef: RefObject<HTMLDivElement> }) => {
+const InteractiveLine = ({ captureRef, chart }: { captureRef: RefObject<HTMLDivElement>, chart: LineChart }) => {
     // Provider context hooks
     const { lines, yRange } = useLineData();
     const { rafRef, lineCanvasRef, activeSelection } = useLineCanvas();
@@ -106,36 +108,29 @@ const InteractiveLine = ({ captureRef }: { captureRef: RefObject<HTMLDivElement>
     };
 
     return (
-        <div className="flex flex-col pt-4 size-full">
-            <Line
-                    lines={lines}
-                    yRange={yRange}
-                    onLegendClick={toggleLineHighlight}
-                    highlightedLineIds={highlightedLineIds}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseLeave={handleMouseLeave}
-                    onClick={onClick}
-                    lineCanvasRef={lineCanvasRef}
-                    crosshairCanvasRef={crosshairCanvasRef}
-                    useTooltip={true}
-                />
-            {/* <div className="flex h-[10%] gap-2 items-center p-4 lg:p-8 justify-end">
-                <Button
-                    variant={activeSelection ? "default" : "outline"}
-                    size="sm"
-                    className="h-8 w-8"
-                    onClick={() => { void zoomIntoActiveSelection(activeSelection) }}
-                    disabled={!activeSelection}
-                    title={activeSelection ? "Zoom into selection and clear selection" : "Draw a selection on the chart first"}
-                >
-                    <Crop className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm" className="h-8 w-8" onClick={handleReset} title="Reset zoom and clear selection">
-                    <RotateCcw className="w-4 h-4" />
-                </Button>
+        <div className="flex flex-col size-full">
+            <div className="flex px-3 py-3 items-center justify-between border-b">
+                <div className="flex items-center gap-2">
+                    <CodeExport chartId={chart?.id} chartType={chart?.type as ("line" | "heatmap" | null | undefined)} />
+                    <CopyImage />
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant={activeSelection ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 w-8"
+                        onClick={() => { void zoomIntoActiveSelection(activeSelection) }}
+                        disabled={!activeSelection}
+                        title={activeSelection ? "Zoom into selection and clear selection" : "Draw a selection on the chart first"}
+                    >
+                        <Crop className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-8 w-8" onClick={handleReset} title="Reset zoom and clear selection">
+                        <RotateCcw className="w-4 h-4" />
+                    </Button>
+                </div>
             </div>
-            <div className="flex h-[90%] w-full" ref={captureRef}>
+            <div className="flex size-full pt-4" ref={captureRef}>
                 <Line
                     lines={lines}
                     yRange={yRange}
@@ -149,7 +144,7 @@ const InteractiveLine = ({ captureRef }: { captureRef: RefObject<HTMLDivElement>
                     crosshairCanvasRef={crosshairCanvasRef}
                     useTooltip={true}
                 />
-            </div> */}
+            </div>
         </div>
     );
 }

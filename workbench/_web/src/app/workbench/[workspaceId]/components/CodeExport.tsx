@@ -92,7 +92,7 @@ export function CodeExport({ chartId, chartType }: Props) {
         <div className="border rounded overflow-hidden">
           <CodeMirror value={code} height="420px" editable={false} theme={theme === "dark" ? "dark" : "light"} extensions={[pythonLanguage]} basicSetup={{ lineNumbers: true }} />
         </div>
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-3">
           <Button variant="outline" size="sm" onClick={onCopy}>
             <Copy className="h-4 w-4" /> Copy
           </Button>

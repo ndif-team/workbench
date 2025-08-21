@@ -60,10 +60,10 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
                                     <div>
                                         <h3 className="font-semibold text-lg">{workspace.name}</h3>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-3">
                                         <div className="text-right">
                                             {workspace.public && (
-                                                <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full mb-1">
+                                                <span className="inline-block px-3 py-2 bg-green-100 text-green-800 text-xs rounded-full mb-1">
                                                     Public
                                                 </span>
                                             )}

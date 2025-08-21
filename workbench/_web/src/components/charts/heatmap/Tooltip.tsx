@@ -45,10 +45,10 @@ export const Tooltip = () => {
 
     return (
         <div
-            className="absolute z-30 px-2 py-1 rounded shadow bg-background border text-sm pointer-events-none"
+            className="absolute z-30 px-3 py-2 rounded shadow bg-background border text-sm pointer-events-none"
             style={{ left: tooltipLeft, top: tooltipTop }}
         >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
                 <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: hoveredColor ?? "transparent" }} />
                 <span>x: {String(hoveredXValue ?? "")}</span>
                 <span>y: {hoveredYValue == null ? '—' : hoveredYValue.toFixed(2)}</span>

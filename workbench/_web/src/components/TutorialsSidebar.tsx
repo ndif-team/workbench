@@ -17,7 +17,7 @@ interface TourDescriptionProps {
 function TourDescription({ onBack, onStartChapter }: TourDescriptionProps) {
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
                 <Button
                     variant="ghost"
                     size="sm"
@@ -31,7 +31,7 @@ function TourDescription({ onBack, onStartChapter }: TourDescriptionProps) {
             <p className="text-sm text-muted-foreground leading-relaxed">
                 {LogitLensTutorial.description}
             </p>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
                 {LogitLensTutorial.chapters.map((chapter, index) => (
                     <div
                         key={index}
@@ -89,7 +89,7 @@ function TourStepContent({ onBack }: { onBack: () => void }) {
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
                 <Button
                     variant="ghost"
                     size="sm"
@@ -114,7 +114,7 @@ function TourStepContent({ onBack }: { onBack: () => void }) {
             )}
 
             {/* Navigation Buttons */}
-            <div className="flex gap-2">
+            <div className="flex gap-3">
                 <Button
                     variant="outline"
                     size="sm"

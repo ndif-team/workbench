@@ -10,7 +10,7 @@ interface WorkspaceState {
 }
 
 export const useWorkspace = create<WorkspaceState>()((set, get) => ({
-    jobStatus: "idle",
+    jobStatus: "Idle",
     setJobStatus: (jobStatus: string) => set({ jobStatus }),
 
     selectedModelIdx: 0,

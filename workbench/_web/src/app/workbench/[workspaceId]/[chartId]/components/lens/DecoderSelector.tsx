@@ -14,7 +14,7 @@ export function DecoderSelector() {
 
     return (
         <Select value={selectedDecoder} onValueChange={setSelectedDecoder}>
-            <SelectTrigger className="w-fit border-none gap-2 shadow-none pr-1 text-xs focus-visible:ring-0 hover:bg-accent">
+            <SelectTrigger className="w-fit border-none gap-3 shadow-none pr-1 text-xs focus-visible:ring-0 hover:bg-accent">
                 <SelectValue placeholder="Select a decoder" />
             </SelectTrigger>
             <SelectContent>

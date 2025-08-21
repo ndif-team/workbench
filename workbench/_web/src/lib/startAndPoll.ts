@@ -19,11 +19,11 @@ async function awaitNDIFJob(jobId: string): Promise<void> {
         const status = data?.status as string | undefined;
 
         if (status === "COMPLETED") {
-            setJobStatus("idle");
+            setJobStatus("Idle");
             return;
         }
         if (status === "ERROR" || status === "NNSIGHT_ERROR") {
-            setJobStatus("error");
+            setJobStatus("Error");
             throw new Error("Job failed");
         }
 

@@ -189,7 +189,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     };
 
     return (
-        <div className="flex flex-col w-full gap-2">
+        <div className="flex flex-col w-full gap-3">
             {/* Content */}
             <div className="flex flex-col size-full relative">
                 {editingText ? (
@@ -206,7 +206,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                     <div
                         ref={tokenContainerRef}
                         className={cn(
-                            "flex w-full px-3 py-2 bg-card border rounded min-h-48",
+                            "flex w-full px-3 py-3 bg-card border rounded min-h-48",
                             isExecuting ? "cursor-progress" : "cursor-text"
                         )}
                         onClick={() => {
@@ -222,7 +222,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                         />
                     </div>
                 )}
-                <div ref={settingsRef} className="absolute bottom-2 right-2 flex items-center gap-2">
+                <div ref={settingsRef} className="absolute bottom-2 right-2 flex items-center gap-3">
                     {editingText && (
                         <GenerateButton
                             configId={initialConfig.id}
@@ -253,7 +253,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                 >
                     {/* Prevent pointer events when overlay is active */}
                     <div className={cn(
-                        "flex flex-col size-full border p-2 items-center gap-3 bg-card rounded",
+                        "flex flex-col size-full border p-3 items-center gap-3 bg-card rounded",
                         (editingText || isExecuting) ? "pointer-events-none" : "pointer-events-auto"
                     )}>
                         <div className="flex w-full justify-between items-center">
@@ -261,7 +261,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                                 <button
                                     onClick={() => handleCreateHeatmap(config)}
                                     className={cn(
-                                        "flex items-center gap-2 px-2 py-0.5 rounded text-xs bg-transparent",
+                                        "flex items-center gap-3 px-3 py-0.5 rounded text-xs bg-transparent",
                                         chartType === "heatmap" && "bg-popover border"
                                     )}
                                 >
@@ -272,7 +272,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                                     onClick={() => handleCreateLineChart(config)}
                                     disabled={config.token.targetIds.length === 0}
                                     className={cn(
-                                        "flex items-center gap-2 px-2 py-0.5 rounded text-xs bg-transparent",
+                                        "flex items-center gap-3 px-3 py-0.5 rounded text-xs bg-transparent",
                                         chartType === "line" && "bg-popover border"
                                     )}
                                 >

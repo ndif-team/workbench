@@ -112,7 +112,7 @@ export function RangeSelector({
                             ? `${axisLabel.replace(/\s*Range/i, '').trim()}: ${ranges[0].range[0]}-${ranges[0].range[1]}`
                             : `Set ${axisLabel.toLowerCase()}`)
                         : axisLabel}
-                    <ChevronDown className="h-4 w-4 ml-2" />
+                    <ChevronDown className="h-4 w-4 ml-3" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-64 !p-0">
@@ -123,7 +123,7 @@ export function RangeSelector({
                                 <span>
                                     Range
                                 </span>
-                                <div className="flex gap-2">
+                                <div className="flex gap-3">
                                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleClearSingleRange}>
                                         <X className="h-3 w-3" />
                                     </Button>
@@ -140,7 +140,7 @@ export function RangeSelector({
                             </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <div className="space-y-2 px-2 pb-3">
+                        <div className="space-y-2 px-3 pb-3">
                             <div className="flex justify-between text-sm text-muted-foreground">
                                 <span>Min: {currentRange[0]}</span>
                                 <span>Max: {currentRange[1]}</span>
@@ -178,7 +178,7 @@ export function RangeSelector({
                                             {ranges.map((range) => (
                                                 <div
                                                     key={range.id}
-                                                    className="flex items-center justify-between px-2 py-1 bg-secondary/50"
+                                                    className="flex items-center justify-between px-3 py-2 bg-secondary/50"
                                                 >
                                                     <span className="text-sm font-medium">
                                                         {range.range[0]} - {range.range[1]}
@@ -195,7 +195,7 @@ export function RangeSelector({
                                             ))}
                                         </>
                                     ) : (
-                                        <div className="text-sm text-muted-foreground px-2 py-2">No ranges selected</div>
+                                        <div className="text-sm text-muted-foreground px-3 py-3">No ranges selected</div>
                                     )
                                 }
 
@@ -209,7 +209,7 @@ export function RangeSelector({
                                         <span>
                                             New Range
                                         </span>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-3">
                                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCancelAdd}>
                                                 <X className="h-3 w-3" />
                                             </Button>
@@ -227,7 +227,7 @@ export function RangeSelector({
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
 
-                                <div className="space-y-2 px-2 pb-3">
+                                <div className="space-y-2 px-3 pb-3">
                                     <div className="flex justify-between text-sm text-muted-foreground">
                                         <span>Min: {currentRange[0]}</span>
                                         <span>Max: {currentRange[1]}</span>

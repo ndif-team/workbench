@@ -32,7 +32,7 @@ export const Tooltip = () => {
             className="absolute top-[5%] z-30 w-36 pointer-events-none"
             style={{ left: Math.max(0, hoverSnappedXPx - 120) }}
         >
-            <div className="bg-background border text-xs rounded px-2 py-1 shadow-sm whitespace-nowrap">
+            <div className="bg-background border text-xs rounded px-3 py-2 shadow-sm whitespace-nowrap">
                 <div className="font-bold mb-1 text-foreground">Layer {String(hoverSnappedXValue)}</div>
                 {lines.map((line, index) => {
                     const p = line.data.find(pt => pt.x === hoverSnappedXValue);
@@ -40,8 +40,8 @@ export const Tooltip = () => {
                     const isNearest = nearestLineIdAtX && String(line.id) === nearestLineIdAtX;
                     const color = lineColors[index % lineColors.length];
                     return (
-                        <div key={String(line.id)} className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
+                        <div key={String(line.id)} className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
                                 <span className={cn(
                                     "w-3 h-1 rounded-full",
                                     isNearest ? "opacity-100" : "opacity-25"

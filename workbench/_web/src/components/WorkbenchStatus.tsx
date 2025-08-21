@@ -25,12 +25,12 @@ export function WorkbenchStatus() {
     return (
         <div
             className={cn(
-                "rounded h-8 px-2 bg-muted border flex items-center",
+                "rounded h-8 px-3 bg-secondary border flex items-center",
                 status.pulse && "animate-pulse"
             )}
         >
             <div className={cn(
-                "w-2.5 h-2.5 rounded-full mr-2",
+                "w-2.5 h-2.5 rounded-full mr-3",
                 status.color
             )} />
             <p className="text-sm text-muted-foreground">{jobStatus}</p>

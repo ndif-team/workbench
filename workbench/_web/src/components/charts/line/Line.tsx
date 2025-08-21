@@ -55,7 +55,7 @@ export function Line({
     return (
         <div className="size-full flex flex-col">
             <div
-                className="flex flex-wrap gap-3 justify-center min-h-[5%] p-2"
+                className="flex flex-wrap gap-3 justify-center min-h-[5%] p-3"
             >
                 {lines.map((line, index) => {
                     const color = lineColors[index % lineColors.length];
@@ -66,7 +66,7 @@ export function Line({
                         <button
                             key={line.id}
                             onClick={() => onLegendClick(line.id)}
-                            className="flex items-center gap-2 px-2 py-1 h-6 transition-colors"
+                            className="flex items-center gap-3 px-3 py-2 h-6 transition-colors"
                             style={{
                                 opacity: hasAnyHighlighted && !isHighlighted ? 0.5 : 1
                             }}

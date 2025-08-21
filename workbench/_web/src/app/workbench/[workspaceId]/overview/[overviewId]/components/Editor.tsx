@@ -30,21 +30,21 @@ const theme = {
     ltr: 'ltr',
     rtl: 'rtl',
     placeholder: 'text-muted-foreground',
-    paragraph: 'mb-2',
+    paragraph: 'mb-3',
     quote: 'border-l-4 border-muted pl-4 italic my-2',
     heading: {
         h1: 'text-3xl font-bold mb-4 mt-6',
         h2: 'text-2xl font-semibold mb-3 mt-5',
-        h3: 'text-xl font-medium mb-2 mt-4',
-        h4: 'text-lg font-medium mb-2 mt-3',
-        h5: 'text-base font-medium mb-1 mt-2',
+        h3: 'text-xl font-medium mb-3 mt-4',
+        h4: 'text-lg font-medium mb-3 mt-3',
+        h5: 'text-base font-medium mb-1 mt-3',
     },
     list: {
         nested: {
             listitem: 'list-none',
         },
-        ol: 'list-decimal ml-4 mb-2',
-        ul: 'list-disc ml-4 mb-2',
+        ol: 'list-decimal ml-4 mb-3',
+        ul: 'list-disc ml-4 mb-3',
         listitem: 'mb-1',
     },
     link: 'text-primary underline',
@@ -137,12 +137,12 @@ export function Editor() {
 
     return (
         <div className="h-full w-full flex flex-col">
-            <div className="flex items-center justify-between border-b h-12 px-2 py-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded transition-colors bg-muted text-foreground">
+            <div className="flex items-center justify-between border-b h-14 px-3 py-3">
+                <div className="inline-flex items-center gap-3 px-3 py-2 rounded transition-colors bg-muted text-foreground">
                     <FileText className="h-4 w-4" />
                     Editor
                 </div>
-                <div className="text-xs text-muted-foreground inline-flex items-center gap-2 px-2">
+                <div className="text-xs text-muted-foreground inline-flex items-center gap-3 px-3">
                     {(debouncedSave.isPending() || mutation.isPending) ? (
                         <>
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />

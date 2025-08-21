@@ -67,7 +67,7 @@ export function CreateWorkspaceDialog({ userId }: CreateWorkspaceDialogProps) {
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                <Button className="px-4 py-2">
+                <Button className="px-4 py-3">
                     Create Workspace
                 </Button>
             </DialogTrigger>
@@ -79,7 +79,7 @@ export function CreateWorkspaceDialog({ userId }: CreateWorkspaceDialogProps) {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
+                    <div className="grid gap-3">
                         <Label htmlFor="name">Workspace Name</Label>
                         <Input
                             id="name"

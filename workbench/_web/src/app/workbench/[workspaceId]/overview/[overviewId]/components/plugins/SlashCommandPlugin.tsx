@@ -131,12 +131,12 @@ export function SlashCommandPlugin() {
                                     key={opt.key}
                                     role="option"
                                     aria-selected={active}
-                                    className={`px-2 py-1.5 text-sm cursor-pointer flex items-center justify-between rounded ${active ? "bg-accent text-accent-foreground" : ""}`}
+                                    className={`px-3 py-2.5 text-sm cursor-pointer flex items-center justify-between rounded ${active ? "bg-accent text-accent-foreground" : ""}`}
                                     onMouseEnter={() => setHighlightedIndex(i)}
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => selectOptionAndCleanUp(opt)}
                                 >
-                                    <span className="truncate mr-2">{opt.chart.name ?? "Untitled"}</span>
+                                    <span className="truncate mr-3">{opt.chart.name ?? "Untitled"}</span>
                                     <span className="text-xs text-muted-foreground">
                                         {(opt.chart.chartType ?? "unknown")} {opt.chart.toolType ? `· ${opt.chart.toolType}` : ""}
                                     </span>
@@ -144,7 +144,7 @@ export function SlashCommandPlugin() {
                             );
                         })}
                         {options.length === 0 && (
-                            <div className="px-2 py-1.5 text-sm text-muted-foreground">No charts found.</div>
+                            <div className="px-3 py-2.5 text-sm text-muted-foreground">No charts found.</div>
                         )}
                     </div>,
                     document.body

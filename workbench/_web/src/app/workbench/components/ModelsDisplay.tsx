@@ -16,7 +16,7 @@ export function ModelsDisplay() {
     if (isLoading) {
         return (
             <div className="mb-6 p-4 border rounded bg-gray-50">
-                <h2 className="text-lg font-semibold mb-2">Available Models</h2>
+                <h2 className="text-lg font-semibold mb-3">Available Models</h2>
                 <div className="text-sm text-gray-500">Loading models...</div>
             </div>
         );
@@ -25,7 +25,7 @@ export function ModelsDisplay() {
     if (error) {
         return (
             <div className="mb-6 p-4 border rounded bg-destructive/10 border-destructive/20">
-                <h2 className="text-lg font-semibold mb-2 text-destructive">Available Models</h2>
+                <h2 className="text-lg font-semibold mb-3 text-destructive">Available Models</h2>
                 <div className="text-sm text-destructive/80">Error loading models: {error.message}</div>
             </div>
         );
@@ -38,11 +38,11 @@ export function ModelsDisplay() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Base Models */}
                 <div>
-                    <h3 className="font-medium text-primary/80 mb-2">Base Models ({baseModels.length})</h3>
+                    <h3 className="font-medium text-primary/80 mb-3">Base Models ({baseModels.length})</h3>
                     {baseModels.length > 0 ? (
                         <div className="space-y-1">
                             {baseModels.map((model: string) => (
-                                <div key={model} className="text-sm bg-background px-2 py-1 rounded border">
+                                <div key={model} className="text-sm bg-background px-3 py-2 rounded border">
                                     {model}
                                 </div>
                             ))}
@@ -54,11 +54,11 @@ export function ModelsDisplay() {
 
                 {/* Chat Models */}
                 <div>
-                    <h3 className="font-medium text-primary/80 mb-2">Chat Models ({chatModels.length})</h3>
+                    <h3 className="font-medium text-primary/80 mb-3">Chat Models ({chatModels.length})</h3>
                     {chatModels.length > 0 ? (
                         <div className="space-y-1">
                             {chatModels.map((model: string) => (
-                                <div key={model} className="text-sm bg-background px-2 py-1 rounded border">
+                                <div key={model} className="text-sm bg-background px-3 py-2 rounded border">
                                     {model}
                                 </div>
                             ))}

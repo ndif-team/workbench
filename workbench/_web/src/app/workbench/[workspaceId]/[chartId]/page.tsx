@@ -43,18 +43,18 @@ export default function ChartPage() {
             <div className="w-[20vw]">
                 <ChartCardsSidebar />
             </div>
-            <div className="flex-1 min-h-0 pb-2 pr-2">
+            <div className="flex-1 min-h-0 pb-3 pr-3">
                 <ResizablePanelGroup
                     direction="horizontal"
                     className="flex size-full rounded bg-secondary border"
                 >
                     <ResizablePanel className="h-full" defaultSize={30} minSize={25}>
-                        <div className="flex items-center justify-between border-b h-12 px-2 py-2">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 border rounded transition-colors bg-muted text-foreground">
+                        {/* <div className="flex items-center justify-between border-b h-14 px-3 ">
+                            <div className="inline-flex items-center gap-3 px-3 py-1 border rounded transition-colors bg-muted text-foreground">
                                 {activeTool?.icon}
                                 {activeTool?.name || ""}
                             </div>
-                        </div>
+                        </div> */}
                         {
                             isConfigLoading ?
                                 <div className="flex flex-1 items-center p-4 justify-center">

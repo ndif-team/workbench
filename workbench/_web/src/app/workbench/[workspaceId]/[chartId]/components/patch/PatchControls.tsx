@@ -39,8 +39,8 @@ export default function PatchControls() {
     return (
         <div className="flex items-center gap-3 justify-between w-full">
             {/* Main mode toggles */}
-            <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 border-r pr-2">
+            <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 border-r pr-3">
                     <Button
                         variant={mainMode === "align" ? "default" : "outline"}
                         size="sm"
@@ -60,7 +60,7 @@ export default function PatchControls() {
 
                 {/* Submode toggles (only for non-edit modes) */}
                 {activeSubModes.length > 0 && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                         {activeSubModes.map((sm) => {
                             const isActive = subMode === sm;
                             return (

@@ -205,7 +205,7 @@ export const PredictionBadges = ({
         return (
             <div
                 className={cn(
-                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium cursor-pointer transition-colors",
+                    "inline-flex items-center gap-1 px-3 py-0.5 rounded text-xs font-medium cursor-pointer transition-colors",
                     isHighlighted
                         ? "bg-popover border border-primary"
                         : "bg-popover border border-input"
@@ -249,7 +249,7 @@ export const PredictionBadges = ({
                     <TooltipContent side="right">Defaults to top 3.</TooltipContent>
                 </Tooltip>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     {config.token.targetIds.length > 0 &&
                         <button
                             className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground"
@@ -304,7 +304,7 @@ export const PredictionBadges = ({
                     formatOptionLabel={(option: TokenOption) => (
                         <div className="flex items-center justify-between w-full">
                             <span className="font-medium text-foreground">{renderTokenText(option.text)}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">{(option.prob ?? 0).toFixed(4)}</span>
+                            <span className="ml-3 text-xs text-muted-foreground">{(option.prob ?? 0).toFixed(4)}</span>
                         </div>
                     )}
                     components={{

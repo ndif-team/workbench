@@ -14,3 +14,27 @@ c_proj = "o_proj"
 [models.one.config]
 n_heads = 12
 n_layers = 12
+
+# [models.two]
+# name = "meta-llama/Meta-Llama-3.1-8B"
+# chat = false
+
+# [models.two.rename]
+# norm = "ln_f"
+# self_attn = "attn"
+
+# [models.two.config]
+# n_heads = 32
+# n_layers = 32
+
+# [models.three]
+# name = "meta-llama/Meta-Llama-3.1-70B"
+# chat = false
+
+# [models.three.rename]
+# norm = "ln_f"
+# self_attn = "attn"
+
+# [models.three.config]
+# n_heads = 64
+# n_layers = 80

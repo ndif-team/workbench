@@ -44,7 +44,7 @@ export function ModelSelector() {
 
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <SelectTrigger className={cn("w-fit gap-2", {
+                    <SelectTrigger className={cn("w-fit gap-3", {
                         "animate-pulse": isLoading
                     })}>
                         <SelectValue placeholder="Select a model" />

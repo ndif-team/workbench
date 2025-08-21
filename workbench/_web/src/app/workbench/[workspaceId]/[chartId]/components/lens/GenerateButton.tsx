@@ -102,8 +102,8 @@ export default function GenerateButton({ configId, config, setConfig, setTokenDa
                 <PopoverContent align="end" className="w-fit p-0 border-none">
                     <div className="flex items-center w-fit border h-auto rounded">
                         <button className="rounded-l hover:bg-accent transition-all h-full border-r duration-100" onClick={handleGenerate}>
-                            <div className="flex items-start justify-center flex-col px-2 py-2 gap-0.5 py-auto">
-                                <span className="text-sm flex items-center gap-2">Generate</span>
+                            <div className="flex items-start justify-center flex-col px-3 py-3 gap-0.5 py-auto">
+                                <span className="text-sm flex items-center gap-3">Generate</span>
                                 <span className="text-xs text-muted-foreground">Max new tokens</span>
                             </div>
                         </button>
