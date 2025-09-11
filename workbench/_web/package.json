@@ -7,7 +7,7 @@
     "dev": "npm run copy-env && next dev -p 3000 --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "format": "prettier --write .",
     "knip": "knip"
   },

@@ -23,7 +23,7 @@ export default async function WorkbenchPage() {
     const workspaces = await getWorkspaces(user.id);
     
     // If no workspaces exist, we'll show the page with a message and option to create
-    let shouldCreateWorkspace = !workspaces || workspaces.length === 0;
+    const shouldCreateWorkspace = !workspaces || workspaces.length === 0;
 
     return (
         <>
