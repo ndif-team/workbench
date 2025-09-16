@@ -7,9 +7,16 @@ from ..data_models import Token, NDIFResponse
 from ..auth import require_user_email
 from ..telemetry import TelemetryClient, RequestStatus
 
+from enum import Enum
+
+class LensStatistic(str, Enum):
+    PROBABILITY = "probability"
+    RANK = "rank"
+    ENTROPY = "entropy"
 
 class LensLineRequest(BaseModel):
     model: str
+    stat: LensStatistic
     prompt: str
     token: Token
 
@@ -183,8 +190,8 @@ async def collect_line(
 
 class GridLensRequest(BaseModel):
     model: str
+    stat: LensStatistic
     prompt: str
-
 
 class GridCell(Point):
     label: str
@@ -244,6 +251,71 @@ def heatmap(
                 pred_ids,
             )
         _compute_top_probs(model.output.logits, probs, pred_ids)
+
+        probs.save()
+        pred_ids.save()
+
+    if state.remote:
+        return tracer.backend.job_id
+
+    return probs, pred_ids
+
+
+def heatmap_rank(
+    req: GridLensRequest, state: AppState
+) -> tuple[list[t.Tensor], list[t.Tensor]]:
+    model = state[req.model]
+
+    def _compute_rank(
+        logits_BLV,
+        # NOTE(cadentj): Can't put this in the trace body bc of pickling issues
+        probs_list,
+        pred_ids_list,
+    ):
+        relevant_tokens_LV = logits_BLV[0, :, :]
+
+        probs_LV = t.nn.functional.softmax(relevant_tokens_LV, dim=-1)
+        pred_ids_L = relevant_tokens_LV.argmax(dim=-1)
+
+        # Gather probabilities over the predicted tokens
+        pred_ids_L1 = pred_ids_L.unsqueeze(1)
+        probs_L = t.gather(probs_LV, 1, pred_ids_L1).squeeze()
+
+        pred_ids_list.append(pred_ids_L.tolist())
+        probs_list.append(probs_L.tolist())
+
+    with model.trace(
+        req.prompt,
+        remote=state.remote,
+        backend=state.make_backend(model=model),
+    ) as tracer:
+        pred_ids = []
+        probs = []
+
+        hidden_states = []
+
+        for layer in model.model.layers[:-1]:
+            hidden_BLD = layer.output
+
+            if isinstance(hidden_BLD, tuple):
+                hidden_BLD = hidden_BLD[0]
+
+            hidden_states.append(model.lm_head(model.model.ln_f(hidden_BLD)))
+
+        logits = model.output.logits
+        top_tokens = logits.argmax(dim=-1)
+
+        for hs in hidden_states:
+            sorted_probs, sorted_indices = t.nn.functional.softmax(hs, dim=-1).sort(dim=-1)
+
+            rank_map = t.empty_like(sorted_indices)
+            rank_map.scatter_(
+                2,  # along vocab axis
+                sorted_indices,
+                t.arange(1, logits.size(-1)+1).expand_as(sorted_indices)
+            )
+            # token_ids: [batch, seq_len]
+            ranks = rank_map.gather(2, top_tokens.unsqueeze(-1)).squeeze(-1)
 
         probs.save()
         pred_ids.save()

@@ -1,11 +1,21 @@
 "use client";
 
-import { ChartLine, Grid3x3, Loader2, TriangleAlert } from "lucide-react";
+import { ChartLine, Grid3x3, Loader2, TriangleAlert, ChevronDown } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { TokenArea } from "./TokenArea";
 import { useState, useEffect, useRef } from "react";
 import { usePrediction } from "@/lib/api/modelsApi";
 import type { LensConfigData } from "@/types/lens";
+import { LensStatistic } from "@/types/lens";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 import { TargetTokenSelector } from "./TargetTokenSelector";
 
@@ -29,11 +39,20 @@ interface CompletionCardProps {
     selectedModel: string;
 }
 
+// Helper function to capitalize statistic type for display
+const capitalizeStatistic = (statistic: LensStatistic | undefined): string => {
+    const stat = statistic || LensStatistic.PROBABILITY;
+    return stat.charAt(0).toUpperCase() + stat.slice(1);
+};
+
 export function CompletionCard({ initialConfig, chartType, selectedModel }: CompletionCardProps) {
-    const { workspaceId } = useParams<{ workspaceId: string }>();
+    const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
     const [tokenData, setTokenData] = useState<Token[]>([]);
-    const [config, setConfig] = useState<LensConfigData>(initialConfig.data);
+    const [config, setConfig] = useState<LensConfigData>({
+        ...initialConfig.data,
+        statisticType: initialConfig.data.statisticType || LensStatistic.PROBABILITY // Default to probability
+    });
     const [editingText, setEditingText] = useState(initialConfig.data.prediction === undefined);
     const [promptHasChangedState, setPromptHasChanged] = useState(false);
 
@@ -113,6 +132,33 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         if (!promptHasChanged) setPromptHasChanged(true);
     };
 
+    const handleStatisticChange = async (value: LensStatistic) => {
+        const updatedConfig = {
+            ...config,
+            statisticType: value,
+        };
+        setConfig(updatedConfig);
+
+        // Update the config in the database
+        await updateChartConfigMutation({
+            configId: initialConfig.id,
+            chartId: chartId,
+            config: {
+                data: updatedConfig,
+                workspaceId,
+                type: "lens",
+            }
+        });
+
+        if (updatedConfig.prompt && updatedConfig.prompt.trim().length > 0 && updatedConfig.prediction) {
+            if (chartType === "heatmap") {
+                await handleCreateHeatmap(updatedConfig);
+            } else if (chartType === "line") {
+                await handleCreateLineChart(updatedConfig);
+            }
+        }
+    };
+
     // Newline on shift + enter and tokenize on enter
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey && !isExecuting && config.prompt.length > 0) {
@@ -175,6 +221,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         // Update the config in the database
         await updateChartConfigMutation({
             configId: initialConfig.id,
+            chartId: chartId,
             config: {
                 data: temporaryConfig,
                 workspaceId,
@@ -319,7 +366,35 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                                 </button>
                             </div>
 
-                            {/* <DecoderSelector /> */}
+                            {/* Statistics Type Dropdown */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 text-xs w-28"
+                                        disabled={isExecuting || isCreatingLineChart || isCreatingHeatmap}
+                                    >
+                                        <span className="flex items-center gap-1">
+                                            {capitalizeStatistic(config.statisticType)}
+                                            <ChevronDown className="w-3 h-3" />
+                                        </span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-24">
+                                    <DropdownMenuLabel className="text-xs">Statistics</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {Object.values(LensStatistic).map((statistic) => (
+                                        <DropdownMenuItem
+                                            key={statistic}
+                                            onClick={() => handleStatisticChange(statistic)}
+                                            className="text-xs"
+                                        >
+                                            {capitalizeStatistic(statistic)}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
 
 

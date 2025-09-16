@@ -21,9 +21,18 @@ import { createUserHeadersAction } from "@/actions/auth";
 
 const getLensLine = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
     const headers = await createUserHeadersAction();
+    
+    // Transform LensConfigData to LensLineRequest format
+    const lineRequest = {
+        model: lensRequest.completion.model,
+        stat: lensRequest.completion.statisticType,
+        prompt: lensRequest.completion.prompt,
+        token: lensRequest.completion.token,
+    };
+    
     return await startAndPoll<Line[]>(
         config.endpoints.startLensLine,
-        lensRequest.completion,
+        lineRequest,
         config.endpoints.resultsLensLine,
         headers
     );
@@ -80,9 +89,17 @@ export const useLensLine = () => {
 
 const getLensGrid = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
     const headers = await createUserHeadersAction();
+    
+    // Transform LensConfigData to GridLensRequest format
+    const gridRequest = {
+        model: lensRequest.completion.model,
+        stat: lensRequest.completion.statisticType,
+        prompt: lensRequest.completion.prompt,       
+    };
+    
     return await startAndPoll<HeatmapRow[]>(
         config.endpoints.startLensGrid,
-        lensRequest.completion,
+        gridRequest,
         config.endpoints.resultsLensGrid,
         headers
     );
@@ -180,6 +197,7 @@ export const useCreateLensChartPair = () => {
     const defaultConfig = {
         prompt: "",
         model: "",
+        statisticType: "probability" as const,
         token: { idx: 0, id: 0, text: "", targetIds: [] },
     } as LensConfigData;
 

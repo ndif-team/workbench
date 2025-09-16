@@ -7,6 +7,7 @@ import { resolveThemeCssVars } from '@/lib/utils'
 import { Margin } from '@nivo/core';
 import { HeatmapRow } from '@/types/charts';
 import { Tooltip } from './Tooltip';
+import { LensStatistic } from '@/types/lens';
 
 
 interface HeatmapProps {
@@ -16,7 +17,8 @@ interface HeatmapProps {
     useTooltip?: boolean;
     onMouseMove?: (e: React.MouseEvent) => void;
     onMouseLeave?: () => void;
-    onMouseDown?: (e: React.MouseEvent) => void;
+    onMouseDown?: (e: React.MouseEvent<any>) => void;
+    statisticType?: LensStatistic;
 }
 
 
@@ -27,9 +29,20 @@ export function Heatmap({
     useTooltip = false,
     onMouseMove = () => { },
     onMouseLeave = () => { },
-    onMouseDown = () => { }
+    onMouseDown = () => { },
+    statisticType
 }: HeatmapProps) {
     const resolvedTheme = useMemo(() => resolveThemeCssVars(heatmapTheme), [])
+
+    // Create a lookup map to access right_axis_label by row.id
+    const rightAxisLabelMap = useMemo(() => {
+        const labelMap: Record<string, string> = {};
+        rows.forEach((row) => {
+            // Use the right_axis_label from HeatmapRow, fallback to cleaned id
+            labelMap[row.id] = row.data[row.data.length - 1]?.label || String(row.id).replace(/-\d+$/, '');
+        });
+        return labelMap;
+    }, [rows])
 
     return (
         <div className="size-full relative cursor-crosshair"
@@ -58,6 +71,14 @@ export function Heatmap({
                     tickPadding: 10,
                     format: (value) => String(value).replace(/-\d+$/, ''),
                 }}
+                axisRight={statisticType !== LensStatistic.PROBABILITY ? {
+                    tickSize: 0,
+                    tickPadding: 10,
+                    format: (value) => {
+                        // Access rightAxisLabel using the lookup map
+                        return rightAxisLabelMap[value].replace(/-\d+$/, '') || String(value).replace(/-\d+$/, '');
+                    },
+                } : null}
                 label={(cell) => {
                     if (cell.data.label) {
                         return cell.data.label;
@@ -83,7 +104,7 @@ export function Heatmap({
                 legends={[
                     {
                         anchor: 'right',
-                        translateX: 30,
+                        translateX: statisticType !== LensStatistic.PROBABILITY ? 60 : 30,
                         translateY: 0,
                         length: 400,
                         thickness: 8,
