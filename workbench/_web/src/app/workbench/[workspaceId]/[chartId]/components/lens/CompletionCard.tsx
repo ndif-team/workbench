@@ -340,8 +340,8 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                         "flex flex-col size-full border p-3 items-center gap-3 bg-card/80 rounded",
                         (editingText || isExecuting) ? "pointer-events-none" : "pointer-events-auto"
                     )}>
-                        <div className="flex w-full justify-between items-center">
-                            <div className="flex items-center p-1 h-8 bg-background rounded">
+                        <div className="flex w-full justify-between items-center gap-2 flex-nowrap min-w-60">
+                            <div className="flex items-center p-1 h-8 bg-background rounded flex-shrink-0">
                                 <button
                                     onClick={() => handleCreateHeatmap(config)}
                                     disabled={isExecuting || isCreatingLineChart || isCreatingHeatmap}
@@ -372,16 +372,16 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-8 text-xs w-28"
+                                        className="h-8 text-xs min-w-20 max-w-28 flex-shrink-0 border-0"
                                         disabled={isExecuting || isCreatingLineChart || isCreatingHeatmap}
                                     >
-                                        <span className="flex items-center gap-1">
-                                            {capitalizeStatistic(config.statisticType)}
-                                            <ChevronDown className="w-3 h-3" />
+                                        <span className="flex items-center gap-1 truncate">
+                                            <span className="truncate">{capitalizeStatistic(config.statisticType)}</span>
+                                            <ChevronDown className="w-3 h-3 flex-shrink-0" />
                                         </span>
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent className="w-24">
+                                <DropdownMenuContent className="w-auto min-w-24">
                                     <DropdownMenuLabel className="text-xs">Statistics</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
                                     {Object.values(LensStatistic).map((statistic) => (
