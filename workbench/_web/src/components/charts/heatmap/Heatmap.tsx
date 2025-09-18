@@ -8,6 +8,7 @@ import { Margin } from '@nivo/core';
 import { HeatmapRow } from '@/types/charts';
 import { Tooltip } from './Tooltip';
 import { LensStatistic } from '@/types/lens';
+import React from 'react';
 
 
 interface HeatmapProps {
@@ -37,12 +38,37 @@ export function Heatmap({
     // Create a lookup map to access right_axis_label by row.id
     const rightAxisLabelMap = useMemo(() => {
         const labelMap: Record<string, string> = {};
-        rows.forEach((row) => {
-            // Use the right_axis_label from HeatmapRow, fallback to cleaned id
-            labelMap[row.id] = row.data[row.data.length - 1]?.label || String(row.id).replace(/-\d+$/, '');
-        });
+        if (statisticType !== LensStatistic.PROBABILITY) {
+            rows.forEach((row) => {
+                labelMap[row.id] = row.right_axis_label ?? "";
+            });
+        }
         return labelMap;
-    }, [rows])
+    }, [rows, statisticType]);
+
+    const minValue = useMemo(() => {
+        if (statisticType === LensStatistic.PROBABILITY) {
+            return 0;
+        } else {
+            return rows.reduce((globalMin, row) => {
+                return Math.min(globalMin, row.data.reduce((rowMin, cell) => {
+                    return Math.min(rowMin, cell.y ?? Infinity);
+                }, Infinity));
+            }, Infinity);
+        };
+    }, [rows, statisticType]);
+
+    const maxValue = useMemo(() => {
+        if (statisticType === LensStatistic.PROBABILITY) {
+            return 1;
+        } else {
+            return rows.reduce((globalMax, row) => {
+                return Math.max(globalMax, row.data.reduce((rowMax, cell) => {
+                    return Math.max(rowMax, cell.y ?? -Infinity);
+                }, -Infinity));
+            }, -Infinity);
+        }
+    }, [rows, statisticType]);
 
     return (
         <div className="size-full relative cursor-crosshair"
@@ -76,7 +102,7 @@ export function Heatmap({
                     tickPadding: 10,
                     format: (value) => {
                         // Access rightAxisLabel using the lookup map
-                        return rightAxisLabelMap[value].replace(/-\d+$/, '') || String(value).replace(/-\d+$/, '');
+                        return rightAxisLabelMap[value] || String(value).replace(/-\d+$/, '');
                     },
                 } : null}
                 label={(cell) => {
@@ -93,8 +119,8 @@ export function Heatmap({
                 colors={{
                     type: 'sequential',
                     scheme: 'blues',
-                    minValue: 0,
-                    maxValue: 1
+                    minValue: minValue,
+                    maxValue: maxValue
                 }}
                 hoverTarget="cell"
                 inactiveOpacity={1}

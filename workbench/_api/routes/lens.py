@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 import torch as t
+import math
 
 from ..state import AppState, get_state
 from ..data_models import Token, NDIFResponse
@@ -36,6 +37,68 @@ class LensLineResponse(NDIFResponse):
 
 
 router = APIRouter()
+
+
+def line_2(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
+    model = state[req.model]
+    idx = req.token.idx
+    target_ids = req.token.target_ids
+
+    def _compute_top_probs(
+        logits,
+    ):
+        return t.nn.functional.softmax(logits, dim=-1)
+    
+    def _compute_rank(
+        logits,
+    ):
+        sorted_probs, sorted_indices = t.nn.functional.softmax(logits, dim=-1).sort(descending=True, dim=-1)
+        rank_map = t.empty_like(sorted_indices)
+        rank_map.scatter_(
+            -1,  # along vocab axis
+            sorted_indices,
+            t.arange(1, logits.size(-1)+1).expand_as(sorted_indices).to(logits.device)
+        )
+        
+        return rank_map
+
+
+    with model.trace(
+        req.prompt,
+        remote=state.remote,
+        backend=state.make_backend(model=model),
+    ) as tracer:
+        results = []
+        for layer in model.model.layers:
+            # Decode hidden state into vocabulary
+            hidden_BLD = layer.output
+
+            if isinstance(hidden_BLD, tuple):
+                hidden_BLD = hidden_BLD[0]
+
+            # NOTE(cadentj): Can't pickle local decode function atm
+            logits_BLV = model.lm_head(model.model.ln_f(hidden_BLD))
+
+            # Compute probabilities over the relevant tokens
+            logits_V = logits_BLV[0, idx, :]
+
+            if req.stat == LensStatistic.PROBABILITY:
+                metrics = _compute_top_probs(logits_V)
+            elif req.stat == LensStatistic.RANK:
+                metrics = _compute_rank(logits_V)
+            
+            # Gather probabilities over the predicted tokens
+            target_ids_tensor = t.tensor(target_ids).to(metrics.device)
+            target_probs_X = t.gather(metrics, 0, target_ids_tensor)
+
+            results.append(target_probs_X)
+
+        results.save()
+
+    if state.remote:
+        return tracer.backend.job_id
+
+    return results
 
 
 def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
@@ -201,6 +264,7 @@ class GridRow(BaseModel):
     # Token ID
     id: str
     data: list[GridCell]
+    right_axis_label: str | None = None
 
 
 class GridLensResponse(NDIFResponse):
@@ -213,129 +277,113 @@ def heatmap(
     model = state[req.model]
 
     def _compute_top_probs(
-        logits_BLV,
-        # NOTE(cadentj): Can't put this in the trace body bc of pickling issues
-        probs_list,
-        pred_ids_list,
+        hs_decoded,
     ):
-        relevant_tokens_LV = logits_BLV[0, :, :]
-
-        probs_LV = t.nn.functional.softmax(relevant_tokens_LV, dim=-1)
-        pred_ids_L = relevant_tokens_LV.argmax(dim=-1)
-
-        # Gather probabilities over the predicted tokens
-        pred_ids_L1 = pred_ids_L.unsqueeze(1)
-        probs_L = t.gather(probs_LV, 1, pred_ids_L1).squeeze()
-
-        pred_ids_list.append(pred_ids_L.tolist())
-        probs_list.append(probs_L.tolist())
-
-    with model.trace(
-        req.prompt,
-        remote=state.remote,
-        backend=state.make_backend(model=model),
-    ) as tracer:
         pred_ids = []
         probs = []
 
-        for layer in model.model.layers[:-1]:
-            hidden_BLD = layer.output
+        for hs in hs_decoded:
+            relevant_tokens_LV = hs[0, :, :]
 
-            if isinstance(hidden_BLD, tuple):
-                hidden_BLD = hidden_BLD[0]
+            probs_LV = t.nn.functional.softmax(relevant_tokens_LV, dim=-1)
+            pred_ids_L = relevant_tokens_LV.argmax(dim=-1)
 
-            _compute_top_probs(
-                # NOTE(cadentj): Can't put this in the trace body bc of pickling issues
-                model.lm_head(model.model.ln_f(hidden_BLD)),
-                probs,
-                pred_ids,
-            )
-        _compute_top_probs(model.output.logits, probs, pred_ids)
+            # Gather probabilities over the predicted tokens
+            pred_ids_L1 = pred_ids_L.unsqueeze(1)
+            probs_L = t.gather(probs_LV, 1, pred_ids_L1).squeeze()
 
-        probs.save()
-        pred_ids.save()
+            pred_ids.append(pred_ids_L.tolist())
+            probs.append(probs_L.tolist())
 
-    if state.remote:
-        return tracer.backend.job_id
-
-    return probs, pred_ids
-
-
-def heatmap_rank(
-    req: GridLensRequest, state: AppState
-) -> tuple[list[t.Tensor], list[t.Tensor]]:
-    model = state[req.model]
+        return probs, pred_ids
 
     def _compute_rank(
-        logits_BLV,
-        # NOTE(cadentj): Can't put this in the trace body bc of pickling issues
-        probs_list,
-        pred_ids_list,
+        hs_decoded,
+        logits,
     ):
-        relevant_tokens_LV = logits_BLV[0, :, :]
+        # pred_ids = []
+        ranks = []
 
-        probs_LV = t.nn.functional.softmax(relevant_tokens_LV, dim=-1)
-        pred_ids_L = relevant_tokens_LV.argmax(dim=-1)
-
-        # Gather probabilities over the predicted tokens
-        pred_ids_L1 = pred_ids_L.unsqueeze(1)
-        probs_L = t.gather(probs_LV, 1, pred_ids_L1).squeeze()
-
-        pred_ids_list.append(pred_ids_L.tolist())
-        probs_list.append(probs_L.tolist())
-
-    with model.trace(
-        req.prompt,
-        remote=state.remote,
-        backend=state.make_backend(model=model),
-    ) as tracer:
-        pred_ids = []
-        probs = []
-
-        hidden_states = []
-
-        for layer in model.model.layers[:-1]:
-            hidden_BLD = layer.output
-
-            if isinstance(hidden_BLD, tuple):
-                hidden_BLD = hidden_BLD[0]
-
-            hidden_states.append(model.lm_head(model.model.ln_f(hidden_BLD)))
-
-        logits = model.output.logits
         top_tokens = logits.argmax(dim=-1)
-
-        for hs in hidden_states:
-            sorted_probs, sorted_indices = t.nn.functional.softmax(hs, dim=-1).sort(dim=-1)
+        
+        for hs in hs_decoded:
+            sorted_probs, sorted_indices = t.nn.functional.softmax(hs, dim=-1).sort(descending=True, dim=-1)
 
             rank_map = t.empty_like(sorted_indices)
             rank_map.scatter_(
                 2,  # along vocab axis
                 sorted_indices,
-                t.arange(1, logits.size(-1)+1).expand_as(sorted_indices)
+                t.arange(1, logits.size(-1)+1).expand_as(sorted_indices).to(hs.device)
             )
             # token_ids: [batch, seq_len]
-            ranks = rank_map.gather(2, top_tokens.unsqueeze(-1)).squeeze(-1)
+            ranks_L = rank_map.gather(2, top_tokens.unsqueeze(-1)).squeeze(-1)
 
-        probs.save()
+            ranks.append(ranks_L[0].to("cpu").tolist())
+
+        return ranks, top_tokens[0].to('cpu').tolist()
+
+
+    def _compute_entropy(
+        hs_decoded,
+        logits,
+    ):
+        entropies = []
+
+        for hs in hs_decoded:
+            hs = hs[0, :, :]
+            log_p = t.nn.functional.log_softmax(hs, dim=-1)     # stable log-softmax
+            p = log_p.exp()
+            H = -(p * log_p).sum(dim=-1)
+
+            entropies.append(H.to("cpu").tolist())
+
+        return entropies, logits.argmax(dim=-1)[0].to("cpu").tolist()
+
+    with model.trace(
+        req.prompt,
+        remote=state.remote,
+        backend=state.make_backend(model=model),
+    ) as tracer:
+        hs_decoded = []
+
+        for layer in model.model.layers[:-1]:
+            hs = layer.output
+
+            if isinstance(hs, tuple):
+                hs = hs[0]
+
+            hs = model.lm_head(model.model.ln_f(hs))
+            hs_decoded.append(hs)
+
+        logits = model.output.logits
+        hs_decoded.append(logits)
+
+        if req.stat == LensStatistic.PROBABILITY:
+            stats, pred_ids = _compute_top_probs(hs_decoded)
+        elif req.stat == LensStatistic.RANK:
+            stats, pred_ids = _compute_rank(hs_decoded, logits)
+        elif req.stat == LensStatistic.ENTROPY:
+            stats, pred_ids = _compute_entropy(hs_decoded, logits)
+
+        
+        stats.save()
         pred_ids.save()
 
     if state.remote:
         return tracer.backend.job_id
 
-    return probs, pred_ids
-
+    return stats, pred_ids
 
 def get_remote_heatmap(
     job_id: str, state: AppState
 ) -> tuple[list[t.Tensor], list[t.Tensor]]:
     backend = state.make_backend(job_id=job_id)
     results = backend()
-    return results["probs"], results["pred_ids"]
+    return results["stats"], results["pred_ids"]
 
 
 def process_grid_results(
-    probs: list[t.Tensor],
+    stats: list[t.Tensor],
     pred_ids: list[t.Tensor],
     lens_request: GridLensRequest,
     state: AppState,
@@ -347,16 +395,39 @@ def process_grid_results(
 
     rows = []
     for seq_idx, input_str in enumerate(input_strs):
-        points = [
-            GridCell(
-                x=layer_idx,
-                y=prob[seq_idx],
-                label=tok.decode(pred_id[seq_idx]),
-            )
-            for layer_idx, (prob, pred_id) in enumerate(zip(probs, pred_ids))
-        ]
-        # Add the input string to the row id to make it unique
-        rows.append(GridRow(id=f"{input_str}-{seq_idx}", data=points))
+        if lens_request.stat == LensStatistic.PROBABILITY:
+            points = [
+                GridCell(
+                    x=layer_idx,
+                    y=stat[seq_idx],
+                    label=tok.decode(pred_id[seq_idx]),
+                )
+                for layer_idx, (stat, pred_id) in enumerate(zip(stats, pred_ids))
+            ]
+            # Add the input string to the row id to make it unique
+            rows.append(GridRow(id=f"{input_str}-{seq_idx}", data=points))
+        elif lens_request.stat == LensStatistic.RANK:
+            points = [
+                GridCell(
+                    x=layer_idx,
+                    y=math.log(stat[seq_idx]),
+                    label=str(stat[seq_idx]),
+                )
+                for layer_idx, stat in enumerate(stats)
+            ]
+            # Add the input string to the row id to make it unique
+            rows.append(GridRow(id=f"{input_str}-{seq_idx}", data=points, right_axis_label=tok.decode(pred_ids[seq_idx])))
+        elif lens_request.stat == LensStatistic.ENTROPY:
+            points = [
+                GridCell(
+                    x=layer_idx,
+                    y=stat[seq_idx],
+                    label=f"{stat[seq_idx]:.4f}",
+                )
+                for layer_idx, stat in enumerate(stats)
+            ]
+            # Add the input string to the row id to make it unique
+            rows.append(GridRow(id=f"{input_str}-{seq_idx}", data=points, right_axis_label=tok.decode(pred_ids[seq_idx])))
 
     return rows
 
