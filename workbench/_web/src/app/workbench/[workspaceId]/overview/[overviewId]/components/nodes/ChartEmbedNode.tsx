@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { createCommand } from "lexical";
 import { useParams } from "next/navigation";
 import { ExternalLink } from "lucide-react";
+import { Badge } from "@/components/ui/badge"
 import { useState } from "react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -152,6 +153,7 @@ function ChartEmbedComponent({ nodeKey, chartId, chartType }: { nodeKey: NodeKey
   
   // Get statistic from config and ensure it's valid for the chart type
   const configStatistic = (config?.data as LensConfigData)?.statisticType;
+  const modelName = (config?.data as LensConfigData)?.model;
 
   const openChart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -170,7 +172,7 @@ function ChartEmbedComponent({ nodeKey, chartId, chartType }: { nodeKey: NodeKey
       }}
       tabIndex={0}
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-1">
         <span className="text-xs text-muted-foreground">{name}</span>
         <div className="flex items-center gap-2">
           <Select value={size} onValueChange={(value) => setSize(value as "small" | "medium" | "large")}>
@@ -190,6 +192,12 @@ function ChartEmbedComponent({ nodeKey, chartId, chartType }: { nodeKey: NodeKey
           </button>
         </div>
       </div>
+      <Badge
+           className="h-5 min-w-5 rounded-md px-1 font-mono tabular-nums"
+           variant="outline"
+         >
+           {modelName}
+      </Badge>
       {isChartLoading || isConfigLoading ? (
         <div className="text-sm text-muted-foreground">Loading chart…</div>
       ) : isChartError || isConfigError ? (
