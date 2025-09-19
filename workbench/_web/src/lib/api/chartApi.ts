@@ -74,15 +74,22 @@ export const useLensLine = () => {
         },
         onSuccess: async (data, variables) => {
             await clearView();
+            const chartKey = queryKeys.charts.chart(variables.lensRequest.chartId);
             queryClient
                 .invalidateQueries({
-                    queryKey: queryKeys.charts.chart(variables.lensRequest.chartId),
+                    queryKey: chartKey,
                 })
                 .then(() => {
                     setTimeout(() => {
                         captureChartThumbnail(variables.lensRequest.chartId);
                     }, 500);
                 });
+            // Invalidate sidebar to update chart type display
+            // Get the chart to find workspaceId for proper cache invalidation
+            const chart = queryClient.getQueryData(chartKey) as any;
+            if (chart?.workspaceId) {
+                queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
+            }
         },
     });
 };
@@ -141,15 +148,22 @@ export const useLensGrid = () => {
         },
         onSuccess: async (data, variables) => {
             await clearView();
+            const chartKey = queryKeys.charts.chart(variables.lensRequest.chartId);
             queryClient
                 .invalidateQueries({
-                    queryKey: queryKeys.charts.chart(variables.lensRequest.chartId),
+                    queryKey: chartKey,
                 })
                 .then(() => {
                     setTimeout(() => {
                         captureChartThumbnail(variables.lensRequest.chartId);
                     }, 500);
                 });
+            // Invalidate sidebar to update chart type display
+            // Get the chart to find workspaceId for proper cache invalidation
+            const chart = queryClient.getQueryData(chartKey) as any;
+            if (chart?.workspaceId) {
+                queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
+            }
         },
     });
 };
@@ -246,7 +260,7 @@ export const useCreatePatchChartPair = () => {
             // Refresh charts and configs
             queryClient.invalidateQueries({ queryKey: ["patchCharts"] });
             queryClient.invalidateQueries({ queryKey: ["chartConfig"] });
-            queryClient.invalidateQueries({ queryKey: ["chartsForSidebar"] });
+            queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
         },
     });
 };
