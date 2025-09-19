@@ -129,6 +129,7 @@ export function Heatmap({
                 isInteractive={false}
                 legends={[
                     {
+                        title: statisticType === Metrics.RANK ? "Rank (log)" : statisticType,
                         anchor: 'right',
                         translateX: statisticType !== Metrics.PROBABILITY ? 60 : 30,
                         translateY: 0,

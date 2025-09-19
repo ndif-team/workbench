@@ -37,9 +37,8 @@ const generateLogTickValues = (min: number, max: number): number[] => {
         }
     }
     
-    // Always include the actual min and max if they're not already included
+    // Always include the actual min if it's not already included
     if (!ticks.includes(min)) ticks.unshift(min);
-    if (!ticks.includes(max)) ticks.push(max);
     
     return ticks.sort((a, b) => a - b);
 };
@@ -191,7 +190,7 @@ export function Line({
                         tickRotation: 0,
                     }}
                     axisLeft={{
-                        legend: metricType,
+                        legend: metricType === "Rank" ? "Rank (log)" : "Probability",
                         legendOffset: -50,
                         tickSize: 0,
                         tickPadding: 10,
