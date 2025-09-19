@@ -15,7 +15,7 @@ export default function LensArea() {
     const { chartId } = useParams<{ chartId: string }>();
 
     const { data: config } = useQuery({
-        queryKey: queryKeys.charts.config(chartId),
+        queryKey: queryKeys.charts.configByChart(chartId),
         queryFn: () => getConfigForChart(chartId),
         enabled: !!chartId,
     });
@@ -38,7 +38,7 @@ export default function LensArea() {
     if (!config || !selectedModel) {
         return (
 
-            <div className="h-full flex flex-col">
+            <div className="h-full flex flex-col min-w-80">
                 <div className="p-3 border-b flex items-center justify-between">
                     <h2 className="text-sm pl-2 font-medium">Model</h2>
                     <ModelSelector />
@@ -50,7 +50,7 @@ export default function LensArea() {
     }
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col min-w-80">
             <div className="p-3 border-b flex items-center justify-between">
                 <h2 className="text-sm pl-2 font-medium">Model</h2>
                 <ModelSelector />

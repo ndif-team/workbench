@@ -21,9 +21,18 @@ import { createUserHeadersAction } from "@/actions/auth";
 
 const getLensLine = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
     const headers = await createUserHeadersAction();
+    
+    // Transform LensConfigData to LensLineRequest format
+    const lineRequest = {
+        model: lensRequest.completion.model,
+        stat: lensRequest.completion.statisticType,
+        prompt: lensRequest.completion.prompt,
+        token: lensRequest.completion.token,
+    };
+    
     return await startAndPoll<Line[]>(
         config.endpoints.startLensLine,
-        lensRequest.completion,
+        lineRequest,
         config.endpoints.resultsLensLine,
         headers
     );
@@ -65,24 +74,40 @@ export const useLensLine = () => {
         },
         onSuccess: async (data, variables) => {
             await clearView();
+            const chartKey = queryKeys.charts.chart(variables.lensRequest.chartId);
             queryClient
                 .invalidateQueries({
-                    queryKey: queryKeys.charts.chart(variables.lensRequest.chartId),
+                    queryKey: chartKey,
                 })
                 .then(() => {
                     setTimeout(() => {
                         captureChartThumbnail(variables.lensRequest.chartId);
                     }, 500);
                 });
+            // Invalidate sidebar to update chart type display
+            // Get the chart to find workspaceId for proper cache invalidation
+            const chart = queryClient.getQueryData(chartKey) as any;
+            if (chart?.workspaceId) {
+                queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
+                queryClient.invalidateQueries({ queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId) });
+            }
         },
     });
 };
 
 const getLensGrid = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
     const headers = await createUserHeadersAction();
+    
+    // Transform LensConfigData to GridLensRequest format
+    const gridRequest = {
+        model: lensRequest.completion.model,
+        stat: lensRequest.completion.statisticType,
+        prompt: lensRequest.completion.prompt,       
+    };
+    
     return await startAndPoll<HeatmapRow[]>(
         config.endpoints.startLensGrid,
-        lensRequest.completion,
+        gridRequest,
         config.endpoints.resultsLensGrid,
         headers
     );
@@ -124,15 +149,23 @@ export const useLensGrid = () => {
         },
         onSuccess: async (data, variables) => {
             await clearView();
+            const chartKey = queryKeys.charts.chart(variables.lensRequest.chartId);
             queryClient
                 .invalidateQueries({
-                    queryKey: queryKeys.charts.chart(variables.lensRequest.chartId),
+                    queryKey: chartKey,
                 })
                 .then(() => {
                     setTimeout(() => {
                         captureChartThumbnail(variables.lensRequest.chartId);
                     }, 500);
                 });
+            // Invalidate sidebar to update chart type display
+            // Get the chart to find workspaceId for proper cache invalidation
+            const chart = queryClient.getQueryData(chartKey) as any;
+            if (chart?.workspaceId) {
+                queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
+                queryClient.invalidateQueries({ queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId) });
+            }
         },
     });
 };
@@ -180,6 +213,7 @@ export const useCreateLensChartPair = () => {
     const defaultConfig = {
         prompt: "",
         model: "",
+        statisticType: "probability" as const,
         token: { idx: 0, id: 0, text: "", targetIds: [] },
     } as LensConfigData;
 
@@ -227,8 +261,8 @@ export const useCreatePatchChartPair = () => {
         onSuccess: ({ chart }) => {
             // Refresh charts and configs
             queryClient.invalidateQueries({ queryKey: ["patchCharts"] });
-            queryClient.invalidateQueries({ queryKey: ["chartConfig"] });
-            queryClient.invalidateQueries({ queryKey: ["chartsForSidebar"] });
+            // Note: This invalidates all chart configs - consider if this is needed
+            queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
         },
     });
 };

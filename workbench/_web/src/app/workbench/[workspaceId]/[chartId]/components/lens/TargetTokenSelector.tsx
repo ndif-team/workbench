@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AsyncSelect from "react-select/async";
 import type { MultiValue, StylesConfig, GroupBase } from "react-select";
-import { LensConfigData } from "@/types/lens";
+import { LensConfigData, Metrics } from "@/types/lens";
 import { TokenOption } from "@/types/models";
 import { useLensWorkspace } from "@/stores/useLensWorkspace";
 import { useDebouncedCallback } from "use-debounce";

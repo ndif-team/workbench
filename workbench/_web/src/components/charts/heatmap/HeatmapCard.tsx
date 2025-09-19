@@ -11,14 +11,16 @@ import { useAnnotationSelection } from "./useAnnotationSelection";
 import { Separator } from "@/components/ui/separator";
 import CodeExport from "@/app/workbench/[workspaceId]/components/CodeExport";
 import { CopyImage } from "../CopyImage";
+import { Metrics } from "@/types/lens";
 
 interface HeatmapCardProps {
     chart: HeatmapChart;
     pending: boolean;
     captureRef?: RefObject<HTMLDivElement>;
+    statisticType?: Metrics;
 }
 
-export const HeatmapCard = ({ chart, captureRef, pending }: HeatmapCardProps) => {
+export const HeatmapCard = ({ chart, captureRef, pending, statisticType }: HeatmapCardProps) => {
     return (
         <div className="flex size-full flex-col">
             {pending ? (
@@ -27,7 +29,7 @@ export const HeatmapCard = ({ chart, captureRef, pending }: HeatmapCardProps) =>
                 <HeatmapDataProvider chart={chart}>
                     <HeatmapCanvasProvider>
                         <HeatmapHoverProvider>
-                            <HeatmapCardContent captureRef={captureRef} chart={chart} />
+                            <HeatmapCardContent captureRef={captureRef} chart={chart} statisticType={statisticType} />
                         </HeatmapHoverProvider>
                     </HeatmapCanvasProvider>
                 </HeatmapDataProvider>
@@ -72,6 +74,7 @@ const PendingHeatmap = ({ chart }: { chart: HeatmapChart }) => {
             <div className="flex size-full relative">
                 <Heatmap
                     rows={[]}
+                    statisticType={Metrics.PROBABILITY}
                 />
 
                 <div className="absolute inset-0 z-30 overflow-hidden pointer-events-none">
@@ -85,9 +88,10 @@ const PendingHeatmap = ({ chart }: { chart: HeatmapChart }) => {
 interface HeatmapCardContentProps {
     captureRef?: RefObject<HTMLDivElement>;
     chart: HeatmapChart;
+    statisticType?: Metrics;
 }
 
-const HeatmapCardContent = ({ captureRef, chart }: HeatmapCardContentProps) => {
+const HeatmapCardContent = ({ captureRef, chart, statisticType }: HeatmapCardContentProps) => {
     const { filteredData: data, bounds, xStep, handleStepChange, setXRange, setYRange, setXStep, defaultXStep } = useHeatmapData()
     const { zoomIntoActiveSelection, clearSelection, activeSelection, onMouseDown } = useSelection()
     const { heatmapCanvasRef } = useHeatmapCanvas()
@@ -147,6 +151,7 @@ const HeatmapCardContent = ({ captureRef, chart }: HeatmapCardContentProps) => {
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
                     onMouseDown={onMouseDown}
+                    statisticType={statisticType}
                 />
             </div>
         </div>

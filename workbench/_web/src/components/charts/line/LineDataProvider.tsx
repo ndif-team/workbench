@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useMemo, ReactNode, useEffe
 import { LineChart } from "@/db/schema";
 import { Line, Range, SelectionBounds } from "@/types/charts";
 import { useLineView } from "../ViewProvider";
+import { LensLineMetrics, Metrics } from "@/types/lens";
 
 interface LineDataContextValue {
     // Range State
@@ -12,6 +13,7 @@ interface LineDataContextValue {
     setXRange: (r: Range) => void;
     setYRange: (r: Range) => void;
     bounds: SelectionBounds;
+    metricType: LensLineMetrics;
 }
 
 const LineDataContext = createContext<LineDataContextValue | null>(null);
@@ -27,9 +29,10 @@ export const useLineData = () => {
 interface LineDataProviderProps {
     chart: LineChart;
     children: ReactNode;
+    metricType?: LensLineMetrics;
 }
 
-export const LineDataProvider: React.FC<LineDataProviderProps> = ({ chart, children }) => {
+export const LineDataProvider: React.FC<LineDataProviderProps> = ({ chart, children, metricType = Metrics.PROBABILITY }) => {
     const { data: rawLines } = chart;
 
     // Calculate the bounds from the data
@@ -49,13 +52,28 @@ export const LineDataProvider: React.FC<LineDataProviderProps> = ({ chart, child
         return {
             xMin: minX === Infinity ? 0 : minX,
             xMax: maxX === -Infinity ? 12 : maxX,
-            yMin: minY === Infinity ? 0 : minY,
+            yMin: minY === Infinity ? (metricType === Metrics.RANK ? 1 : 0) : Math.max(metricType === Metrics.RANK ? 1 : 0, minY),
             yMax: maxY === -Infinity ? 1 : maxY,
         } as SelectionBounds;
-    }, [rawLines]);
+    }, [rawLines, metricType]);
+
+    // Calculate initial yRange based on metric type
+    const initialYRange = useMemo<Range>(() => {
+        if (metricType === Metrics.PROBABILITY) {
+            return [0, 1];
+        } else { // RANK
+            // For rank, use actual data bounds to fill the full y-axis area
+            return [bounds.yMin, bounds.yMax];
+        }
+    }, [metricType, bounds.yMin, bounds.yMax]);
 
     const [xRange, setXRange] = useState<Range>([bounds.xMin, bounds.xMax]);
-    const [yRange, setYRange] = useState<Range>([0, 1]);
+    const [yRange, setYRange] = useState<Range>(initialYRange);
+
+    // Update yRange when metric type or bounds change
+    useEffect(() => {
+        setYRange(initialYRange);
+    }, [initialYRange]);
 
     // Initialize ranges from saved view if present
     const { view, isViewSuccess } = useLineView();
@@ -101,6 +119,7 @@ export const LineDataProvider: React.FC<LineDataProviderProps> = ({ chart, child
         setXRange,
         setYRange,
         bounds,
+        metricType,
     };
 
     return (

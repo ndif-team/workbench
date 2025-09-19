@@ -8,17 +8,19 @@ import { useCrosshair } from "./useCrosshair";
 import { LineHoverProvider, useLineHover } from "./LineHoverProvider";
 import { useAnnotationSelection } from "./useAnnotationSelection";
 import { ViewProvider } from "../ViewProvider";
+import { LensLineMetrics } from "@/types/lens";
 
 
 interface StaticLineCardProps {
     chart: LineChart;
+    metricType?: LensLineMetrics;
 }
 
-export const StaticLineCard = ({ chart }: StaticLineCardProps) => {
+export const StaticLineCard = ({ chart, metricType }: StaticLineCardProps) => {
     return (
         <div className="h-full rounded bg-card">
             <ViewProvider chartId={chart.id}>
-                <LineDataProvider chart={chart}>
+                <LineDataProvider chart={chart} metricType={metricType}>
                     <LineCanvasProvider>
                         <LineHoverProvider>
                             <StaticLine />

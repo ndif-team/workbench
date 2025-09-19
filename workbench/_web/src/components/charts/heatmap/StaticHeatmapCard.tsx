@@ -5,20 +5,22 @@ import { HeatmapCanvasProvider, useHeatmapCanvas } from "./HeatmapCanvasProvider
 import { HeatmapHoverProvider, useHeatmapHover } from "./HeatmapHoverProvider";
 import { useAnnotationSelection } from "./useAnnotationSelection";
 import { ViewProvider } from "../ViewProvider";
+import { Metrics } from "@/types/lens";
 
 
 interface StaticHeatmapCardProps {
     chart: HeatmapChart;
+    statisticType?: Metrics;
 }
 
-export const StaticHeatmapCard = ({ chart }: StaticHeatmapCardProps) => {
+export const StaticHeatmapCard = ({ chart, statisticType }: StaticHeatmapCardProps) => {
     return (
         <div className="h-full rounded bg-card">
             <ViewProvider chartId={chart.id}>
                 <HeatmapDataProvider chart={chart}>
                     <HeatmapCanvasProvider>
                         <HeatmapHoverProvider>
-                            <StaticHeatmap />
+                            <StaticHeatmap statisticType={statisticType} />
                         </HeatmapHoverProvider>
                     </HeatmapCanvasProvider>
                 </HeatmapDataProvider>
@@ -27,7 +29,7 @@ export const StaticHeatmapCard = ({ chart }: StaticHeatmapCardProps) => {
     );
 };
 
-const StaticHeatmap = () => {
+const StaticHeatmap = ({ statisticType }: { statisticType?: Metrics }) => {
     const { filteredData: data } = useHeatmapData()
     const { heatmapCanvasRef } = useHeatmapCanvas()
     const { handleMouseMove, handleMouseLeave } = useHeatmapHover()
@@ -40,6 +42,7 @@ const StaticHeatmap = () => {
             useTooltip={true}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
+            statisticType={statisticType}
         />
     )
 }

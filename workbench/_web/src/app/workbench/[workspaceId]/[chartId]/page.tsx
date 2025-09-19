@@ -20,7 +20,7 @@ export default function ChartPage() {
                     direction="horizontal"
                     className="flex size-full rounded dark:bg-secondary/50 bg-secondary/80 border"
                 >
-                    <ResizablePanel className="h-full" defaultSize={30} minSize={25}>
+                    <ResizablePanel className="h-full" defaultSize={30} minSize={30}>
                         <LensArea />
                     </ResizablePanel>
                     <ResizableHandle className="w-[0.8px]" />

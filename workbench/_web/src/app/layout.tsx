@@ -7,8 +7,8 @@ import { QueryProvider } from "@/components/providers/QueryProvider";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-    title: "Logit Lens - NDIF",
-    description: "National Deep Inference Fabric",
+    title: "workbench",
+    description: "workbench by NDIF",
     icons: {
         icon: "/images/favicon.png",
     },
