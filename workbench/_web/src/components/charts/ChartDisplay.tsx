@@ -27,7 +27,7 @@ export function ChartDisplay() {
     });
 
     const { data: config } = useQuery({
-        queryKey: queryKeys.charts.config(chartId),
+        queryKey: queryKeys.charts.configByChart(chartId),
         queryFn: () => getConfigForChart(chartId),
         enabled: !!chartId,
     });

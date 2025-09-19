@@ -89,6 +89,7 @@ export const useLensLine = () => {
             const chart = queryClient.getQueryData(chartKey) as any;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
+                queryClient.invalidateQueries({ queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId) });
             }
         },
     });
@@ -163,6 +164,7 @@ export const useLensGrid = () => {
             const chart = queryClient.getQueryData(chartKey) as any;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
+                queryClient.invalidateQueries({ queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId) });
             }
         },
     });
@@ -259,7 +261,7 @@ export const useCreatePatchChartPair = () => {
         onSuccess: ({ chart }) => {
             // Refresh charts and configs
             queryClient.invalidateQueries({ queryKey: ["patchCharts"] });
-            queryClient.invalidateQueries({ queryKey: ["chartConfig"] });
+            // Note: This invalidates all chart configs - consider if this is needed
             queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
         },
     });

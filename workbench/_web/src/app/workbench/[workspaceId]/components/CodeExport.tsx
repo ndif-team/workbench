@@ -41,7 +41,7 @@ export function CodeExport({ chartId, chartType }: Props) {
   });
 
   const { data: config } = useQuery({
-    queryKey: ["chartConfig", resolvedChartId],
+    queryKey: queryKeys.charts.configByChart(resolvedChartId as string),
     queryFn: () => getConfigForChart(resolvedChartId as string),
     enabled: !!resolvedChartId,
   });

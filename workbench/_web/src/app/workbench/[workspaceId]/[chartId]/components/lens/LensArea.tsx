@@ -15,7 +15,7 @@ export default function LensArea() {
     const { chartId } = useParams<{ chartId: string }>();
 
     const { data: config } = useQuery({
-        queryKey: queryKeys.charts.config(chartId),
+        queryKey: queryKeys.charts.configByChart(chartId),
         queryFn: () => getConfigForChart(chartId),
         enabled: !!chartId,
     });

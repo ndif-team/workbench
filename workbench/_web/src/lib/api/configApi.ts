@@ -30,7 +30,7 @@ export const useUpdateChartConfig = () => {
         onSuccess: (data, variables: { configId: string; chartId?: string; config: NewConfig }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.config(variables.configId) });
             if (variables.chartId) {
-                queryClient.invalidateQueries({ queryKey: queryKeys.charts.config(variables.chartId) });
+                queryClient.invalidateQueries({ queryKey: queryKeys.charts.configByChart(variables.chartId) });
             }
             // toast.success("Config updated");
         },
