@@ -39,7 +39,7 @@ class LensLineResponse(NDIFResponse):
 router = APIRouter()
 
 
-def line_2(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
+def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
     model = state[req.model]
     idx = req.token.idx
     target_ids = req.token.target_ids
@@ -59,9 +59,7 @@ def line_2(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
             sorted_indices,
             t.arange(1, logits.size(-1)+1).expand_as(sorted_indices).to(logits.device)
         )
-        
         return rank_map
-
 
     with model.trace(
         req.prompt,
@@ -90,46 +88,6 @@ def line_2(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
             # Gather probabilities over the predicted tokens
             target_ids_tensor = t.tensor(target_ids).to(metrics.device)
             target_probs_X = t.gather(metrics, 0, target_ids_tensor)
-
-            results.append(target_probs_X)
-
-        results.save()
-
-    if state.remote:
-        return tracer.backend.job_id
-
-    return results
-
-
-def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
-    model = state[req.model]
-    idx = req.token.idx
-    target_ids = req.token.target_ids
-
-    with model.trace(
-        req.prompt,
-        remote=state.remote,
-        backend=state.make_backend(model=model),
-    ) as tracer:
-        results = []
-        for layer in model.model.layers:
-            # Decode hidden state into vocabulary
-            hidden_BLD = layer.output
-
-            if isinstance(hidden_BLD, tuple):
-                hidden_BLD = hidden_BLD[0]
-
-            # NOTE(cadentj): Can't pickle local decode function atm
-            logits_BLV = model.lm_head(model.model.ln_f(hidden_BLD))
-
-            # Compute probabilities over the relevant tokens
-            logits_V = logits_BLV[0, idx, :]
-
-            probs_V = t.nn.functional.softmax(logits_V, dim=-1)
-
-            # Gather probabilities over the predicted tokens
-            target_ids_tensor = t.tensor(target_ids).to(probs_V.device)
-            target_probs_X = t.gather(probs_V, 0, target_ids_tensor)
 
             results.append(target_probs_X)
 

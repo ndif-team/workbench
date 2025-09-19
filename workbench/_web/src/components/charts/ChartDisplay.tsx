@@ -2,7 +2,6 @@ import { useWorkspace } from "@/stores/useWorkspace";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { useIsMutating, useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { LensStatistic } from "@/types/lens";
 
 import { HeatmapCard } from "./heatmap/HeatmapCard";
 import { LineCard } from "./line/LineCard";
@@ -53,7 +52,7 @@ export function ChartDisplay() {
             ) : isHeatmapRunning || (!isPending && chart.type === "heatmap") ? (
                 <HeatmapCard captureRef={captureRef} chart={chart as HeatmapChart} pending={isPending || !isHeatmapData} statisticType={config?.data?.statisticType} />
             ) :  (
-                <LineCard captureRef={captureRef} chart={chart as LineChart} pending={isPending || isHeatmapData} />
+                <LineCard captureRef={captureRef} chart={chart as LineChart} pending={isPending || isHeatmapData} metricType={config?.data?.statisticType} />
             )}
         </div>
     );

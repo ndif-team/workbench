@@ -5,8 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { TokenArea } from "./TokenArea";
 import { useState, useEffect, useRef } from "react";
 import { usePrediction } from "@/lib/api/modelsApi";
-import type { LensConfigData } from "@/types/lens";
-import { LensStatistic } from "@/types/lens";
+import type { LensConfigData, LensHeatmapMetrics, LensLineMetrics } from "@/types/lens";
+import { Metrics } from "@/types/lens";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -40,18 +40,48 @@ interface CompletionCardProps {
 }
 
 // Helper function to capitalize statistic type for display
-const capitalizeStatistic = (statistic: LensStatistic | undefined): string => {
-    const stat = statistic || LensStatistic.PROBABILITY;
+const capitalizeStatistic = (statistic: LensHeatmapMetrics | LensLineMetrics | undefined): string => {
+    const stat = statistic || Metrics.PROBABILITY;
     return stat.charAt(0).toUpperCase() + stat.slice(1);
+};
+
+// Helper function to get valid statistics for a chart type
+const getValidStatistics = (chartType: ChartType): (LensHeatmapMetrics | LensLineMetrics)[] => {
+    if (chartType === "heatmap") {
+        return [Metrics.PROBABILITY, Metrics.RANK, Metrics.ENTROPY];
+    } else {
+        return [Metrics.PROBABILITY, Metrics.RANK];
+    }
+};
+
+// Helper function to check if a statistic is valid for a chart type
+const isStatisticValid = (statistic: LensHeatmapMetrics | LensLineMetrics, chartType: ChartType): boolean => {
+    const validStats = getValidStatistics(chartType);
+    return validStats.includes(statistic);
+};
+
+// Helper function to ensure the current statistic is valid for the chart type
+const ensureValidStatistic = (config: LensConfigData, chartType: ChartType): LensConfigData => {
+    if (!isStatisticValid(config.statisticType, chartType)) {
+        // If current statistic is invalid for this chart type, default to PROBABILITY
+        return {
+            ...config,
+            statisticType: Metrics.PROBABILITY,
+        };
+    }
+    return config;
 };
 
 export function CompletionCard({ initialConfig, chartType, selectedModel }: CompletionCardProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
     const [tokenData, setTokenData] = useState<Token[]>([]);
-    const [config, setConfig] = useState<LensConfigData>({
-        ...initialConfig.data,
-        statisticType: initialConfig.data.statisticType || LensStatistic.PROBABILITY // Default to probability
+    const [config, setConfig] = useState<LensConfigData>(() => {
+        const baseConfig = {
+            ...initialConfig.data,
+            statisticType: initialConfig.data.statisticType || Metrics.PROBABILITY,
+        };
+        return ensureValidStatistic(baseConfig, chartType);
     });
     const [editingText, setEditingText] = useState(initialConfig.data.prediction === undefined);
     const [promptHasChangedState, setPromptHasChanged] = useState(false);
@@ -67,6 +97,11 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     useEffect(() => {
         setPromptHasChanged(false);
     }, [initialConfig.id]);
+
+    // Ensure statistic is valid when chart type changes
+    useEffect(() => {
+        setConfig(prevConfig => ensureValidStatistic(prevConfig, chartType));
+    }, [chartType]);
 
     // Tokenize the prompt if the config changes and there's an existing prediction
     useEffect(() => {
@@ -132,7 +167,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         if (!promptHasChanged) setPromptHasChanged(true);
     };
 
-    const handleStatisticChange = async (value: LensStatistic) => {
+    const handleStatisticChange = async (value: LensHeatmapMetrics | LensLineMetrics) => {
         const updatedConfig = {
             ...config,
             statisticType: value,
@@ -382,9 +417,9 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent className="w-auto min-w-24">
-                                    <DropdownMenuLabel className="text-xs">Statistics</DropdownMenuLabel>
+                                    <DropdownMenuLabel className="text-xs">Metrics</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
-                                    {Object.values(LensStatistic).map((statistic) => (
+                                    {getValidStatistics(chartType).map((statistic) => (
                                         <DropdownMenuItem
                                             key={statistic}
                                             onClick={() => handleStatisticChange(statistic)}

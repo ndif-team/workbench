@@ -8,6 +8,41 @@ import { resolveThemeCssVars } from "@/lib/utils";
 import { Margin } from "@nivo/core";
 import { hslFromCssVar } from "@/lib/utils";
 import { Tooltip } from "./Tooltip";
+import { useLineData } from "./LineDataProvider";
+import { Metrics } from "@/types/lens";
+
+// Helper function to generate good logarithmic tick values
+const generateLogTickValues = (min: number, max: number): number[] => {
+    const ticks: number[] = [];
+    
+    // Start from the power of 10 at or below min
+    let startPower = Math.floor(Math.log10(min));
+    let endPower = Math.ceil(Math.log10(max));
+    
+    // Generate ticks at powers of 10 and key intermediate values
+    for (let power = startPower; power <= endPower; power++) {
+        const base = Math.pow(10, power);
+        
+        // Add the main power of 10
+        if (base >= min && base <= max) {
+            ticks.push(base);
+        }
+        
+        // Add key intermediate values (2, 5 times the power of 10)
+        for (const multiplier of [2, 5]) {
+            const value = base * multiplier;
+            if (value >= min && value <= max && value < Math.pow(10, power + 1)) {
+                ticks.push(value);
+            }
+        }
+    }
+    
+    // Always include the actual min and max if they're not already included
+    if (!ticks.includes(min)) ticks.unshift(min);
+    if (!ticks.includes(max)) ticks.push(max);
+    
+    return ticks.sort((a, b) => a - b);
+};
 
 interface LineProps {
     lines: Line[];
@@ -39,6 +74,32 @@ export function Line({
     useTooltip = false,
 }: LineProps) {
     const resolvedTheme = useMemo(() => resolveThemeCssVars(lineTheme), [])
+
+    // Get metric type from context if available (when used with LineDataProvider)
+    let metricType: string = "Probability";
+    try {
+        const lineDataContext = useLineData();
+        metricType = lineDataContext.metricType === Metrics.RANK ? "Rank" : "Probability";
+    } catch {
+        // useLineData will throw if not within provider (e.g., PendingLine)
+        // Default to "Probability"
+    }
+
+    // Generate log tick values for rank charts (for y-axis labels only)
+    const logTickValues = useMemo(() => {
+        return metricType === "Rank" ? generateLogTickValues(yRange[0], yRange[1]) : null;
+    }, [metricType, yRange]);
+
+    // Adjust margin for rank charts to provide extra top space for x-axis
+    const adjustedMargin = useMemo(() => {
+        if (metricType === "Rank") {
+            return {
+                ...margin,
+                top: margin.top + 40, // Add extra top margin for rank charts with legend
+            };
+        }
+        return margin;
+    }, [margin, metricType]);
 
     const colorFn = useMemo(() => {
         const hasHighlighted = highlightedLineIds.size > 0;
@@ -106,15 +167,23 @@ export function Line({
                 {useTooltip && <Tooltip />}
                 <ResponsiveLine
                     data={lines}
-                    margin={margin}
+                    margin={adjustedMargin}
                     yScale={{
-                        type: 'linear',
+                        type: metricType === "Rank" ? 'log' : 'linear',
                         min: yRange[0],
                         max: yRange[1],
                         stacked: false,
-                        reverse: false,
+                        reverse: metricType === "Rank", // Flip y-axis for rank (lower ranks at top)
+                        nice: false, // Use exact min/max values without padding
                     }}
-                    axisBottom={{
+                    axisTop={metricType === "Rank" ? {
+                        legend: 'Layer',
+                        legendOffset: -35,
+                        tickSize: 0,
+                        tickPadding: 10,
+                        tickRotation: 0,
+                    } : null}
+                    axisBottom={metricType === "Rank" ? null : {
                         legend: 'Layer',
                         legendOffset: 35,
                         tickSize: 0,
@@ -122,22 +191,26 @@ export function Line({
                         tickRotation: 0,
                     }}
                     axisLeft={{
-                        legend: 'Probability',
-                        legendOffset: -45,
+                        legend: metricType,
+                        legendOffset: -50,
                         tickSize: 0,
                         tickPadding: 10,
                         tickRotation: 0,
+                        ...(logTickValues && {
+                            tickValues: logTickValues
+                        })
                     }}
                     theme={resolvedTheme}
                     colors={colorFn}
                     enableGridX={false}
                     isInteractive={false}
-                    yFormat=">-.2f"
+                    yFormat={metricType === "Rank" ? ">-.0f" : ">-.2f"}
                     animate={false}
                     crosshairType="x"
                     enableSlices={false}
                     useMesh={false}
                     enableGridY={true}
+                    gridYValues={logTickValues || undefined}
                     enablePoints={false}
                     pointBorderWidth={0}
                 />

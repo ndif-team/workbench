@@ -7,7 +7,7 @@ import { resolveThemeCssVars } from '@/lib/utils'
 import { Margin } from '@nivo/core';
 import { HeatmapRow } from '@/types/charts';
 import { Tooltip } from './Tooltip';
-import { LensStatistic } from '@/types/lens';
+import { Metrics } from '@/types/lens';
 import React from 'react';
 
 
@@ -19,7 +19,7 @@ interface HeatmapProps {
     onMouseMove?: (e: React.MouseEvent) => void;
     onMouseLeave?: () => void;
     onMouseDown?: (e: React.MouseEvent<any>) => void;
-    statisticType?: LensStatistic;
+    statisticType?: Metrics;
 }
 
 
@@ -38,7 +38,7 @@ export function Heatmap({
     // Create a lookup map to access right_axis_label by row.id
     const rightAxisLabelMap = useMemo(() => {
         const labelMap: Record<string, string> = {};
-        if (statisticType !== LensStatistic.PROBABILITY) {
+        if (statisticType !== Metrics.PROBABILITY) {
             rows.forEach((row) => {
                 labelMap[row.id] = row.right_axis_label ?? "";
             });
@@ -47,7 +47,7 @@ export function Heatmap({
     }, [rows, statisticType]);
 
     const minValue = useMemo(() => {
-        if (statisticType === LensStatistic.PROBABILITY) {
+        if (statisticType === Metrics.PROBABILITY) {
             return 0;
         } else {
             return rows.reduce((globalMin, row) => {
@@ -59,7 +59,7 @@ export function Heatmap({
     }, [rows, statisticType]);
 
     const maxValue = useMemo(() => {
-        if (statisticType === LensStatistic.PROBABILITY) {
+        if (statisticType === Metrics.PROBABILITY) {
             return 1;
         } else {
             return rows.reduce((globalMax, row) => {
@@ -97,7 +97,7 @@ export function Heatmap({
                     tickPadding: 10,
                     format: (value) => String(value).replace(/-\d+$/, ''),
                 }}
-                axisRight={statisticType !== LensStatistic.PROBABILITY ? {
+                axisRight={statisticType !== Metrics.PROBABILITY ? {
                     tickSize: 0,
                     tickPadding: 10,
                     format: (value) => {
@@ -130,7 +130,7 @@ export function Heatmap({
                 legends={[
                     {
                         anchor: 'right',
-                        translateX: statisticType !== LensStatistic.PROBABILITY ? 60 : 30,
+                        translateX: statisticType !== Metrics.PROBABILITY ? 60 : 30,
                         translateY: 0,
                         length: 400,
                         thickness: 8,

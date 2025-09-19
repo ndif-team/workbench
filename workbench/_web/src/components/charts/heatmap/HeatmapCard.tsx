@@ -11,13 +11,13 @@ import { useAnnotationSelection } from "./useAnnotationSelection";
 import { Separator } from "@/components/ui/separator";
 import CodeExport from "@/app/workbench/[workspaceId]/components/CodeExport";
 import { CopyImage } from "../CopyImage";
-import { LensStatistic } from "@/types/lens";
+import { Metrics } from "@/types/lens";
 
 interface HeatmapCardProps {
     chart: HeatmapChart;
     pending: boolean;
     captureRef?: RefObject<HTMLDivElement>;
-    statisticType?: LensStatistic;
+    statisticType?: Metrics;
 }
 
 export const HeatmapCard = ({ chart, captureRef, pending, statisticType }: HeatmapCardProps) => {
@@ -74,7 +74,7 @@ const PendingHeatmap = ({ chart }: { chart: HeatmapChart }) => {
             <div className="flex size-full relative">
                 <Heatmap
                     rows={[]}
-                    statisticType={LensStatistic.PROBABILITY}
+                    statisticType={Metrics.PROBABILITY}
                 />
 
                 <div className="absolute inset-0 z-30 overflow-hidden pointer-events-none">
@@ -88,7 +88,7 @@ const PendingHeatmap = ({ chart }: { chart: HeatmapChart }) => {
 interface HeatmapCardContentProps {
     captureRef?: RefObject<HTMLDivElement>;
     chart: HeatmapChart;
-    statisticType?: LensStatistic;
+    statisticType?: Metrics;
 }
 
 const HeatmapCardContent = ({ captureRef, chart, statisticType }: HeatmapCardContentProps) => {
