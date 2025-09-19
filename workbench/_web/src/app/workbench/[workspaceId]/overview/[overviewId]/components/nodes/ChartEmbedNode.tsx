@@ -22,6 +22,7 @@ import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { queryKeys } from "@/lib/queryKeys";
 export const INSERT_CHART_EMBED_COMMAND = createCommand<{ chart: ChartMetadata }>("INSERT_CHART_EMBED_COMMAND");
 
 // Node payload
@@ -88,7 +89,7 @@ function ChartEmbedComponent({ nodeKey, chartId, chartType }: { nodeKey: NodeKey
   const [editor] = useLexicalComposerContext();
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const [isSelected, setSelected] = useLexicalNodeSelection(nodeKey);
-  const { data: chart } = useQuery({ queryKey: ["chartById", chartId], queryFn: () => getChartById(chartId) });
+  const { data: chart } = useQuery({ queryKey: queryKeys.charts.chart(chartId), queryFn: () => getChartById(chartId) });
 
   const [size, setSize] = useState<"small" | "medium" | "large">("medium");
 
