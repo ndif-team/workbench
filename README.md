@@ -11,10 +11,6 @@
 1. Activate it afterwards using the printed command
 1. Run `uv sync --extra dev`
 
-Now, run the frontend and backend together, with:
-1. bash ./scripts/web.sh
-1. bash ./scripts/api.sh
-
 There is a second `.env` file inside `workbench/workbench/_api/.env` that needs to be created.
 Inside it, make sure you've set up:
 - `NDIF_API_KEY` which you can get at [https://ndif.us/](https://ndif.us/)
@@ -22,3 +18,7 @@ Inside it, make sure you've set up:
 - `HF_TOKEN` for accessing HuggingFace gated models
 
 You'll also need to set up the root `.env` file. Clone the `.env.template` to the project root to get started.
+
+Now, run the frontend and backend together, with:
+1. bash ./scripts/web.sh
+1. bash ./scripts/api.sh
