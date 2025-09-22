@@ -10,8 +10,10 @@
 1. Create a venv using `uv venv`
 1. Activate it afterwards using the printed command
 1. Run `uv sync --extra dev`
-1. Change to `workbench/_web/`
-1. Run `bun install`
+
+Now, run the frontend and backend together, with:
+1. bash ./scripts/web.sh
+1. bash ./scripts/api.sh
 
 There is a second `.env` file inside `workbench/workbench/_api/.env` that needs to be created.
 Inside it, make sure you've set up:
