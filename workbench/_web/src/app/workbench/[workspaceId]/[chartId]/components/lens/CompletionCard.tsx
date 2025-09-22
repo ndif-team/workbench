@@ -1,11 +1,21 @@
 "use client";
 
-import { ChartLine, Grid3x3, Loader2, TriangleAlert } from "lucide-react";
+import { ChartLine, Grid3x3, Loader2, TriangleAlert, ChevronDown } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { TokenArea } from "./TokenArea";
 import { useState, useEffect, useRef } from "react";
 import { usePrediction } from "@/lib/api/modelsApi";
-import type { LensConfigData } from "@/types/lens";
+import type { LensConfigData, LensHeatmapMetrics, LensLineMetrics } from "@/types/lens";
+import { Metrics } from "@/types/lens";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 import { TargetTokenSelector } from "./TargetTokenSelector";
 
@@ -29,11 +39,50 @@ interface CompletionCardProps {
     selectedModel: string;
 }
 
+// Helper function to capitalize statistic type for display
+const capitalizeStatistic = (statistic: LensHeatmapMetrics | LensLineMetrics | undefined): string => {
+    const stat = statistic || Metrics.PROBABILITY;
+    return stat.charAt(0).toUpperCase() + stat.slice(1);
+};
+
+// Helper function to get valid statistics for a chart type
+const getValidStatistics = (chartType: ChartType): (LensHeatmapMetrics | LensLineMetrics)[] => {
+    if (chartType === "heatmap") {
+        return [Metrics.PROBABILITY, Metrics.RANK, Metrics.ENTROPY];
+    } else {
+        return [Metrics.PROBABILITY, Metrics.RANK];
+    }
+};
+
+// Helper function to check if a statistic is valid for a chart type
+const isStatisticValid = (statistic: LensHeatmapMetrics | LensLineMetrics, chartType: ChartType): boolean => {
+    const validStats = getValidStatistics(chartType);
+    return validStats.includes(statistic);
+};
+
+// Helper function to ensure the current statistic is valid for the chart type
+const ensureValidStatistic = (config: LensConfigData, chartType: ChartType): LensConfigData => {
+    if (!isStatisticValid(config.statisticType, chartType)) {
+        // If current statistic is invalid for this chart type, default to PROBABILITY
+        return {
+            ...config,
+            statisticType: Metrics.PROBABILITY,
+        };
+    }
+    return config;
+};
+
 export function CompletionCard({ initialConfig, chartType, selectedModel }: CompletionCardProps) {
-    const { workspaceId } = useParams<{ workspaceId: string }>();
+    const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
     const [tokenData, setTokenData] = useState<Token[]>([]);
-    const [config, setConfig] = useState<LensConfigData>(initialConfig.data);
+    const [config, setConfig] = useState<LensConfigData>(() => {
+        const baseConfig = {
+            ...initialConfig.data,
+            statisticType: initialConfig.data.statisticType || Metrics.PROBABILITY,
+        };
+        return ensureValidStatistic(baseConfig, chartType);
+    });
     const [editingText, setEditingText] = useState(initialConfig.data.prediction === undefined);
     const [promptHasChangedState, setPromptHasChanged] = useState(false);
 
@@ -48,6 +97,11 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     useEffect(() => {
         setPromptHasChanged(false);
     }, [initialConfig.id]);
+
+    // Ensure statistic is valid when chart type changes
+    useEffect(() => {
+        setConfig(prevConfig => ensureValidStatistic(prevConfig, chartType));
+    }, [chartType]);
 
     // Tokenize the prompt if the config changes and there's an existing prediction
     useEffect(() => {
@@ -113,6 +167,33 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         if (!promptHasChanged) setPromptHasChanged(true);
     };
 
+    const handleStatisticChange = async (value: LensHeatmapMetrics | LensLineMetrics) => {
+        const updatedConfig = {
+            ...config,
+            statisticType: value,
+        };
+        setConfig(updatedConfig);
+
+        // Update the config in the database
+        await updateChartConfigMutation({
+            configId: initialConfig.id,
+            chartId: chartId,
+            config: {
+                data: updatedConfig,
+                workspaceId,
+                type: "lens",
+            }
+        });
+
+        if (updatedConfig.prompt && updatedConfig.prompt.trim().length > 0 && updatedConfig.prediction) {
+            if (chartType === "heatmap") {
+                await handleCreateHeatmap(updatedConfig);
+            } else if (chartType === "line") {
+                await handleCreateLineChart(updatedConfig);
+            }
+        }
+    };
+
     // Newline on shift + enter and tokenize on enter
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey && !isExecuting && config.prompt.length > 0) {
@@ -175,6 +256,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         // Update the config in the database
         await updateChartConfigMutation({
             configId: initialConfig.id,
+            chartId: chartId,
             config: {
                 data: temporaryConfig,
                 workspaceId,
@@ -293,8 +375,8 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                         "flex flex-col size-full border p-3 items-center gap-3 bg-card/80 rounded",
                         (editingText || isExecuting) ? "pointer-events-none" : "pointer-events-auto"
                     )}>
-                        <div className="flex w-full justify-between items-center">
-                            <div className="flex items-center p-1 h-8 bg-background rounded">
+                        <div className="flex w-full justify-between items-center gap-2 flex-nowrap min-w-60">
+                            <div className="flex items-center p-1 h-8 bg-background rounded flex-shrink-0">
                                 <button
                                     onClick={() => handleCreateHeatmap(config)}
                                     disabled={isExecuting || isCreatingLineChart || isCreatingHeatmap}
@@ -319,7 +401,35 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                                 </button>
                             </div>
 
-                            {/* <DecoderSelector /> */}
+                            {/* Statistics Type Dropdown */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 text-xs min-w-20 max-w-28 flex-shrink-0 border-0"
+                                        disabled={isExecuting || isCreatingLineChart || isCreatingHeatmap}
+                                    >
+                                        <span className="flex items-center gap-1 truncate">
+                                            <span className="truncate">{capitalizeStatistic(config.statisticType)}</span>
+                                            <ChevronDown className="w-3 h-3 flex-shrink-0" />
+                                        </span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-auto min-w-24">
+                                    <DropdownMenuLabel className="text-xs">Metrics</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {getValidStatistics(chartType).map((statistic) => (
+                                        <DropdownMenuItem
+                                            key={statistic}
+                                            onClick={() => handleStatisticChange(statistic)}
+                                            className="text-xs"
+                                        >
+                                            {capitalizeStatistic(statistic)}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
 
 

@@ -2,9 +2,11 @@
 
 import { DecoratorNode, LexicalEditor, NodeKey, SerializedLexicalNode, Spread, $getNodeByKey, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, COMMAND_PRIORITY_LOW } from "lexical";
 import * as React from "react";
-import { getChartById } from "@/lib/queries/chartQueries";
+import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import type { ChartMetadata } from "@/types/charts";
 import { useQuery } from "@tanstack/react-query";
+import type { LensConfigData, LensHeatmapMetrics, LensLineMetrics } from "@/types/lens";
+import { Metrics } from "@/types/lens";
 import { StaticHeatmapCard } from "@/components/charts/heatmap/StaticHeatmapCard";
 import { Card } from "@/components/ui/card";
 import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
@@ -19,9 +21,11 @@ import { Separator } from "@/components/ui/separator";
 import { createCommand } from "lexical";
 import { useParams } from "next/navigation";
 import { ExternalLink } from "lucide-react";
+import { Badge } from "@/components/ui/badge"
 import { useState } from "react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { queryKeys } from "@/lib/queryKeys";
 export const INSERT_CHART_EMBED_COMMAND = createCommand<{ chart: ChartMetadata }>("INSERT_CHART_EMBED_COMMAND");
 
 // Node payload
@@ -88,7 +92,20 @@ function ChartEmbedComponent({ nodeKey, chartId, chartType }: { nodeKey: NodeKey
   const [editor] = useLexicalComposerContext();
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const [isSelected, setSelected] = useLexicalNodeSelection(nodeKey);
-  const { data: chart } = useQuery({ queryKey: ["chartById", chartId], queryFn: () => getChartById(chartId) });
+  const { data: chart, isLoading: isChartLoading, isError: isChartError } = useQuery({ 
+    queryKey: queryKeys.charts.chart(chartId), 
+    queryFn: () => getChartById(chartId),
+    enabled: !!chartId,
+    retry: 3,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+  const { data: config, isLoading: isConfigLoading, isError: isConfigError } = useQuery({ 
+    queryKey: queryKeys.charts.configByChart(chartId), 
+    queryFn: () => getConfigForChart(chartId),
+    enabled: !!chartId,
+    retry: 3,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const [size, setSize] = useState<"small" | "medium" | "large">("medium");
 
@@ -133,6 +150,10 @@ function ChartEmbedComponent({ nodeKey, chartId, chartType }: { nodeKey: NodeKey
 
   const name = (chart?.name ?? "Untitled");
   const type = (chart?.type ?? chartType);
+  
+  // Get statistic from config and ensure it's valid for the chart type
+  const configStatistic = (config?.data as LensConfigData)?.statisticType;
+  const modelName = (config?.data as LensConfigData)?.model;
 
   const openChart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -151,7 +172,7 @@ function ChartEmbedComponent({ nodeKey, chartId, chartType }: { nodeKey: NodeKey
       }}
       tabIndex={0}
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-1">
         <span className="text-xs text-muted-foreground">{name}</span>
         <div className="flex items-center gap-2">
           <Select value={size} onValueChange={(value) => setSize(value as "small" | "medium" | "large")}>
@@ -171,15 +192,25 @@ function ChartEmbedComponent({ nodeKey, chartId, chartType }: { nodeKey: NodeKey
           </button>
         </div>
       </div>
-      {!chart ? (
+      <Badge
+           className="h-5 min-w-5 rounded-md px-1 font-mono tabular-nums"
+           variant="outline"
+         >
+           {modelName}
+      </Badge>
+      {isChartLoading || isConfigLoading ? (
         <div className="text-sm text-muted-foreground">Loading chart…</div>
+      ) : isChartError || isConfigError ? (
+        <div className="text-sm text-destructive">Failed to load chart</div>
+      ) : !chart ? (
+        <div className="text-sm text-muted-foreground">Chart not found</div>
       ) : type === "line" && chart.data ? (
         <div className={cn("w-full", {
           "h-[40vh]": size === "small",
           "h-[60vh]": size === "medium",
           "h-[80vh]": size === "large",
         })}>
-          <StaticLineCard chart={chart as LineChart} />
+          <StaticLineCard chart={chart as LineChart} metricType={configStatistic as LensLineMetrics} />
         </div>
       ) : type === "heatmap" && chart.data ? (
         <div className={cn("w-full", {
@@ -187,7 +218,7 @@ function ChartEmbedComponent({ nodeKey, chartId, chartType }: { nodeKey: NodeKey
           "h-[60vh]": size === "medium",
           "h-[80vh]": size === "large",
         })}>
-          <StaticHeatmapCard chart={chart as HeatmapChart} />
+          <StaticHeatmapCard chart={chart as HeatmapChart} statisticType={configStatistic as  LensHeatmapMetrics} />
         </div>
       ) : (
         <div className="text-sm text-muted-foreground">No data available</div>

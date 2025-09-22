@@ -12,6 +12,7 @@ export interface HeatmapCell {
 export interface HeatmapRow {
     id: string;
     data: HeatmapCell[];
+    right_axis_label?: string;
 }
 
 // Heatmap View Types

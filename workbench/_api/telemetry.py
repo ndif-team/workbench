@@ -4,6 +4,9 @@ import os
 from tkinter.constants import NONE
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
+import logging
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..state import AppState
@@ -27,6 +30,7 @@ class TelemetryClient:
         user_email: str,
         method: str,
         type: str,
+        metric: str,
         job_id: str = None,
         msg: str = "",
     ):
@@ -44,13 +48,16 @@ class TelemetryClient:
             point = point\
             .tag("user_email", user_email)\
             .tag("method", method)\
-            .tag("type", type)
+            .tag("type", type)\
+            .tag("metric", metric)
 
             if job_id:
                 point = point.tag("job_id", job_id)
 
             if msg:
                 point = point.tag("msg", msg)
+
+            logger.info(f'Bucket: {os.getenv("INFLUXDB_BUCKET", "workbench-dev")}')
 
             cls._client.write(
                 bucket=os.getenv("INFLUXDB_BUCKET", "workbench-dev"),

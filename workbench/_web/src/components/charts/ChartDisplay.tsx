@@ -1,5 +1,5 @@
 import { useWorkspace } from "@/stores/useWorkspace";
-import { getChartById } from "@/lib/queries/chartQueries";
+import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { useIsMutating, useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 
@@ -26,6 +26,12 @@ export function ChartDisplay() {
         enabled: !!chartId,
     });
 
+    const { data: config } = useQuery({
+        queryKey: queryKeys.charts.configByChart(chartId),
+        queryFn: () => getConfigForChart(chartId),
+        enabled: !!chartId,
+    });
+
     // Some query is running
     const isPending = isLineRunning || isHeatmapRunning;
 
@@ -33,7 +39,7 @@ export function ChartDisplay() {
     const showEmptyState = (jobStatus === "Idle" && (chart && chart.data === null)) || isLoading || !chart || !chart.data;
 
     // better solution at some point
-    const isHeatmapData = chart?.data?.some((row: any) => row.data.some((cell: any) =>  "label" in cell));
+    const isHeatmapData = Array.isArray(chart?.data) && chart.data.some((row: any) => row.data && Array.isArray(row.data) && row.data.some((cell: any) =>  "label" in cell));
 
     return (
         <div className={cn("flex size-full", 
@@ -44,9 +50,9 @@ export function ChartDisplay() {
                     <div className="text-muted-foreground">No chart data</div>
                 </div>
             ) : isHeatmapRunning || (!isPending && chart.type === "heatmap") ? (
-                <HeatmapCard captureRef={captureRef} chart={chart as HeatmapChart} pending={isPending || !isHeatmapData} />
+                <HeatmapCard captureRef={captureRef} chart={chart as HeatmapChart} pending={isPending || !isHeatmapData} statisticType={config?.data?.statisticType} />
             ) :  (
-                <LineCard captureRef={captureRef} chart={chart as LineChart} pending={isPending || isHeatmapData} />
+                <LineCard captureRef={captureRef} chart={chart as LineChart} pending={isPending || isHeatmapData} metricType={config?.data?.statisticType} />
             )}
         </div>
     );
