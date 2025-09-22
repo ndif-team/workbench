@@ -42,8 +42,6 @@ class TelemetryClient:
 
             point: Point = Point("request_status").field("status", status.value)
 
-            print("Metric is: ", metric)
-
             point = point\
             .tag("user_email", user_email)\
             .tag("method", method)\
