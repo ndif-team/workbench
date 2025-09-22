@@ -4,6 +4,9 @@ import os
 from tkinter.constants import NONE
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
+import logging
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..state import AppState
@@ -53,6 +56,8 @@ class TelemetryClient:
 
             if msg:
                 point = point.tag("msg", msg)
+
+            logger.info(f'Bucket: {os.getenv("INFLUXDB_BUCKET", "workbench-dev")}')
 
             cls._client.write(
                 bucket=os.getenv("INFLUXDB_BUCKET", "workbench-dev"),

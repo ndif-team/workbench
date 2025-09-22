@@ -4,14 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 import { getModels } from "@/lib/api/modelsApi";
 
 export function ModelsDisplay() {
-    const { data: models = [], isLoading, error } = useQuery({
-        queryKey: ['models'],
+    const {
+        data: models = [],
+        isLoading,
+        error,
+    } = useQuery({
+        queryKey: ["models"],
         queryFn: getModels,
         refetchInterval: 120000,
     });
 
-    const baseModels = models.filter(model => model.type === "base").map(model => model.name);
-    const chatModels = models.filter(model => model.type === "chat").map(model => model.name);
+    const baseModels = models.filter((model) => model.type === "base").map((model) => model.name);
+    const chatModels = models.filter((model) => model.type === "chat").map((model) => model.name);
 
     if (isLoading) {
         return (
@@ -26,7 +30,9 @@ export function ModelsDisplay() {
         return (
             <div className="mb-6 p-4 border rounded bg-destructive/10 border-destructive/20">
                 <h2 className="text-lg font-semibold mb-3 text-destructive">Available Models</h2>
-                <div className="text-sm text-destructive/80">Error loading models: {error.message}</div>
+                <div className="text-sm text-destructive/80">
+                    Error loading models: {error.message}
+                </div>
             </div>
         );
     }
@@ -34,44 +40,62 @@ export function ModelsDisplay() {
     return (
         <div className="mb-6 p-4 border rounded bg-primary/10 border-primary/20">
             <h2 className="text-lg font-semibold mb-3 text-primary">Available Models</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Base Models */}
                 <div>
-                    <h3 className="font-medium text-primary/80 mb-3">Base Models ({baseModels.length})</h3>
+                    <h3 className="font-medium text-primary/80 mb-3">
+                        Base Models ({baseModels.length})
+                    </h3>
                     {baseModels.length > 0 ? (
                         <div className="space-y-1">
                             {baseModels.map((model: string) => (
-                                <div key={model} className="text-sm bg-background px-3 py-2 rounded border">
-                                    {model}
-                                </div>
+                                <a
+                                    href={`https://huggingface.co/${model}`}
+                                    key={model}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <div className="text-sm bg-background px-3 py-2 rounded border">
+                                        {model}
+                                    </div>
+                                </a>
                             ))}
                         </div>
                     ) : (
-                        <div className="text-sm text-muted-foreground italic">No base models available</div>
+                        <div className="text-sm text-muted-foreground italic">
+                            No base models available
+                        </div>
                     )}
                 </div>
 
                 {/* Chat Models */}
                 <div>
-                    <h3 className="font-medium text-primary/80 mb-3">Chat Models ({chatModels.length})</h3>
+                    <h3 className="font-medium text-primary/80 mb-3">
+                        Chat Models ({chatModels.length})
+                    </h3>
                     {chatModels.length > 0 ? (
                         <div className="space-y-1">
                             {chatModels.map((model: string) => (
-                                <div key={model} className="text-sm bg-background px-3 py-2 rounded border">
+                                <div
+                                    key={model}
+                                    className="text-sm bg-background px-3 py-2 rounded border"
+                                >
                                     {model}
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <div className="text-sm text-muted-foreground italic">No chat models available</div>
+                        <div className="text-sm text-muted-foreground italic">
+                            No chat models available
+                        </div>
                     )}
                 </div>
             </div>
 
             <div className="mt-3 text-xs text-primary/70">
-                Total: {models.length} model{models.length !== 1 ? 's' : ''} available
+                Total: {models.length} model{models.length !== 1 ? "s" : ""} available
             </div>
         </div>
     );
-} 
+}
