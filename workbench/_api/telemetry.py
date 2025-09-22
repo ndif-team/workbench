@@ -27,6 +27,7 @@ class TelemetryClient:
         user_email: str,
         method: str,
         type: str,
+        metric: str,
         job_id: str = None,
         msg: str = "",
     ):
@@ -41,10 +42,13 @@ class TelemetryClient:
 
             point: Point = Point("request_status").field("status", status.value)
 
+            print("Metric is: ", metric)
+
             point = point\
             .tag("user_email", user_email)\
             .tag("method", method)\
-            .tag("type", type)
+            .tag("type", type)\
+            .tag("metric", metric)
 
             if job_id:
                 point = point.tag("job_id", job_id)

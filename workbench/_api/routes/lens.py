@@ -145,7 +145,8 @@ async def start_line(
         RequestStatus.READY, 
         user_email,
         method="LENS",
-        type="LINE"
+        type="LINE",
+        metric=req.stat.value
     )
 
     try:
@@ -157,7 +158,8 @@ async def start_line(
             user_email, 
             method="LENS",
             type="LINE",
-            msg=str(e)
+            metric=req.stat.value,
+            msg=str(e),
         )
         # TODO: Add logging here
         raise e
@@ -169,6 +171,7 @@ async def start_line(
             user_email,
             method="LENS",
             type="LINE",
+            metric=req.stat.value,
             job_id=result
         )
         return {"job_id": result}
@@ -194,6 +197,7 @@ async def collect_line(
             job_id=job_id, 
             method="LENS",
             type="LINE",
+            metric=req.stat.value,
             msg=str(e)
         )
         # TODO: Add logging here
@@ -205,7 +209,8 @@ async def collect_line(
         user_email, 
         job_id=job_id, 
         method="LENS",
-        type="LINE"
+        type="LINE",
+        metric=req.stat.value
     )
 
     return {"data": process_line_results(results, req, state)}
@@ -405,7 +410,8 @@ async def get_grid(
         RequestStatus.STARTED, 
         user_email,
         method="LENS",
-        type="GRID"
+        type="GRID",
+        metric=req.stat.value
     )
     
     try:
@@ -417,7 +423,8 @@ async def get_grid(
             user_email, 
             method="LENS",
             type="GRID",
-            msg=str(e)
+            metric=req.stat.value,
+            msg=str(e),
         )
         raise e
 
@@ -428,6 +435,7 @@ async def get_grid(
             user_email,
             method="LENS",
             type="GRID",
+            metric=req.stat.value,
             job_id=result
         )
         return {"job_id": result}
@@ -453,6 +461,7 @@ async def collect_grid(
             job_id=job_id, 
             method="LENS",
             type="GRID",
+            metric=lens_request.stat.value,
             msg=str(e)
         )
         raise e
@@ -463,6 +472,7 @@ async def collect_grid(
         user_email,
         job_id=job_id,
         method="LENS",
-        type="GRID"
+        type="GRID",
+        metric=lens_request.stat.value
     )
     return {"data": process_grid_results(probs, pred_ids, lens_request, state)}
