@@ -61,6 +61,11 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
         )
         return rank_map
 
+    if req.stat == LensStatistic.PROBABILITY:
+        _compute_func = _compute_top_probs
+    elif req.stat == LensStatistic.RANK:
+        _compute_func = _compute_rank
+
     with model.trace(
         req.prompt,
         remote=state.remote,
@@ -80,10 +85,7 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
             # Compute probabilities over the relevant tokens
             logits_V = logits_BLV[0, idx, :]
 
-            if req.stat == LensStatistic.PROBABILITY:
-                metrics = _compute_top_probs(logits_V)
-            elif req.stat == LensStatistic.RANK:
-                metrics = _compute_rank(logits_V)
+            metrics = _compute_func(logits_V)
             
             # Gather probabilities over the predicted tokens
             target_ids_tensor = t.tensor(target_ids).to(metrics.device)
@@ -236,6 +238,7 @@ def heatmap(
 
     def _compute_top_probs(
         hs_decoded,
+        logits,
     ):
         pred_ids = []
         probs = []
@@ -296,6 +299,13 @@ def heatmap(
             entropies.append(H.to("cpu").tolist())
 
         return entropies, logits.argmax(dim=-1)[0].to("cpu").tolist()
+    
+    if req.stat == LensStatistic.PROBABILITY:
+        _compute_func = _compute_top_probs
+    elif req.stat == LensStatistic.RANK:
+        _compute_func = _compute_rank
+    elif req.stat == LensStatistic.ENTROPY:
+        _compute_func = _compute_entropy
 
     with model.trace(
         req.prompt,
@@ -316,14 +326,7 @@ def heatmap(
         logits = model.output.logits
         hs_decoded.append(logits)
 
-        if req.stat == LensStatistic.PROBABILITY:
-            stats, pred_ids = _compute_top_probs(hs_decoded)
-        elif req.stat == LensStatistic.RANK:
-            stats, pred_ids = _compute_rank(hs_decoded, logits)
-        elif req.stat == LensStatistic.ENTROPY:
-            stats, pred_ids = _compute_entropy(hs_decoded, logits)
-
-        
+        stats, pred_ids = _compute_func(hs_decoded, logits)
         stats.save()
         pred_ids.save()
 
