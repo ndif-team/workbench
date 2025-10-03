@@ -24,7 +24,7 @@ def get_remot_models(state: AppState):
 
     if MODELS_LAST_UPDATED == 0 or time.time() - MODELS_LAST_UPDATED > 60:
 
-        ping_resp = requests.get(f"{state.ndif_backend_url}/ping", timeout=10)
+        ping_resp = requests.get(f"{state.ndif_backend_url}/ping", timeout=30)
         logger.info(f"Call NDIF_BACKEND/ping: {ping_resp.status_code}")
 
         if ping_resp.status_code != 200:
