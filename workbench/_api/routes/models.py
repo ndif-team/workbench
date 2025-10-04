@@ -51,23 +51,25 @@ def get_remot_models(state: AppState, is_user_signed_in: bool):
 
         for model_config in model_configs:
             if model_config['name'] in running_deployments:
-                if not is_user_signed_in and model_config['gated']:
-                    model_config['allowed'] = False
-                else:
-                    model_config['allowed'] = True
                 running_model_configs.append(model_config)
 
         MODELS = running_model_configs
         MODELS_LAST_UPDATED = time.time()
 
-    return MODELS
+    models = MODELS.copy()
+    for model in models:
+        if not is_user_signed_in and model['gated']:
+            model['allowed'] = False
+        else:
+            model['allowed'] = True
+
+    return models
 
 @router.get("/")
 async def get_models(
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
-    
     if state.remote:
         models = get_remot_models(state, user_email != "guest@localhost")
 

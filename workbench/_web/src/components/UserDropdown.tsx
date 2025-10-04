@@ -46,6 +46,21 @@ export function UserDropdown() {
         }
     };
 
+    const handleLogin = () => {
+        router.push("/login");
+    };
+
+    // Show login button for guests/anonymous users
+    const isGuest = currentUser?.is_anonymous || !currentUser?.email;
+
+    if (isGuest) {
+        return (
+            <Button variant="default" size="sm" onClick={handleLogin}>
+                Log In
+            </Button>
+        );
+    }
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -56,7 +71,7 @@ export function UserDropdown() {
             <DropdownMenuContent align="end" className="w-48">
                 <div className="flex flex-col border-b py-2.5 px-1">   
                     <span className="px-1 text-sm font-semibold">Account</span>
-                    <span className="px-1 text-sm">{(currentUser?.is_anonymous || !currentUser?.email) ? "Guest" : currentUser?.email}</span>
+                    <span className="px-1 text-sm">{currentUser?.email}</span>
                 </div>
                 <DropdownMenuItem disabled={isLoggingOut} onClick={handleLogout}>
                     {isLoggingOut ? "Logging out..." : "Logout"}
