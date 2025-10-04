@@ -18,7 +18,7 @@ MODELS = list()
 MODELS_LAST_UPDATED = 0
 MODEL_INTERVAL = 60
 
-def get_remot_models(state: AppState):
+def get_remot_models(state: AppState, is_user_signed_in: bool):
 
     global MODELS, MODELS_LAST_UPDATED
 
@@ -51,6 +51,10 @@ def get_remot_models(state: AppState):
 
         for model_config in model_configs:
             if model_config['name'] in running_deployments:
+                if not is_user_signed_in and model_config['gated']:
+                    model_config['allowed'] = False
+                else:
+                    model_config['allowed'] = True
                 running_model_configs.append(model_config)
 
         MODELS = running_model_configs
@@ -65,7 +69,7 @@ async def get_models(
 ):
     
     if state.remote:
-        models = get_remot_models(state)
+        models = get_remot_models(state, user_email != "guest@localhost")
 
         return models
 

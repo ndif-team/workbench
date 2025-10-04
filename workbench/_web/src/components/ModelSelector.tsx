@@ -51,13 +51,13 @@ export function ModelSelector() {
                     <SelectGroup>
                         <SelectLabel>Base Models</SelectLabel>
                         {baseModels.map((model) => (
-                            model.gated ? (
+                            !model.allowed ? (
                                 <Tooltip key={model.name}>
                                     <TooltipTrigger asChild>
                                         <div>
                                             <SelectItem 
                                                 value={model.name}
-                                                disabled={model.gated}
+                                                disabled={!model.allowed}
                                                 className={cn("opacity-50 cursor-not-allowed")}
                                             >
                                                 {model.name}
@@ -86,13 +86,13 @@ export function ModelSelector() {
                     <SelectGroup>
                         <SelectLabel>Chat Models</SelectLabel>
                         {chatModels.map((model) => (
-                            model.gated ? (
+                            !model.allowed ? (
                                 <Tooltip key={model.name}>
                                     <TooltipTrigger asChild>
                                         <div>
                                             <SelectItem 
                                                 value={model.name}
-                                                disabled={model.gated}
+                                                disabled={!model.allowed}
                                                 className={cn("opacity-50 cursor-not-allowed")}
                                             >
                                                 {model.name}

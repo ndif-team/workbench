@@ -25,4 +25,5 @@ export interface Model {
     type: "chat" | "base";
     n_layers: number;
     gated: boolean;
+    allowed: boolean;
 }

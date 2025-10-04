@@ -43,7 +43,7 @@ export function ModelsDisplay() {
                     {baseModels.length > 0 ? (
                         <div className="space-y-1">
                             {baseModels.map((model) => (
-                                model.gated ? (
+                                !model.allowed ? (
                                     <Tooltip key={model.name}>
                                         <TooltipTrigger asChild>
                                             <div 
@@ -80,7 +80,7 @@ export function ModelsDisplay() {
                     {chatModels.length > 0 ? (
                         <div className="space-y-1">
                             {chatModels.map((model) => (
-                                model.gated ? (
+                                !model.allowed ? (
                                     <Tooltip key={model.name}>
                                         <TooltipTrigger asChild>
                                             <div 
