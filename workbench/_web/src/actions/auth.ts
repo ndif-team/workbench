@@ -16,7 +16,7 @@ export async function getCurrentUserEmailAction(): Promise<string | null> {
             return null;
         }
         
-        if (!user || user.email === '') {
+        if (!user || user.email === "") {
             return "guest@localhost";
         }
 

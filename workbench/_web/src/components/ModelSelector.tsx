@@ -9,6 +9,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useQuery } from "@tanstack/react-query";
@@ -27,8 +28,8 @@ export function ModelSelector() {
         return <div className="h-8 animate-pulse bg-muted/50" />
     }
 
-    const baseModels = models.filter(model => model.type === "base").map(model => model.name);
-    const chatModels = models.filter(model => model.type === "chat").map(model => model.name);
+    const baseModels = models.filter(model => model.type === "base");
+    const chatModels = models.filter(model => model.type === "chat");
 
     const handleModelChange = (modelName: string) => {
         const model = models.find(model => model.name === modelName);
@@ -50,7 +51,34 @@ export function ModelSelector() {
                     <SelectGroup>
                         <SelectLabel>Base Models</SelectLabel>
                         {baseModels.map((model) => (
-                            <SelectItem key={model} value={model}>{model}</SelectItem>
+                            !model.allowed ? (
+                                <Tooltip key={model.name}>
+                                    <TooltipTrigger asChild>
+                                        <div>
+                                            <SelectItem 
+                                                value={model.name}
+                                                disabled={!model.allowed}
+                                                className={cn("opacity-50 cursor-not-allowed")}
+                                            >
+                                                {model.name}
+                                            </SelectItem>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent 
+                                        className="bg-yellow-100 text-yellow-900" 
+                                        style={{backgroundColor: "rgb(254 249 195)"}}
+                                    >
+                                        Sign in to use this model.
+                                    </TooltipContent>
+                                </Tooltip>
+                            ) : (
+                                <SelectItem 
+                                    key={model.name}
+                                    value={model.name}
+                                >
+                                    {model.name}
+                                </SelectItem>
+                            )
                         ))}
                     </SelectGroup>
                 )}
@@ -58,7 +86,34 @@ export function ModelSelector() {
                     <SelectGroup>
                         <SelectLabel>Chat Models</SelectLabel>
                         {chatModels.map((model) => (
-                            <SelectItem key={model} value={model}>{model}</SelectItem>
+                            !model.allowed ? (
+                                <Tooltip key={model.name}>
+                                    <TooltipTrigger asChild>
+                                        <div>
+                                            <SelectItem 
+                                                value={model.name}
+                                                disabled={!model.allowed}
+                                                className={cn("opacity-50 cursor-not-allowed")}
+                                            >
+                                                {model.name}
+                                            </SelectItem>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent 
+                                        className="bg-yellow-100 text-yellow-900" 
+                                        style={{backgroundColor: "rgb(254 249 195)"}}
+                                    >
+                                        Sign in to use this model.
+                                    </TooltipContent>
+                                </Tooltip>
+                            ) : (
+                                <SelectItem 
+                                    key={model.name}
+                                    value={model.name}
+                                >
+                                    {model.name}
+                                </SelectItem>
+                            )
                         ))}
                     </SelectGroup>
                 )}
