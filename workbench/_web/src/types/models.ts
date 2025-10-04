@@ -24,4 +24,5 @@ export interface Model {
     name: string;
     type: "chat" | "base";
     n_layers: number;
+    gated: boolean;
 }
