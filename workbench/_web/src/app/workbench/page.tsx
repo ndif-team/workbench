@@ -8,7 +8,11 @@ import { AutoWorkspaceCreator } from "@/app/workbench/components/AutoWorkspaceCr
 import { redirect } from "next/navigation";
 export const dynamic = 'force-dynamic'
 
-export default async function WorkbenchPage() {
+export default async function WorkbenchPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ prompt?: string }>;
+}) {
     const supabase = await createClient();
     
     const { data: { user }, error } = await supabase.auth.getUser();
@@ -25,6 +29,10 @@ export default async function WorkbenchPage() {
     // If no workspaces exist, we'll show the page with a message and option to create
     let shouldCreateWorkspace = !workspaces || workspaces.length === 0;
 
+    // Get the prompt from search params
+    const params = await searchParams;
+    const prompt = params?.prompt;
+
     return (
         <>
             <div className="p-6">
@@ -38,7 +46,7 @@ export default async function WorkbenchPage() {
                 <ModelsDisplay />
                 
                 {shouldCreateWorkspace ? (
-                    <AutoWorkspaceCreator userId={user.id} />
+                    <AutoWorkspaceCreator userId={user.id} initialPrompt={prompt} />
                 ) : (
                     <WorkspaceList userId={user.id} />
                 )}
