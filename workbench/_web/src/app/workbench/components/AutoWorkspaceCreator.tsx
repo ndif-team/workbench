@@ -7,9 +7,10 @@ import { createWorkspace } from "@/lib/queries/workspaceQueries";
 interface AutoWorkspaceCreatorProps {
     userId: string;
     initialPrompt?: string;
+    initialModel?: string;
 }
 
-export function AutoWorkspaceCreator({ userId, initialPrompt }: AutoWorkspaceCreatorProps) {
+export function AutoWorkspaceCreator({ userId, initialPrompt, initialModel }: AutoWorkspaceCreatorProps) {
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
@@ -31,7 +32,11 @@ export function AutoWorkspaceCreator({ userId, initialPrompt }: AutoWorkspaceCre
                     // If we have a prompt from the landing page, pass it along
                     if (initialPrompt) {
                         const encodedPrompt = encodeURIComponent(initialPrompt);
-                        router.push(`/workbench/${newWorkspace.id}?prompt=${encodedPrompt}`);
+                        const params = new URLSearchParams({ prompt: encodedPrompt });
+                        if (initialModel) {
+                            params.set('model', encodeURIComponent(initialModel));
+                        }
+                        router.push(`/workbench/${newWorkspace.id}?${params.toString()}`);
                     } else {
                         router.push(`/workbench/${newWorkspace.id}`);
                     }
@@ -45,7 +50,7 @@ export function AutoWorkspaceCreator({ userId, initialPrompt }: AutoWorkspaceCre
         };
 
         createAndRedirect();
-    }, [userId, router, isCreating, initialPrompt]);
+    }, [userId, router, isCreating, initialPrompt, initialModel]);
 
     if (error) {
         return (

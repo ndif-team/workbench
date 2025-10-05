@@ -7,11 +7,12 @@ export default async function Page({
     searchParams 
 }: { 
     params: { workspaceId: string };
-    searchParams: Promise<{ prompt?: string }>;
+    searchParams: Promise<{ prompt?: string; model?: string }>;
 }) {
     const { workspaceId } = params;
     const urlParams = await searchParams;
     const initialPrompt = urlParams?.prompt || "";
+    const initialModel = urlParams?.model || "";
     
     // Check if there's an existing chart
     let chart = await getMostRecentChartForWorkspace(workspaceId);
@@ -20,7 +21,7 @@ export default async function Page({
     if (!chart) {
         const defaultConfig: LensConfigData = {
             prompt: initialPrompt,
-            model: "",
+            model: initialModel,
             token: { idx: 0, id: 0, text: "", targetIds: [] },
         };
         

@@ -36,6 +36,10 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     const [config, setConfig] = useState<LensConfigData>(initialConfig.data);
     const [editingText, setEditingText] = useState(initialConfig.data.prediction === undefined);
     const [promptHasChangedState, setPromptHasChanged] = useState(false);
+    
+    // Track if we should auto-run: only if initial config has a prompt pre-filled
+    const shouldAutoRunRef = useRef(initialConfig.data.prompt.length > 0 && !initialConfig.data.prediction);
+    const hasAutoRunRef = useRef(false);
 
     const promptHasChanged = promptHasChangedState || config.model !== selectedModel;
 
@@ -47,7 +51,10 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     // Reset promptHasChanged when config changes (e.g., when switching between different configs)
     useEffect(() => {
         setPromptHasChanged(false);
-    }, [initialConfig.id]);
+        // Reset auto-run flags when switching configs
+        shouldAutoRunRef.current = initialConfig.data.prompt.length > 0 && !initialConfig.data.prediction;
+        hasAutoRunRef.current = false;
+    }, [initialConfig.id, initialConfig.data.prompt.length, initialConfig.data.prediction]);
 
     // Tokenize the prompt if the config changes and there's an existing prediction
     useEffect(() => {
@@ -59,6 +66,40 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         }
         fetchTokens();
     }, [initialConfig.id, config.prediction, config.prompt, selectedModel]);
+
+    // Auto-run tokenization and heatmap generation ONLY on initial mount with pre-filled prompt
+    useEffect(() => {
+        const autoRunTokenization = async () => {
+            // Use pre-filled model from config if available, otherwise use selected model
+            const modelToUse = initialConfig.data.model || selectedModel;
+            
+            // Only auto-run if:
+            // 1. shouldAutoRunRef is true (prompt was pre-filled on mount)
+            // 2. We haven't auto-run before
+            // 3. A model is available (either pre-filled or selected)
+            // 4. Not currently executing
+            // 5. User hasn't started editing (to avoid interrupting manual typing)
+            if (shouldAutoRunRef.current && !hasAutoRunRef.current && modelToUse && !isExecuting && !promptHasChangedState) {
+                hasAutoRunRef.current = true;
+                shouldAutoRunRef.current = false; // Disable future auto-runs immediately
+                console.log("Auto-running tokenization and heatmap generation for pre-filled prompt:", initialConfig.data.prompt);
+                console.log("Using model:", modelToUse);
+                
+                try {
+                    await handleTokenize();
+                    console.log("Auto-run completed successfully");
+                } catch (error) {
+                    console.error("Auto-run failed:", error);
+                    // Don't reset flags - we only try once, even on error
+                    // User can manually run if needed
+                }
+            }
+        };
+
+        // Small delay to ensure all dependencies are ready
+        const timer = setTimeout(autoRunTokenization, 800);
+        return () => clearTimeout(timer);
+    }, [selectedModel, isExecuting, promptHasChangedState, initialConfig.data.prompt, initialConfig.data.model]);
 
     // Toggle the TokenArea component to the TextArea component
     const textareaRef = useRef<HTMLTextAreaElement>(null);
