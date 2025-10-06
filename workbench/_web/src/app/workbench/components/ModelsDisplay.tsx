@@ -74,7 +74,7 @@ export function ModelsDisplay() {
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
-                                        <div className="text-sm bg-background px-3 py-2 rounded border">
+                                        <div className="text-sm bg-background px-3 py-2 rounded border hover:underline">
                                             {model.name}
                                         </div>
                                     </a>
@@ -119,7 +119,7 @@ export function ModelsDisplay() {
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
-                                        <div className="text-sm bg-background px-3 py-2 rounded border">
+                                        <div className="text-sm bg-background px-3 py-2 rounded border hover:underline">
                                             {model.name}
                                         </div>
                                     </a>
