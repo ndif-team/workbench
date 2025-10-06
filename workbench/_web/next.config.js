@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 
+import { withPostHogConfig } from "@posthog/nextjs-config";
+
 const nextConfig = {
   reactStrictMode: true,
   images: {
@@ -42,4 +44,10 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default withPostHogConfig(nextConfig, {
+  personalApiKey: process.env.POSTHOG_API_KEY, // Personal API Key
+  envId: process.env.POSTHOG_ENV_ID, // Environment ID
+  host: process.env.NEXT_PUBLIC_POSTHOG_HOST, // (optional), defaults to https://us.posthog.com
+  sourcemaps: { // (optional)
+  },
+});
