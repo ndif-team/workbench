@@ -16,6 +16,7 @@ class ModelConfig(BaseModel):
 
     name: str
     chat: bool
+    gated: bool
     rename: dict[str, str]
     config: dict[str, int | str]
 
@@ -33,6 +34,7 @@ class ModelsConfig(BaseModel):
                 "name": model.name,
                 "type": "chat" if model.chat else "base",
                 "n_layers" : model.config["n_layers"],
+                "gated": model.gated,
             }
             for model in self.models.values()
         ]

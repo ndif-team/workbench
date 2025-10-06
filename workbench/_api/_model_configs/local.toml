@@ -5,6 +5,7 @@ remote = true
 [models.one]
 name = "openai-community/gpt2"
 chat = false
+gated = false
 
 [models.one.rename]
 transformer = "model"

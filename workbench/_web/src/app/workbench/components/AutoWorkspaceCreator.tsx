@@ -6,9 +6,11 @@ import { createWorkspace } from "@/lib/queries/workspaceQueries";
 
 interface AutoWorkspaceCreatorProps {
     userId: string;
+    initialPrompt?: string;
+    initialModel?: string;
 }
 
-export function AutoWorkspaceCreator({ userId }: AutoWorkspaceCreatorProps) {
+export function AutoWorkspaceCreator({ userId, initialPrompt, initialModel }: AutoWorkspaceCreatorProps) {
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
@@ -27,7 +29,16 @@ export function AutoWorkspaceCreator({ userId }: AutoWorkspaceCreatorProps) {
                 
                 // Small delay to ensure the workspace is fully created
                 setTimeout(() => {
-                    router.push(`/workbench/${newWorkspace.id}`);
+                    // If we have a prompt from the landing page, pass it along
+                    if (initialPrompt) {
+                        const params = new URLSearchParams({ prompt: initialPrompt });
+                        if (initialModel) {
+                            params.set('model', initialModel);
+                        }
+                        router.push(`/workbench/${newWorkspace.id}?${params.toString()}`);
+                    } else {
+                        router.push(`/workbench/${newWorkspace.id}`);
+                    }
                 }, 500);
                 
             } catch (err) {
@@ -38,7 +49,7 @@ export function AutoWorkspaceCreator({ userId }: AutoWorkspaceCreatorProps) {
         };
 
         createAndRedirect();
-    }, [userId, router, isCreating]);
+    }, [userId, router, isCreating, initialPrompt, initialModel]);
 
     if (error) {
         return (

@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getModels } from "@/lib/api/modelsApi";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 export function ModelsDisplay() {
     const {
@@ -14,8 +15,8 @@ export function ModelsDisplay() {
         refetchInterval: 120000,
     });
 
-    const baseModels = models.filter((model) => model.type === "base").map((model) => model.name);
-    const chatModels = models.filter((model) => model.type === "chat").map((model) => model.name);
+    const baseModels = models.filter(model => model.type === "base");
+    const chatModels = models.filter(model => model.type === "chat");
 
     if (isLoading) {
         return (
@@ -49,17 +50,35 @@ export function ModelsDisplay() {
                     </h3>
                     {baseModels.length > 0 ? (
                         <div className="space-y-1">
-                            {baseModels.map((model: string) => (
-                                <a
-                                    href={`https://huggingface.co/${model}`}
-                                    key={model}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    <div className="text-sm bg-background px-3 py-2 rounded border">
-                                        {model}
-                                    </div>
-                                </a>
+                            {baseModels.map((model) => (
+                                !model.allowed ? (
+                                    <Tooltip key={model.name}>
+                                        <TooltipTrigger asChild>
+                                            <div 
+                                                className="text-sm px-3 py-2 rounded border bg-gray-100 text-gray-400 opacity-60"
+                                            >
+                                                {model.name}
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent 
+                                            className="bg-yellow-100 text-yellow-900 [&]:!bg-yellow-100" 
+                                            style={{backgroundColor: "rgb(254 249 195)"}}
+                                        >
+                                            Sign in to use this model.
+                                        </TooltipContent>
+                                    </Tooltip>
+                                ) : (
+                                    <a
+                                        href={`https://huggingface.co/${model}`}
+                                        key={model.name}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <div className="text-sm bg-background px-3 py-2 rounded border">
+                                            {model.name}
+                                        </div>
+                                    </a>
+                                )
                             ))}
                         </div>
                     ) : (
@@ -76,13 +95,35 @@ export function ModelsDisplay() {
                     </h3>
                     {chatModels.length > 0 ? (
                         <div className="space-y-1">
-                            {chatModels.map((model: string) => (
-                                <div
-                                    key={model}
-                                    className="text-sm bg-background px-3 py-2 rounded border"
-                                >
-                                    {model}
-                                </div>
+                            {chatModels.map((model) => (
+                                !model.allowed ? (
+                                    <Tooltip key={model.name}>
+                                        <TooltipTrigger asChild>
+                                            <div 
+                                                className="text-sm px-3 py-2 rounded border bg-gray-100 text-gray-400 opacity-60"
+                                            >
+                                                {model.name}
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent 
+                                            className="bg-yellow-100 text-yellow-900 [&]:!bg-yellow-100" 
+                                            style={{backgroundColor: "rgb(254 249 195)"}}
+                                        >
+                                            Sign in to use this model.
+                                        </TooltipContent>
+                                    </Tooltip>
+                                ) : (
+                                    <a
+                                        href={`https://huggingface.co/${model}`}
+                                        key={model.name}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <div className="text-sm bg-background px-3 py-2 rounded border">
+                                            {model.name}
+                                        </div>
+                                    </a>
+                                )
                             ))}
                         </div>
                     ) : (

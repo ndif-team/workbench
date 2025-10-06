@@ -53,7 +53,13 @@ function TooltipContent({
         {...props}
       >
         {children}
-        <TooltipPrimitive.Arrow className="bg-primary fill-primary z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+        <TooltipPrimitive.Arrow 
+          style={{
+            fill: className?.includes("bg-yellow")
+              ? "rgb(254 249 195)"  // Tailwind yellow-100
+              : "hsl(var(--primary))",
+          }}
+        />
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   )

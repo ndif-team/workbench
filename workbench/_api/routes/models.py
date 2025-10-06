@@ -6,7 +6,7 @@ import requests
 
 from ..state import AppState, get_state
 from ..data_models import Token, NDIFResponse
-from ..auth import require_user_email
+from ..auth import require_user_email, get_user_email
 
 import logging
 
@@ -18,13 +18,13 @@ MODELS = list()
 MODELS_LAST_UPDATED = 0
 MODEL_INTERVAL = 60
 
-def get_remot_models(state: AppState):
+def get_remot_models(state: AppState, is_user_signed_in: bool):
 
     global MODELS, MODELS_LAST_UPDATED
 
     if MODELS_LAST_UPDATED == 0 or time.time() - MODELS_LAST_UPDATED > 60:
 
-        ping_resp = requests.get(f"{state.ndif_backend_url}/ping", timeout=10)
+        ping_resp = requests.get(f"{state.ndif_backend_url}/ping", timeout=30)
         logger.info(f"Call NDIF_BACKEND/ping: {ping_resp.status_code}")
 
         if ping_resp.status_code != 200:
@@ -56,16 +56,23 @@ def get_remot_models(state: AppState):
         MODELS = running_model_configs
         MODELS_LAST_UPDATED = time.time()
 
-    return MODELS
+    models = MODELS.copy()
+    for model in models:
+        if not is_user_signed_in and model['gated']:
+            model['allowed'] = False
+        else:
+            model['allowed'] = True
+
+    return models
 
 @router.get("/")
 async def get_models(
     state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
+    user_email: str = Depends(get_user_email)
 ):
-    
     if state.remote:
-        models = get_remot_models(state)
+        is_user_signed_in: bool = user_email is not None and user_email != "guest@localhost"
+        models = get_remot_models(state, is_user_signed_in)
 
         return models
 

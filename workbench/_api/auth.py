@@ -4,13 +4,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-def require_user_email(request: Request) -> str:
-    """
-    Extract user email from X-User-Email header.
-    Raises HTTPException(401) if header is missing or empty.
-    """
-
-    def get_user_email(request: Request) -> Optional[str]:
+def get_user_email(request: Request) -> Optional[str]:
         """
         Extract user email from X-User-Email header.
         Returns None if header is missing or empty.
@@ -24,6 +18,12 @@ def require_user_email(request: Request) -> str:
         cleaned_email = user_email.strip()
         
         return cleaned_email
+
+def require_user_email(request: Request) -> str:
+    """
+    Extract user email from X-User-Email header.
+    Raises HTTPException(401) if header is missing or empty.
+    """
 
     user_email = get_user_email(request)
     if not user_email:
