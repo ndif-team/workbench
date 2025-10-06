@@ -21,13 +21,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import PromptVisualization from "@/components/PromptVisualization";
 import type { Model } from "@/types/models";
+import { Tooltip } from "@radix-ui/react-tooltip";
 
 export function LandingPage() {
     const [prompt, setPrompt] = useState("");
     const [showCaptcha, setShowCaptcha] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedModel, setSelectedModel] = useState<string>("openai-community/gpt2");
+    const [selectedTool, setSelectedTool] = useState<string>("Logit Lens");
     const captchaRef = useRef<ElementRef<typeof HCaptcha> | null>(null);
     const router = useRouter();
 
@@ -36,20 +39,6 @@ export function LandingPage() {
         queryFn: getModels,
         refetchInterval: 120000,
     });
-
-    // Set default model when models load
-    // useEffect(() => {
-    //     if (models || !selectedModel) {
-    //         const allowedModels = models.filter(m => m.allowed);
-    //         if (allowedModels.length > 0) {
-    //             setSelectedModel(allowedModels[0].name);
-    //         }
-    //     }
-    //}, [models, selectedModel]);
-
-    // const baseModels = models?.filter(model => model.type === "base" && model.allowed) || [];
-    // const chatModels = models?.filter(model => model.type === "chat" && model.allowed) || [];
-
     const modelsToSelect: Model[] = models || [{ name: "openai-community/gpt2", type: "base", n_layers: 12, gated: false, allowed: true }];
 
     const handleCaptchaVerify = async (token: string) => {
@@ -167,20 +156,32 @@ export function LandingPage() {
                             <span>AI Interpretability Research Platform</span>
                         </div>
 
-                        <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight pt-2">
-                            {/*<span className="bg-gradient-to-r from-foreground via-foreground to-foreground/80 bg-clip-text text-transparent">
+                        <h1 className="text-5xl lg:text-7xl font-bold tracking-tight pt-2">
+                            {/* <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/80 bg-clip-text text-transparent">
                                 Explore the Inner
                             </span>
-                            <br />*/}
+                            <br /> */}
                             <span className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
                                 workbench
                             </span>
                         </h1>
 
-                        <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed pt-2">
+                        <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed pt-0">
+                            Explore LLM internals and build your experiments interactively.
+                        </p>
+
+                        {/* <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed pt-2">
                             Dive deep into neural network activations, visualize attention patterns,
                             and understand what happens inside large language models.
-                        </p>
+                        </p> */}
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.3 }}
+                    >
+                        <PromptVisualization/>
                     </motion.div>
 
                     {/* Prompt Input Area */}
@@ -201,13 +202,37 @@ export function LandingPage() {
                                             value={prompt}
                                             onChange={(e) => setPrompt(e.target.value)}
                                             onKeyDown={handleKeyDown}
-                                            placeholder="Enter a prompt to analyze... (e.g., 'The Eiffel Tower is located in')"
-                                            className="min-h-[120px] text-base resize-none bg-background/50 border-border/50 focus:border-primary/50 transition-colors pb-12"
+                                            placeholder="Enter a prompt to analyze..."
+                                            className="min-h-[120px] text-lg resize-none bg-background/50 border-border/50 focus:border-primary/50 transition-colors pb-12"
                                             disabled={showCaptcha || isSubmitting}
                                         />
                                         
                                         {/* Model Selector - Bottom Left */}
-                                        <div className="absolute bottom-3 left-[var(--textarea-padding-x,0.75rem)]">
+                                        <div className="absolute bottom-3 left-[var(--textarea-padding-x,0.75rem)] flex items-center gap-2">
+                                            <Select 
+                                                value={selectedTool} 
+                                                onValueChange={setSelectedTool}
+                                                disabled={showCaptcha || isSubmitting}
+                                            >
+                                                <SelectTrigger className="h-7 w-fit text-xs bg-gradient-to-r from-primary/10 to-purple-500/10 backdrop-blur-sm border border-primary/20 hover:from-primary/20 hover:to-purple-500/20 hover:border-primary/30 transition-all gap-1.5 rounded-full focus:ring-0 focus:ring-offset-0 shadow-sm">
+                                                    <SelectValue placeholder="Select Tool..." />
+                                                </SelectTrigger>
+                                                <SelectContent className="rounded-xl">
+                                                    <SelectGroup>
+                                                        <SelectLabel>Tools</SelectLabel>
+                                                        <SelectItem 
+                                                            key="Logit Lens"
+                                                            value="Logit Lens"
+                                                            className="text-xs"
+                                                        >
+                                                            {selectedTool}
+                                                        </SelectItem>
+                                                        <SelectLabel className="italic">
+                                                            More tools coming soon...
+                                                        </SelectLabel>
+                                                    </SelectGroup>
+                                                </SelectContent>
+                                            </Select>
                                             <Select 
                                                 value={selectedModel} 
                                                 onValueChange={setSelectedModel}
@@ -216,58 +241,33 @@ export function LandingPage() {
                                                 <SelectTrigger className="h-7 w-fit text-xs bg-gradient-to-r from-primary/10 to-purple-500/10 backdrop-blur-sm border border-primary/20 hover:from-primary/20 hover:to-purple-500/20 hover:border-primary/30 transition-all gap-1.5 rounded-full focus:ring-0 focus:ring-offset-0 shadow-sm">
                                                     <SelectValue placeholder="Select model..." />
                                                 </SelectTrigger>
-                                                <SelectContent>
-                                                    {/* <SelectItem 
-                                                        key={selectedModel}
-                                                        value={selectedModel}
-                                                        className="text-xs"
-                                                    >
-                                                        {selectedModel}
-                                                    </SelectItem> */}
-
-                                                    {modelsToSelect?.map((model) => (
-                                                        <SelectItem 
-                                                            key={model.name}
-                                                            value={model.name}
-                                                            className="text-xs"
-                                                        >
-                                                            {model.name}
-                                                        </SelectItem>
-                                                    ))}
-
-                                                    {/* {baseModels.length > 0 && (
-                                                        <SelectGroup>
-                                                            <SelectLabel className="text-xs">Base Models</SelectLabel>
-                                                            {baseModels.map((model) => (
-                                                                <SelectItem 
-                                                                    key={model.name}
-                                                                    value={model.name}
-                                                                    className="text-xs"
-                                                                >
-                                                                    {model.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectGroup>
-                                                    )}
-                                                    {chatModels.length > 0 && (
-                                                        <SelectGroup>
-                                                            <SelectLabel className="text-xs">Chat Models</SelectLabel>
-                                                            {chatModels.map((model) => (
-                                                                <SelectItem 
-                                                                    key={model.name}
-                                                                    value={model.name}
-                                                                    className="text-xs"
-                                                                >
-                                                                    {model.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectGroup>
-                                                    )}
-                                                    {modelsLoading && (
-                                                        <SelectItem value="loading" disabled className="text-xs">
-                                                            Loading models...
-                                                        </SelectItem>
-                                                    )} */}
+                                                <SelectContent className="rounded-xl">
+                                                    <SelectGroup>
+                                                        <SelectLabel>Models</SelectLabel>
+                                                        {modelsToSelect?.map((model) => (
+                                                             !model.allowed ? (
+                                                                 <SelectItem 
+                                                                     key={model.name}
+                                                                     value={model.name}
+                                                                     disabled={!model.allowed}
+                                                                     className="text-xs opacity-50 cursor-not-allowed"
+                                                                 >
+                                                                     <div className="flex items-center gap-2">
+                                                                         {model.name}
+                                                                         <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                                     </div>
+                                                                 </SelectItem>
+                                                             ) : (
+                                                            <SelectItem 
+                                                                key={model.name}
+                                                                value={model.name}
+                                                                className="text-xs"
+                                                            >
+                                                                {model.name}
+                                                            </SelectItem>
+                                                            )
+                                                        ))}
+                                                    </SelectGroup>
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -287,7 +287,7 @@ export function LandingPage() {
                                             className="w-full text-base h-12 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-lg shadow-primary/25"
                                             disabled={!prompt.trim() || isSubmitting}
                                         >
-                                            <span>Start Exploring</span>
+                                            <span>Run</span>
                                             <ArrowRight className="w-5 h-5" />
                                         </Button>
                                     ) : (
@@ -314,8 +314,11 @@ export function LandingPage() {
                                     )}
                                 </form>
 
-                                <p className="text-xs text-center text-muted-foreground">
+                                {/* <p className="text-xs text-center text-muted-foreground">
                                     No account needed · Start exploring immediately as a guest
+                                </p> */}
+                                <p className="text-xs text-center text-muted-foreground">
+                                    Log in to access all our models and features.
                                 </p>
                             </div>
                         </div>
@@ -348,11 +351,11 @@ export function LandingPage() {
             </main>
 
             {/* Footer */}
-            <footer className="relative z-10 py-4 border-t border-border/50 shrink-0">
+            {/* <footer className="relative z-10 py-4 border-t border-border/50 shrink-0">
                 <div className="w-full px-6 text-center text-xs text-muted-foreground">
                     <p>Powered by advanced interpretability techniques</p>
                 </div>
-            </footer>
+            </footer> */}
         </div>
     );
 }
