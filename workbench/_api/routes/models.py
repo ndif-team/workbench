@@ -6,7 +6,7 @@ import requests
 
 from ..state import AppState, get_state
 from ..data_models import Token, NDIFResponse
-from ..auth import require_user_email
+from ..auth import require_user_email, get_user_email
 
 import logging
 
@@ -68,10 +68,11 @@ def get_remot_models(state: AppState, is_user_signed_in: bool):
 @router.get("/")
 async def get_models(
     state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
+    user_email: str = Depends(get_user_email)
 ):
     if state.remote:
-        models = get_remot_models(state, user_email != "guest@localhost")
+        is_user_signed_in: bool = user_email is not None and user_email != "guest@localhost"
+        models = get_remot_models(state, is_user_signed_in)
 
         return models
 
