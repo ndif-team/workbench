@@ -31,10 +31,9 @@ export function AutoWorkspaceCreator({ userId, initialPrompt, initialModel }: Au
                 setTimeout(() => {
                     // If we have a prompt from the landing page, pass it along
                     if (initialPrompt) {
-                        const encodedPrompt = encodeURIComponent(initialPrompt);
-                        const params = new URLSearchParams({ prompt: encodedPrompt });
+                        const params = new URLSearchParams({ prompt: initialPrompt });
                         if (initialModel) {
-                            params.set('model', encodeURIComponent(initialModel));
+                            params.set('model', initialModel);
                         }
                         router.push(`/workbench/${newWorkspace.id}?${params.toString()}`);
                     } else {

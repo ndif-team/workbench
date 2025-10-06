@@ -58,9 +58,11 @@ export function LandingPage() {
                 setIsSubmitting(false);
             } else {
                 // Redirect to workbench with the prompt and model as query parameters
-                const encodedPrompt = encodeURIComponent(prompt);
-                const encodedModel = encodeURIComponent(selectedModel);
-                window.location.href = `/workbench?prompt=${encodedPrompt}&model=${encodedModel}`;
+                const params = new URLSearchParams({ 
+                    prompt: prompt,
+                    model: selectedModel 
+                });
+                window.location.href = `/workbench?${params.toString()}`;
             }
         } catch (err) {
             console.error("Anonymous sign-in error:", err);
