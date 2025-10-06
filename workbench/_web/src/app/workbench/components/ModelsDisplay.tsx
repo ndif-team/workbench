@@ -69,7 +69,7 @@ export function ModelsDisplay() {
                                     </Tooltip>
                                 ) : (
                                     <a
-                                        href={`https://huggingface.co/${model}`}
+                                        href={`https://huggingface.co/${model.name}`}
                                         key={model.name}
                                         target="_blank"
                                         rel="noopener noreferrer"
@@ -114,7 +114,7 @@ export function ModelsDisplay() {
                                     </Tooltip>
                                 ) : (
                                     <a
-                                        href={`https://huggingface.co/${model}`}
+                                        href={`https://huggingface.co/${model.name}`}
                                         key={model.name}
                                         target="_blank"
                                         rel="noopener noreferrer"
