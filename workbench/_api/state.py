@@ -8,6 +8,8 @@ from nnsight import LanguageModel, CONFIG
 from nnsight.intervention.backends.remote import RemoteBackend
 from pydantic import BaseModel
 
+from .telemetry import TelemetryClient
+
 # Set up logger for this module
 logger = logging.getLogger(__name__)
 
@@ -16,6 +18,7 @@ class ModelConfig(BaseModel):
 
     name: str
     chat: bool
+    gated: bool
     rename: dict[str, str]
     config: dict[str, int | str]
 
@@ -33,6 +36,7 @@ class ModelsConfig(BaseModel):
                 "name": model.name,
                 "type": "chat" if model.chat else "base",
                 "n_layers" : model.config["n_layers"],
+                "gated": model.gated,
             }
             for model in self.models.values()
         ]
@@ -46,6 +50,8 @@ class AppState:
         self.models: dict[str, LanguageModel] = {}
 
         self.config = self._load()
+
+        TelemetryClient.init(self)
 
     def get_model(self, model_name: str):
         return self.models[model_name]

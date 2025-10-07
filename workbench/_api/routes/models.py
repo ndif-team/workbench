@@ -1,14 +1,15 @@
+import logging
+import time
+
+import requests
+import torch as t
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-import torch as t
-import time
-import requests
 
+from ..auth import get_user_email, require_user_email, user_has_model_access
+from ..data_models import NDIFResponse, Token
+from ..telemetry import TelemetryClient, RequestStatus
 from ..state import AppState, get_state
-from ..data_models import Token, NDIFResponse
-from ..auth import require_user_email
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +19,13 @@ MODELS = list()
 MODELS_LAST_UPDATED = 0
 MODEL_INTERVAL = 60
 
-def get_remot_models(state: AppState):
+def get_remot_models(state: AppState, is_user_signed_in: bool):
 
     global MODELS, MODELS_LAST_UPDATED
 
     if MODELS_LAST_UPDATED == 0 or time.time() - MODELS_LAST_UPDATED > 60:
 
-        ping_resp = requests.get(f"{state.ndif_backend_url}/ping", timeout=10)
+        ping_resp = requests.get(f"{state.ndif_backend_url}/ping", timeout=30)
         logger.info(f"Call NDIF_BACKEND/ping: {ping_resp.status_code}")
 
         if ping_resp.status_code != 200:
@@ -56,16 +57,23 @@ def get_remot_models(state: AppState):
         MODELS = running_model_configs
         MODELS_LAST_UPDATED = time.time()
 
-    return MODELS
+    models = MODELS.copy()
+    for model in models:
+        if not is_user_signed_in and model['gated']:
+            model['allowed'] = False
+        else:
+            model['allowed'] = True
+
+    return models
 
 @router.get("/")
 async def get_models(
     state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
+    user_email: str = Depends(get_user_email)
 ):
-    
     if state.remote:
-        models = get_remot_models(state)
+        is_user_signed_in: bool = user_email is not None and user_email != "guest@localhost"
+        models = get_remot_models(state, is_user_signed_in)
 
         return models
 
@@ -158,8 +166,45 @@ async def start_prediction(
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
-    result = prediction(prediction_request, state)
     if state.remote:
+        if not user_has_model_access(user_email, prediction_request.model, state):
+            message = f"User does not have access to {prediction_request.model}"
+            TelemetryClient.log_request(
+                RequestStatus.ERROR, 
+                user_email,
+                method="PREDICTION",
+                type="NEXT_TOKEN",
+                msg=message,
+            )
+            raise HTTPException(status_code=403, detail=message)
+
+    TelemetryClient.log_request(
+        RequestStatus.STARTED, 
+        user_email,
+        method="PREDICTION",
+        type="NEXT_TOKEN",
+    )
+
+    try:
+        result = prediction(prediction_request, state)
+    except Exception as e:
+        TelemetryClient.log_request(
+            RequestStatus.ERROR, 
+            user_email,
+            method="PREDICTION",
+            type="NEXT_TOKEN",
+            msg=str(e),
+        )
+        raise e
+    
+    if state.remote:
+        TelemetryClient.log_request(
+            RequestStatus.READY,
+            user_email,
+            method="PREDICTION",
+            type="NEXT_TOKEN",
+            job_id=result
+        )
         return {"job_id": result}
 
     values_LV, indices_LV = result
@@ -174,8 +219,29 @@ async def results_prediction(
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
-    values_LV, indices_LV = get_remote_prediction(job_id, state)
-    data = process_prediction(values_LV, indices_LV, prediction_request, state)
+
+    try:
+        values_LV, indices_LV = get_remote_prediction(job_id, state)
+        data = process_prediction(values_LV, indices_LV, prediction_request, state)
+    except Exception as e:
+        TelemetryClient.log_request(
+            RequestStatus.ERROR, 
+            user_email,
+            job_id=job_id,
+            method="PREDICTION",
+            type="NEXT_TOKEN",
+            msg=str(e),
+        )
+        raise e
+
+    TelemetryClient.log_request(
+        RequestStatus.COMPLETE, 
+        user_email,
+        job_id=job_id,
+        method="PREDICTION",
+        type="NEXT_TOKEN",
+    )
+
     return {"data": data}
 
 
