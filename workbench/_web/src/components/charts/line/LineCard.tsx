@@ -2,6 +2,7 @@ import React, { type RefObject } from "react";
 import { Line } from "./Line";
 import { LineDataProvider, useLineData } from "./LineDataProvider";
 import { LineChart } from "@/db/schema";
+import { LensLineMetrics } from "@/types/lens";
 import { LineCanvasProvider, useLineCanvas } from "./LineCanvasProvider";
 import { useLensWorkspace } from "@/stores/useLensWorkspace";
 import { Button } from "@/components/ui/button";
@@ -19,15 +20,16 @@ interface LineCardProps {
     chart: LineChart;
     pending: boolean;
     captureRef: RefObject<HTMLDivElement>;
+    metricType?: LensLineMetrics;
 }
 
-export const LineCard = ({ chart, captureRef, pending }: LineCardProps) => {
+export const LineCard = ({ chart, captureRef, pending, metricType }: LineCardProps) => {
     return (
         <div className="flex flex-col size-full">
             {pending ? (
                 <PendingLine chart={chart} />
             ) : (
-                <LineDataProvider chart={chart}>
+                <LineDataProvider chart={chart} metricType={metricType}>
                     <LineCanvasProvider>
                         <LineHoverProvider>
                             <InteractiveLine captureRef={captureRef} chart={chart} />

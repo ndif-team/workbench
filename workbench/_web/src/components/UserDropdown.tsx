@@ -41,7 +41,7 @@ export function UserDropdown() {
             console.error("Logout error:", error);
             setIsLoggingOut(false);
         } else {
-            router.push("/login");
+            router.push("/");
             router.refresh();
         }
     };

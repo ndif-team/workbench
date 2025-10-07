@@ -9,6 +9,7 @@ import { pythonLanguage } from "@codemirror/lang-python";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import type { LensConfigData } from "@/types/lens";
 import { Button } from "@/components/ui/button";
+import { queryKeys } from "@/lib/queryKeys";
 import {
   Dialog,
   DialogContent,
@@ -34,13 +35,13 @@ export function CodeExport({ chartId, chartType }: Props) {
   const {theme} = useTheme();
 
   const { data: chart } = useQuery({
-    queryKey: ["chartById", resolvedChartId],
+    queryKey: queryKeys.charts.chart(resolvedChartId as string),
     queryFn: () => getChartById(resolvedChartId as string),
     enabled: !!resolvedChartId,
   });
 
   const { data: config } = useQuery({
-    queryKey: ["chartConfig", resolvedChartId],
+    queryKey: queryKeys.charts.configByChart(resolvedChartId as string),
     queryFn: () => getConfigForChart(resolvedChartId as string),
     enabled: !!resolvedChartId,
   });

@@ -1,15 +1,25 @@
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+import math
+from enum import Enum
+
 import torch as t
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
+from ..auth import require_user_email, user_has_model_access
+from ..data_models import NDIFResponse, Token
 from ..state import AppState, get_state
-from ..data_models import Token, NDIFResponse
-from ..auth import require_user_email
-from ..telemetry import TelemetryClient, RequestStatus
+from ..telemetry import RequestStatus, Stage, TelemetryClient
 
+############ LINE ############
+
+class LensStatistic(str, Enum):
+    PROBABILITY = "probability"
+    RANK = "rank"
+    ENTROPY = "entropy"
 
 class LensLineRequest(BaseModel):
     model: str
+    stat: LensStatistic
     prompt: str
     token: Token
 
@@ -36,6 +46,28 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
     idx = req.token.idx
     target_ids = req.token.target_ids
 
+    def _compute_top_probs(
+        logits,
+    ):
+        return t.nn.functional.softmax(logits, dim=-1)
+    
+    def _compute_rank(
+        logits,
+    ):
+        sorted_probs, sorted_indices = t.nn.functional.softmax(logits, dim=-1).sort(descending=True, dim=-1)
+        rank_map = t.empty_like(sorted_indices)
+        rank_map.scatter_(
+            -1,  # along vocab axis
+            sorted_indices,
+            t.arange(1, logits.size(-1)+1).expand_as(sorted_indices).to(logits.device)
+        )
+        return rank_map
+
+    if req.stat == LensStatistic.PROBABILITY:
+        _compute_func = _compute_top_probs
+    elif req.stat == LensStatistic.RANK:
+        _compute_func = _compute_rank
+
     with model.trace(
         req.prompt,
         remote=state.remote,
@@ -55,11 +87,11 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
             # Compute probabilities over the relevant tokens
             logits_V = logits_BLV[0, idx, :]
 
-            probs_V = t.nn.functional.softmax(logits_V, dim=-1)
-
+            metrics = _compute_func(logits_V)
+            
             # Gather probabilities over the predicted tokens
-            target_ids_tensor = t.tensor(target_ids).to(probs_V.device)
-            target_probs_X = t.gather(probs_V, 0, target_ids_tensor)
+            target_ids_tensor = t.tensor(target_ids).to(metrics.device)
+            target_probs_X = t.gather(metrics, 0, target_ids_tensor)
 
             results.append(target_probs_X)
 
@@ -71,9 +103,17 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
     return results
 
 
-def get_remote_line(job_id: str, state: AppState):
+def get_remote_line(user_email: str, job_id: str, state: AppState):
     backend = state.make_backend(job_id=job_id)
-    results = backend()
+    
+    with TelemetryClient.log_latency(
+        user_email=user_email,
+        job_id=job_id,
+        method="LENS",
+        type="LINE",
+        stage=Stage.DOWNLOAD
+    ):
+        results = backend()
     return results["results"]
 
 
@@ -110,35 +150,46 @@ async def start_line(
     user_email: str = Depends(require_user_email)
 ):
 
+    if state.remote:
+        if not user_has_model_access(user_email, req.model, state):
+            message = f"User does not have access to {req.model}"
+            TelemetryClient.log_request(
+                RequestStatus.ERROR, 
+                user_email,
+                method="LENS",
+                type="LINE",
+                msg=message,
+            )
+            raise HTTPException(status_code=403, detail=message)
+
     TelemetryClient.log_request(
-        state,
-        RequestStatus.READY, 
+        RequestStatus.STARTED, 
         user_email,
         method="LENS",
-        type="LINE"
+        type="LINE",
+        metric=req.stat.value
     )
 
     try:
         result = line(req, state)
     except Exception as e:
         TelemetryClient.log_request(
-            state,
             RequestStatus.ERROR, 
             user_email, 
             method="LENS",
             type="LINE",
-            msg=str(e)
+            metric=req.stat.value,
+            msg=str(e),
         )
-        # TODO: Add logging here
         raise e
 
     if state.remote:
         TelemetryClient.log_request(
-            state,
             RequestStatus.READY, 
             user_email,
             method="LENS",
             type="LINE",
+            metric=req.stat.value,
             job_id=result
         )
         return {"job_id": result}
@@ -155,36 +206,37 @@ async def collect_line(
 ):
 
     try:
-        results = get_remote_line(job_id, state)
+        results = get_remote_line(user_email, job_id, state)
     except Exception as e:
         TelemetryClient.log_request(
-            state,
             RequestStatus.ERROR, 
             user_email, 
             job_id=job_id, 
             method="LENS",
             type="LINE",
+            metric=req.stat.value,
             msg=str(e)
         )
         # TODO: Add logging here
         raise e
 
     TelemetryClient.log_request(
-        state,
         RequestStatus.COMPLETE, 
         user_email, 
         job_id=job_id, 
         method="LENS",
-        type="LINE"
+        type="LINE",
+        metric=req.stat.value
     )
 
     return {"data": process_line_results(results, req, state)}
 
+############ GRID ############
 
 class GridLensRequest(BaseModel):
     model: str
+    stat: LensStatistic
     prompt: str
-
 
 class GridCell(Point):
     label: str
@@ -194,6 +246,7 @@ class GridRow(BaseModel):
     # Token ID
     id: str
     data: list[GridCell]
+    right_axis_label: str | None = None
 
 
 class GridLensResponse(NDIFResponse):
@@ -206,64 +259,125 @@ def heatmap(
     model = state[req.model]
 
     def _compute_top_probs(
-        logits_BLV,
-        # NOTE(cadentj): Can't put this in the trace body bc of pickling issues
-        probs_list,
-        pred_ids_list,
+        hs_decoded,
+        logits,
     ):
-        relevant_tokens_LV = logits_BLV[0, :, :]
+        pred_ids = []
+        probs = []
 
-        probs_LV = t.nn.functional.softmax(relevant_tokens_LV, dim=-1)
-        pred_ids_L = relevant_tokens_LV.argmax(dim=-1)
+        for hs in hs_decoded:
+            relevant_tokens_LV = hs[0, :, :]
 
-        # Gather probabilities over the predicted tokens
-        pred_ids_L1 = pred_ids_L.unsqueeze(1)
-        probs_L = t.gather(probs_LV, 1, pred_ids_L1).squeeze()
+            probs_LV = t.nn.functional.softmax(relevant_tokens_LV, dim=-1)
+            pred_ids_L = relevant_tokens_LV.argmax(dim=-1)
 
-        pred_ids_list.append(pred_ids_L.tolist())
-        probs_list.append(probs_L.tolist())
+            # Gather probabilities over the predicted tokens
+            pred_ids_L1 = pred_ids_L.unsqueeze(1)
+            probs_L = t.gather(probs_LV, 1, pred_ids_L1).squeeze()
+
+            pred_ids.append(pred_ids_L.tolist())
+            probs.append(probs_L.tolist())
+
+        return probs, pred_ids
+
+    def _compute_rank(
+        hs_decoded,
+        logits,
+    ):
+        # pred_ids = []
+        ranks = []
+
+        top_tokens = logits.argmax(dim=-1)
+        
+        for hs in hs_decoded:
+            sorted_probs, sorted_indices = t.nn.functional.softmax(hs, dim=-1).sort(descending=True, dim=-1)
+
+            rank_map = t.empty_like(sorted_indices)
+            rank_map.scatter_(
+                2,  # along vocab axis
+                sorted_indices,
+                t.arange(1, logits.size(-1)+1).expand_as(sorted_indices).to(hs.device)
+            )
+            # token_ids: [batch, seq_len]
+            ranks_L = rank_map.gather(2, top_tokens.unsqueeze(-1)).squeeze(-1)
+
+            ranks.append(ranks_L[0].to("cpu").tolist())
+
+        return ranks, top_tokens[0].to('cpu').tolist()
+
+
+    def _compute_entropy(
+        hs_decoded,
+        logits,
+    ):
+        entropies = []
+
+        for hs in hs_decoded:
+            hs = hs[0, :, :]
+            log_p = t.nn.functional.log_softmax(hs, dim=-1)     # stable log-softmax
+            p = log_p.exp()
+            H = -(p * log_p).sum(dim=-1)
+
+            entropies.append(H.to("cpu").tolist())
+
+        return entropies, logits.argmax(dim=-1)[0].to("cpu").tolist()
+    
+    if req.stat == LensStatistic.PROBABILITY:
+        _compute_func = _compute_top_probs
+    elif req.stat == LensStatistic.RANK:
+        _compute_func = _compute_rank
+    elif req.stat == LensStatistic.ENTROPY:
+        _compute_func = _compute_entropy
 
     with model.trace(
         req.prompt,
         remote=state.remote,
         backend=state.make_backend(model=model),
     ) as tracer:
-        pred_ids = []
-        probs = []
+        hs_decoded = []
 
         for layer in model.model.layers[:-1]:
-            hidden_BLD = layer.output
+            hs = layer.output
 
-            if isinstance(hidden_BLD, tuple):
-                hidden_BLD = hidden_BLD[0]
+            if isinstance(hs, tuple):
+                hs = hs[0]
 
-            _compute_top_probs(
-                # NOTE(cadentj): Can't put this in the trace body bc of pickling issues
-                model.lm_head(model.model.ln_f(hidden_BLD)),
-                probs,
-                pred_ids,
-            )
-        _compute_top_probs(model.output.logits, probs, pred_ids)
+            hs = model.lm_head(model.model.ln_f(hs))
+            hs_decoded.append(hs)
 
-        probs.save()
+        logits = model.output.logits
+        hs_decoded.append(logits)
+
+        stats, pred_ids = _compute_func(hs_decoded, logits)
+        stats.save()
         pred_ids.save()
 
     if state.remote:
         return tracer.backend.job_id
 
-    return probs, pred_ids
-
+    return stats, pred_ids
 
 def get_remote_heatmap(
-    job_id: str, state: AppState
+    user_email: str, 
+    job_id: str, 
+    state: AppState
 ) -> tuple[list[t.Tensor], list[t.Tensor]]:
     backend = state.make_backend(job_id=job_id)
-    results = backend()
-    return results["probs"], results["pred_ids"]
+
+    with TelemetryClient.log_latency(
+        user_email=user_email,
+        job_id=job_id,
+        method="LENS",
+        type="GRID",
+        stage=Stage.DOWNLOAD
+    ):
+        results = backend()
+    
+    return results["stats"], results["pred_ids"]
 
 
 def process_grid_results(
-    probs: list[t.Tensor],
+    stats: list[t.Tensor],
     pred_ids: list[t.Tensor],
     lens_request: GridLensRequest,
     state: AppState,
@@ -275,16 +389,39 @@ def process_grid_results(
 
     rows = []
     for seq_idx, input_str in enumerate(input_strs):
-        points = [
-            GridCell(
-                x=layer_idx,
-                y=prob[seq_idx],
-                label=tok.decode(pred_id[seq_idx]),
-            )
-            for layer_idx, (prob, pred_id) in enumerate(zip(probs, pred_ids))
-        ]
-        # Add the input string to the row id to make it unique
-        rows.append(GridRow(id=f"{input_str}-{seq_idx}", data=points))
+        if lens_request.stat == LensStatistic.PROBABILITY:
+            points = [
+                GridCell(
+                    x=layer_idx,
+                    y=stat[seq_idx],
+                    label=tok.decode(pred_id[seq_idx]),
+                )
+                for layer_idx, (stat, pred_id) in enumerate(zip(stats, pred_ids))
+            ]
+            # Add the input string to the row id to make it unique
+            rows.append(GridRow(id=f"{input_str}-{seq_idx}", data=points))
+        elif lens_request.stat == LensStatistic.RANK:
+            points = [
+                GridCell(
+                    x=layer_idx,
+                    y=math.log(stat[seq_idx]),
+                    label=str(stat[seq_idx]),
+                )
+                for layer_idx, stat in enumerate(stats)
+            ]
+            # Add the input string to the row id to make it unique
+            rows.append(GridRow(id=f"{input_str}-{seq_idx}", data=points, right_axis_label=tok.decode(pred_ids[seq_idx])))
+        elif lens_request.stat == LensStatistic.ENTROPY:
+            points = [
+                GridCell(
+                    x=layer_idx,
+                    y=stat[seq_idx],
+                    label=f"{stat[seq_idx]:.4f}",
+                )
+                for layer_idx, stat in enumerate(stats)
+            ]
+            # Add the input string to the row id to make it unique
+            rows.append(GridRow(id=f"{input_str}-{seq_idx}", data=points, right_axis_label=tok.decode(pred_ids[seq_idx])))
 
     return rows
 
@@ -296,34 +433,46 @@ async def get_grid(
     user_email: str = Depends(require_user_email)   
 ):
 
+    if state.remote:
+        if not user_has_model_access(user_email, req.model, state):
+            message = f"User does not have access to {req.model}"
+            TelemetryClient.log_request(
+                RequestStatus.ERROR, 
+                user_email,
+                method="LENS",
+                type="GRID",
+                msg=message,
+            )
+            raise HTTPException(status_code=403, detail=message)
+
     TelemetryClient.log_request(
-        state,
         RequestStatus.STARTED, 
         user_email,
         method="LENS",
-        type="GRID"
+        type="GRID",
+        metric=req.stat.value
     )
     
     try:
         result = heatmap(req, state)
     except Exception as e:
         TelemetryClient.log_request(
-            state,
             RequestStatus.ERROR, 
             user_email, 
             method="LENS",
             type="GRID",
-            msg=str(e)
+            metric=req.stat.value,
+            msg=str(e),
         )
         raise e
 
     if state.remote:
         TelemetryClient.log_request(
-            state,
             RequestStatus.READY, 
             user_email,
             method="LENS",
             type="GRID",
+            metric=req.stat.value,
             job_id=result
         )
         return {"job_id": result}
@@ -340,25 +489,25 @@ async def collect_grid(
     user_email: str = Depends(require_user_email)
 ):
     try:
-        probs, pred_ids = get_remote_heatmap(job_id, state)
+        probs, pred_ids = get_remote_heatmap(user_email, job_id, state)
     except Exception as e:
         TelemetryClient.log_request(
-            state,
             RequestStatus.ERROR, 
             user_email, 
             job_id=job_id, 
             method="LENS",
             type="GRID",
+            metric=lens_request.stat.value,
             msg=str(e)
         )
         raise e
     
     TelemetryClient.log_request(
-        state,
         RequestStatus.COMPLETE, 
         user_email,
         job_id=job_id,
         method="LENS",
-        type="GRID"
+        type="GRID",
+        metric=lens_request.stat.value
     )
     return {"data": process_grid_results(probs, pred_ids, lens_request, state)}

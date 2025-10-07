@@ -7,6 +7,8 @@ import { resolveThemeCssVars } from '@/lib/utils'
 import { Margin } from '@nivo/core';
 import { HeatmapRow } from '@/types/charts';
 import { Tooltip } from './Tooltip';
+import { Metrics } from '@/types/lens';
+import React from 'react';
 
 
 interface HeatmapProps {
@@ -16,7 +18,8 @@ interface HeatmapProps {
     useTooltip?: boolean;
     onMouseMove?: (e: React.MouseEvent) => void;
     onMouseLeave?: () => void;
-    onMouseDown?: (e: React.MouseEvent) => void;
+    onMouseDown?: (e: React.MouseEvent<any>) => void;
+    statisticType?: Metrics;
 }
 
 
@@ -27,9 +30,45 @@ export function Heatmap({
     useTooltip = false,
     onMouseMove = () => { },
     onMouseLeave = () => { },
-    onMouseDown = () => { }
+    onMouseDown = () => { },
+    statisticType
 }: HeatmapProps) {
     const resolvedTheme = useMemo(() => resolveThemeCssVars(heatmapTheme), [])
+
+    // Create a lookup map to access right_axis_label by row.id
+    const rightAxisLabelMap = useMemo(() => {
+        const labelMap: Record<string, string> = {};
+        if (statisticType !== Metrics.PROBABILITY) {
+            rows.forEach((row) => {
+                labelMap[row.id] = row.right_axis_label ?? "";
+            });
+        }
+        return labelMap;
+    }, [rows, statisticType]);
+
+    const minValue = useMemo(() => {
+        if (statisticType === Metrics.PROBABILITY) {
+            return 0;
+        } else {
+            return rows.reduce((globalMin, row) => {
+                return Math.min(globalMin, row.data.reduce((rowMin, cell) => {
+                    return Math.min(rowMin, cell.y ?? Infinity);
+                }, Infinity));
+            }, Infinity);
+        };
+    }, [rows, statisticType]);
+
+    const maxValue = useMemo(() => {
+        if (statisticType === Metrics.PROBABILITY) {
+            return 1;
+        } else {
+            return rows.reduce((globalMax, row) => {
+                return Math.max(globalMax, row.data.reduce((rowMax, cell) => {
+                    return Math.max(rowMax, cell.y ?? -Infinity);
+                }, -Infinity));
+            }, -Infinity);
+        }
+    }, [rows, statisticType]);
 
     return (
         <div className="size-full relative cursor-crosshair"
@@ -58,6 +97,14 @@ export function Heatmap({
                     tickPadding: 10,
                     format: (value) => String(value).replace(/-\d+$/, ''),
                 }}
+                axisRight={statisticType !== Metrics.PROBABILITY ? {
+                    tickSize: 0,
+                    tickPadding: 10,
+                    format: (value) => {
+                        // Access rightAxisLabel using the lookup map
+                        return rightAxisLabelMap[value] || String(value).replace(/-\d+$/, '');
+                    },
+                } : null}
                 label={(cell) => {
                     if (cell.data.label) {
                         return cell.data.label;
@@ -72,8 +119,8 @@ export function Heatmap({
                 colors={{
                     type: 'sequential',
                     scheme: 'blues',
-                    minValue: 0,
-                    maxValue: 1
+                    minValue: minValue,
+                    maxValue: maxValue
                 }}
                 hoverTarget="cell"
                 inactiveOpacity={1}
@@ -82,8 +129,9 @@ export function Heatmap({
                 isInteractive={false}
                 legends={[
                     {
+                        title: statisticType === Metrics.RANK ? "Rank (log)" : statisticType,
                         anchor: 'right',
-                        translateX: 30,
+                        translateX: statisticType !== Metrics.PROBABILITY ? 60 : 30,
                         translateY: 0,
                         length: 400,
                         thickness: 8,

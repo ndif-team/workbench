@@ -60,7 +60,10 @@ export function ModelSelector() {
                                                 disabled={!model.allowed}
                                                 className={cn("opacity-50 cursor-not-allowed")}
                                             >
-                                                {model.name}
+                                                <div className="flex items-center gap-2">
+                                                    {model.name}
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                </div>
                                             </SelectItem>
                                         </div>
                                     </TooltipTrigger>
@@ -68,7 +71,7 @@ export function ModelSelector() {
                                         className="bg-yellow-100 text-yellow-900" 
                                         style={{backgroundColor: "rgb(254 249 195)"}}
                                     >
-                                        Sign in to use this model.
+                                        Log in to use this model.
                                     </TooltipContent>
                                 </Tooltip>
                             ) : (
@@ -95,7 +98,10 @@ export function ModelSelector() {
                                                 disabled={!model.allowed}
                                                 className={cn("opacity-50 cursor-not-allowed")}
                                             >
-                                                {model.name}
+                                                <div className="flex items-center gap-2">
+                                                    {model.name}
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                </div>
                                             </SelectItem>
                                         </div>
                                     </TooltipTrigger>
@@ -103,7 +109,7 @@ export function ModelSelector() {
                                         className="bg-yellow-100 text-yellow-900" 
                                         style={{backgroundColor: "rgb(254 249 195)"}}
                                     >
-                                        Sign in to use this model.
+                                        Log in to use this model.
                                     </TooltipContent>
                                 </Tooltip>
                             ) : (
