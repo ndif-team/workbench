@@ -1,14 +1,14 @@
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
-import torch as t
 import math
-
-from ..state import AppState, get_state
-from ..data_models import Token, NDIFResponse
-from ..auth import require_user_email
-from ..telemetry import TelemetryClient, RequestStatus, Stage
-
 from enum import Enum
+
+import torch as t
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from ..auth import require_user_email, user_has_model_access
+from ..data_models import NDIFResponse, Token
+from ..state import AppState, get_state
+from ..telemetry import RequestStatus, Stage, TelemetryClient
 
 ############ LINE ############
 
@@ -150,8 +150,20 @@ async def start_line(
     user_email: str = Depends(require_user_email)
 ):
 
+    if state.remote:
+        if not user_has_model_access(user_email, req.model, state):
+            message = f"User does not have access to {req.model}"
+            TelemetryClient.log_request(
+                RequestStatus.ERROR, 
+                user_email,
+                method="LENS",
+                type="LINE",
+                msg=message,
+            )
+            raise HTTPException(status_code=403, detail=message)
+
     TelemetryClient.log_request(
-        RequestStatus.READY, 
+        RequestStatus.STARTED, 
         user_email,
         method="LENS",
         type="LINE",
@@ -169,7 +181,6 @@ async def start_line(
             metric=req.stat.value,
             msg=str(e),
         )
-        # TODO: Add logging here
         raise e
 
     if state.remote:
@@ -421,6 +432,18 @@ async def get_grid(
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)   
 ):
+
+    if state.remote:
+        if not user_has_model_access(user_email, req.model, state):
+            message = f"User does not have access to {req.model}"
+            TelemetryClient.log_request(
+                RequestStatus.ERROR, 
+                user_email,
+                method="LENS",
+                type="GRID",
+                msg=message,
+            )
+            raise HTTPException(status_code=403, detail=message)
 
     TelemetryClient.log_request(
         RequestStatus.STARTED, 

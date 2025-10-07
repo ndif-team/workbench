@@ -57,14 +57,17 @@ export function ModelsDisplay() {
                                             <div 
                                                 className="text-sm px-3 py-2 rounded border bg-gray-100 text-gray-400 opacity-60"
                                             >
-                                                {model.name}
+                                                <div className="flex items-center gap-2">
+                                                    {model.name}
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                </div>
                                             </div>
                                         </TooltipTrigger>
                                         <TooltipContent 
                                             className="bg-yellow-100 text-yellow-900 [&]:!bg-yellow-100" 
                                             style={{backgroundColor: "rgb(254 249 195)"}}
                                         >
-                                            Sign in to use this model.
+                                            Log in to use this model.
                                         </TooltipContent>
                                     </Tooltip>
                                 ) : (
@@ -102,14 +105,17 @@ export function ModelsDisplay() {
                                             <div 
                                                 className="text-sm px-3 py-2 rounded border bg-gray-100 text-gray-400 opacity-60"
                                             >
-                                                {model.name}
+                                                <div className="flex items-center gap-2">
+                                                    {model.name}
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                </div>
                                             </div>
                                         </TooltipTrigger>
                                         <TooltipContent 
                                             className="bg-yellow-100 text-yellow-900 [&]:!bg-yellow-100" 
                                             style={{backgroundColor: "rgb(254 249 195)"}}
                                         >
-                                            Sign in to use this model.
+                                            Log in to use this model.
                                         </TooltipContent>
                                     </Tooltip>
                                 ) : (

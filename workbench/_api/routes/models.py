@@ -6,7 +6,7 @@ import torch as t
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from ..auth import get_user_email, require_user_email
+from ..auth import get_user_email, require_user_email, user_has_model_access
 from ..data_models import NDIFResponse, Token
 from ..telemetry import TelemetryClient, RequestStatus
 from ..state import AppState, get_state
@@ -166,6 +166,18 @@ async def start_prediction(
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
+    if state.remote:
+        if not user_has_model_access(user_email, prediction_request.model, state):
+            message = f"User does not have access to {prediction_request.model}"
+            TelemetryClient.log_request(
+                RequestStatus.ERROR, 
+                user_email,
+                method="PREDICTION",
+                type="NEXT_TOKEN",
+                msg=message,
+            )
+            raise HTTPException(status_code=403, detail=message)
+
     TelemetryClient.log_request(
         RequestStatus.STARTED, 
         user_email,
