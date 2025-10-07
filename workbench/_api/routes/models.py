@@ -1,14 +1,15 @@
+import logging
+import time
+
+import requests
+import torch as t
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-import torch as t
-import time
-import requests
 
+from ..auth import get_user_email, require_user_email
+from ..data_models import NDIFResponse, Token
+from ..telemetry import TelemetryClient, RequestStatus
 from ..state import AppState, get_state
-from ..data_models import Token, NDIFResponse
-from ..auth import require_user_email, get_user_email
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -165,8 +166,33 @@ async def start_prediction(
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
-    result = prediction(prediction_request, state)
+    TelemetryClient.log_request(
+        RequestStatus.STARTED, 
+        user_email,
+        method="PREDICTION",
+        type="NEXT_TOKEN",
+    )
+
+    try:
+        result = prediction(prediction_request, state)
+    except Exception as e:
+        TelemetryClient.log_request(
+            RequestStatus.ERROR, 
+            user_email,
+            method="PREDICTION",
+            type="NEXT_TOKEN",
+            msg=str(e),
+        )
+        raise e
+    
     if state.remote:
+        TelemetryClient.log_request(
+            RequestStatus.READY,
+            user_email,
+            method="PREDICTION",
+            type="NEXT_TOKEN",
+            job_id=result
+        )
         return {"job_id": result}
 
     values_LV, indices_LV = result
@@ -181,8 +207,29 @@ async def results_prediction(
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
-    values_LV, indices_LV = get_remote_prediction(job_id, state)
-    data = process_prediction(values_LV, indices_LV, prediction_request, state)
+
+    try:
+        values_LV, indices_LV = get_remote_prediction(job_id, state)
+        data = process_prediction(values_LV, indices_LV, prediction_request, state)
+    except Exception as e:
+        TelemetryClient.log_request(
+            RequestStatus.ERROR, 
+            user_email,
+            job_id=job_id,
+            method="PREDICTION",
+            type="NEXT_TOKEN",
+            msg=str(e),
+        )
+        raise e
+
+    TelemetryClient.log_request(
+        RequestStatus.COMPLETE, 
+        user_email,
+        job_id=job_id,
+        method="PREDICTION",
+        type="NEXT_TOKEN",
+    )
+
     return {"data": data}
 
 

@@ -6,9 +6,11 @@ import math
 from ..state import AppState, get_state
 from ..data_models import Token, NDIFResponse
 from ..auth import require_user_email
-from ..telemetry import TelemetryClient, RequestStatus
+from ..telemetry import TelemetryClient, RequestStatus, Stage
 
 from enum import Enum
+
+############ LINE ############
 
 class LensStatistic(str, Enum):
     PROBABILITY = "probability"
@@ -101,9 +103,17 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
     return results
 
 
-def get_remote_line(job_id: str, state: AppState):
+def get_remote_line(user_email: str, job_id: str, state: AppState):
     backend = state.make_backend(job_id=job_id)
-    results = backend()
+    
+    with TelemetryClient.log_latency(
+        user_email=user_email,
+        job_id=job_id,
+        method="LENS",
+        type="LINE",
+        stage=Stage.DOWNLOAD
+    ):
+        results = backend()
     return results["results"]
 
 
@@ -141,7 +151,6 @@ async def start_line(
 ):
 
     TelemetryClient.log_request(
-        state,
         RequestStatus.READY, 
         user_email,
         method="LENS",
@@ -153,7 +162,6 @@ async def start_line(
         result = line(req, state)
     except Exception as e:
         TelemetryClient.log_request(
-            state,
             RequestStatus.ERROR, 
             user_email, 
             method="LENS",
@@ -166,7 +174,6 @@ async def start_line(
 
     if state.remote:
         TelemetryClient.log_request(
-            state,
             RequestStatus.READY, 
             user_email,
             method="LENS",
@@ -188,10 +195,9 @@ async def collect_line(
 ):
 
     try:
-        results = get_remote_line(job_id, state)
+        results = get_remote_line(user_email, job_id, state)
     except Exception as e:
         TelemetryClient.log_request(
-            state,
             RequestStatus.ERROR, 
             user_email, 
             job_id=job_id, 
@@ -204,7 +210,6 @@ async def collect_line(
         raise e
 
     TelemetryClient.log_request(
-        state,
         RequestStatus.COMPLETE, 
         user_email, 
         job_id=job_id, 
@@ -215,6 +220,7 @@ async def collect_line(
 
     return {"data": process_line_results(results, req, state)}
 
+############ GRID ############
 
 class GridLensRequest(BaseModel):
     model: str
@@ -341,10 +347,21 @@ def heatmap(
     return stats, pred_ids
 
 def get_remote_heatmap(
-    job_id: str, state: AppState
+    user_email: str, 
+    job_id: str, 
+    state: AppState
 ) -> tuple[list[t.Tensor], list[t.Tensor]]:
     backend = state.make_backend(job_id=job_id)
-    results = backend()
+
+    with TelemetryClient.log_latency(
+        user_email=user_email,
+        job_id=job_id,
+        method="LENS",
+        type="GRID",
+        stage=Stage.DOWNLOAD
+    ):
+        results = backend()
+    
     return results["stats"], results["pred_ids"]
 
 
@@ -406,7 +423,6 @@ async def get_grid(
 ):
 
     TelemetryClient.log_request(
-        state,
         RequestStatus.STARTED, 
         user_email,
         method="LENS",
@@ -418,7 +434,6 @@ async def get_grid(
         result = heatmap(req, state)
     except Exception as e:
         TelemetryClient.log_request(
-            state,
             RequestStatus.ERROR, 
             user_email, 
             method="LENS",
@@ -430,7 +445,6 @@ async def get_grid(
 
     if state.remote:
         TelemetryClient.log_request(
-            state,
             RequestStatus.READY, 
             user_email,
             method="LENS",
@@ -452,10 +466,9 @@ async def collect_grid(
     user_email: str = Depends(require_user_email)
 ):
     try:
-        probs, pred_ids = get_remote_heatmap(job_id, state)
+        probs, pred_ids = get_remote_heatmap(user_email, job_id, state)
     except Exception as e:
         TelemetryClient.log_request(
-            state,
             RequestStatus.ERROR, 
             user_email, 
             job_id=job_id, 
@@ -467,7 +480,6 @@ async def collect_grid(
         raise e
     
     TelemetryClient.log_request(
-        state,
         RequestStatus.COMPLETE, 
         user_email,
         job_id=job_id,
