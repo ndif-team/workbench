@@ -10,6 +10,10 @@ from ..auth import get_user_email, require_user_email, user_has_model_access
 from ..data_models import NDIFResponse, Token
 from ..telemetry import TelemetryClient, RequestStatus
 from ..state import AppState, get_state
+from ..data_models import Token, NDIFResponse
+from ..auth import require_user_email, get_user_email
+
+import logging
 
 logger = logging.getLogger(__name__)
 
