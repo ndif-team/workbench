@@ -4,22 +4,29 @@ import { LensConfigData } from "@/types/lens";
 import { createLensChartPair, setChartData, updateChartName } from "./chartQueries";
 import { createDocument, updateDocument } from "./documentQueries";
 import { promises as fs } from "fs";
+import path from "path";
 import { SerializedEditorState } from "lexical";
 
 const getSampleConfig = async (filename: string): Promise<LensConfigData> => {
-    const file = await fs.readFile(`src/lib/data/tutorial/${filename}`, "utf-8");
+    // Use absolute path for Vercel deployment
+    const filePath = path.join(process.cwd(), "src", "lib", "data", "tutorial", filename);
+    const file = await fs.readFile(filePath, "utf-8");
     const data = JSON.parse(file);
     return data;
 };
 
 const getSampleData = async (filename: string) => {
-    const file = await fs.readFile(`src/lib/data/tutorial/${filename}`, "utf-8");
+    // Use absolute path for Vercel deployment
+    const filePath = path.join(process.cwd(), "src", "lib", "data", "tutorial", filename);
+    const file = await fs.readFile(filePath, "utf-8");
     const data = JSON.parse(file);
     return data;
 };
 
 const getReportTemplate = async (): Promise<SerializedEditorState> => {
-    const file = await fs.readFile(`src/lib/data/tutorial/report.json`, "utf-8");
+    // Use absolute path for Vercel deployment
+    const filePath = path.join(process.cwd(), "src", "lib", "data", "tutorial", "report.json");
+    const file = await fs.readFile(filePath, "utf-8");
     const data = JSON.parse(file);
     return data as SerializedEditorState;
 };
