@@ -1,8 +1,7 @@
 "use server";
 
-import { LensConfigData, Metrics } from "@/types/lens";
-import { HeatmapRow, Line } from "@/types/charts";
-import { createLensChartPair, setChartData } from "./chartQueries";
+import { LensConfigData } from "@/types/lens";
+import { createLensChartPair, setChartData, updateChartName } from "./chartQueries";
 import { promises as fs } from "fs";
 
 const getSampleConfig = async (): Promise<LensConfigData> => {
@@ -31,6 +30,9 @@ export async function pushTutorialChart(
     const heatmapData = await getSampleData();
     
     await setChartData(chart.id, heatmapData, "heatmap");
+    
+    // Update the chart name in the database
+    await updateChartName(chart.id, "Example");
     
     createdCharts.push({ ...chart, name: "Example" });
 
