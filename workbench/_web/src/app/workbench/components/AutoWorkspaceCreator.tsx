@@ -3,14 +3,24 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
+import { pushTutorialChart } from "@/lib/queries/tutorialChart";
+import { createLensChartPair } from "@/lib/queries/chartQueries";
+import type { LensConfigData } from "@/types/lens";
+import { Metrics } from "@/types/lens";
 
 interface AutoWorkspaceCreatorProps {
     userId: string;
     initialPrompt?: string;
     initialModel?: string;
+    seedWithExamples?: boolean; // New prop to control seeding
 }
 
-export function AutoWorkspaceCreator({ userId, initialPrompt, initialModel }: AutoWorkspaceCreatorProps) {
+export function AutoWorkspaceCreator({ 
+    userId, 
+    initialPrompt, 
+    initialModel,
+    seedWithExamples = true, // Default to true for new users
+}: AutoWorkspaceCreatorProps) {
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
@@ -27,16 +37,37 @@ export function AutoWorkspaceCreator({ userId, initialPrompt, initialModel }: Au
                 const newWorkspace = await createWorkspace(userId, "Default Workspace");
                 console.log("Created workspace:", newWorkspace);
                 
+                // Seed with example charts if enabled
+                if (seedWithExamples) {
+                    console.log("Seeding workspace with example charts...");
+                    await pushTutorialChart(newWorkspace.id);
+                    console.log("Successfully seeded workspace with examples");
+                }
+                
+                // If user submitted a prompt from landing page, create a chart for it
+                let userChartId: string | null = null;
+                if (initialPrompt && initialPrompt.trim() && initialModel) {
+                    console.log("Creating chart for user prompt:", initialPrompt);
+                    const userChartConfig: LensConfigData = {
+                        prompt: initialPrompt,
+                        model: initialModel,
+                        statisticType: Metrics.PROBABILITY,
+                        token: { idx: 0, id: 0, text: "", targetIds: [] },
+                    };
+                    
+                    const { chart } = await createLensChartPair(newWorkspace.id, userChartConfig);
+                    userChartId = chart.id;
+                    console.log("Created user chart:", userChartId);
+                }
+                
                 // Small delay to ensure the workspace is fully created
                 setTimeout(() => {
-                    // If we have a prompt from the landing page, pass it along
-                    if (initialPrompt) {
-                        const params = new URLSearchParams({ prompt: initialPrompt });
-                        if (initialModel) {
-                            params.set('model', initialModel);
-                        }
-                        router.push(`/workbench/${newWorkspace.id}?${params.toString()}`);
+                    // If we created a user chart, redirect directly to it
+                    // The chart page will handle tokenization and running the lens
+                    if (userChartId) {
+                        router.push(`/workbench/${newWorkspace.id}/${userChartId}`);
                     } else {
+                        // Otherwise just go to the workspace
                         router.push(`/workbench/${newWorkspace.id}`);
                     }
                 }, 500);
@@ -49,7 +80,7 @@ export function AutoWorkspaceCreator({ userId, initialPrompt, initialModel }: Au
         };
 
         createAndRedirect();
-    }, [userId, router, isCreating, initialPrompt, initialModel]);
+    }, [userId, router, isCreating, initialPrompt, initialModel, seedWithExamples]);
 
     if (error) {
         return (
