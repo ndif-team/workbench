@@ -73,9 +73,12 @@ const ensureValidStatistic = (config: LensConfigData, chartType: ChartType): Len
 };
 
 export function CompletionCard({ initialConfig, chartType, selectedModel }: CompletionCardProps) {
+
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
     const [tokenData, setTokenData] = useState<Token[]>([]);
+
+    // creating the default config passed by the lensarea as initial config
     const [config, setConfig] = useState<LensConfigData>(() => {
         const baseConfig = {
             ...initialConfig.data,
@@ -83,6 +86,8 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         };
         return ensureValidStatistic(baseConfig, chartType);
     });
+
+    // whether the chart has been generated?
     const [editingText, setEditingText] = useState(initialConfig.data.prediction === undefined);
     const [promptHasChangedState, setPromptHasChanged] = useState(false);
     
@@ -142,8 +147,8 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                 console.log("Using model:", modelToUse);
                 
                 try {
-                    // Pass forceRun=true to bypass the promptHasChanged check
-                    await handleTokenize(true);
+                    // Pass forceRun=true to bypass the promptHasChanged check, and pass modelToUse
+                    await handleTokenize(true, modelToUse);
                     console.log("Auto-run completed successfully");
                 } catch (error) {
                     console.error("Auto-run failed:", error);
@@ -176,8 +181,9 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     }
 
     // Tokenize the prompt and run predictions
-    const handleTokenize = async (forceRun = false) => {
-        const tokens = await encodeText(config.prompt, selectedModel);
+    const handleTokenize = async (forceRun = false, modelOverride?: string) => {
+        const modelToUse = modelOverride || selectedModel;
+        const tokens = await encodeText(config.prompt, modelToUse);
 
         if (tokens.length <= 1) {
             toast.error("Please enter a longer prompt.");
@@ -188,7 +194,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         // Set the token to the last token in the list
         const temporaryConfig: LensConfigData = {
             ...config,
-            model: selectedModel,
+            model: modelToUse,
             token: { idx: tokens[tokens.length - 1].idx, id: 0, text: "", targetIds: [] }
         }
 

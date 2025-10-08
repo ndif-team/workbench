@@ -24,7 +24,7 @@ export function ModelSelector() {
         refetchInterval: 120000,
     });
 
-    if (!models) {
+    if (!models || models.length === 0) {
         return <div className="h-8 animate-pulse bg-muted/50" />
     }
 
@@ -34,12 +34,17 @@ export function ModelSelector() {
     const handleModelChange = (modelName: string) => {
         const model = models.find(model => model.name === modelName);
         if (model) {
+            console.log("Model selector changed to:", modelName);
             setSelectedModelIdx(models.indexOf(model));
         }
     };
 
+    // Check if the currently selected model is valid
+    const selectedModel = models[selectedModelIdx];
+    const selectedValue = selectedModel ? selectedModel.name : models[0].name;
+
     return (
-        <Select value={models[selectedModelIdx].name} onValueChange={handleModelChange}>
+        <Select value={selectedValue} onValueChange={handleModelChange}>
             <SelectTrigger className={cn("w-fit gap-3", {
                 "animate-pulse": isLoading
             })}>
