@@ -13,11 +13,13 @@ import {
 import { useRouter } from "next/navigation"
 import { Button } from "./ui/button"
 import { createClient } from "@/lib/supabase/client"
+import { usePostHog } from 'posthog-js/react';
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null }
 
 export function UserDropdown() {
     const router = useRouter();
+    // const posthog = usePostHog();
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -41,6 +43,9 @@ export function UserDropdown() {
             console.error("Logout error:", error);
             setIsLoggingOut(false);
         } else {
+            // if (posthog) {
+            //     posthog.reset(true);
+            // }
             router.push("/");
             router.refresh();
         }
