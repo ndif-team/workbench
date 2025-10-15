@@ -4,4 +4,4 @@ FROM workbench_base:latest
 COPY pyproject.toml .
 
 # Install dependencies from pyproject.toml
-RUN uv pip install .
+RUN uv pip install .[dev]

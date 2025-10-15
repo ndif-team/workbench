@@ -69,7 +69,7 @@ class TelemetryClient:
 
     @classmethod
     def init(cls, state: "AppState"):
-        if not cls._initialized:
+        if not cls._initialized and os.getenv("INFLUXDB_ADMIN_TOKEN") is not None:
             cls._client = InfluxDBClient(
                 url=state.telemetry_url, 
                 token=os.getenv("INFLUXDB_ADMIN_TOKEN")

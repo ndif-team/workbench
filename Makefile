@@ -11,11 +11,19 @@ build: build_base build_uv build_service
 
 # Docker commands
 up:
-	docker run --name workbench-api -p 8000:8000 -e ENVIRONMENT=docker workbench:latest
+	docker run -d --name workbench-api -p 8000:8000 workbench:latest
 
 down:
 	docker stop workbench-api
 	docker rm workbench-api
+
+make ta:
+	make down
+	make build_service
+	make up
+
+logs:
+	docker logs -f workbench-api
 
 clean:
 	docker stop workbench-api 2>/dev/null || true
