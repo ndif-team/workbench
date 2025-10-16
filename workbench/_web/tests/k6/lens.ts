@@ -2,7 +2,7 @@ import { check } from "k6";
 import { Options } from "k6/options";
 import { Trend } from "k6/metrics";
 import execution from "k6/execution";
-import { startAndPoll, config, POLL_TIMEOUT_MS, PollResult } from "./utils.ts";
+import { startAndPoll, config, POLL_TIMEOUT_MS, PollResult } from "./utils";
 
 // Custom metrics for tracking poll duration
 const lensPollDuration = new Trend("lens_poll_duration", true);
