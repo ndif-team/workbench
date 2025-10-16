@@ -1,4 +1,5 @@
 "use client";
+// @refresh reset
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -18,6 +19,7 @@ import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPl
 import { TRANSFORMERS } from "@lexical/markdown";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
+import { $generateHtmlFromNodes } from "@lexical/html";
 
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 // import { SlashCommandPlugin } from './plugins/SlashCommandPlugin';
@@ -25,6 +27,10 @@ import { ChartEmbedNode } from "./nodes/ChartEmbedNode";
 import { DragDropChartPlugin } from "./plugins/DragDropChartPlugin";
 import { Check, Loader2 } from "lucide-react";
 import { useDebouncedCallback } from "use-debounce";
+import {
+  LexicalComposerContext,
+  useLexicalComposerContext,
+} from "@lexical/react/LexicalComposerContext";
 
 const theme = {
   ltr: "ltr",
@@ -66,10 +72,22 @@ function Placeholder() {
   );
 }
 
+function MyCustomAutoFocusPlugin() {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    // Focus the editor when the effect fires!
+    editor.focus();
+  }, [editor]);
+
+  return null;
+}
+
 export function Editor() {
   const { workspaceId, overviewId } = useParams<{ workspaceId: string; overviewId: string }>();
   const { data: document, isLoading } = useGetDocument(overviewId);
   const mutation = useSaveDocument();
+  const [editor] = useLexicalComposerContext();
 
   const initialConfig = {
     namespace: "LexicalEditor",
@@ -148,6 +166,7 @@ export function Editor() {
       </div>
 
       <LexicalComposer initialConfig={initialConfig}>
+        <MyCustomAutoFocusPlugin />
         <div className="flex flex-col flex-1 min-h-0">
           {/* Toolbar removed; rely on Markdown shortcuts */}
           <div className="flex-1 overflow-auto">
