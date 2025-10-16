@@ -1,28 +1,28 @@
 // app/providers.tsx
-'use client'
+"use client";
 
-import posthog from 'posthog-js'
-import { PostHogProvider as PHProvider } from 'posthog-js/react'
-import { useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import posthog from "posthog-js";
+import { PostHogProvider as PHProvider } from "posthog-js/react";
+import { useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
-    useEffect(() => {
-      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-        api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-        person_profiles: 'identified_only',
-        defaults: '2025-05-24',
-      })
-  }, [])
+  useEffect(() => {
+    posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
+      api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+      person_profiles: "identified_only",
+      defaults: "2025-05-24",
+    });
+  }, []);
 
   // Track Supabase auth changes and identify users in PostHog
   useEffect(() => {
-    console.log('Tracking Supabase auth changes and identifying users in PostHog')
-    const supabase = createClient()
-    
+    console.log("Tracking Supabase auth changes and identifying users in PostHog");
+    const supabase = createClient();
+
     // Get initial user
     supabase.auth.getUser().then(({ data: { user } }) => {
-      console.log('Initial user:', user)
+      console.log("Initial user:", user);
       if (user?.email) {
         // Add $email so PostHog displays it properly in UI
         posthog.identify(user.email, {
@@ -30,15 +30,17 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
           email: user.email,
           $name: user.email,
           $email: user.email,
-        })
+        });
       }
-    })
-    
+    });
+
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      const user = session?.user
-      console.log('Auth state changed:', event, user)
-      console.log('PostHog identified:', posthog.get_distinct_id())
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      const user = session?.user;
+      console.log("Auth state changed:", event, user);
+      console.log("PostHog identified:", posthog.get_distinct_id());
       if (user?.email) {
         // Identify user in PostHog with their email
         // Add $email so PostHog displays it properly in UI
@@ -47,21 +49,17 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
           email: user.email,
           $name: user.email,
           $email: user.email,
-        })
-      } else if (event === 'SIGNED_OUT') {
+        });
+      } else if (event === "SIGNED_OUT") {
         // Reset PostHog identity on sign out
-        posthog.reset()
+        posthog.reset();
       }
-    })
-    
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
+    });
 
-  return (
-    <PHProvider client={posthog}>
-      {children}
-    </PHProvider>
-  )
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  return <PHProvider client={posthog}>{children}</PHProvider>;
 }

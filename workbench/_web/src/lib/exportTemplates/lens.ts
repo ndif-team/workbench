@@ -85,5 +85,3 @@ def heatmap(model, prompt):
 # pred_ids, probs = heatmap(model, PROMPT)
 `;
 }
-
-

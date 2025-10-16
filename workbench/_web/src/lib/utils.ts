@@ -8,11 +8,11 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Resolves CSS variables to concrete color strings for Canvas compatibility
  */
-export function hslFromCssVar(name: string, fallback = '#000000'): string {
-  if (typeof window === 'undefined') return fallback
-  const root = document.documentElement
-  const raw = getComputedStyle(root).getPropertyValue(name).trim()
-  return raw ? `hsl(${raw})` : fallback
+export function hslFromCssVar(name: string, fallback = "#000000"): string {
+  if (typeof window === "undefined") return fallback;
+  const root = document.documentElement;
+  const raw = getComputedStyle(root).getPropertyValue(name).trim();
+  return raw ? `hsl(${raw})` : fallback;
 }
 
 /**
@@ -20,27 +20,27 @@ export function hslFromCssVar(name: string, fallback = '#000000'): string {
  * for Canvas compatibility. Only processes strings that match the pattern "hsl(var(--...))"
  */
 export function resolveThemeCssVars(obj: any): any {
-  if (typeof obj === 'string') {
+  if (typeof obj === "string") {
     // Match CSS variable pattern: hsl(var(--variable-name))
-    const cssVarMatch = obj.match(/^hsl\(var\((--.+?)\)\)$/)
+    const cssVarMatch = obj.match(/^hsl\(var\((--.+?)\)\)$/);
     if (cssVarMatch) {
-      const varName = cssVarMatch[1]
-      return hslFromCssVar(varName, obj) // fallback to original if resolution fails
+      const varName = cssVarMatch[1];
+      return hslFromCssVar(varName, obj); // fallback to original if resolution fails
     }
-    return obj
+    return obj;
   }
-  
+
   if (Array.isArray(obj)) {
-    return obj.map(resolveThemeCssVars)
+    return obj.map(resolveThemeCssVars);
   }
-  
-  if (obj !== null && typeof obj === 'object') {
-    const result: any = {}
+
+  if (obj !== null && typeof obj === "object") {
+    const result: any = {};
     for (const [key, value] of Object.entries(obj)) {
-      result[key] = resolveThemeCssVars(value)
+      result[key] = resolveThemeCssVars(value);
     }
-    return result
+    return result;
   }
-  
-  return obj
+
+  return obj;
 }

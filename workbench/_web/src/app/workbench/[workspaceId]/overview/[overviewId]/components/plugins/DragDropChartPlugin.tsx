@@ -92,7 +92,7 @@ export function DragDropChartPlugin() {
         positionIndicatorAtY(event.clientY);
         return true;
       },
-      COMMAND_PRIORITY_LOW
+      COMMAND_PRIORITY_LOW,
     );
 
     const unregisterDrop = editor.registerCommand<DragEvent>(
@@ -140,7 +140,10 @@ export function DragDropChartPlugin() {
 
           const paragraph = $createParagraphNode();
           paragraph.append(
-            $createChartEmbedNode({ chartId: payload!.chartId, chartType: payload!.chartType })
+            $createChartEmbedNode({
+              chartId: payload!.chartId,
+              chartType: payload!.chartType,
+            }),
           );
 
           if (children.length === 0) {
@@ -161,7 +164,7 @@ export function DragDropChartPlugin() {
         hideIndicator();
         return true;
       },
-      COMMAND_PRIORITY_LOW
+      COMMAND_PRIORITY_LOW,
     );
 
     const onDragLeave = (e: DragEvent) => {
