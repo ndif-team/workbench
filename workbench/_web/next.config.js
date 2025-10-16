@@ -8,12 +8,12 @@ const nextConfig = {
     unoptimized: true,
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: '**.supabase.co',
+        protocol: "https",
+        hostname: "**.supabase.co",
       },
       {
-        protocol: 'https',
-        hostname: '**.supabase.in',
+        protocol: "https",
+        hostname: "**.supabase.in",
       },
     ],
   },
@@ -23,7 +23,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  serverExternalPackages: ['sharp', 'onnxruntime-node'],
+  serverExternalPackages: ["sharp", "onnxruntime-node"],
   webpack: (config) => {
     // Fallbacks for @huggingface/transformers package
     config.resolve.fallback = {
@@ -35,10 +35,9 @@ const nextConfig = {
     };
     config.resolve.alias = {
       ...config.resolve.alias,
-      "sharp$": false,
+      sharp$: false,
       "onnxruntime-node$": false,
     };
-
 
     return config;
   },
@@ -48,6 +47,7 @@ export default withPostHogConfig(nextConfig, {
   personalApiKey: process.env.POSTHOG_API_KEY, // Personal API Key
   envId: process.env.POSTHOG_ENV_ID, // Environment ID
   host: process.env.NEXT_PUBLIC_POSTHOG_HOST, // (optional), defaults to https://us.posthog.com
-  sourcemaps: { // (optional)
+  sourcemaps: {
+    // (optional)
   },
 });

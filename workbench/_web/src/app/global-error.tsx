@@ -1,4 +1,4 @@
-'use client' // Error boundaries must be Client Components
+"use client"; // Error boundaries must be Client Components
 
 import posthog from "posthog-js";
 import NextError from "next/error";
@@ -8,8 +8,8 @@ export default function GlobalError({
   error,
   reset,
 }: {
-  error: Error & { digest?: string }
-  reset: () => void
+  error: Error & { digest?: string };
+  reset: () => void;
 }) {
   useEffect(() => {
     posthog.captureException(error);
@@ -23,5 +23,5 @@ export default function GlobalError({
         <NextError statusCode={0} />
       </body>
     </html>
-  )
+  );
 }

@@ -32,7 +32,7 @@ export function CodeExport({ chartId, chartType }: Props) {
   const params = useParams<{ chartId?: string }>();
   const resolvedChartId = chartId || (params?.chartId as string | undefined);
 
-  const {theme} = useTheme();
+  const { theme } = useTheme();
 
   const { data: chart } = useQuery({
     queryKey: queryKeys.charts.chart(resolvedChartId as string),
@@ -84,14 +84,23 @@ export function CodeExport({ chartId, chartType }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="h-8" variant="outline"><Code className="h-4 w-4" /> Code</Button>
+        <Button size="sm" className="h-8" variant="outline">
+          <Code className="h-4 w-4" /> Code
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Export code</DialogTitle>
         </DialogHeader>
         <div className="border rounded overflow-hidden">
-          <CodeMirror value={code} height="420px" editable={false} theme={theme === "dark" ? "dark" : "light"} extensions={[pythonLanguage]} basicSetup={{ lineNumbers: true }} />
+          <CodeMirror
+            value={code}
+            height="420px"
+            editable={false}
+            theme={theme === "dark" ? "dark" : "light"}
+            extensions={[pythonLanguage]}
+            basicSetup={{ lineNumbers: true }}
+          />
         </div>
         <DialogFooter className="gap-3">
           <Button variant="outline" size="sm" onClick={onCopy}>
@@ -107,5 +116,3 @@ export function CodeExport({ chartId, chartType }: Props) {
 }
 
 export default CodeExport;
-
-

@@ -1,10 +1,10 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createBrowserClient } from "@supabase/ssr";
 
 export function createClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
 }
 
 export function getThumbnailPath(workspaceId: string, chartId: string) {
@@ -15,9 +15,9 @@ export function getThumbnailPath(workspaceId: string, chartId: string) {
 export async function uploadThumbnailPublic(blob: Blob, path: string): Promise<string> {
   const supabase = createClient();
   const { data, error } = await supabase.storage.from("thumbnails").upload(path, blob, {
-    cacheControl: '31536000',
+    cacheControl: "31536000",
     upsert: true,
-    contentType: 'image/png',
+    contentType: "image/png",
   });
   if (error) throw error;
   const { data: publicUrl } = supabase.storage.from("thumbnails").getPublicUrl(path);

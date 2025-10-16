@@ -10,53 +10,52 @@ import { useAnnotationSelection } from "./useAnnotationSelection";
 import { ViewProvider } from "../ViewProvider";
 import { LensLineMetrics } from "@/types/lens";
 
-
 interface StaticLineCardProps {
-    chart: LineChart;
-    metricType?: LensLineMetrics;
+  chart: LineChart;
+  metricType?: LensLineMetrics;
 }
 
 export const StaticLineCard = ({ chart, metricType }: StaticLineCardProps) => {
-    return (
-        <div className="h-full rounded bg-card">
-            <ViewProvider chartId={chart.id}>
-                <LineDataProvider chart={chart} metricType={metricType}>
-                    <LineCanvasProvider>
-                        <LineHoverProvider>
-                            <StaticLine />
-                        </LineHoverProvider>
-                    </LineCanvasProvider>
-                </LineDataProvider>
-            </ViewProvider>
-        </div>
-    )
-}
+  return (
+    <div className="h-full rounded bg-card">
+      <ViewProvider chartId={chart.id}>
+        <LineDataProvider chart={chart} metricType={metricType}>
+          <LineCanvasProvider>
+            <LineHoverProvider>
+              <StaticLine />
+            </LineHoverProvider>
+          </LineCanvasProvider>
+        </LineDataProvider>
+      </ViewProvider>
+    </div>
+  );
+};
 
 const StaticLine = () => {
-    // Provider context hooks
-    const { lines, yRange } = useLineData();
-    const { rafRef, lineCanvasRef } = useLineCanvas();
-    const { handleMouseMove, handleMouseLeave } = useLineHover();
+  // Provider context hooks
+  const { lines, yRange } = useLineData();
+  const { rafRef, lineCanvasRef } = useLineCanvas();
+  const { handleMouseMove, handleMouseLeave } = useLineHover();
 
-    // Enable legend highlighting
-    const { highlightedLineIds } = useLensWorkspace();
+  // Enable legend highlighting
+  const { highlightedLineIds } = useLensWorkspace();
 
-    // Draw vertical crosshair
-    const { crosshairCanvasRef } = useCrosshair({ rafRef });
+  // Draw vertical crosshair
+  const { crosshairCanvasRef } = useCrosshair({ rafRef });
 
-    // Enable default annotation selection
-    useAnnotationSelection();
+  // Enable default annotation selection
+  useAnnotationSelection();
 
-    return (
-        <Line
-            lines={lines}
-            yRange={yRange}
-            highlightedLineIds={highlightedLineIds}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            lineCanvasRef={lineCanvasRef}
-            crosshairCanvasRef={crosshairCanvasRef}
-            useTooltip={true}
-        />
-    );
-}
+  return (
+    <Line
+      lines={lines}
+      yRange={yRange}
+      highlightedLineIds={highlightedLineIds}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      lineCanvasRef={lineCanvasRef}
+      crosshairCanvasRef={crosshairCanvasRef}
+      useTooltip={true}
+    />
+  );
+};

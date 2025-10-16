@@ -41,7 +41,8 @@ export function CaptureProvider({ children }: CaptureProviderProps) {
       });
       if (!blob) return;
       type ClipboardItemCtor = new (items: Record<string, Blob>) => ClipboardItem;
-      const ClipboardItemClass = (globalThis as unknown as { ClipboardItem?: ClipboardItemCtor }).ClipboardItem;
+      const ClipboardItemClass = (globalThis as unknown as { ClipboardItem?: ClipboardItemCtor })
+        .ClipboardItem;
       if (!ClipboardItemClass) {
         console.error("Clipboard image write is not supported in this browser.");
         return;
@@ -54,31 +55,37 @@ export function CaptureProvider({ children }: CaptureProviderProps) {
     }
   }, []);
 
-  const captureChartThumbnail = useCallback(async (chartId: string) => {
-    // Only capture if the currently displayed chart matches the requested id
-    const currentChartId = params?.chartId as string | undefined;
-    if (currentChartId && currentChartId !== chartId) return;
-    const el = captureRef.current;
-    if (!el) return;
-    try {
-      const blob = await toBlob(el, {
-        cacheBust: true,
-        backgroundColor:
-          getComputedStyle(document.documentElement).getPropertyValue("--background") || "#ffffff",
-        pixelRatio: 1,
-        width: Math.min(el.clientWidth, 480),
-        height: Math.min(el.clientHeight, 480),
-      });
-      if (!blob) return;
-      const workspaceId = params?.workspaceId as string;
-      const path = `${workspaceId}/${chartId}.png`;
-      await uploadThumbnailPublic(blob, path);
-      // Invalidate sidebar images
-      await queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", workspaceId] });
-    } catch (e) {
-      console.error("Thumbnail upload failed", e);
-    }
-  }, [params?.workspaceId, params?.chartId, queryClient]);
+  const captureChartThumbnail = useCallback(
+    async (chartId: string) => {
+      // Only capture if the currently displayed chart matches the requested id
+      const currentChartId = params?.chartId as string | undefined;
+      if (currentChartId && currentChartId !== chartId) return;
+      const el = captureRef.current;
+      if (!el) return;
+      try {
+        const blob = await toBlob(el, {
+          cacheBust: true,
+          backgroundColor:
+            getComputedStyle(document.documentElement).getPropertyValue("--background") ||
+            "#ffffff",
+          pixelRatio: 1,
+          width: Math.min(el.clientWidth, 480),
+          height: Math.min(el.clientHeight, 480),
+        });
+        if (!blob) return;
+        const workspaceId = params?.workspaceId as string;
+        const path = `${workspaceId}/${chartId}.png`;
+        await uploadThumbnailPublic(blob, path);
+        // Invalidate sidebar images
+        await queryClient.invalidateQueries({
+          queryKey: ["chartsForSidebar", workspaceId],
+        });
+      } catch (e) {
+        console.error("Thumbnail upload failed", e);
+      }
+    },
+    [params?.workspaceId, params?.chartId, queryClient],
+  );
 
   const value: CaptureContextValue = {
     captureRef,
@@ -88,4 +95,3 @@ export function CaptureProvider({ children }: CaptureProviderProps) {
 
   return <CaptureContext.Provider value={value}>{children}</CaptureContext.Provider>;
 }
-

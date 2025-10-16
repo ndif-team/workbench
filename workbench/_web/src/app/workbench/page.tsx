@@ -6,52 +6,55 @@ import { getWorkspaces, createWorkspace } from "@/lib/queries/workspaceQueries";
 import { AutoWorkspaceCreator } from "@/app/workbench/components/AutoWorkspaceCreator";
 
 import { redirect } from "next/navigation";
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export default async function WorkbenchPage({
-    searchParams,
+  searchParams,
 }: {
-    searchParams: Promise<{ prompt?: string; model?: string }>;
+  searchParams: Promise<{ prompt?: string; model?: string }>;
 }) {
-    const supabase = await createClient();
-    
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error || !user) {
-        redirect("/login");
-    }
+  const supabase = await createClient();
 
-    const displayName = (user as User)?.is_anonymous || !user.email ? "Guest" : user.email
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-    // Check if user has any workspaces
-    const workspaces = await getWorkspaces(user.id);
-    
-    // If no workspaces exist, we'll show the page with a message and option to create
-    let shouldCreateWorkspace = !workspaces || workspaces.length === 0;
+  if (error || !user) {
+    redirect("/login");
+  }
 
-    // Get the prompt and model from search params
-    const params = await searchParams;
-    const prompt = params?.prompt;
-    const model = params?.model;
+  const displayName = (user as User)?.is_anonymous || !user.email ? "Guest" : user.email;
 
-    return (
-        <>
-            <div className="p-6">
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold">Workbench</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Logged in as: {displayName} (ID: {user.id})
-                    </p>
-                </div>
-                
-                <ModelsDisplay />
-                
-                {shouldCreateWorkspace ? (
-                    <AutoWorkspaceCreator userId={user.id} initialPrompt={prompt} initialModel={model} />
-                ) : (
-                    <WorkspaceList userId={user.id} />
-                )}
-            </div>
-        </>
-    );
+  // Check if user has any workspaces
+  const workspaces = await getWorkspaces(user.id);
+
+  // If no workspaces exist, we'll show the page with a message and option to create
+  const shouldCreateWorkspace = !workspaces || workspaces.length === 0;
+
+  // Get the prompt and model from search params
+  const params = await searchParams;
+  const prompt = params?.prompt;
+  const model = params?.model;
+
+  return (
+    <>
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Workbench</h1>
+          <p className="text-sm text-muted-foreground">
+            Logged in as: {displayName} (ID: {user.id})
+          </p>
+        </div>
+
+        <ModelsDisplay />
+
+        {shouldCreateWorkspace ? (
+          <AutoWorkspaceCreator userId={user.id} initialPrompt={prompt} initialModel={model} />
+        ) : (
+          <WorkspaceList userId={user.id} />
+        )}
+      </div>
+    </>
+  );
 }
