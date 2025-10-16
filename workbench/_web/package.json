@@ -8,9 +8,9 @@
     "dev": "npm run copy-env && next dev -p 3000 --turbopack",
     "build": "next build",
     "start": "next start",
-    "check": "",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "format:check": "prettier . --check",
     "knip": "knip"
   },
   "dependencies": {
