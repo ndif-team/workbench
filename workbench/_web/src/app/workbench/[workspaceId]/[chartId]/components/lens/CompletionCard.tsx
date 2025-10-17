@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TokenArea } from "./TokenArea";
 import { useState, useEffect, useRef } from "react";
 import { usePrediction } from "@/lib/api/modelsApi";
-import type { LensConfigData, LensHeatmapMetrics, LensLineMetrics } from "@/types/lens";
+import type { LensConfig, LensHeatmapMetrics, LensLineMetrics } from "@/types/lens";
 import { Metrics } from "@/types/lens";
 import {
   DropdownMenu,
@@ -66,7 +66,7 @@ const isStatisticValid = (
 };
 
 // Helper function to ensure the current statistic is valid for the chart type
-const ensureValidStatistic = (config: LensConfigData, chartType: ChartType): LensConfigData => {
+const ensureValidStatistic = (config: LensConfig, chartType: ChartType): LensConfig => {
   if (!isStatisticValid(config.statisticType, chartType)) {
     // If current statistic is invalid for this chart type, default to PROBABILITY
     return {
@@ -83,7 +83,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
   const [tokenData, setTokenData] = useState<Token[]>([]);
 
   // creating the default config passed by the lensarea as initial config
-  const [config, setConfig] = useState<LensConfigData>(() => {
+  const [config, setConfig] = useState<LensConfig>(() => {
     const baseConfig = {
       ...initialConfig.data,
       statisticType: initialConfig.data.statisticType || Metrics.PROBABILITY,
@@ -218,7 +218,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
 
     setTokenData(tokens);
     // Set the token to the last token in the list
-    const temporaryConfig: LensConfigData = {
+    const temporaryConfig: LensConfig = {
       ...config,
       model: modelToUse,
       token: { idx: tokens[tokens.length - 1].idx, id: 0, text: "", targetIds: [] },
@@ -323,7 +323,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     }, 0);
   };
 
-  const runPredictions = async (temporaryConfig: LensConfigData) => {
+  const runPredictions = async (temporaryConfig: LensConfig) => {
     // Run predictions for the selected token in the config
     const prediction = await getPrediction(temporaryConfig);
     const topThree = prediction.ids.slice(0, 3);
@@ -357,7 +357,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     if (config.token.idx === idx) return;
 
     // Set the token to the last token in the list
-    const temporaryConfig: LensConfigData = {
+    const temporaryConfig: LensConfig = {
       ...config,
       token: { idx, id: 0, text: "", targetIds: [] },
     };

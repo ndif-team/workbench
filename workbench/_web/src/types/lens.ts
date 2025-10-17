@@ -9,7 +9,7 @@ export enum Metrics {
 export type LensHeatmapMetrics = Metrics;
 export type LensLineMetrics = Metrics.PROBABILITY | Metrics.RANK;
 
-export interface LensConfigData {
+export interface LensConfig {
   model: string;
   statisticType: LensHeatmapMetrics | LensLineMetrics;
   prompt: string;

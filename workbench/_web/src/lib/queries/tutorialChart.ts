@@ -1,6 +1,6 @@
 "use server";
 
-import { LensConfigData } from "@/types/lens";
+import { LensConfig } from "@/types/lens";
 import { createLensChartPair, setChartData, updateChartName } from "./chartQueries";
 import { createDocument, updateDocument } from "./documentQueries";
 import { promises as fs } from "fs";
@@ -12,7 +12,7 @@ import knowledge_config from "@/lib/data/tutorial/knowledge_config.json";
 import knowledge_data from "@/lib/data/tutorial/knowledge_data.json";
 import report_template from "@/lib/data/tutorial/report.json";
 
-const getSampleConfig = async (filename: string): Promise<LensConfigData> => {
+const getSampleConfig = async (filename: string): Promise<LensConfig> => {
   // Use absolute path for Vercel deployment
   const filePath = path.join(process.cwd(), "src", "lib", "data", "tutorial", filename);
   const file = await fs.readFile(filePath, "utf-8");
@@ -57,7 +57,7 @@ export async function pushTutorialChart(workspaceId: string) {
 
   // Tutorial chart 1 - Translation (Heatmap)
   // const translationConfig: LensConfigData = await getSampleConfig("translation_config.json");
-  const translationConfig: LensConfigData = JSON.parse(JSON.stringify(translation_config));
+  const translationConfig: LensConfig = JSON.parse(JSON.stringify(translation_config));
   const { chart: chart1 } = await createLensChartPair(workspaceId, translationConfig);
   const translationData = JSON.parse(JSON.stringify(translation_data));
   await setChartData(chart1.id, translationData, "heatmap");
@@ -65,7 +65,7 @@ export async function pushTutorialChart(workspaceId: string) {
   createdCharts.push({ ...chart1, name: "Example: Translation" });
 
   // Tutorial chart 2 - Knowledge (Line)
-  const knowledgeConfig: LensConfigData = JSON.parse(JSON.stringify(knowledge_config));
+  const knowledgeConfig: LensConfig = JSON.parse(JSON.stringify(knowledge_config));
   const { chart: chart2 } = await createLensChartPair(workspaceId, knowledgeConfig);
   const knowledgeData = JSON.parse(JSON.stringify(knowledge_data));
   await setChartData(chart2.id, knowledgeData, "line");

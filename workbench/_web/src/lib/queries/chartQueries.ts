@@ -3,7 +3,7 @@
 import type { ChartData, ChartMetadata, ChartView } from "@/types/charts";
 import { db } from "@/db/client";
 import { charts, configs, chartConfigLinks, Chart, LensConfig, Config } from "@/db/schema";
-import { LensConfigData } from "@/types/lens";
+import { LensConfig } from "@/types/lens";
 import { PatchingConfig } from "@/types/patching";
 import { eq, desc } from "drizzle-orm";
 
@@ -51,7 +51,7 @@ export const getConfigForChart = async (chartId: string): Promise<Config | null>
 // Create a new chart and config at once. Used in the ChartDisplay.
 export const createLensChartPair = async (
   workspaceId: string,
-  defaultConfig: LensConfigData,
+  defaultConfig: LensConfig,
 ): Promise<{ chart: Chart; config: LensConfig }> => {
   const [newChart] = await db.insert(charts).values({ workspaceId }).returning();
   const [newConfig] = await db

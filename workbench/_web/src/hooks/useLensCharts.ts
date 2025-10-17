@@ -1,5 +1,5 @@
 import { useParams } from "next/navigation";
-import { LensConfigData } from "@/types/lens";
+import { LensConfig } from "@/types/lens";
 import { useLensGrid, useLensLine } from "@/lib/api/chartApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { useLensWorkspace } from "@/stores/useLensWorkspace";
@@ -12,7 +12,7 @@ export const useLensCharts = ({ configId }: { configId: string }) => {
   const { mutateAsync: createLineChart, isPending: isCreatingLineChart } = useLensLine();
   const { clearHighlightedLineIds } = useLensWorkspace();
 
-  const handleCreateHeatmap = async (config: LensConfigData) => {
+  const handleCreateHeatmap = async (config: LensConfig) => {
     const data = await createHeatmap({
       lensRequest: {
         completion: config,
@@ -33,7 +33,7 @@ export const useLensCharts = ({ configId }: { configId: string }) => {
     return data;
   };
 
-  const handleCreateLineChart = async (config: LensConfigData) => {
+  const handleCreateLineChart = async (config: LensConfig) => {
     const data = await createLineChart({
       lensRequest: {
         completion: config,

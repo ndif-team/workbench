@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 import { pushTutorialChart } from "@/lib/queries/tutorialChart";
 import { createLensChartPair } from "@/lib/queries/chartQueries";
-import type { LensConfigData } from "@/types/lens";
+import type { LensConfig } from "@/types/lens";
 import { Metrics } from "@/types/lens";
 
 interface AutoWorkspaceCreatorProps {
@@ -48,7 +48,7 @@ export function AutoWorkspaceCreator({
         let userChartId: string | null = null;
         if (initialPrompt && initialPrompt.trim() && initialModel) {
           console.log("Creating chart for user prompt:", initialPrompt);
-          const userChartConfig: LensConfigData = {
+          const userChartConfig: LensConfig = {
             prompt: initialPrompt,
             model: initialModel,
             statisticType: Metrics.PROBABILITY,

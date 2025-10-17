@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AsyncSelect from "react-select/async";
 import type { MultiValue, StylesConfig, GroupBase } from "react-select";
-import { LensConfigData, Metrics } from "@/types/lens";
+import { LensConfig, Metrics } from "@/types/lens";
 import { TokenOption } from "@/types/models";
 import { useLensWorkspace } from "@/stores/useLensWorkspace";
 import { useDebouncedCallback } from "use-debounce";
@@ -52,8 +52,8 @@ const renderTokenText = (text: string | undefined) => {
 
 interface TargetTokenSelectorProps {
   configId: string;
-  config: LensConfigData;
-  setConfig: (config: LensConfigData) => void;
+  config: LensConfig;
+  setConfig: (config: LensConfig) => void;
 }
 
 export const TargetTokenSelector = ({ configId, config, setConfig }: TargetTokenSelectorProps) => {
@@ -62,7 +62,7 @@ export const TargetTokenSelector = ({ configId, config, setConfig }: TargetToken
   const globalLineRunning = useIsMutating({ mutationKey: ["lensLine"] }) > 0;
 
   // Debounced function to run line chart 2 seconds after target token IDs change
-  const debouncedRunLineChart = useDebouncedCallback(async (currentConfig: LensConfigData) => {
+  const debouncedRunLineChart = useDebouncedCallback(async (currentConfig: LensConfig) => {
     if (currentConfig.token.targetIds.length > 0) {
       await handleCreateLineChart(currentConfig);
     }

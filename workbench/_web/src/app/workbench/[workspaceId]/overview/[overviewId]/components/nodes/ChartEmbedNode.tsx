@@ -15,7 +15,7 @@ import * as React from "react";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import type { ChartMetadata } from "@/types/charts";
 import { useQuery } from "@tanstack/react-query";
-import type { LensConfigData, LensHeatmapMetrics, LensLineMetrics } from "@/types/lens";
+import type { LensConfig, LensHeatmapMetrics, LensLineMetrics } from "@/types/lens";
 import { Metrics } from "@/types/lens";
 import { StaticHeatmapCard } from "@/components/charts/heatmap/StaticHeatmapCard";
 import { Card } from "@/components/ui/card";
@@ -197,8 +197,8 @@ function ChartEmbedComponent({
   const type = chart?.type ?? chartType;
 
   // Get statistic from config and ensure it's valid for the chart type
-  const configStatistic = (config?.data as LensConfigData)?.statisticType;
-  const modelName = (config?.data as LensConfigData)?.model;
+  const configStatistic = (config?.data as LensConfig)?.statisticType;
+  const modelName = (config?.data as LensConfig)?.model;
 
   const openChart = (e: React.MouseEvent) => {
     e.preventDefault();

@@ -1,10 +1,10 @@
-import type { LensConfigData } from "@/types/lens";
+import type { LensConfig } from "@/types/lens";
 
 function escapeTripleDoubleQuotes(text: string): string {
   return text.replaceAll('"""', '\\"\\"\\"');
 }
 
-export function renderLensLine(cfg: LensConfigData): string {
+export function renderLensLine(cfg: LensConfig): string {
   const prompt = escapeTripleDoubleQuotes(cfg.prompt);
   const tokenText = escapeTripleDoubleQuotes(cfg.token.text);
 
@@ -45,7 +45,7 @@ def line(model, prompt, token):
 `;
 }
 
-export function renderLensHeatmap(cfg: LensConfigData): string {
+export function renderLensHeatmap(cfg: LensConfig): string {
   const prompt = escapeTripleDoubleQuotes(cfg.prompt);
 
   return `MODEL_NAME = "${cfg.model}"

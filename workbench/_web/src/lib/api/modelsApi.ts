@@ -1,5 +1,5 @@
 import config from "@/lib/config";
-import type { LensConfigData } from "@/types/lens";
+import type { LensConfig } from "@/types/lens";
 import type { Model, Token } from "@/types/models";
 import { startAndPoll } from "../startAndPoll";
 import { useMutation } from "@tanstack/react-query";
@@ -14,7 +14,7 @@ interface Prediction {
   texts: string[];
 }
 
-const getPrediction = async (request: LensConfigData): Promise<Prediction> => {
+const getPrediction = async (request: LensConfig): Promise<Prediction> => {
   const headers = await createUserHeadersAction();
   return await startAndPoll<Prediction>(
     config.endpoints.startPrediction,

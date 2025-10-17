@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import { getMostRecentChartForWorkspace, createLensChartPair } from "@/lib/queries/chartQueries";
-import { LensConfigData } from "@/types/lens";
+import { LensConfig } from "@/types/lens";
 
 export default async function Page({
   params,
   searchParams,
 }: {
-  params: { workspaceId: string };
+  params: Promise<{ workspaceId: string }>;
   searchParams: Promise<{ prompt?: string; model?: string }>;
 }) {
-  const { workspaceId } = params;
+  const { workspaceId } = await params;
   const urlParams = await searchParams;
   const initialPrompt = urlParams?.prompt || "";
   const initialModel = urlParams?.model || "";
@@ -19,7 +19,7 @@ export default async function Page({
 
   // If no chart exists, create a new lens chart pair with default config
   if (!chart) {
-    const defaultConfig: LensConfigData = {
+    const defaultConfig: LensConfig = {
       prompt: initialPrompt,
       model: initialModel,
       token: { idx: 0, id: 0, text: "", targetIds: [] },

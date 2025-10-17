@@ -9,7 +9,7 @@ import {
   updateChartView,
   copyChart,
 } from "@/lib/queries/chartQueries";
-import { LensConfigData } from "@/types/lens";
+import { LensConfig } from "@/types/lens";
 import { PatchingConfig } from "@/types/patching";
 import { useCapture } from "@/components/providers/CaptureProvider";
 import { Line, HeatmapRow, ChartView } from "@/types/charts";
@@ -19,7 +19,7 @@ import { startAndPoll } from "../startAndPoll";
 import { useHeatmapView, useLineView } from "@/components/charts/ViewProvider";
 import { createUserHeadersAction } from "@/actions/auth";
 
-const getLensLine = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
+const getLensLine = async (lensRequest: { completion: LensConfig; chartId: string }) => {
   const headers = await createUserHeadersAction();
 
   // Transform LensConfigData to LensLineRequest format
@@ -48,7 +48,7 @@ export const useLensLine = () => {
     onMutate: async ({
       lensRequest,
     }: {
-      lensRequest: { completion: LensConfigData; chartId: string };
+      lensRequest: { completion: LensConfig; chartId: string };
       configId: string;
     }) => {
       const chartKey = queryKeys.charts.chart(lensRequest.chartId);
@@ -67,7 +67,7 @@ export const useLensLine = () => {
       lensRequest,
       configId,
     }: {
-      lensRequest: { completion: LensConfigData; chartId: string };
+      lensRequest: { completion: LensConfig; chartId: string };
       configId: string;
     }) => {
       const response = await getLensLine(lensRequest);
@@ -107,7 +107,7 @@ export const useLensLine = () => {
   });
 };
 
-const getLensGrid = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
+const getLensGrid = async (lensRequest: { completion: LensConfig; chartId: string }) => {
   const headers = await createUserHeadersAction();
 
   // Transform LensConfigData to GridLensRequest format
@@ -135,7 +135,7 @@ export const useLensGrid = () => {
     onMutate: async ({
       lensRequest,
     }: {
-      lensRequest: { completion: LensConfigData; chartId: string };
+      lensRequest: { completion: LensConfig; chartId: string };
       configId: string;
     }) => {
       const chartKey = queryKeys.charts.chart(lensRequest.chartId);
@@ -154,7 +154,7 @@ export const useLensGrid = () => {
       lensRequest,
       configId,
     }: {
-      lensRequest: { completion: LensConfigData; chartId: string };
+      lensRequest: { completion: LensConfig; chartId: string };
       configId: string;
     }) => {
       const response = await getLensGrid(lensRequest);
@@ -239,7 +239,7 @@ export const useCreateLensChartPair = () => {
     model: "",
     statisticType: "probability" as const,
     token: { idx: 0, id: 0, text: "", targetIds: [] },
-  } as LensConfigData;
+  } as LensConfig;
 
   return useMutation({
     mutationFn: async ({
@@ -247,7 +247,7 @@ export const useCreateLensChartPair = () => {
       config = defaultConfig,
     }: {
       workspaceId: string;
-      config?: LensConfigData;
+      config?: LensConfig;
     }) => {
       return await createLensChartPair(workspaceId, config);
     },

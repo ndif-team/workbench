@@ -2,11 +2,11 @@
 
 import { cn } from "@/lib/utils";
 import type { Token } from "@/types/models";
-import type { LensConfigData } from "@/types/lens";
+import type { LensConfig } from "@/types/lens";
 import { useWorkspace } from "@/stores/useWorkspace";
 
 interface TokenAreaProps {
-  config: LensConfigData;
+  config: LensConfig;
   handleTokenClick: (event: React.MouseEvent<HTMLDivElement>, idx: number) => void;
   tokenData: Token[];
   loading: boolean;

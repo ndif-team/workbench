@@ -2,7 +2,7 @@
 
 import { useGenerate } from "@/lib/api/modelsApi";
 import { Token } from "@/types/models";
-import { LensConfigData } from "@/types/lens";
+import { LensConfig } from "@/types/lens";
 import { useState } from "react";
 import type { GenerationResponse } from "@/lib/api/modelsApi";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,14 +12,14 @@ import { useParams } from "next/navigation";
 
 interface GenerateButtonProps {
   configId: string;
-  config: LensConfigData;
-  setConfig: (config: LensConfigData) => void;
+  config: LensConfig;
+  setConfig: (config: LensConfig) => void;
   setTokenData: (tokenData: Token[]) => void;
   setEditingText: (editingText: boolean) => void;
   handleTokenize: () => void;
   isExecuting: boolean;
   selectedModel: string;
-  handleCreateHeatmap: (config: LensConfigData) => Promise<unknown>;
+  handleCreateHeatmap: (config: LensConfig) => Promise<unknown>;
 }
 
 export default function GenerateButton({

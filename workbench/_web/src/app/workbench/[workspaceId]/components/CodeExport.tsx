@@ -7,7 +7,7 @@ import { Code, Copy, Download } from "lucide-react";
 import { pythonLanguage } from "@codemirror/lang-python";
 
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
-import type { LensConfigData } from "@/types/lens";
+import type { LensConfig } from "@/types/lens";
 import { Button } from "@/components/ui/button";
 import { queryKeys } from "@/lib/queryKeys";
 import {
@@ -53,7 +53,7 @@ export function CodeExport({ chartId, chartType }: Props) {
       return "# Patching export is not implemented.";
     }
 
-    const cfg = config.data as LensConfigData;
+    const cfg = config.data as LensConfig;
     const type = (chartType || chart?.type) as "line" | "heatmap" | null;
     if (type === "line") return renderLensLine(cfg);
     if (type === "heatmap") return renderLensHeatmap(cfg);

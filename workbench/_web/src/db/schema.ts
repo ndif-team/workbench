@@ -14,7 +14,7 @@ import {
   views as pgViews,
   documents as pgDocuments,
 } from "./schema.pg";
-import type { LensConfigData } from "@/types/lens";
+import type { LensConfig } from "@/types/lens";
 import type { HeatmapRow, HeatmapViewData, LineViewData, Line } from "@/types/charts";
 
 // Conditionally export the appropriate schema based on environment
@@ -64,5 +64,5 @@ export type LineChart = Omit<Chart, "data"> & {
 
 // Specific chart config types
 export type LensConfig = Omit<Config, "data"> & {
-  data: LensConfigData;
+  data: LensConfig;
 };

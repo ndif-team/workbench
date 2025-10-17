@@ -1,6 +1,6 @@
 import { boolean, jsonb, pgTable, varchar, uuid, timestamp } from "drizzle-orm/pg-core";
 import type { ConfigData, ChartData, ChartView } from "@/types/charts";
-import type { LensConfigData } from "@/types/lens";
+import type { LensConfig } from "@/types/lens";
 
 export const workspaces = pgTable("workspaces", {
   id: uuid("id").primaryKey().defaultRandom(),

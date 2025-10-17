@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-import type { LensConfigData } from "@/types/lens";
+import type { LensConfig } from "@/types/lens";
 
 // Helper function to generate UUIDs for SQLite
 const generateUUID = () => {
