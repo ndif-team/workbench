@@ -25,7 +25,7 @@ export function WorkbenchStatus() {
     return (
         <div
             className={cn(
-                "rounded h-8 px-3 flex items-center border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+                "rounded h-8 px-6 flex items-center bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
                 status.pulse && "animate-pulse",
 
             )}

@@ -2,7 +2,6 @@ import logging
 import os
 import time
 from enum import Enum
-from tkinter.constants import NONE
 from typing import TYPE_CHECKING, Optional
 
 from influxdb_client import InfluxDBClient, Point
@@ -24,7 +23,7 @@ class Stage(Enum):
 
 
 class TelemetryClient:
-    _client = NONE
+    _client = None
     _initialized = False
 
     class LatencyRecorder:

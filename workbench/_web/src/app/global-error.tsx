@@ -12,7 +12,10 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    posthog.captureException(error);
+    // Only capture exception if PostHog is initialized
+    if (posthog.__loaded) {
+      posthog.captureException(error);
+    }
   }, [error]);
 
   return (

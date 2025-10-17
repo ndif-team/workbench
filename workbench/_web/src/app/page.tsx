@@ -11,9 +11,5 @@ export default async function Page() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
-    if (user) {
-        redirect("/workbench");
-    }
-    
-    return <LandingPage />;
+    return <LandingPage loggedIn={!!user} />;
 }

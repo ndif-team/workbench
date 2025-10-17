@@ -8,6 +8,12 @@ export function register() {
     if (process.env.NEXT_RUNTIME === 'nodejs') {
       const { getPostHogServer } = require('./src/lib/posthog-server')
       const posthog = await getPostHogServer()
+      
+      // Only capture exception if PostHog is enabled
+      if (!posthog) {
+        return
+      }
+      
       let distinctId = null
       if (request.headers.get('cookie')) {
         const cookieString = request.headers.get('cookie')

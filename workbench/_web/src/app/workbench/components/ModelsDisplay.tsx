@@ -39,7 +39,7 @@ export function ModelsDisplay() {
     }
 
     return (
-        <div className="mb-6 p-4 border rounded bg-primary/10 border-primary/20">
+        <div className="mb-6 p-4 border rounded bg-secondary border-primary/20">
             <h2 className="text-lg font-semibold mb-3 text-primary">Available Models</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -8,15 +8,26 @@ import { createClient } from '@/lib/supabase/client'
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
-      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-        api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-        person_profiles: 'identified_only',
-        defaults: '2025-05-24',
-      })
+      // Only initialize PostHog if key is provided and not in development
+      const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY
+      
+      if (posthogKey) {
+        posthog.init(posthogKey, {
+          api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+          person_profiles: 'identified_only',
+          defaults: '2025-05-24',
+        })
+      }
   }, [])
 
   // Track Supabase auth changes and identify users in PostHog
   useEffect(() => {
+    const isPostHogEnabled = posthog.__loaded
+    if (!isPostHogEnabled) {
+      console.log('PostHog is disabled in development')
+      return
+    }
+    
     console.log('Tracking Supabase auth changes and identifying users in PostHog')
     const supabase = createClient()
     

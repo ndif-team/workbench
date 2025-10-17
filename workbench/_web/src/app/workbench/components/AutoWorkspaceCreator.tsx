@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 import { pushTutorialChart } from "@/lib/queries/tutorialChart";
@@ -13,6 +13,7 @@ interface AutoWorkspaceCreatorProps {
     initialPrompt?: string;
     initialModel?: string;
     seedWithExamples?: boolean; // New prop to control seeding
+    workspaceName?: string; // Custom workspace name
 }
 
 export function AutoWorkspaceCreator({ 
@@ -20,21 +21,22 @@ export function AutoWorkspaceCreator({
     initialPrompt, 
     initialModel,
     seedWithExamples = true, // Default to true for new users
+    workspaceName = "Default Workspace", // Default name
 }: AutoWorkspaceCreatorProps) {
-    const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const hasStartedRef = useRef(false);
     const router = useRouter();
 
     useEffect(() => {
         const createAndRedirect = async () => {
-            if (isCreating) return; // Prevent double execution
+            if (hasStartedRef.current) return; // Prevent double execution
             
-            setIsCreating(true);
+            hasStartedRef.current = true;
             setError(null);
 
             try {
-                console.log("Creating default workspace for user:", userId);
-                const newWorkspace = await createWorkspace(userId, "Default Workspace");
+                console.log("Creating workspace for user:", userId, "with name:", workspaceName);
+                const newWorkspace = await createWorkspace(userId, workspaceName);
                 console.log("Created workspace:", newWorkspace);
                 
                 // Seed with example charts if enabled
@@ -75,12 +77,12 @@ export function AutoWorkspaceCreator({
             } catch (err) {
                 console.error("Failed to create workspace:", err);
                 setError(err instanceof Error ? err.message : "Failed to create workspace");
-                setIsCreating(false);
+                hasStartedRef.current = false; // Reset on error so user can retry
             }
         };
 
         createAndRedirect();
-    }, [userId, router, isCreating, initialPrompt, initialModel, seedWithExamples]);
+    }, [userId, router, initialPrompt, initialModel, seedWithExamples, workspaceName]);
 
     if (error) {
         return (
@@ -90,7 +92,9 @@ export function AutoWorkspaceCreator({
                 <button 
                     onClick={() => {
                         setError(null);
-                        setIsCreating(false);
+                        hasStartedRef.current = false;
+                        // Force re-render to trigger useEffect
+                        window.location.reload();
                     }}
                     className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                 >
