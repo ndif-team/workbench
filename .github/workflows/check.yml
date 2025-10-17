@@ -22,3 +22,6 @@ jobs:
       - run: bun run lint
         continue-on-error: true
         working-directory: workbench/_web
+      - run: bun run tsc --noEmit
+        continue-on-error: true
+        working-directory: workbench/_web
