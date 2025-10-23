@@ -1,0 +1,27 @@
+name: Run Checks
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+jobs:
+  run-checks:
+    name: Run Prettier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+        working-directory: workbench/_web
+      - run: bun run format:check
+        working-directory: workbench/_web
+      - run: bun run lint
+        continue-on-error: true
+        working-directory: workbench/_web
+      - run: bun run tsc --noEmit
+        continue-on-error: true
+        working-directory: workbench/_web

@@ -1,6 +1,6 @@
-import { PostHog } from 'posthog-node'
+import { PostHog } from "posthog-node";
 
-let posthogInstance: PostHog | null = null
+let posthogInstance: PostHog | null = null;
 
 export function getPostHogServer() {
   // Don't initialize PostHog in development or if no key is provided
@@ -22,5 +22,5 @@ export function getPostHogServer() {
     )
   }
 
-  return posthogInstance
+  return posthogInstance;
 }

@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/select";
 import PromptVisualization from "@/components/PromptVisualization";
 import type { Model } from "@/types/models";
-import { Tooltip } from "@radix-ui/react-tooltip";
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null }
 
@@ -57,7 +56,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
         queryFn: getModels,
         refetchInterval: 120000,
     });
-    const modelsToSelect: Model[] = models || [{ name: "openai-community/gpt2", type: "base", n_layers: 12, gated: false, allowed: true }];
+    const modelsToSelect: Model[] = models || [{ name: "openai-community/gpt2", type: "base", n_layers: 12, params: "124M", gated: false, allowed: true }];
 
     const handleCaptchaVerify = async (token: string) => {
         const supabase = createClient();
@@ -311,34 +310,48 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                 disabled={showCaptcha || isSubmitting}
                                             >
                                                 <SelectTrigger className="h-7 w-fit text-xs bg-gradient-to-r from-primary/10 to-purple-500/10 backdrop-blur-sm border border-primary/20 hover:from-primary/20 hover:to-purple-500/20 hover:border-primary/30 transition-all gap-1.5 rounded-full focus:ring-0 focus:ring-offset-0 shadow-sm">
-                                                    <SelectValue placeholder="Select model..." />
+                                                    {modelsLoading ? (
+                                                        <span className="text-xs">Loading models...</span>
+                                                    ) : (
+                                                        <SelectValue placeholder="Select model..." />
+                                                    )}
                                                 </SelectTrigger>
                                                 <SelectContent className="rounded-xl">
                                                     <SelectGroup>
                                                         <SelectLabel>Models</SelectLabel>
-                                                        {modelsToSelect?.map((model) => (
-                                                             !model.allowed ? (
-                                                                 <SelectItem 
-                                                                     key={model.name}
-                                                                     value={model.name}
-                                                                     disabled={!model.allowed}
-                                                                     className="text-xs opacity-50 cursor-not-allowed"
-                                                                 >
-                                                                     <div className="flex items-center gap-2">
-                                                                         {model.name}
-                                                                         <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                                                                     </div>
-                                                                 </SelectItem>
-                                                             ) : (
+                                                        {modelsLoading ? (
                                                             <SelectItem 
-                                                                key={model.name}
-                                                                value={model.name}
+                                                                value="loading"
+                                                                disabled
                                                                 className="text-xs"
                                                             >
-                                                                {model.name}
+                                                                Loading models...
                                                             </SelectItem>
-                                                            )
-                                                        ))}
+                                                        ) : (
+                                                            modelsToSelect?.map((model) => (
+                                                                !model.allowed ? (
+                                                                    <SelectItem 
+                                                                        key={model.name}
+                                                                        value={model.name}
+                                                                        disabled={!model.allowed}
+                                                                        className="text-xs opacity-50 cursor-not-allowed"
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            {model.name}
+                                                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                                        </div>
+                                                                    </SelectItem>
+                                                                ) : (
+                                                                    <SelectItem 
+                                                                        key={model.name}
+                                                                        value={model.name}
+                                                                        className="text-xs"
+                                                                    >
+                                                                        {model.name}
+                                                                    </SelectItem>
+                                                                )
+                                                            ))
+                                                        )}
                                                     </SelectGroup>
                                                 </SelectContent>
                                             </Select>
@@ -431,4 +444,3 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
         </div>
     );
 }
-

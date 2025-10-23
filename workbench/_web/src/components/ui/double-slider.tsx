@@ -8,7 +8,7 @@ export const DoubleSlider = ({
   min = 0,
   max = 100,
   step = 1,
-  className
+  className,
 }: {
   value: [number, number];
   onValueChange: (value: [number, number]) => void;
@@ -19,10 +19,7 @@ export const DoubleSlider = ({
 }) => {
   return (
     <SliderPrimitive.Root
-      className={cn(
-        "relative flex w-full touch-none select-none items-center",
-        className
-      )}
+      className={cn("relative flex w-full touch-none select-none items-center", className)}
       value={value}
       onValueChange={onValueChange}
       minStepsBetweenThumbs={1}

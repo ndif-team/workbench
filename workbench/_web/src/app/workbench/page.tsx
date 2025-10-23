@@ -6,29 +6,25 @@ import { getWorkspaces, createWorkspace } from "@/lib/queries/workspaceQueries";
 import { AutoWorkspaceCreator } from "@/app/workbench/components/AutoWorkspaceCreator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { HelpCircle } from "lucide-react";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
 import { WorkbenchStatus } from "@/components/WorkbenchStatus";
 
 
 import { redirect } from "next/navigation";
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export default async function WorkbenchPage({
-    searchParams,
+  searchParams,
 }: {
     searchParams: Promise<{ prompt?: string; model?: string; createNew?: string }>;
 }) {
-    const supabase = await createClient();
-    
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error || !user) {
-        redirect("/login");
-    }
+  const supabase = await createClient();
 
-    const displayName = (user as User)?.is_anonymous || !user.email ? "Guest" : user.email
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
     // Check if user has any workspaces
     const workspaces = await getWorkspaces(user.id);
@@ -44,10 +40,12 @@ export default async function WorkbenchPage({
 
     return (
         <>
-            <div className="px-6 pb-6 bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
+            <div className="min-h-screen px-6 pb-6 bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
                 <header className="p-3 pl-5 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-bold">Workbench</h1>
+                        <span className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
+                            <h1 className="text-2xl font-bold">Workbench</h1>
+                        </span>
                     </div>
 
                     <nav className="flex gap-3 items-center">

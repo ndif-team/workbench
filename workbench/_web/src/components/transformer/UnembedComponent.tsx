@@ -59,21 +59,21 @@ export default function UnembedComponent({
     d3.select(svgRef.current).selectAll("*").remove();
 
     const svg = d3.select(svgRef.current);
-    
+
     // Calculate SVG dimensions
     const svgWidth = dimensions.unembedWidth + dimensions.rightLabelPadding;
     const svgHeight = dimensions.startY + numTokens * dimensions.rowHeight + 20;
-    
+
     // Set SVG dimensions with scale
     svg.attr("width", svgWidth * scale).attr("height", svgHeight * scale);
-    
+
     // Create a group for the visualization with scale transform
     const g = svg.append("g").attr("transform", `scale(${scale})`);
 
     // Function to add event handlers to components
     const addComponentHandlers = (
       element: d3.Selection<any, unknown, null, undefined>,
-      tokenIndex: number
+      tokenIndex: number,
     ) => {
       element
         .on("mouseenter", () => {
@@ -82,7 +82,7 @@ export default function UnembedComponent({
             setHoveredComponent({
               tokenIndex,
               layerIndex: numLayers - 1,
-              componentType: 'unembed'
+              componentType: "unembed",
             });
           }
         })
@@ -97,7 +97,7 @@ export default function UnembedComponent({
           setClickedComponent({
             tokenIndex,
             layerIndex: numLayers - 1,
-            componentType: 'unembed'
+            componentType: "unembed",
           });
         });
     };
@@ -107,22 +107,23 @@ export default function UnembedComponent({
     const narrowWidth = 10;
     const wideWidth = 20;
     const unembedX = 20; // Position at the start of the component
-    
+
     // Draw for each token
     for (let tokenIndex = 0; tokenIndex < numTokens; tokenIndex++) {
       const unembedY = dimensions.startY + tokenIndex * dimensions.rowHeight;
       const unembedComponentId = `unembed-${tokenIndex}`;
-      
+
       // Draw trapezoid (wider side facing left)
       const trapezoidPath = `
-        M ${unembedX} ${unembedY - wideWidth/2}
-        L ${unembedX + trapezoidHeight} ${unembedY - narrowWidth/2}
-        L ${unembedX + trapezoidHeight} ${unembedY + narrowWidth/2}
-        L ${unembedX} ${unembedY + wideWidth/2}
+        M ${unembedX} ${unembedY - wideWidth / 2}
+        L ${unembedX + trapezoidHeight} ${unembedY - narrowWidth / 2}
+        L ${unembedX + trapezoidHeight} ${unembedY + narrowWidth / 2}
+        L ${unembedX} ${unembedY + wideWidth / 2}
         Z
       `;
-      
-      const unembedShape = g.append("path")
+
+      const unembedShape = g
+        .append("path")
         .attr("d", trapezoidPath)
         .attr("stroke", colors.blue)
         .attr("stroke-width", 2)
@@ -131,7 +132,7 @@ export default function UnembedComponent({
         .attr("data-component-id", unembedComponentId)
         .attr("fill", colors.fills.blue)
         .style("cursor", showFlowOnHover ? "pointer" : "default");
-      
+
       // Add hover and click handlers
       if (showFlowOnHover) {
         addComponentHandlers(unembedShape, tokenIndex);
@@ -143,7 +144,7 @@ export default function UnembedComponent({
       for (let i = 0; i < numTokens && i < unembedLabels.length; i++) {
         const labelY = dimensions.startY + i * dimensions.rowHeight;
         const labelX = unembedX + trapezoidHeight + 30; // Position to the right of unembed
-        
+
         g.append("text")
           .attr("x", labelX)
           .attr("y", labelY)
@@ -154,32 +155,43 @@ export default function UnembedComponent({
           .text(unembedLabels[i]);
       }
     }
-
-  }, [numTokens, numLayers, unembedLabels, theme, scale, dimensions, colors, showFlowOnHover, clickedComponent]);
+  }, [
+    numTokens,
+    numLayers,
+    unembedLabels,
+    theme,
+    scale,
+    dimensions,
+    colors,
+    showFlowOnHover,
+    clickedComponent,
+  ]);
 
   // Separate effect to update highlighting
   useEffect(() => {
     if (!svgRef.current) return;
-    
+
     const svg = d3.select(svgRef.current);
     const g = svg.select("g");
     if (g.empty()) return;
-    
+
     // Update all component colors based on highlighting
-    g.selectAll("[data-component-id]").each(function() {
+    g.selectAll("[data-component-id]").each(function () {
       const element = d3.select(this);
       const componentId = element.attr("data-component-id");
       const componentType = element.attr("data-component-type");
-      
+
       if (!componentId || !componentType) return;
-      
+
       // Apply colors based on highlighting state
-      const isHighlighted = highlightedComponents 
-        ? highlightedComponents.has(componentId) 
-        : (showFlowOnHover ? true : null);
-      
+      const isHighlighted = highlightedComponents
+        ? highlightedComponents.has(componentId)
+        : showFlowOnHover
+          ? true
+          : null;
+
       if (isHighlighted === null) return;
-      
+
       // Use original colors with opacity for non-highlighted components
       const opacity = isHighlighted ? 1.0 : 0.15;
       const pathColor = colors.blue;
@@ -202,7 +214,6 @@ export default function UnembedComponent({
           break;
       }
     });
-    
   }, [highlightedComponents, colors, strokeBase, fillBase, showFlowOnHover]);
 
   return <svg ref={svgRef}></svg>;

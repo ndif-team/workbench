@@ -4,24 +4,24 @@ import { ModeToggle } from "@/components/ui/mode-toggle";
 import type React from "react";
 import { UserDropdown } from "@/components/UserDropdown";
 import Link from "next/link";
-import { Layers } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { WorkbenchStatus } from "@/components/WorkbenchStatus";
 import { CaptureProvider } from "@/components/providers/CaptureProvider";
 import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
 
 export default function WorkbenchLayout({
-    children,
+  children,
 }: Readonly<{
-    children: React.ReactNode;
+  children: React.ReactNode;
 }>) {
     return (
         <div className="flex flex-col h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
             <header className="p-3 pl-5 flex items-center justify-between">
                 <Link href="/workbench">
                     <Button variant="ghost" className="bg-transparent hover:!white/10 border-1">
-                        <Layers className="w-4 h-4" />
-                        <h3 className="font-bold">workspaces</h3>
+                        <ArrowLeft className="w-4 h-4" />
+                        <h3>workspaces</h3>
                     </Button>
                 </Link>
 
