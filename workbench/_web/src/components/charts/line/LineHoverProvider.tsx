@@ -52,14 +52,17 @@ export const LineHoverProvider: React.FC<LineHoverProviderProps> = ({ children }
         return y;
     }, [hoverYRaw, lineCanvasRef, yRange]);
 
-    const handleMouseMove = useCallback((e: React.MouseEvent) => {
-        const rect = lineCanvasRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        const xRaw = e.clientX - rect.left;
-        const yRaw = e.clientY - rect.top;
-        setHoverXRaw(xRaw);
-        setHoverYRaw(yRaw);
-    }, [lineCanvasRef]);
+    const handleMouseMove = useCallback(
+        (e: React.MouseEvent) => {
+            const rect = lineCanvasRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            const xRaw = e.clientX - rect.left;
+            const yRaw = e.clientY - rect.top;
+            setHoverXRaw(xRaw);
+            setHoverYRaw(yRaw);
+        },
+        [lineCanvasRef],
+    );
 
     const handleMouseLeave = useCallback(() => {
         setHoverXRaw(null);
@@ -75,10 +78,5 @@ export const LineHoverProvider: React.FC<LineHoverProviderProps> = ({ children }
         hoverYData,
     };
 
-    return (
-
-        <LineHoverContext.Provider value={contextValue}>
-            {children}
-        </LineHoverContext.Provider>
-    );
+    return <LineHoverContext.Provider value={contextValue}>{children}</LineHoverContext.Provider>;
 };

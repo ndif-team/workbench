@@ -5,7 +5,6 @@ import { useHeatmapCanvas } from "./HeatmapCanvasProvider";
 import { interpolateBlues } from "d3-scale-chromatic";
 import { useHeatmapData } from "./HeatmapDataProvider";
 
-
 export const Tooltip = () => {
     const { hoverX, hoverY } = useHeatmapHover();
     const { heatmapCanvasRef } = useHeatmapCanvas();
@@ -31,7 +30,7 @@ export const Tooltip = () => {
     const hoveredYValue = useMemo(() => {
         if (!hoveredCell) return null;
         const v = data[hoveredCell.row]?.data[hoveredCell.col]?.y;
-        return typeof v === 'number' ? v : null;
+        return typeof v === "number" ? v : null;
     }, [hoveredCell, data]);
 
     const hoveredColor = useMemo(() => valueToBlue(hoveredYValue), [hoveredYValue]);
@@ -49,11 +48,13 @@ export const Tooltip = () => {
             style={{ left: tooltipLeft, top: tooltipTop }}
         >
             <div className="flex items-center gap-3">
-                <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: hoveredColor ?? "transparent" }} />
+                <span
+                    className="inline-block w-3 h-3 rounded"
+                    style={{ backgroundColor: hoveredColor ?? "transparent" }}
+                />
                 <span>x: {String(hoveredXValue ?? "")}</span>
-                <span>y: {hoveredYValue == null ? '—' : hoveredYValue.toFixed(2)}</span>
+                <span>y: {hoveredYValue == null ? "—" : hoveredYValue.toFixed(2)}</span>
             </div>
         </div>
     );
 };
-

@@ -2,31 +2,36 @@ import type { StepType } from "@reactour/tour";
 
 // Discriminated union types for step triggers
 type ClickTrigger = {
-    type: 'click';
+    type: "click";
     target: string;
 };
 
 type TextInputTrigger = {
-    type: 'textInput';
+    type: "textInput";
     expectedValue: string;
 };
 
 type TokenSelectionTrigger = {
-    type: 'tokenSelection';
+    type: "tokenSelection";
     expectedTokenIndex: number;
 };
 
 type TokenHighlightTrigger = {
-    type: 'tokenHighlight';
+    type: "tokenHighlight";
     expectedTokenIndex: number;
 };
 
 type TokenClickTrigger = {
-    type: 'tokenClick';
+    type: "tokenClick";
     expectedTokenIndex: number;
 };
 
-type TutorialStepTrigger = ClickTrigger | TextInputTrigger | TokenSelectionTrigger | TokenHighlightTrigger | TokenClickTrigger;
+type TutorialStepTrigger =
+    | ClickTrigger
+    | TextInputTrigger
+    | TokenSelectionTrigger
+    | TokenHighlightTrigger
+    | TokenClickTrigger;
 
 interface ExtendedStepType extends StepType {
     trigger?: TutorialStepTrigger;
@@ -45,8 +50,8 @@ interface TutorialProgress {
     currentChapter?: number;
 }
 
-export type { 
-    ExtendedStepType, 
+export type {
+    ExtendedStepType,
     TutorialStepTrigger,
     ClickTrigger,
     TextInputTrigger,

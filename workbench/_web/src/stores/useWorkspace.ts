@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import type { Model } from '@/types/models';
+import { create } from "zustand";
+import type { Model } from "@/types/models";
 
 interface WorkspaceState {
     jobStatus: string;

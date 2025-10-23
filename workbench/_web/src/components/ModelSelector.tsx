@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from "react";
 
 import {
     Select,
@@ -8,8 +8,8 @@ import {
     SelectLabel,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select"
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+} from "@/components/ui/select";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useQuery } from "@tanstack/react-query";
@@ -19,20 +19,20 @@ export function ModelSelector() {
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
 
     const { data: models, isLoading } = useQuery({
-        queryKey: ['models'],
+        queryKey: ["models"],
         queryFn: getModels,
         refetchInterval: 120000,
     });
 
     if (!models || models.length === 0) {
-        return <div className="h-8 animate-pulse bg-muted/50" />
+        return <div className="h-8 animate-pulse bg-muted/50" />;
     }
 
-    const baseModels = models.filter(model => model.type === "base");
-    const chatModels = models.filter(model => model.type === "chat");
+    const baseModels = models.filter((model) => model.type === "base");
+    const chatModels = models.filter((model) => model.type === "chat");
 
     const handleModelChange = (modelName: string) => {
-        const model = models.find(model => model.name === modelName);
+        const model = models.find((model) => model.name === modelName);
         if (model) {
             console.log("Model selector changed to:", modelName);
             setSelectedModelIdx(models.indexOf(model));
@@ -45,9 +45,11 @@ export function ModelSelector() {
 
     return (
         <Select value={selectedValue} onValueChange={handleModelChange}>
-            <SelectTrigger className={cn("w-fit gap-3", {
-                "animate-pulse": isLoading
-            })}>
+            <SelectTrigger
+                className={cn("w-fit gap-3", {
+                    "animate-pulse": isLoading,
+                })}
+            >
                 <SelectValue placeholder="Select a model" />
             </SelectTrigger>
 
@@ -55,12 +57,12 @@ export function ModelSelector() {
                 {baseModels.length > 0 && (
                     <SelectGroup>
                         <SelectLabel>Base Models</SelectLabel>
-                        {baseModels.map((model) => (
+                        {baseModels.map((model) =>
                             !model.allowed ? (
                                 <Tooltip key={model.name}>
                                     <TooltipTrigger asChild>
                                         <div>
-                                            <SelectItem 
+                                            <SelectItem
                                                 value={model.name}
                                                 disabled={!model.allowed}
                                                 className={cn("opacity-50 cursor-not-allowed")}
@@ -72,33 +74,30 @@ export function ModelSelector() {
                                             </SelectItem>
                                         </div>
                                     </TooltipTrigger>
-                                    <TooltipContent 
-                                        className="bg-yellow-100 text-yellow-900" 
-                                        style={{backgroundColor: "rgb(254 249 195)"}}
+                                    <TooltipContent
+                                        className="bg-yellow-100 text-yellow-900"
+                                        style={{ backgroundColor: "rgb(254 249 195)" }}
                                     >
                                         Log in to use this model.
                                     </TooltipContent>
                                 </Tooltip>
                             ) : (
-                                <SelectItem 
-                                    key={model.name}
-                                    value={model.name}
-                                >
+                                <SelectItem key={model.name} value={model.name}>
                                     {model.name}
                                 </SelectItem>
-                            )
-                        ))}
+                            ),
+                        )}
                     </SelectGroup>
                 )}
                 {chatModels.length > 0 && (
                     <SelectGroup>
                         <SelectLabel>Chat Models</SelectLabel>
-                        {chatModels.map((model) => (
+                        {chatModels.map((model) =>
                             !model.allowed ? (
                                 <Tooltip key={model.name}>
                                     <TooltipTrigger asChild>
                                         <div>
-                                            <SelectItem 
+                                            <SelectItem
                                                 value={model.name}
                                                 disabled={!model.allowed}
                                                 className={cn("opacity-50 cursor-not-allowed")}
@@ -110,28 +109,27 @@ export function ModelSelector() {
                                             </SelectItem>
                                         </div>
                                     </TooltipTrigger>
-                                    <TooltipContent 
-                                        className="bg-yellow-100 text-yellow-900" 
-                                        style={{backgroundColor: "rgb(254 249 195)"}}
+                                    <TooltipContent
+                                        className="bg-yellow-100 text-yellow-900"
+                                        style={{ backgroundColor: "rgb(254 249 195)" }}
                                     >
                                         Log in to use this model.
                                     </TooltipContent>
                                 </Tooltip>
                             ) : (
-                                <SelectItem 
-                                    key={model.name}
-                                    value={model.name}
-                                >
+                                <SelectItem key={model.name} value={model.name}>
                                     {model.name}
                                 </SelectItem>
-                            )
-                        ))}
+                            ),
+                        )}
                     </SelectGroup>
                 )}
                 {isLoading && (
-                    <SelectItem value="loading" disabled>Loading models...</SelectItem>
+                    <SelectItem value="loading" disabled>
+                        Loading models...
+                    </SelectItem>
                 )}
             </SelectContent>
         </Select>
-    )
+    );
 }

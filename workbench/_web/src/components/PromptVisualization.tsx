@@ -18,13 +18,13 @@ export default function PromptVisualization() {
 
     // const predictions = [" Paris", " London", " Amsterdam", " Europe"];
     const predictions = [
-        { text: " Paris", prob: 0.063},
-        { text: " London", prob: 0.0461},
-        { text: " Amsterdam", prob: 0.034},
-        { text: " New", prob: 0.031},
-        { text: " Berlin", prob: 0.026},
+        { text: " Paris", prob: 0.063 },
+        { text: " London", prob: 0.0461 },
+        { text: " Amsterdam", prob: 0.034 },
+        { text: " New", prob: 0.031 },
+        { text: " Berlin", prob: 0.026 },
     ];
-    
+
     const [index, setIndex] = useState(0);
 
     useEffect(() => {
@@ -35,7 +35,6 @@ export default function PromptVisualization() {
         return () => clearInterval(interval);
     }, []);
 
-
     const current = predictions[index];
 
     const attentions = [0.05, 0.78, 0.56, 0.33, 0.88, 0.44, 0.63, 0.17, 0.08, 0.51, 0.15];
@@ -44,7 +43,7 @@ export default function PromptVisualization() {
         // Higher score = darker blue (you can swap hue for orange/red)
         const alpha = 0.1 + score * 0.65;
         return `rgba(147, 197, 253, ${alpha})`; // Tailwind blue-300 RGB with dynamic opacity
-      };
+    };
 
     return (
         <div className="flex items-start justify-center text-2xl font-mono rounded-2xl px-8 py-6 backdrop-blur-sm whitespace-nowrap">
@@ -57,7 +56,6 @@ export default function PromptVisualization() {
                 >
                     {token}
                 </motion.span>
-
             ))}
 
             <div className="relative inline-flex w-[140px] align-top">

@@ -15,7 +15,10 @@ import { getChartsMetadata } from "@/lib/queries/chartQueries";
 import type { ChartMetadata } from "@/types/charts";
 import { $createChartEmbedNode, INSERT_CHART_EMBED_COMMAND } from "../nodes/ChartEmbedNode";
 import { LexicalTypeaheadMenuPlugin } from "@lexical/react/LexicalTypeaheadMenuPlugin";
-import { MenuOption, useBasicTypeaheadTriggerMatch } from "@lexical/react/LexicalTypeaheadMenuPlugin";
+import {
+    MenuOption,
+    useBasicTypeaheadTriggerMatch,
+} from "@lexical/react/LexicalTypeaheadMenuPlugin";
 import * as ReactDOM from "react-dom";
 
 export function SlashCommandPlugin() {
@@ -59,7 +62,10 @@ export function SlashCommandPlugin() {
             INSERT_CHART_EMBED_COMMAND,
             (payload) => {
                 editor.update(() => {
-                    const node = $createChartEmbedNode({ chartId: payload.chart.id, chartType: payload.chart.type });
+                    const node = $createChartEmbedNode({
+                        chartId: payload.chart.id,
+                        chartType: payload.chart.type,
+                    });
                     $insertNodes([node]);
                     // Insert an empty paragraph after so the user can continue typing
                     const paragraph = $createParagraphNode();
@@ -68,7 +74,7 @@ export function SlashCommandPlugin() {
                 });
                 return true;
             },
-            COMMAND_PRIORITY_LOW
+            COMMAND_PRIORITY_LOW,
         );
     }, [editor]);
 
@@ -92,7 +98,10 @@ export function SlashCommandPlugin() {
                         for (let i = 0; i < toDelete; i++) {
                             selection.deleteCharacter(true);
                         }
-                        const node = $createChartEmbedNode({ chartId: option.chart.id, chartType: option.chart.chartType });
+                        const node = $createChartEmbedNode({
+                            chartId: option.chart.id,
+                            chartType: option.chart.chartType,
+                        });
                         $insertNodes([node]);
                         const paragraph = $createParagraphNode();
                         node.insertAfter(paragraph);
@@ -100,7 +109,10 @@ export function SlashCommandPlugin() {
                     }
                 });
             }}
-            menuRenderFn={(anchorElementRef, { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }) => {
+            menuRenderFn={(
+                anchorElementRef,
+                { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex },
+            ) => {
                 // If menu is not open or there are no options, don't render
                 if (!anchorElementRef.current || options.length === 0) {
                     menuRectRef.current = null;
@@ -136,18 +148,23 @@ export function SlashCommandPlugin() {
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => selectOptionAndCleanUp(opt)}
                                 >
-                                    <span className="truncate mr-3">{opt.chart.name ?? "Untitled"}</span>
+                                    <span className="truncate mr-3">
+                                        {opt.chart.name ?? "Untitled"}
+                                    </span>
                                     <span className="text-xs text-muted-foreground">
-                                        {(opt.chart.chartType ?? "unknown")} {opt.chart.toolType ? `· ${opt.chart.toolType}` : ""}
+                                        {opt.chart.chartType ?? "unknown"}{" "}
+                                        {opt.chart.toolType ? `· ${opt.chart.toolType}` : ""}
                                     </span>
                                 </div>
                             );
                         })}
                         {options.length === 0 && (
-                            <div className="px-3 py-2.5 text-sm text-muted-foreground">No charts found.</div>
+                            <div className="px-3 py-2.5 text-sm text-muted-foreground">
+                                No charts found.
+                            </div>
                         )}
                     </div>,
-                    document.body
+                    document.body,
                 );
             }}
         />

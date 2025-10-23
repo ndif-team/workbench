@@ -54,18 +54,18 @@ export default function ChartTitle({ chart }: ChartTitleProps) {
                 className="text-xl font-bold p-0 m-0 border-primary border overflow-clip rounded bg-transparent w-64"
                 autoFocus
             />
-        )
+        );
     } else {
         return (
-        <h1
-            className="text-xl font-bold cursor-pointer border rounded border-transparent w-64 overflow-clip items-center flex hover:border-border transition-opacity p-0 m-0"
-            onClick={() => {
-                originalTitleRef.current = title;
-                setIsEditingTitle(true);
-            }}
-        >
-            {title || "Untitled Chart"}
-        </h1>
-        )
+            <h1
+                className="text-xl font-bold cursor-pointer border rounded border-transparent w-64 overflow-clip items-center flex hover:border-border transition-opacity p-0 m-0"
+                onClick={() => {
+                    originalTitleRef.current = title;
+                    setIsEditingTitle(true);
+                }}
+            >
+                {title || "Untitled Chart"}
+            </h1>
+        );
     }
 }

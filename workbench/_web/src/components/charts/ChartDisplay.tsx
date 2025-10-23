@@ -36,23 +36,42 @@ export function ChartDisplay() {
     const isPending = isLineRunning || isHeatmapRunning;
 
     // Has no data or is loading from db
-    const showEmptyState = (jobStatus === "Idle" && (chart && chart.data === null)) || isLoading || !chart || !chart.data;
+    const showEmptyState =
+        (jobStatus === "Idle" && chart && chart.data === null) ||
+        isLoading ||
+        !chart ||
+        !chart.data;
 
     // better solution at some point
-    const isHeatmapData = Array.isArray(chart?.data) && chart.data.some((row: any) => row.data && Array.isArray(row.data) && row.data.some((cell: any) =>  "label" in cell));
+    const isHeatmapData =
+        Array.isArray(chart?.data) &&
+        chart.data.some(
+            (row: any) =>
+                row.data &&
+                Array.isArray(row.data) &&
+                row.data.some((cell: any) => "label" in cell),
+        );
 
     return (
-        <div className={cn("flex size-full", 
-            showEmptyState && "pb-6"
-        )}>
+        <div className={cn("flex size-full", showEmptyState && "pb-6")}>
             {showEmptyState ? (
                 <div className="flex size-full items-center justify-center border mx-3 mt-3 border-dashed rounded">
                     <div className="text-muted-foreground">No chart data</div>
                 </div>
             ) : isHeatmapRunning || (!isPending && chart.type === "heatmap") ? (
-                <HeatmapCard captureRef={captureRef} chart={chart as HeatmapChart} pending={isPending || !isHeatmapData} statisticType={config?.data?.statisticType} />
-            ) :  (
-                <LineCard captureRef={captureRef} chart={chart as LineChart} pending={isPending || isHeatmapData} metricType={config?.data?.statisticType} />
+                <HeatmapCard
+                    captureRef={captureRef}
+                    chart={chart as HeatmapChart}
+                    pending={isPending || !isHeatmapData}
+                    statisticType={config?.data?.statisticType}
+                />
+            ) : (
+                <LineCard
+                    captureRef={captureRef}
+                    chart={chart as LineChart}
+                    pending={isPending || isHeatmapData}
+                    metricType={config?.data?.statisticType}
+                />
             )}
         </div>
     );

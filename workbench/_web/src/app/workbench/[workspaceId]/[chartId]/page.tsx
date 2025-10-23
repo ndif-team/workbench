@@ -1,10 +1,6 @@
 "use client";
 
-import {
-    ResizableHandle,
-    ResizablePanel,
-    ResizablePanelGroup,
-} from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 
 import ChartCardsSidebar from "../components/ChartCardsSidebar";
 import LensArea from "./components/lens/LensArea";

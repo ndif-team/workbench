@@ -40,7 +40,9 @@ interface CompletionCardProps {
 }
 
 // Helper function to capitalize statistic type for display
-const capitalizeStatistic = (statistic: LensHeatmapMetrics | LensLineMetrics | undefined): string => {
+const capitalizeStatistic = (
+    statistic: LensHeatmapMetrics | LensLineMetrics | undefined,
+): string => {
     const stat = statistic || Metrics.PROBABILITY;
     return stat.charAt(0).toUpperCase() + stat.slice(1);
 };
@@ -55,7 +57,10 @@ const getValidStatistics = (chartType: ChartType): (LensHeatmapMetrics | LensLin
 };
 
 // Helper function to check if a statistic is valid for a chart type
-const isStatisticValid = (statistic: LensHeatmapMetrics | LensLineMetrics, chartType: ChartType): boolean => {
+const isStatisticValid = (
+    statistic: LensHeatmapMetrics | LensLineMetrics,
+    chartType: ChartType,
+): boolean => {
     const validStats = getValidStatistics(chartType);
     return validStats.includes(statistic);
 };
@@ -73,7 +78,6 @@ const ensureValidStatistic = (config: LensConfigData, chartType: ChartType): Len
 };
 
 export function CompletionCard({ initialConfig, chartType, selectedModel }: CompletionCardProps) {
-
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
     const [tokenData, setTokenData] = useState<Token[]>([]);
@@ -90,9 +94,11 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     // whether the chart has been generated?
     const [editingText, setEditingText] = useState(initialConfig.data.prediction === undefined);
     const [promptHasChangedState, setPromptHasChanged] = useState(false);
-    
+
     // Track if we should auto-run: only if initial config has a prompt pre-filled
-    const shouldAutoRunRef = useRef(initialConfig.data.prompt.length > 0 && !initialConfig.data.prediction);
+    const shouldAutoRunRef = useRef(
+        initialConfig.data.prompt.length > 0 && !initialConfig.data.prediction,
+    );
     const hasAutoRunRef = useRef(false);
 
     const promptHasChanged = promptHasChangedState || config.model !== selectedModel;
@@ -100,19 +106,21 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     const { mutateAsync: getPrediction, isPending: isExecuting } = usePrediction();
     const { mutateAsync: updateChartConfigMutation } = useUpdateChartConfig();
 
-    const { handleCreateLineChart, handleCreateHeatmap, isCreatingLineChart, isCreatingHeatmap } = useLensCharts({ configId: initialConfig.id });
+    const { handleCreateLineChart, handleCreateHeatmap, isCreatingLineChart, isCreatingHeatmap } =
+        useLensCharts({ configId: initialConfig.id });
 
     // Reset promptHasChanged when config changes (e.g., when switching between different configs)
     useEffect(() => {
         setPromptHasChanged(false);
         // Reset auto-run flags when switching configs
-        shouldAutoRunRef.current = initialConfig.data.prompt.length > 0 && !initialConfig.data.prediction;
+        shouldAutoRunRef.current =
+            initialConfig.data.prompt.length > 0 && !initialConfig.data.prediction;
         hasAutoRunRef.current = false;
     }, [initialConfig.id, initialConfig.data.prompt.length, initialConfig.data.prediction]);
 
     // Ensure statistic is valid when chart type changes
     useEffect(() => {
-        setConfig(prevConfig => ensureValidStatistic(prevConfig, chartType));
+        setConfig((prevConfig) => ensureValidStatistic(prevConfig, chartType));
     }, [chartType]);
 
     // Tokenize the prompt if the config changes and there's an existing prediction
@@ -122,7 +130,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                 const tokens = await encodeText(config.prompt, selectedModel);
                 setTokenData(tokens);
             }
-        }
+        };
         fetchTokens();
     }, [initialConfig.id, config.prediction, config.prompt, selectedModel]);
 
@@ -130,22 +138,33 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     useEffect(() => {
         const autoRunTokenization = async () => {
             // Use pre-filled model from config if available, otherwise use selected model
-            const modelToUse = (initialConfig.data.model && initialConfig.data.model.length > 0) 
-                ? initialConfig.data.model 
-                : selectedModel;
-            
+            const modelToUse =
+                initialConfig.data.model && initialConfig.data.model.length > 0
+                    ? initialConfig.data.model
+                    : selectedModel;
+
             // Only auto-run if:
             // 1. shouldAutoRunRef is true (prompt was pre-filled on mount)
             // 2. We haven't auto-run before
             // 3. A model is available (either pre-filled or selected)
             // 4. Not currently executing
             // 5. User hasn't manually edited the prompt
-            if (shouldAutoRunRef.current && !hasAutoRunRef.current && modelToUse && modelToUse.length > 0 && !isExecuting && !promptHasChangedState) {
+            if (
+                shouldAutoRunRef.current &&
+                !hasAutoRunRef.current &&
+                modelToUse &&
+                modelToUse.length > 0 &&
+                !isExecuting &&
+                !promptHasChangedState
+            ) {
                 hasAutoRunRef.current = true;
                 shouldAutoRunRef.current = false; // Disable future auto-runs immediately
-                console.log("Auto-running tokenization and heatmap generation for pre-filled prompt:", initialConfig.data.prompt);
+                console.log(
+                    "Auto-running tokenization and heatmap generation for pre-filled prompt:",
+                    initialConfig.data.prompt,
+                );
                 console.log("Using model:", modelToUse);
-                
+
                 try {
                     // Pass forceRun=true to bypass the promptHasChanged check, and pass modelToUse
                     await handleTokenize(true, modelToUse);
@@ -161,7 +180,14 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         // Small delay to ensure all dependencies are ready
         const timer = setTimeout(autoRunTokenization, 800);
         return () => clearTimeout(timer);
-    }, [selectedModel, isExecuting, promptHasChangedState, initialConfig.data.prompt, initialConfig.data.model, config.model]);
+    }, [
+        selectedModel,
+        isExecuting,
+        promptHasChangedState,
+        initialConfig.data.prompt,
+        initialConfig.data.model,
+        config.model,
+    ]);
 
     // Toggle the TokenArea component to the TextArea component
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -178,7 +204,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                 textareaRef.current.setSelectionRange(length, length);
             }
         }, 0);
-    }
+    };
 
     // Tokenize the prompt and run predictions
     const handleTokenize = async (forceRun = false, modelOverride?: string) => {
@@ -195,19 +221,19 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         const temporaryConfig: LensConfigData = {
             ...config,
             model: modelToUse,
-            token: { idx: tokens[tokens.length - 1].idx, id: 0, text: "", targetIds: [] }
-        }
+            token: { idx: tokens[tokens.length - 1].idx, id: 0, text: "", targetIds: [] },
+        };
 
         if (!promptHasChanged && !forceRun) {
             setEditingText(false);
             return;
-        };
+        }
 
         // Run predictions
         await runPredictions(temporaryConfig);
         await handleCreateHeatmap(temporaryConfig);
         setPromptHasChanged(false);
-    }
+    };
 
     const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setConfig({
@@ -232,10 +258,14 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                 data: updatedConfig,
                 workspaceId,
                 type: "lens",
-            }
+            },
         });
 
-        if (updatedConfig.prompt && updatedConfig.prompt.trim().length > 0 && updatedConfig.prediction) {
+        if (
+            updatedConfig.prompt &&
+            updatedConfig.prompt.trim().length > 0 &&
+            updatedConfig.prediction
+        ) {
             if (chartType === "heatmap") {
                 await handleCreateHeatmap(updatedConfig);
             } else if (chartType === "line") {
@@ -281,7 +311,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
             const withinSettings = activeElement && settingsRef.current?.contains(activeElement);
 
             // Check if a popover is open (Radix UI adds data-state="open" to popovers)
-            const popoverOpen = document.querySelector('[data-radix-popper-content-wrapper]');
+            const popoverOpen = document.querySelector("[data-radix-popper-content-wrapper]");
 
             // if (promptHasChanged) {
             //     handleTokenize();
@@ -311,12 +341,12 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                 data: temporaryConfig,
                 workspaceId,
                 type: "lens",
-            }
+            },
         });
 
         // Exit the editing state
         setEditingText(false);
-    }
+    };
 
     const handleTokenClick = async (event: React.MouseEvent<HTMLDivElement>, idx: number) => {
         // Prevent the editing state from activating
@@ -329,8 +359,8 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         // Set the token to the last token in the list
         const temporaryConfig: LensConfigData = {
             ...config,
-            token: { idx, id: 0, text: "", targetIds: [] }
-        }
+            token: { idx, id: 0, text: "", targetIds: [] },
+        };
 
         // Run predictions
         await runPredictions(temporaryConfig);
@@ -347,7 +377,10 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                     <Textarea
                         ref={textareaRef}
                         value={config.prompt}
-                        onChange={(e) => { handlePromptChange(e); autoResizeTextarea(); }}
+                        onChange={(e) => {
+                            handlePromptChange(e);
+                            autoResizeTextarea();
+                        }}
                         onKeyDown={handleKeyDown}
                         onBlur={handleTextareaBlur}
                         className="w-full !text-sm bg-input/30 min-h-48 !leading-5"
@@ -358,7 +391,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                         ref={tokenContainerRef}
                         className={cn(
                             "flex w-full max-w-[50vw] px-3 py-1 bg-input/30 border rounded min-h-48",
-                            isExecuting ? "cursor-progress" : "cursor-text"
+                            isExecuting ? "cursor-progress" : "cursor-text",
                         )}
                         onClick={() => {
                             if (!isExecuting) escapeTokenArea();
@@ -373,18 +406,23 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                         />
                     </div>
                 )}
-                {(config.model !== selectedModel && tokenData.length > 0 && !isExecuting)
-                    &&
+                {config.model !== selectedModel && tokenData.length > 0 && !isExecuting && (
                     <Tooltip>
                         <TooltipTrigger className="absolute bottom-2 right-2">
                             <TriangleAlert className="w-4 h-4 text-destructive/70" />
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
-                            <p className="w-36 text-wrap text-center">The displayed tokenization does not match the selected model. Please retokenize.</p>
+                            <p className="w-36 text-wrap text-center">
+                                The displayed tokenization does not match the selected model. Please
+                                retokenize.
+                            </p>
                         </TooltipContent>
                     </Tooltip>
-                }
-                <div ref={settingsRef} className="absolute bottom-2 right-2 flex items-center gap-3">
+                )}
+                <div
+                    ref={settingsRef}
+                    className="absolute bottom-2 right-2 flex items-center gap-3"
+                >
                     {editingText && (
                         <GenerateButton
                             configId={initialConfig.id}
@@ -399,16 +437,15 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                         />
                     )}
                 </div>
-
             </div>
 
             {config.prediction && (
                 <div
                     className={cn(
                         "transition-all",
-                        (editingText || isExecuting) ? "opacity-60 blur-[0.25px]" : "opacity-100",
+                        editingText || isExecuting ? "opacity-60 blur-[0.25px]" : "opacity-100",
                         isExecuting && "!cursor-progress",
-                        editingText && "cursor-pointer"
+                        editingText && "cursor-pointer",
                     )}
                     onMouseDown={() => {
                         if (editingText && !isExecuting) {
@@ -421,32 +458,55 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                     }}
                 >
                     {/* Prevent pointer events when overlay is active */}
-                    <div className={cn(
-                        "flex flex-col size-full border p-3 items-center gap-3 bg-card/80 rounded",
-                        (editingText || isExecuting) ? "pointer-events-none" : "pointer-events-auto"
-                    )}>
+                    <div
+                        className={cn(
+                            "flex flex-col size-full border p-3 items-center gap-3 bg-card/80 rounded",
+                            editingText || isExecuting
+                                ? "pointer-events-none"
+                                : "pointer-events-auto",
+                        )}
+                    >
                         <div className="flex w-full justify-between items-center gap-2 flex-nowrap min-w-60">
                             <div className="flex items-center p-1 h-8 bg-background rounded flex-shrink-0">
                                 <button
                                     onClick={() => handleCreateHeatmap(config)}
-                                    disabled={isExecuting || isCreatingLineChart || isCreatingHeatmap}
+                                    disabled={
+                                        isExecuting || isCreatingLineChart || isCreatingHeatmap
+                                    }
                                     className={cn(
                                         "relative overflow-hidden flex items-center gap-2 px-3 py-0.5 rounded text-xs bg-transparent",
-                                        ((chartType === "heatmap" && !isCreatingLineChart) || isCreatingHeatmap) && "bg-popover border"
+                                        ((chartType === "heatmap" && !isCreatingLineChart) ||
+                                            isCreatingHeatmap) &&
+                                            "bg-popover border",
                                     )}
                                 >
-                                    {isCreatingHeatmap ? <Loader2 className="w-4 h-4 animate-spin" /> : <Grid3x3 className="w-4 h-4" />}
+                                    {isCreatingHeatmap ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Grid3x3 className="w-4 h-4" />
+                                    )}
                                     Heatmap
                                 </button>
                                 <button
                                     onClick={() => handleCreateLineChart(config)}
-                                    disabled={isExecuting || isCreatingLineChart || isCreatingHeatmap || config.token.targetIds.length === 0}
+                                    disabled={
+                                        isExecuting ||
+                                        isCreatingLineChart ||
+                                        isCreatingHeatmap ||
+                                        config.token.targetIds.length === 0
+                                    }
                                     className={cn(
                                         "relative overflow-hidden flex items-center gap-2 px-3 py-0.5 rounded text-xs bg-transparent",
-                                        ((chartType === "line" && !isCreatingHeatmap) || isCreatingLineChart) && "bg-popover border"
+                                        ((chartType === "line" && !isCreatingHeatmap) ||
+                                            isCreatingLineChart) &&
+                                            "bg-popover border",
                                     )}
                                 >
-                                    {isCreatingLineChart ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChartLine className="w-4 h-4" />}
+                                    {isCreatingLineChart ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <ChartLine className="w-4 h-4" />
+                                    )}
                                     Line
                                 </button>
                             </div>
@@ -458,16 +518,22 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                                         variant="outline"
                                         size="sm"
                                         className="h-8 text-xs min-w-20 max-w-28 flex-shrink-0 border-0"
-                                        disabled={isExecuting || isCreatingLineChart || isCreatingHeatmap}
+                                        disabled={
+                                            isExecuting || isCreatingLineChart || isCreatingHeatmap
+                                        }
                                     >
                                         <span className="flex items-center gap-1 truncate">
-                                            <span className="truncate">{capitalizeStatistic(config.statisticType)}</span>
+                                            <span className="truncate">
+                                                {capitalizeStatistic(config.statisticType)}
+                                            </span>
                                             <ChevronDown className="w-3 h-3 flex-shrink-0" />
                                         </span>
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent className="w-auto min-w-24">
-                                    <DropdownMenuLabel className="text-xs">Metrics</DropdownMenuLabel>
+                                    <DropdownMenuLabel className="text-xs">
+                                        Metrics
+                                    </DropdownMenuLabel>
                                     <DropdownMenuSeparator />
                                     {getValidStatistics(chartType).map((statistic) => (
                                         <DropdownMenuItem
@@ -482,20 +548,20 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                             </DropdownMenu>
                         </div>
 
-
-
-                        <div className={cn(
-                            "size-full",
-                            chartType === "heatmap" ? "opacity-50 pointer-events-none" : "pointer-events-auto"
-                        )}>
+                        <div
+                            className={cn(
+                                "size-full",
+                                chartType === "heatmap"
+                                    ? "opacity-50 pointer-events-none"
+                                    : "pointer-events-auto",
+                            )}
+                        >
                             <TargetTokenSelector
                                 config={config}
                                 setConfig={setConfig}
                                 configId={initialConfig.id}
                             />
                         </div>
-
-
                     </div>
                 </div>
             )}

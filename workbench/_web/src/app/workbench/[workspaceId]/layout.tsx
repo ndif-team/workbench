@@ -4,6 +4,7 @@ import { ModeToggle } from "@/components/ui/mode-toggle";
 import type React from "react";
 import { UserDropdown } from "@/components/UserDropdown";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { WorkbenchStatus } from "@/components/WorkbenchStatus";
 import { CaptureProvider } from "@/components/providers/CaptureProvider";
 import { Button } from "@/components/ui/button";
@@ -18,15 +19,16 @@ export default function WorkbenchLayout({
         <div className="flex flex-col h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
             <header className="p-3 pl-5 flex items-center justify-between">
                 <Link href="/workbench">
-                    <div className="flex items-center gap-2">
-                        <img src="/images/NDIF.png" alt="NDIF Logo" className="h-8" />
-                        <img src="/images/NSF.png" alt="NSF Logo" className="h-8" />
-                    </div>
+                    <Button variant="ghost" className="bg-transparent hover:!white/10 border-1">
+                        <ArrowLeft className="w-4 h-4" />
+                        <h3>workspaces</h3>
+                    </Button>
                 </Link>
 
                 <nav className="flex gap-3 items-center">
+                    <WorkbenchStatus />
                     <Link href="https://forms.gle/WsxmZikeLNw34LBV9" target="_blank">
-                        <Button variant="outline">
+                        <Button variant="ghost" className="bg-transparent hover:!white/10 border-0">
                             <svg
                                 width="15"
                                 height="15"
@@ -44,7 +46,12 @@ export default function WorkbenchLayout({
                             Feedback
                         </Button>
                     </Link>
-                    <Button variant="outline" size="icon" asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="bg-transparent hover:!white/10"
+                        asChild
+                    >
                         <Link
                             href="https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens"
                             target="_blank"
@@ -52,7 +59,12 @@ export default function WorkbenchLayout({
                             <HelpCircle className="h-4 w-4" />
                         </Link>
                     </Button>
-                    <Button variant="outline" size="icon" asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="bg-transparent hover:!white/10"
+                        asChild
+                    >
                         <Link href="https://github.com/ndif-team/workbench" target="_blank">
                             <svg className="h-4 w-4" viewBox="0 0 24 24">
                                 <path
@@ -62,7 +74,6 @@ export default function WorkbenchLayout({
                             </svg>
                         </Link>
                     </Button>
-                    <WorkbenchStatus />
                     <ModeToggle />
                     <UserDropdown />
                 </nav>

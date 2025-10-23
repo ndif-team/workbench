@@ -11,13 +11,9 @@ export function CopyImage() {
     }, [handleCopyPng]);
 
     return (
-        <Button
-            variant="outline"
-            size="sm"
-            onClick={onCopyPng}
-        >
+        <Button variant="outline" size="sm" onClick={onCopyPng}>
             <Copy className="h-4 w-4" />
             <span>Copy Image</span>
         </Button>
-    )
+    );
 }

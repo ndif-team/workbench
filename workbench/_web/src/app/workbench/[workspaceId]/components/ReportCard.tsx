@@ -18,39 +18,40 @@ export default function ReportCard({
 }) {
     const { overviewId } = useParams<{ overviewId?: string }>();
     const isSelected = overviewId === report.id;
-    const updatedAt = report.updatedAt ? new Date(report.updatedAt as unknown as string).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : "";
+    const updatedAt = report.updatedAt
+        ? new Date(report.updatedAt as unknown as string).toLocaleDateString("en-US", {
+              month: "numeric",
+              day: "numeric",
+          })
+        : "";
 
     return (
         <div
-            className={cn(
-                "flex items-center border h-24 rounded",
-                isSelected && "border-primary"
-            )}
+            className={cn("flex items-center border h-24 rounded", isSelected && "border-primary")}
             onClick={onClick}
             draggable={false}
         >
-            <div className={cn(
-                "relative w-[35%] h-24 overflow-hidden rounded-l text-muted-foreground border-y border-r flex flex-col bg-background items-center justify-center",
-                isSelected && "border-primary"
-            )}
+            <div
+                className={cn(
+                    "relative w-[35%] h-24 overflow-hidden rounded-l text-muted-foreground border-y border-r flex flex-col bg-background items-center justify-center",
+                    isSelected && "border-primary",
+                )}
             >
                 <FileText className="h-5 w-5" />
-                <span className="text-xs font-medium capitalize">
-                    Report
-                </span>
+                <span className="text-xs font-medium capitalize">Report</span>
             </div>
             <div
                 key={report.id}
                 className={cn(
                     "p-3 cursor-pointer transition-all h-full w-[65%]",
-                    isSelected ? "bg-primary/5" : "hover:bg-muted/50"
+                    isSelected ? "bg-primary/5" : "hover:bg-muted/50",
                 )}
             >
                 <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-1">
                             <span className="text-sm font-medium truncate max-w-36">
-                                {report.derivedTitle || 'Untitled'}
+                                {report.derivedTitle || "Untitled"}
                             </span>
                         </div>
                         <div className="text-xs text-muted-foreground break-words flex items-center gap-3">
@@ -80,4 +81,3 @@ export default function ReportCard({
         </div>
     );
 }
-

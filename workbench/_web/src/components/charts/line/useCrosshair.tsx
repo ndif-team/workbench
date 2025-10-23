@@ -3,12 +3,11 @@ import { drawVerticalLinePx, clearCrosshair } from "./draw";
 import { useLineHover } from "./LineHoverProvider";
 import { useDpr } from "../useDpr";
 
-
 interface UseCrosshairProps {
     rafRef: React.MutableRefObject<number | null>;
 }
 
-export const useCrosshair = ({ rafRef}: UseCrosshairProps) => {
+export const useCrosshair = ({ rafRef }: UseCrosshairProps) => {
     const crosshairCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const { hoverSnappedXPx } = useLineHover();
 
@@ -23,7 +22,7 @@ export const useCrosshair = ({ rafRef}: UseCrosshairProps) => {
                 clearCrosshair(crosshairCanvasRef);
             }
         });
-    }, [hoverSnappedXPx, rafRef, crosshairCanvasRef]);  
+    }, [hoverSnappedXPx, rafRef, crosshairCanvasRef]);
 
     return { crosshairCanvasRef };
 };

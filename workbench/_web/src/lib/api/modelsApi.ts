@@ -20,10 +20,9 @@ const getPrediction = async (request: LensConfigData): Promise<Prediction> => {
         config.endpoints.startPrediction,
         request,
         config.endpoints.resultsPrediction,
-        headers
+        headers,
     );
 };
-
 
 export const usePrediction = () => {
     return useMutation({
@@ -51,9 +50,9 @@ const generate = async (request: Completion): Promise<GenerationResponse> => {
         config.endpoints.startGenerate,
         request,
         config.endpoints.resultsGenerate,
-        headers
+        headers,
     );
-}
+};
 
 export const useGenerate = () => {
     return useMutation({
@@ -64,19 +63,18 @@ export const useGenerate = () => {
     });
 };
 
-
 export const getModels = async (): Promise<Model[]> => {
     const headers = await createUserHeadersAction();
     const response = await fetch(config.getApiUrl(config.endpoints.models), {
         headers: {
             "Content-Type": "application/json",
-            ...headers
-        }
+            ...headers,
+        },
     });
-    
+
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     return response.json();
 };

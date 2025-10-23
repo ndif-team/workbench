@@ -29,7 +29,11 @@ export const HeatmapCard = ({ chart, captureRef, pending, statisticType }: Heatm
                 <HeatmapDataProvider chart={chart}>
                     <HeatmapCanvasProvider>
                         <HeatmapHoverProvider>
-                            <HeatmapCardContent captureRef={captureRef} chart={chart} statisticType={statisticType} />
+                            <HeatmapCardContent
+                                captureRef={captureRef}
+                                chart={chart}
+                                statisticType={statisticType}
+                            />
                         </HeatmapHoverProvider>
                     </HeatmapCanvasProvider>
                 </HeatmapDataProvider>
@@ -43,7 +47,10 @@ const PendingHeatmap = ({ chart }: { chart: HeatmapChart }) => {
         <div className="flex flex-col size-full">
             <div className="flex px-3 py-3 items-center justify-between border-b">
                 <div className="flex items-center gap-2">
-                    <CodeExport chartId={chart?.id} chartType={chart?.type as ("line" | "heatmap" | null | undefined)} />
+                    <CodeExport
+                        chartId={chart?.id}
+                        chartType={chart?.type as "line" | "heatmap" | null | undefined}
+                    />
                     <CopyImage />
                 </div>
                 <div className="flex gap-2 items-center">
@@ -66,24 +73,26 @@ const PendingHeatmap = ({ chart }: { chart: HeatmapChart }) => {
                         <Crop className="w-4 h-4" />
                     </Button>
 
-                    <Button variant="outline" size="sm" className="h-8 w-8" title="Reset zoom and clear selection">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8"
+                        title="Reset zoom and clear selection"
+                    >
                         <RotateCcw className="w-4 h-4" />
                     </Button>
                 </div>
             </div>
             <div className="flex size-full relative">
-                <Heatmap
-                    rows={[]}
-                    statisticType={Metrics.PROBABILITY}
-                />
+                <Heatmap rows={[]} statisticType={Metrics.PROBABILITY} />
 
                 <div className="absolute inset-0 z-30 overflow-hidden pointer-events-none">
                     <div className="absolute inset-0 w-full h-full animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
                 </div>
             </div>
         </div>
-    )
-}
+    );
+};
 
 interface HeatmapCardContentProps {
     captureRef?: RefObject<HTMLDivElement>;
@@ -92,25 +101,38 @@ interface HeatmapCardContentProps {
 }
 
 const HeatmapCardContent = ({ captureRef, chart, statisticType }: HeatmapCardContentProps) => {
-    const { filteredData: data, bounds, xStep, handleStepChange, setXRange, setYRange, setXStep, defaultXStep } = useHeatmapData()
-    const { zoomIntoActiveSelection, clearSelection, activeSelection, onMouseDown } = useSelection()
-    const { heatmapCanvasRef } = useHeatmapCanvas()
-    const { handleMouseMove, handleMouseLeave } = useHeatmapHover()
-    useAnnotationSelection()
+    const {
+        filteredData: data,
+        bounds,
+        xStep,
+        handleStepChange,
+        setXRange,
+        setYRange,
+        setXStep,
+        defaultXStep,
+    } = useHeatmapData();
+    const { zoomIntoActiveSelection, clearSelection, activeSelection, onMouseDown } =
+        useSelection();
+    const { heatmapCanvasRef } = useHeatmapCanvas();
+    const { handleMouseMove, handleMouseLeave } = useHeatmapHover();
+    useAnnotationSelection();
 
     // Handle reset: clear selection and reset ranges/step
     const handleReset = async () => {
-        await clearSelection()
+        await clearSelection();
         setXRange([bounds.minCol, bounds.maxCol]);
         setYRange([bounds.minRow, bounds.maxRow]);
         setXStep(defaultXStep);
-    }
+    };
 
     return (
         <div className="flex flex-col size-full">
             <div className="flex px-3 py-3 items-center justify-between border-b">
                 <div className="flex items-center gap-2">
-                    <CodeExport chartId={chart?.id} chartType={chart?.type as ("line" | "heatmap" | null | undefined)} />
+                    <CodeExport
+                        chartId={chart?.id}
+                        chartType={chart?.type as "line" | "heatmap" | null | undefined}
+                    />
                     <CopyImage />
                 </div>
                 <div className="flex gap-2 items-center">
@@ -131,14 +153,28 @@ const HeatmapCardContent = ({ captureRef, chart, statisticType }: HeatmapCardCon
                         variant={activeSelection ? "default" : "outline"}
                         size="sm"
                         className="h-8 w-8"
-                        onClick={() => { void zoomIntoActiveSelection() }}
+                        onClick={() => {
+                            void zoomIntoActiveSelection();
+                        }}
                         disabled={!activeSelection}
-                        title={activeSelection ? "Zoom into selection and clear annotation" : "Draw a selection on the chart first"}
+                        title={
+                            activeSelection
+                                ? "Zoom into selection and clear annotation"
+                                : "Draw a selection on the chart first"
+                        }
                     >
                         <Crop className="w-4 h-4" />
                     </Button>
 
-                    <Button variant="outline" size="sm" className="h-8 w-8" onClick={() => { void handleReset() }} title="Reset zoom and clear selection">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8"
+                        onClick={() => {
+                            void handleReset();
+                        }}
+                        title="Reset zoom and clear selection"
+                    >
                         <RotateCcw className="w-4 h-4" />
                     </Button>
                 </div>
@@ -155,5 +191,5 @@ const HeatmapCardContent = ({ captureRef, chart, statisticType }: HeatmapCardCon
                 />
             </div>
         </div>
-    )
-}
+    );
+};

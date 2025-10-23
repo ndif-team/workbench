@@ -32,16 +32,22 @@ interface LineDataProviderProps {
     metricType?: LensLineMetrics;
 }
 
-export const LineDataProvider: React.FC<LineDataProviderProps> = ({ chart, children, metricType = Metrics.PROBABILITY }) => {
+export const LineDataProvider: React.FC<LineDataProviderProps> = ({
+    chart,
+    children,
+    metricType = Metrics.PROBABILITY,
+}) => {
     const { data: rawLines } = chart;
 
     // Calculate the bounds from the data
     const bounds = useMemo(() => {
-        let minX = Infinity, maxX = -Infinity;
-        let minY = Infinity, maxY = -Infinity;
+        let minX = Infinity,
+            maxX = -Infinity;
+        let minY = Infinity,
+            maxY = -Infinity;
 
-        rawLines.forEach(line => {
-            line.data.forEach(point => {
+        rawLines.forEach((line) => {
+            line.data.forEach((point) => {
                 minX = Math.min(minX, point.x);
                 maxX = Math.max(maxX, point.x);
                 minY = Math.min(minY, point.y);
@@ -52,7 +58,12 @@ export const LineDataProvider: React.FC<LineDataProviderProps> = ({ chart, child
         return {
             xMin: minX === Infinity ? 0 : minX,
             xMax: maxX === -Infinity ? 12 : maxX,
-            yMin: minY === Infinity ? (metricType === Metrics.RANK ? 1 : 0) : Math.max(metricType === Metrics.RANK ? 1 : 0, minY),
+            yMin:
+                minY === Infinity
+                    ? metricType === Metrics.RANK
+                        ? 1
+                        : 0
+                    : Math.max(metricType === Metrics.RANK ? 1 : 0, minY),
             yMax: maxY === -Infinity ? 1 : maxY,
         } as SelectionBounds;
     }, [rawLines, metricType]);
@@ -61,7 +72,8 @@ export const LineDataProvider: React.FC<LineDataProviderProps> = ({ chart, child
     const initialYRange = useMemo<Range>(() => {
         if (metricType === Metrics.PROBABILITY) {
             return [0, 1];
-        } else { // RANK
+        } else {
+            // RANK
             // For rank, use actual data bounds to fill the full y-axis area
             return [bounds.yMin, bounds.yMax];
         }
@@ -97,16 +109,16 @@ export const LineDataProvider: React.FC<LineDataProviderProps> = ({ chart, child
         const xMin = xRange[0];
         const xMax = xRange[1];
 
-        return rawLines.map(line => ({
+        return rawLines.map((line) => ({
             ...line,
-            data: line.data.filter(point => point.x >= xMin && point.x <= xMax)
+            data: line.data.filter((point) => point.x >= xMin && point.x <= xMax),
         }));
     }, [rawLines, xRange]);
 
     const uniqueSortedX = React.useMemo(() => {
         const set = new Set<number>();
-        lines.forEach(line => {
-            line.data.forEach(p => set.add(p.x));
+        lines.forEach((line) => {
+            line.data.forEach((p) => set.add(p.x));
         });
         return Array.from(set).sort((a, b) => a - b);
     }, [lines]);
@@ -122,9 +134,5 @@ export const LineDataProvider: React.FC<LineDataProviderProps> = ({ chart, child
         metricType,
     };
 
-    return (
-        <LineDataContext.Provider value={contextValue}>
-            {children}
-        </LineDataContext.Provider>
-    );
+    return <LineDataContext.Provider value={contextValue}>{children}</LineDataContext.Provider>;
 };

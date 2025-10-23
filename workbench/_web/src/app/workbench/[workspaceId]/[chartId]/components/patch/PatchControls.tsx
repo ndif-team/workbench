@@ -5,14 +5,23 @@ import { PatchMainMode, PatchSubMode, usePatch } from "./PatchProvider";
 import { useWorkspace } from "@/stores/useWorkspace";
 
 const subModesMap: Record<PatchMainMode, PatchSubMode[]> = {
-    "edit": [],
-    "connect": ["loop", "ablate"],
-    "align": ["ablate"],
-}
+    edit: [],
+    connect: ["loop", "ablate"],
+    align: ["ablate"],
+};
 
 export default function PatchControls() {
     const { selectedModel } = useWorkspace();
-    const { sourceText, destText, setSourceTokenData, setDestTokenData, setMainMode, setSubMode, mainMode, subMode } = usePatch();
+    const {
+        sourceText,
+        destText,
+        setSourceTokenData,
+        setDestTokenData,
+        setMainMode,
+        setSubMode,
+        mainMode,
+        subMode,
+    } = usePatch();
 
     if (!selectedModel) {
         return <div>No model selected</div>;
@@ -25,7 +34,7 @@ export default function PatchControls() {
         setDestTokenData(destTokens);
         setMainMode("connect");
     };
-    
+
     const activeSubModes = subModesMap[mainMode];
 
     const toggleSubMode = (sm: PatchSubMode) => {
@@ -34,7 +43,7 @@ export default function PatchControls() {
         } else {
             setSubMode(sm);
         }
-    }
+    };
 
     return (
         <div className="flex items-center gap-3 justify-between w-full">
@@ -56,7 +65,6 @@ export default function PatchControls() {
                         <Route /> Targeted
                     </Button>
                 </div>
-
 
                 {/* Submode toggles (only for non-edit modes) */}
                 {activeSubModes.length > 0 && (

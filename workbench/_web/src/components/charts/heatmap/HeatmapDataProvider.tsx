@@ -1,8 +1,15 @@
-import { createContext, useContext, useState, useMemo, useEffect, ReactNode, useCallback } from "react";
+import {
+    createContext,
+    useContext,
+    useState,
+    useMemo,
+    useEffect,
+    ReactNode,
+    useCallback,
+} from "react";
 import { HeatmapRow, HeatmapBounds, Range } from "@/types/charts";
 import { HeatmapChart, HeatmapView } from "@/db/schema";
 import { useHeatmapView } from "../ViewProvider";
-
 
 interface HeatmapDataContextValue {
     // Range State
@@ -36,8 +43,8 @@ interface HeatmapDataProviderProps {
 }
 
 export const HeatmapDataProvider: React.FC<HeatmapDataProviderProps> = ({ chart, children }) => {
-    const rows = chart.data
-    const { view, isViewSuccess, persistView } = useHeatmapView()
+    const rows = chart.data;
+    const { view, isViewSuccess, persistView } = useHeatmapView();
 
     // Calculate bounds
     const bounds = useMemo(() => {
@@ -78,26 +85,29 @@ export const HeatmapDataProvider: React.FC<HeatmapDataProviderProps> = ({ chart,
     // This should only run on loading a stored chart
     useEffect(() => {
         if (isViewSuccess && view) {
-            const hv = view as HeatmapView
-            const b = hv.data.bounds
+            const hv = view as HeatmapView;
+            const b = hv.data.bounds;
             if (b) {
-                setXRange([b.minCol, b.maxCol])
-                setYRange([b.minRow, b.maxRow])
+                setXRange([b.minCol, b.maxCol]);
+                setYRange([b.minRow, b.maxRow]);
             }
-            setXStep(hv.data.xStep)
+            setXStep(hv.data.xStep);
         }
-    }, [view, isViewSuccess])
+    }, [view, isViewSuccess]);
 
-    const handleStepChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = Number(e.target.value);
-        if (Number.isNaN(val)) {
-            setXStep(1);
-        } else {
-            const step = Math.max(1, Math.min(val, Math.max(1, bounds.maxCol - bounds.minCol)))
-            setXStep(step)
-            persistView({ xStep: step })
-        }
-    }, [bounds.maxCol, bounds.minCol])
+    const handleStepChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            const val = Number(e.target.value);
+            if (Number.isNaN(val)) {
+                setXStep(1);
+            } else {
+                const step = Math.max(1, Math.min(val, Math.max(1, bounds.maxCol - bounds.minCol)));
+                setXStep(step);
+                persistView({ xStep: step });
+            }
+        },
+        [bounds.maxCol, bounds.minCol],
+    );
 
     // Filter data based on ranges and stepping
     const filteredData = useMemo<HeatmapRow[]>(() => {
@@ -124,7 +134,7 @@ export const HeatmapDataProvider: React.FC<HeatmapDataProviderProps> = ({ chart,
 
                 return {
                     ...row,
-                    data: filteredAndSampled
+                    data: filteredAndSampled,
                 } as HeatmapRow;
             })
             .filter((row): row is HeatmapRow => row !== null);
@@ -147,8 +157,6 @@ export const HeatmapDataProvider: React.FC<HeatmapDataProviderProps> = ({ chart,
     };
 
     return (
-        <HeatmapDataContext.Provider value={contextValue}>
-            {children}
-        </HeatmapDataContext.Provider>
+        <HeatmapDataContext.Provider value={contextValue}>{children}</HeatmapDataContext.Provider>
     );
 };

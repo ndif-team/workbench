@@ -21,7 +21,7 @@ import { createUserHeadersAction } from "@/actions/auth";
 
 const getLensLine = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
     const headers = await createUserHeadersAction();
-    
+
     // Transform LensConfigData to LensLineRequest format
     const lineRequest = {
         model: lensRequest.completion.model,
@@ -29,23 +29,28 @@ const getLensLine = async (lensRequest: { completion: LensConfigData; chartId: s
         prompt: lensRequest.completion.prompt,
         token: lensRequest.completion.token,
     };
-    
+
     return await startAndPoll<Line[]>(
         config.endpoints.startLensLine,
         lineRequest,
         config.endpoints.resultsLensLine,
-        headers
+        headers,
     );
 };
 
 export const useLensLine = () => {
-    const queryClient = useQueryClient();   
+    const queryClient = useQueryClient();
     const { clearView } = useLineView();
     const { captureChartThumbnail } = useCapture();
 
     return useMutation({
         mutationKey: ["lensLine"],
-        onMutate: async ({ lensRequest }: { lensRequest: { completion: LensConfigData; chartId: string }; configId: string }) => {
+        onMutate: async ({
+            lensRequest,
+        }: {
+            lensRequest: { completion: LensConfigData; chartId: string };
+            configId: string;
+        }) => {
             const chartKey = queryKeys.charts.chart(lensRequest.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
@@ -53,7 +58,10 @@ export const useLensLine = () => {
                 if (!old) return old;
                 return { ...old, type: "line" };
             });
-            return { previousChart, chartKey } as { previousChart: unknown; chartKey: ReturnType<typeof queryKeys.charts.chart> };
+            return { previousChart, chartKey } as {
+                previousChart: unknown;
+                chartKey: ReturnType<typeof queryKeys.charts.chart>;
+            };
         },
         mutationFn: async ({
             lensRequest,
@@ -88,8 +96,12 @@ export const useLensLine = () => {
             // Get the chart to find workspaceId for proper cache invalidation
             const chart = queryClient.getQueryData(chartKey) as any;
             if (chart?.workspaceId) {
-                queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
-                queryClient.invalidateQueries({ queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId) });
+                queryClient.invalidateQueries({
+                    queryKey: ["chartsForSidebar", chart.workspaceId],
+                });
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId),
+                });
             }
         },
     });
@@ -97,19 +109,19 @@ export const useLensLine = () => {
 
 const getLensGrid = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
     const headers = await createUserHeadersAction();
-    
+
     // Transform LensConfigData to GridLensRequest format
     const gridRequest = {
         model: lensRequest.completion.model,
         stat: lensRequest.completion.statisticType,
-        prompt: lensRequest.completion.prompt,       
+        prompt: lensRequest.completion.prompt,
     };
-    
+
     return await startAndPoll<HeatmapRow[]>(
         config.endpoints.startLensGrid,
         gridRequest,
         config.endpoints.resultsLensGrid,
-        headers
+        headers,
     );
 };
 
@@ -120,7 +132,12 @@ export const useLensGrid = () => {
 
     return useMutation({
         mutationKey: ["lensGrid"],
-        onMutate: async ({ lensRequest }: { lensRequest: { completion: LensConfigData; chartId: string }; configId: string }) => {
+        onMutate: async ({
+            lensRequest,
+        }: {
+            lensRequest: { completion: LensConfigData; chartId: string };
+            configId: string;
+        }) => {
             const chartKey = queryKeys.charts.chart(lensRequest.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
@@ -128,7 +145,10 @@ export const useLensGrid = () => {
                 if (!old) return old;
                 return { ...old, type: "heatmap" };
             });
-            return { previousChart, chartKey } as { previousChart: unknown; chartKey: ReturnType<typeof queryKeys.charts.chart> };
+            return { previousChart, chartKey } as {
+                previousChart: unknown;
+                chartKey: ReturnType<typeof queryKeys.charts.chart>;
+            };
         },
         mutationFn: async ({
             lensRequest,
@@ -163,8 +183,12 @@ export const useLensGrid = () => {
             // Get the chart to find workspaceId for proper cache invalidation
             const chart = queryClient.getQueryData(chartKey) as any;
             if (chart?.workspaceId) {
-                queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
-                queryClient.invalidateQueries({ queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId) });
+                queryClient.invalidateQueries({
+                    queryKey: ["chartsForSidebar", chart.workspaceId],
+                });
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId),
+                });
             }
         },
     });

@@ -10,13 +10,14 @@ export interface ActivationPatchingResponse {
     colLabels?: string[];
 }
 
-
 function processHeatmapData(data: ActivationPatchingResponse): HeatmapData {
     const { results, rowLabels, colLabels } = data;
 
     // Generate indices if labels are not provided
-    const finalRowLabels = rowLabels || Array.from({ length: results.length }, (_, i) => i.toString());
-    const finalColLabels = colLabels || Array.from({ length: results[0]?.length || 0 }, (_, i) => i.toString());
+    const finalRowLabels =
+        rowLabels || Array.from({ length: results.length }, (_, i) => i.toString());
+    const finalColLabels =
+        colLabels || Array.from({ length: results[0]?.length || 0 }, (_, i) => i.toString());
 
     return {
         data: results,
@@ -34,10 +35,10 @@ export async function POST(request: NextRequest) {
     if (!patchingRequest.edits || !patchingRequest.model) {
         return NextResponse.json(
             { error: "Invalid patching request - missing required fields" },
-            { status: 400 }
+            { status: 400 },
         );
     }
-    
+
     try {
         const userHeaders = await createUserHeadersAction();
         const response = await fetch(config.getApiUrl(config.endpoints.patch), {
@@ -52,12 +53,9 @@ export async function POST(request: NextRequest) {
         const rawData: ActivationPatchingResponse = await response.json();
         const processedData: HeatmapData = processHeatmapData(rawData);
 
-        return NextResponse.json(processedData, { status: 200 } );
+        return NextResponse.json(processedData, { status: 200 });
     } catch (error) {
         console.error("Error fetching patching data:", error);
-        return NextResponse.json(
-            { error: "Failed to fetch patching data" },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: "Failed to fetch patching data" }, { status: 500 });
     }
 }

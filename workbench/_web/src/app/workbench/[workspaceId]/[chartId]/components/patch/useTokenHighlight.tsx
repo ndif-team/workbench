@@ -44,7 +44,7 @@ export function useTokenHighlight(side: "source" | "destination") {
 
     const alignGroups = useMemo(
         () => indicesToGroups(side === "source" ? sourceAlignedIdxs : destAlignedIdxs),
-        [side, sourceAlignedIdxs, destAlignedIdxs]
+        [side, sourceAlignedIdxs, destAlignedIdxs],
     );
 
     const [isSelecting, setIsSelecting] = useState(false);
@@ -61,7 +61,7 @@ export function useTokenHighlight(side: "source" | "destination") {
     const addRange = (
         setter: (updater: (prev: Set<number>) => Set<number>) => void,
         start: number,
-        end: number
+        end: number,
     ) => {
         const lo = Math.min(start, end);
         const hi = Math.max(start, end);
@@ -153,7 +153,11 @@ export function useTokenHighlight(side: "source" | "destination") {
 
     const onSelectionEnd = (idx: number) => {
         if (subMode !== "ablate") {
-            if (selectionStartIdx !== null && selectionStartIdx === idx && selectionHoverIdx === idx) {
+            if (
+                selectionStartIdx !== null &&
+                selectionStartIdx === idx &&
+                selectionHoverIdx === idx
+            ) {
                 const isInGroup = isIdxInAnyGroup(idx);
                 if (isInGroup) {
                     toggleAligned(idx);
@@ -167,14 +171,13 @@ export function useTokenHighlight(side: "source" | "destination") {
         finalizeSelection(idx);
     };
 
-    const isInLiveSelection = (idx: number) => (
+    const isInLiveSelection = (idx: number) =>
         mainMode === "align" &&
         isSelecting &&
         selectionStartIdx !== null &&
         selectionHoverIdx !== null &&
         idx >= Math.min(selectionStartIdx, selectionHoverIdx) &&
-        idx <= Math.max(selectionStartIdx, selectionHoverIdx)
-    );
+        idx <= Math.max(selectionStartIdx, selectionHoverIdx);
 
     useEffect(() => {
         if (!isSelecting) return;
@@ -185,8 +188,10 @@ export function useTokenHighlight(side: "source" | "destination") {
     }, [isSelecting, selectionHoverIdx, mainMode, side, subMode]);
 
     // read-only helpers for styling
-    const isAblated = (idx: number) => (side === "source" ? sourceAblateIdxs.has(idx) : destAblateIdxs.has(idx));
-    const isLooped = (idx: number) => (side === "source" ? sourceLoopIdxs.has(idx) : destLoopIdxs.has(idx));
+    const isAblated = (idx: number) =>
+        side === "source" ? sourceAblateIdxs.has(idx) : destAblateIdxs.has(idx);
+    const isLooped = (idx: number) =>
+        side === "source" ? sourceLoopIdxs.has(idx) : destLoopIdxs.has(idx);
 
     return {
         isSelecting,
@@ -206,5 +211,3 @@ export function useTokenHighlight(side: "source" | "destination") {
 }
 
 export type UseTokenHighlight = ReturnType<typeof useTokenHighlight>;
-
-

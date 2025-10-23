@@ -18,25 +18,19 @@ function TourDescription({ onBack, onStartChapter }: TourDescriptionProps) {
     return (
         <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onBack}
-                    className="h-8 w-8 p-0"
-                >
+                <Button variant="ghost" size="sm" onClick={onBack} className="h-8 w-8 p-0">
                     <ArrowLeft size={16} />
                 </Button>
-                <h3 className="font-semibold">{LogitLensTutorial.chapters[0] ? "Logit Lens" : "Tutorial"}</h3>
+                <h3 className="font-semibold">
+                    {LogitLensTutorial.chapters[0] ? "Logit Lens" : "Tutorial"}
+                </h3>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
                 {LogitLensTutorial.description}
             </p>
             <div className="flex flex-col gap-3">
                 {LogitLensTutorial.chapters.map((chapter, index) => (
-                    <div
-                        key={index}
-                        className="flex flex-row justify-between items-center p-3"
-                    >
+                    <div key={index} className="flex flex-row justify-between items-center p-3">
                         <div>
                             <span className="font-medium text-sm">{chapter.title}</span>
                             <p className="text-xs text-muted-foreground">
@@ -90,12 +84,7 @@ function TourStepContent({ onBack }: { onBack: () => void }) {
     return (
         <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onBack}
-                    className="h-8 w-8 p-0"
-                >
+                <Button variant="ghost" size="sm" onClick={onBack} className="h-8 w-8 p-0">
                     <ArrowLeft size={16} />
                 </Button>
                 <h3 className="font-semibold">{meta || "Tutorial"}</h3>
@@ -103,14 +92,14 @@ function TourStepContent({ onBack }: { onBack: () => void }) {
 
             {/* Step Progress */}
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>Step {currentStep + 1} of {steps.length}</span>
+                <span>
+                    Step {currentStep + 1} of {steps.length}
+                </span>
             </div>
 
             {/* Step Content */}
             {sidebarContent && (
-                <div className="text-sm">
-                {renderTextWithBackticks(sidebarContent)}
-                </div>
+                <div className="text-sm">{renderTextWithBackticks(sidebarContent)}</div>
             )}
 
             {/* Navigation Buttons */}
@@ -182,14 +171,13 @@ export function TutorialsSidebar({ onClose }: TutorialsSidebarProps) {
             {/* Header */}
             <div className="p-4 border-b flex items-center justify-between">
                 <h2 className="font-semibold">
-                    {showTourStepContent ? "Tutorial" : showTourDescription ? "Logit Lens Tutorial" : "Tutorials"}
+                    {showTourStepContent
+                        ? "Tutorial"
+                        : showTourDescription
+                          ? "Logit Lens Tutorial"
+                          : "Tutorials"}
                 </h2>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onClose}
-                    className="h-8 w-8 p-0"
-                >
+                <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
                     <X size={16} />
                 </Button>
             </div>
@@ -216,12 +204,9 @@ export function TutorialsSidebar({ onClose }: TutorialsSidebarProps) {
                         </div>
                     </div>
                 ) : (
-                    <TourDescription
-                        onBack={handleBack}
-                        onStartChapter={handleStartChapter}
-                    />
+                    <TourDescription onBack={handleBack} onStartChapter={handleStartChapter} />
                 )}
             </div>
         </div>
     );
-} 
+}

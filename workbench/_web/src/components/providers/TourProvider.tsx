@@ -34,16 +34,16 @@ function ContentComponent({
 export function TourProvider({ children }: TourProviderProps) {
     const [dimensions, setDimensions] = React.useState({
         tutorialBarWidth: 0,
-        menuBarHeight: 0
+        menuBarHeight: 0,
     });
 
     React.useEffect(() => {
         const tutorialBarWidth = window.innerWidth * 0.25;
         const menuBarHeight = window.innerHeight * 0.06;
-        
+
         setDimensions({
             tutorialBarWidth,
-            menuBarHeight
+            menuBarHeight,
         });
     }, []);
 

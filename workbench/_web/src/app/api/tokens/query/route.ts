@@ -10,11 +10,12 @@ export async function POST(req: NextRequest) {
             status: 200,
         });
     } catch (error) {
-        return new Response(JSON.stringify({ tokens: [], error: (error as Error)?.message ?? "Unknown error" }), {
-            headers: { "Content-Type": "application/json" },
-            status: 400,
-        });
+        return new Response(
+            JSON.stringify({ tokens: [], error: (error as Error)?.message ?? "Unknown error" }),
+            {
+                headers: { "Content-Type": "application/json" },
+                status: 400,
+            },
+        );
     }
 }
-
-

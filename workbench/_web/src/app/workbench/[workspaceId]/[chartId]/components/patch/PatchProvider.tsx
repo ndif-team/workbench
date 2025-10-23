@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Token } from "@/types/models";
 
-
 export type PatchMainMode = "edit" | "connect" | "align";
 export type PatchSubMode = "loop" | "ablate";
 
@@ -116,7 +115,10 @@ export default function PatchProvider({ children }: { children: React.ReactNode 
         const noExisting = sourceAlignedIdxs.size === 0 && destAlignedIdxs.size === 0;
         if (!noExisting) return;
         if (sourceTokenData.length === 0 || destTokenData.length === 0) return;
-        const { sourceGroups, destGroups } = computeInitialAlignGroups(sourceTokenData, destTokenData);
+        const { sourceGroups, destGroups } = computeInitialAlignGroups(
+            sourceTokenData,
+            destTokenData,
+        );
         if (sourceGroups.length > 0 || destGroups.length > 0) {
             if (sourceGroups.length > 0) {
                 const idxs = new Set<number>();
@@ -140,11 +142,7 @@ export default function PatchProvider({ children }: { children: React.ReactNode 
         // else leave empty when equal lengths or trivial cases
     }, [mainMode, sourceTokenData, destTokenData, sourceAlignedIdxs.size, destAlignedIdxs.size]);
 
-    return (
-        <PatchContext.Provider value={value}>
-            {children}
-        </PatchContext.Provider>
-    );
+    return <PatchContext.Provider value={value}>{children}</PatchContext.Provider>;
 }
 
 // Compute initial alignment groups based purely on token counts.
@@ -152,14 +150,17 @@ export default function PatchProvider({ children }: { children: React.ReactNode 
 // create a single contiguous group of size (d + 1) on the longer side
 // starting at the first mismatch index (case-insensitive), and a single-token
 // group at the same index on the shorter side.
-export function computeInitialAlignGroups(src: Token[], dst: Token[]): { sourceGroups: RangeGroup[]; destGroups: RangeGroup[] } {
+export function computeInitialAlignGroups(
+    src: Token[],
+    dst: Token[],
+): { sourceGroups: RangeGroup[]; destGroups: RangeGroup[] } {
     const n = src.length;
     const m = dst.length;
     if (n === 0 || m === 0) return { sourceGroups: [], destGroups: [] };
     if (n === m) return { sourceGroups: [], destGroups: [] };
 
-    const a = src.map(t => t.text.toLowerCase());
-    const b = dst.map(t => t.text.toLowerCase());
+    const a = src.map((t) => t.text.toLowerCase());
+    const b = dst.map((t) => t.text.toLowerCase());
 
     const minLen = Math.min(n, m);
     let idx = 0;

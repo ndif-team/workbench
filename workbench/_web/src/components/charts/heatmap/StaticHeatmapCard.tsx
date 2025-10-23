@@ -7,7 +7,6 @@ import { useAnnotationSelection } from "./useAnnotationSelection";
 import { ViewProvider } from "../ViewProvider";
 import { Metrics } from "@/types/lens";
 
-
 interface StaticHeatmapCardProps {
     chart: HeatmapChart;
     statisticType?: Metrics;
@@ -30,10 +29,10 @@ export const StaticHeatmapCard = ({ chart, statisticType }: StaticHeatmapCardPro
 };
 
 const StaticHeatmap = ({ statisticType }: { statisticType?: Metrics }) => {
-    const { filteredData: data } = useHeatmapData()
-    const { heatmapCanvasRef } = useHeatmapCanvas()
-    const { handleMouseMove, handleMouseLeave } = useHeatmapHover()
-    useAnnotationSelection()
+    const { filteredData: data } = useHeatmapData();
+    const { heatmapCanvasRef } = useHeatmapCanvas();
+    const { handleMouseMove, handleMouseLeave } = useHeatmapHover();
+    useAnnotationSelection();
 
     return (
         <Heatmap
@@ -44,5 +43,5 @@ const StaticHeatmap = ({ statisticType }: { statisticType?: Metrics }) => {
             onMouseLeave={handleMouseLeave}
             statisticType={statisticType}
         />
-    )
-}
+    );
+};

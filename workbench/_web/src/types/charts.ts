@@ -24,10 +24,10 @@ export interface HeatmapBounds {
     maxCol: number;
 }
 
-export interface HeatmapViewData { 
+export interface HeatmapViewData {
     bounds?: HeatmapBounds;
     xStep?: number;
-    annotation?: HeatmapBounds
+    annotation?: HeatmapBounds;
 }
 
 export type Range = [number, number];

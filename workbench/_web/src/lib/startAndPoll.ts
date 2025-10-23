@@ -38,12 +38,16 @@ async function awaitNDIFJob(jobId: string): Promise<void> {
 
 type JobStartResponse<T> = { job_id: string | null } & { data?: T } & Record<string, unknown>;
 
-async function startJob<T>(url: string, body: unknown, headers?: Record<string, string>): Promise<JobStartResponse<T>> {
+async function startJob<T>(
+    url: string,
+    body: unknown,
+    headers?: Record<string, string>,
+): Promise<JobStartResponse<T>> {
     const response = await fetch(url, {
         method: "POST",
-        headers: { 
+        headers: {
             "Content-Type": "application/json",
-            ...headers 
+            ...headers,
         },
         body: JSON.stringify(body),
     });
@@ -54,13 +58,13 @@ async function startJob<T>(url: string, body: unknown, headers?: Record<string, 
 async function fetchResults<T>(
     url: string,
     body: unknown,
-    headers?: Record<string, string>
+    headers?: Record<string, string>,
 ): Promise<T> {
     const resp = await fetch(url, {
         method: "POST",
-        headers: { 
+        headers: {
             "Content-Type": "application/json",
-            ...headers 
+            ...headers,
         },
         body: JSON.stringify(body),
     });
@@ -72,9 +76,8 @@ export async function startAndPoll<T>(
     startEndpoint: string,
     body: unknown,
     resultsEndpoint: (jobId: string) => string,
-    headers?: Record<string, string>
+    headers?: Record<string, string>,
 ): Promise<T> {
-
     const startUrl = config.getApiUrl(startEndpoint);
     const response = await startJob<T>(startUrl, body, headers);
     const jobId = response?.job_id ?? null;

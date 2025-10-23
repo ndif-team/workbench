@@ -5,7 +5,11 @@ import type { Token } from "@/types/models";
 import { toast } from "sonner";
 import { createUserHeadersAction } from "@/actions/auth";
 
-export async function encodeText(text: string, model: string, addSpecialTokens: boolean = true): Promise<Token[]> {
+export async function encodeText(
+    text: string,
+    model: string,
+    addSpecialTokens: boolean = true,
+): Promise<Token[]> {
     try {
         const userHeaders = await createUserHeadersAction();
         const response = await fetch(config.getApiUrl(config.endpoints.encode), {
@@ -39,7 +43,7 @@ interface BatchDecodeResponse {
 export async function decodeText(
     tokenIds: number[],
     model: string,
-    batch: boolean = false
+    batch: boolean = false,
 ): Promise<DecodeResponse | BatchDecodeResponse> {
     try {
         const userHeaders = await createUserHeadersAction();

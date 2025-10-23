@@ -4,10 +4,10 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import { useState } from "react";
 
-const decoders = ["Probability", "Entropy", "Rank"]
+const decoders = ["Probability", "Entropy", "Rank"];
 
 export function DecoderSelector() {
     const [selectedDecoder, setSelectedDecoder] = useState<string>("Probability");
@@ -19,9 +19,11 @@ export function DecoderSelector() {
             </SelectTrigger>
             <SelectContent>
                 {decoders.map((decoder) => (
-                    <SelectItem key={decoder} value={decoder}>{decoder}</SelectItem>
+                    <SelectItem key={decoder} value={decoder}>
+                        {decoder}
+                    </SelectItem>
                 ))}
             </SelectContent>
         </Select>
-    )
+    );
 }

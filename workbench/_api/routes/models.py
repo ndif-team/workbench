@@ -44,21 +44,13 @@ def get_remot_models(state: AppState, is_user_signed_in: bool):
 
         data = stats_resp.json()
 
-        running_deployments = []
-
-        for deployment_name, deployment_state in data["deployments"].items():
+        for deployment_state in data["deployments"].values():
             if deployment_state['deployment_level'] == "HOT" and deployment_state['application_state'] == "RUNNING":
-                running_deployments.append(deployment_state['repo_id'])
+                state.add_model(deployment_state['repo_id'])
+            else:
+                state.remove_model(deployment_state['repo_id'])
 
-        model_configs = state.get_config().get_model_list()
-
-        running_model_configs = []
-
-        for model_config in model_configs:
-            if model_config['name'] in running_deployments:
-                running_model_configs.append(model_config)
-
-        MODELS = running_model_configs
+        MODELS = state.get_model_configs()
         MODELS_LAST_UPDATED = time.time()
 
     models = MODELS.copy()
@@ -266,28 +258,28 @@ class GenerationResponse(NDIFResponse):
 
 def generate(req: Completion, state: AppState):
     model = state[req.model]
-
+    last_iter = req.max_new_tokens - 1
     with model.generate(
         req.prompt,
         max_new_tokens=req.max_new_tokens,
         remote=state.remote,
         backend=state.make_backend(model=model),
-    ) as generator:
-        logits = []
-        with model.lm_head.all():
-            logits.append(model.lm_head.output)
+    ) as tracer:
 
-        probs_V = logits[0][0, -1, :].softmax(dim=-1)
+        with tracer.iter[last_iter]:
+            logits = model.lm_head.output
+
+        probs_V = logits[0, -1, :].softmax(dim=-1)
         values_V_indices_V = t.sort(probs_V, dim=-1, descending=True)
         values_V = values_V_indices_V[0].save()
         indices_V = values_V_indices_V[1].save()
 
-        new_token_ids = model.generator.output.save()
+        new_token_ids = model.generator.output[0].save()
 
     if state.remote:
-        return generator.backend.job_id
+        return tracer.backend.job_id
 
-    return values_V, indices_V, new_token_ids[0]
+    return values_V, indices_V, new_token_ids
 
 
 def get_remote_generate(
@@ -307,9 +299,10 @@ def process_generation_results(
 ):
     tok = state[req.model].tokenizer
     new_token_text = tok.batch_decode(new_token_ids)
+
     tokens = [
-        Token(idx=i, id=id, text=text, targetIds=[])
-        for i, (id, text) in enumerate(zip(new_token_ids, new_token_text))
+        Token(idx=i, id=new_token_ids[i].item(), text=text, targetIds=[])
+        for i, text in enumerate(new_token_text)
     ]
 
     # Round values to 2 decimal places
@@ -339,16 +332,56 @@ async def start_generate(
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
-    result = generate(req, state)
-    if state.remote:
-        return {"job_id": result}
-    
-    values_V, indices_V, new_token_ids = result
 
-    data = process_generation_results(
-        values_V, indices_V, new_token_ids, req, state
+    if state.remote:
+        if not user_has_model_access(user_email, req.model, state):
+            message = f"User does not have access to {req.model}"
+            TelemetryClient.log_request(
+                RequestStatus.ERROR, 
+                user_email,
+                method="GENERATE",
+                type="NEXT_TOKEN",
+                msg=message,
+            )
+            raise HTTPException(status_code=403, detail=message)
+
+    TelemetryClient.log_request(
+        RequestStatus.STARTED, 
+        user_email,
+        method="GENERATE",
+        type="NEXT_TOKEN",
     )
-    return {"data": data}
+
+    try:
+        result = generate(req, state)
+    except Exception as e:
+        TelemetryClient.log_request(
+            RequestStatus.ERROR, 
+            user_email,
+            method="GENERATE",
+            type="NEXT_TOKEN",
+            msg=str(e),
+        )
+        raise e
+    
+    if state.remote:
+        TelemetryClient.log_request(
+            RequestStatus.READY,
+            user_email,
+            method="GENERATE",
+            type="NEXT_TOKEN",
+            job_id=result
+        )
+        print("Hollla")
+        return {"job_id": result}
+
+    else:
+        values_V, indices_V, new_token_ids = result
+
+        data = process_generation_results(
+            values_V, indices_V, new_token_ids, req, state
+        )
+        return {"data": data}
 
 
 @router.post("/results-generate/{job_id}", response_model=GenerationResponse)
@@ -358,8 +391,29 @@ async def results_generate(
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
-    values_V, indices_V, new_token_ids = get_remote_generate(job_id, state)
-    data = process_generation_results(
-        values_V, indices_V, new_token_ids, req, state
+
+    try:
+        values_V, indices_V, new_token_ids = get_remote_generate(job_id, state)
+        data = process_generation_results(
+            values_V, indices_V, new_token_ids, req, state
+        )
+    except Exception as e:
+        TelemetryClient.log_request(
+            RequestStatus.ERROR, 
+            user_email,
+            job_id=job_id,
+            method="GENERATE",
+            type="NEXT_TOKEN",
+            msg=str(e),
+        )
+        raise e
+
+    TelemetryClient.log_request(
+        RequestStatus.COMPLETE, 
+        user_email,
+        job_id=job_id,
+        method="GENERATE",
+        type="NEXT_TOKEN",
     )
+
     return {"data": data}

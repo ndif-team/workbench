@@ -12,7 +12,7 @@ export interface Connection {
 
 type Edit = Connection;
 
-export interface PatchingConfig { 
+export interface PatchingConfig {
     edits: Edit[];
     model: string;
     source: string;

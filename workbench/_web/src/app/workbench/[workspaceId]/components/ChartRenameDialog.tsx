@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogClose,
@@ -7,8 +7,8 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Pencil } from "lucide-react";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useState } from "react";
@@ -19,7 +19,11 @@ interface ChartRenameDialogProps {
     triggerClassName?: string;
 }
 
-export function ChartRenameDialog({ chartId, chartName, triggerClassName }: ChartRenameDialogProps) {
+export function ChartRenameDialog({
+    chartId,
+    chartName,
+    triggerClassName,
+}: ChartRenameDialogProps) {
     const { mutate: updateChartName } = useUpdateChartName();
 
     const [newName, setNewName] = useState(chartName);
@@ -45,14 +49,21 @@ export function ChartRenameDialog({ chartId, chartName, triggerClassName }: Char
                 <DialogHeader>
                     <DialogTitle>Rename chart</DialogTitle>
                 </DialogHeader>
-                <Input id="name-1" name="name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                <Input
+                    id="name-1"
+                    name="name"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                />
                 <DialogFooter>
                     <DialogClose asChild>
                         <Button variant="outline">Cancel</Button>
                     </DialogClose>
-                    <Button type="submit" onClick={handleSubmit}>Save changes</Button>
+                    <Button type="submit" onClick={handleSubmit}>
+                        Save changes
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    )
+    );
 }

@@ -10,7 +10,6 @@ import { useAnnotationSelection } from "./useAnnotationSelection";
 import { ViewProvider } from "../ViewProvider";
 import { LensLineMetrics } from "@/types/lens";
 
-
 interface StaticLineCardProps {
     chart: LineChart;
     metricType?: LensLineMetrics;
@@ -29,8 +28,8 @@ export const StaticLineCard = ({ chart, metricType }: StaticLineCardProps) => {
                 </LineDataProvider>
             </ViewProvider>
         </div>
-    )
-}
+    );
+};
 
 const StaticLine = () => {
     // Provider context hooks
@@ -59,4 +58,4 @@ const StaticLine = () => {
             useTooltip={true}
         />
     );
-}
+};

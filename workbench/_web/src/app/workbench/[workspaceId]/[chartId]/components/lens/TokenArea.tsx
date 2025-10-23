@@ -25,35 +25,30 @@ const fix = (text: string) => {
     const numNewlines = (text.match(/\n/g) || []).length;
 
     const result = text
-        .replace(/\r\n/g, '\\r\\n')  // Windows line endings
-        .replace(/\n/g, '\\n')       // Newlines
-        .replace(/\r/g, '\\r')       // Carriage returns
-        .replace(/\t/g, '\\t')       // Tabs
+        .replace(/\r\n/g, "\\r\\n") // Windows line endings
+        .replace(/\n/g, "\\n") // Newlines
+        .replace(/\r/g, "\\r") // Carriage returns
+        .replace(/\t/g, "\\t"); // Tabs
 
     return {
         result: result,
         numNewlines: numNewlines,
-    }
-}
+    };
+};
 
 export function TokenArea({
     config,
     handleTokenClick,
     tokenData,
-    loading, 
-    showFill
+    loading,
+    showFill,
 }: TokenAreaProps) {
-
-
-    const getTokenStyle = (
-        token: Token,
-        idx: number,
-    ) => {
+    const getTokenStyle = (token: Token, idx: number) => {
         const isFilled = config.token.targetIds.length > 0;
 
         let backgroundStyle = "";
         if (config.token.idx === idx && showFill) {
-            backgroundStyle = (isFilled) ? TOKEN_STYLES.filled : TOKEN_STYLES.highlight;
+            backgroundStyle = isFilled ? TOKEN_STYLES.filled : TOKEN_STYLES.highlight;
         } else {
             backgroundStyle = "bg-transparent";
         }
@@ -63,26 +58,20 @@ export function TokenArea({
             backgroundStyle,
             !loading && TOKEN_STYLES.hover,
             token.text === "\\n" ? "w-full" : "w-fit",
-            loading ? "cursor-progress" : "cursor-pointer"
+            loading ? "cursor-progress" : "cursor-pointer",
         );
     };
 
     return (
-        <div
-            className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words"
-        >
+        <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokenData.map((token, idx) => {
-                const styles = getTokenStyle(
-                    token,
-                    idx,
-                );
+                const styles = getTokenStyle(token, idx);
 
                 const { result, numNewlines } = fix(token.text);
 
                 return (
                     <span key={`token-${idx}`}>
                         <span
-
                             data-token-id={idx}
                             className={styles}
                             onClick={(event: React.MouseEvent<HTMLDivElement>) => {
@@ -96,5 +85,5 @@ export function TokenArea({
                 );
             })}
         </div>
-    )
+    );
 }

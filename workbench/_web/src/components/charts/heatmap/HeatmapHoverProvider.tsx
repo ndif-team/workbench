@@ -22,14 +22,17 @@ export const HeatmapHoverProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const [hoverX, setHoverX] = useState<number | null>(null);
     const [hoverY, setHoverY] = useState<number | null>(null);
 
-    const handleMouseMove = useCallback((e: React.MouseEvent) => {
-        const rect = heatmapCanvasRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        setHoverX(x);
-        setHoverY(y);
-    }, [heatmapCanvasRef]);
+    const handleMouseMove = useCallback(
+        (e: React.MouseEvent) => {
+            const rect = heatmapCanvasRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            setHoverX(x);
+            setHoverY(y);
+        },
+        [heatmapCanvasRef],
+    );
 
     const handleMouseLeave = useCallback(() => {
         setHoverX(null);
@@ -43,11 +46,5 @@ export const HeatmapHoverProvider: React.FC<{ children: React.ReactNode }> = ({ 
         hoverY,
     };
 
-    return (
-        <HeatmapHoverContext.Provider value={value}>
-            {children}
-        </HeatmapHoverContext.Provider>
-    );
+    return <HeatmapHoverContext.Provider value={value}>{children}</HeatmapHoverContext.Provider>;
 };
-
-

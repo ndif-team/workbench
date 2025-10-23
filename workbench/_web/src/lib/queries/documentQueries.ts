@@ -6,11 +6,8 @@ import { desc, eq } from "drizzle-orm";
 import { SerializedEditorState } from "lexical";
 
 export const getDocumentById = async (documentId: string): Promise<Document | null> => {
-    const [document] = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, documentId));
-    
+    const [document] = await db.select().from(documents).where(eq(documents.id, documentId));
+
     return document ?? null;
 };
 
@@ -19,12 +16,15 @@ export const getDocumentByWorkspaceId = async (workspaceId: string): Promise<Doc
         .select()
         .from(documents)
         .where(eq(documents.workspaceId, workspaceId));
-    
+
     return document ?? null;
 };
 
 // Update a specific document by id
-export const updateDocument = async (documentId: string, content: SerializedEditorState): Promise<Document> => {
+export const updateDocument = async (
+    documentId: string,
+    content: SerializedEditorState,
+): Promise<Document> => {
     const [updated] = await db
         .update(documents)
         .set({ content })
@@ -84,9 +84,7 @@ function deriveTitleFromContent(content: SerializedEditorState): string {
     }
     if (!first) return "";
     // Strip markdown markers and surrounding whitespace
-    first = first
-        .replace(/^\s*(#{1,6}\s+|>\s+|[-*+]\s+|`{3,}.*$|`+)\s*/g, "")
-        .trim();
+    first = first.replace(/^\s*(#{1,6}\s+|>\s+|[-*+]\s+|`{3,}.*$|`+)\s*/g, "").trim();
     // Cap length to keep UI tidy
     if (first.length > 100) first = first.slice(0, 100).trimEnd() + "…";
     return first;
@@ -96,13 +94,15 @@ export type DocumentListItem = Pick<Document, "id" | "workspaceId" | "createdAt"
     derivedTitle: string;
 };
 
-export const getDocumentsForWorkspace = async (workspaceId: string): Promise<DocumentListItem[]> => {
+export const getDocumentsForWorkspace = async (
+    workspaceId: string,
+): Promise<DocumentListItem[]> => {
     const docs = await db
         .select()
         .from(documents)
         .where(eq(documents.workspaceId, workspaceId))
         .orderBy(desc(documents.createdAt));
-    
+
     return docs.map((d) => ({
         id: d.id,
         workspaceId: d.workspaceId,
@@ -219,7 +219,7 @@ const defaultInitialContent = {
                 format: "",
                 indent: 0,
                 direction: "ltr",
-            }
+            },
         ],
     },
 } as unknown as SerializedEditorState;
@@ -234,7 +234,7 @@ export const createDocument = async (workspaceId: string): Promise<Document> => 
             content: initialContent,
         })
         .returning();
-    
+
     return document;
 };
 

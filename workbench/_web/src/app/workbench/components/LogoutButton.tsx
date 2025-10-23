@@ -13,9 +13,9 @@ export function LogoutButton() {
     const handleLogout = async () => {
         setIsLoggingOut(true);
         const supabase = getSupabaseClient();
-        
+
         const { error } = await supabase.auth.signOut();
-        
+
         if (error) {
             console.error("Logout error:", error);
             setIsLoggingOut(false);

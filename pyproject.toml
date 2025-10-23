@@ -14,6 +14,7 @@ dependencies = [
     "toml>=0.10.2",
     "dill>=0.4.0",
     "influxdb-client>=1.49.0",
+    "uvicorn>=0.33.0",
 ]
 
 [project.optional-dependencies]
@@ -24,7 +25,6 @@ dev = [
     "ipykernel>=6.29.5",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.6.16",
-    "uvicorn>=0.33.0",
 ]
 
 [build-system]

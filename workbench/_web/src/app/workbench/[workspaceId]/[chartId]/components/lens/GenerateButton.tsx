@@ -11,25 +11,35 @@ import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { useParams } from "next/navigation";
 
 interface GenerateButtonProps {
-    configId: string,
-    config: LensConfigData,
-    setConfig: (config: LensConfigData) => void,
-    setTokenData: (tokenData: Token[]) => void,
-    setEditingText: (editingText: boolean) => void,
-    handleTokenize: () => void,
-    isExecuting: boolean,
-    selectedModel: string,
-    handleCreateHeatmap: (config: LensConfigData) => Promise<unknown>,
+    configId: string;
+    config: LensConfigData;
+    setConfig: (config: LensConfigData) => void;
+    setTokenData: (tokenData: Token[]) => void;
+    setEditingText: (editingText: boolean) => void;
+    handleTokenize: () => void;
+    isExecuting: boolean;
+    selectedModel: string;
+    handleCreateHeatmap: (config: LensConfigData) => Promise<unknown>;
 }
 
-export default function GenerateButton({ configId, config, setConfig, setTokenData, setEditingText, isExecuting, handleTokenize, selectedModel, handleCreateHeatmap }: GenerateButtonProps) {
+export default function GenerateButton({
+    configId,
+    config,
+    setConfig,
+    setTokenData,
+    setEditingText,
+    isExecuting,
+    handleTokenize,
+    selectedModel,
+    handleCreateHeatmap,
+}: GenerateButtonProps) {
     const [maxNewTokens, setMaxNewTokens] = useState(10);
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const { mutateAsync: generate, isPending: isGenerating } = useGenerate();
     const { mutateAsync: updateChartConfigMutation } = useUpdateChartConfig();
 
     const handleGenerate = async () => {
-        const {completion, last_token_prediction}: GenerationResponse = await generate({ 
+        const { completion, last_token_prediction }: GenerationResponse = await generate({
             prompt: config.prompt,
             max_new_tokens: maxNewTokens,
             model: selectedModel,
@@ -39,7 +49,7 @@ export default function GenerateButton({ configId, config, setConfig, setTokenDa
         const newConfig = {
             ...config,
             model: selectedModel,
-            prompt: completion.map(token => token.text).join(""),
+            prompt: completion.map((token) => token.text).join(""),
             prediction: last_token_prediction,
             token: {
                 idx: completion.length - 1,
@@ -47,7 +57,7 @@ export default function GenerateButton({ configId, config, setConfig, setTokenDa
                 text: completion[completion.length - 1].text,
                 targetIds: last_token_prediction.ids.slice(0, 3),
             },
-        }   
+        };
 
         // If there weren't existing predictions, create a heatmap
         if (!config.prediction) {
@@ -62,11 +72,11 @@ export default function GenerateButton({ configId, config, setConfig, setTokenDa
                 data: newConfig,
                 workspaceId,
                 type: "lens",
-            }
+            },
         });
 
         setEditingText(false);
-    }
+    };
 
     return (
         <div className="flex items-center h-fit w-fit rounded">
@@ -101,10 +111,15 @@ export default function GenerateButton({ configId, config, setConfig, setTokenDa
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-fit p-0 border-none">
                     <div className="flex items-center w-fit border h-auto rounded">
-                        <button className="rounded-l hover:bg-accent transition-all h-full border-r duration-100" onClick={handleGenerate}>
+                        <button
+                            className="rounded-l hover:bg-accent transition-all h-full border-r duration-100"
+                            onClick={handleGenerate}
+                        >
                             <div className="flex items-start justify-center flex-col px-3 py-3 gap-0.5 py-auto">
                                 <span className="text-sm flex items-center gap-3">Generate</span>
-                                <span className="text-xs text-muted-foreground">Max new tokens</span>
+                                <span className="text-xs text-muted-foreground">
+                                    Max new tokens
+                                </span>
                             </div>
                         </button>
                         <input
@@ -119,7 +134,5 @@ export default function GenerateButton({ configId, config, setConfig, setTokenDa
                 </PopoverContent>
             </Popover>
         </div>
-
-
-    )
+    );
 }

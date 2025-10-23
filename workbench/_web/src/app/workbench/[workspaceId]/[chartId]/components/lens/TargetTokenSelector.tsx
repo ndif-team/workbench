@@ -12,7 +12,6 @@ import { useIsMutating } from "@tanstack/react-query";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-
 // Helper function to render token text with blue underscore for leading spaces and blue "\n" for newlines
 const renderTokenText = (text: string | undefined) => {
     if (!text) return "";
@@ -21,7 +20,11 @@ const renderTokenText = (text: string | undefined) => {
 
     // Represent a single leading space with a blue underscore for visibility
     if (text.startsWith(" ")) {
-        elements.push(<span className="text-blue-500" key={`lead-space`}>_</span>);
+        elements.push(
+            <span className="text-blue-500" key={`lead-space`}>
+                _
+            </span>,
+        );
         index = 1;
     }
 
@@ -33,7 +36,11 @@ const renderTokenText = (text: string | undefined) => {
                 elements.push(<span key={`txt-${index}`}>{buffer}</span>);
                 buffer = "";
             }
-            elements.push(<span className="text-blue-500" key={`nl-${index}`}>\n</span>);
+            elements.push(
+                <span className="text-blue-500" key={`nl-${index}`}>
+                    \n
+                </span>,
+            );
         } else {
             buffer += ch;
         }
@@ -49,38 +56,27 @@ interface TargetTokenSelectorProps {
     setConfig: (config: LensConfigData) => void;
 }
 
-export const TargetTokenSelector = ({
-    configId,
-    config,
-    setConfig,
-}: TargetTokenSelectorProps) => {
+export const TargetTokenSelector = ({ configId, config, setConfig }: TargetTokenSelectorProps) => {
     const { handleCreateLineChart, isExecuting } = useLensCharts({ configId });
     const [lineIsPending, setLineIsPending] = useState(false);
     const globalLineRunning = useIsMutating({ mutationKey: ["lensLine"] }) > 0;
 
     // Debounced function to run line chart 2 seconds after target token IDs change
-    const debouncedRunLineChart = useDebouncedCallback(
-        async (currentConfig: LensConfigData) => {
-            if (currentConfig.token.targetIds.length > 0) {
-                await handleCreateLineChart(currentConfig);
-            }
-            setLineIsPending(false);
-        },
-        3000
-    );
+    const debouncedRunLineChart = useDebouncedCallback(async (currentConfig: LensConfigData) => {
+        if (currentConfig.token.targetIds.length > 0) {
+            await handleCreateLineChart(currentConfig);
+        }
+        setLineIsPending(false);
+    }, 3000);
 
     const prediction = config.prediction;
 
     const probLookup = useMemo(() => {
         if (!prediction) return null as Map<number, number> | null;
         return new Map<number, number>(
-            prediction.ids.map((id: number, idx: number) => [
-                id,
-                prediction.probs[idx] ?? 0,
-            ])
+            prediction.ids.map((id: number, idx: number) => [id, prediction.probs[idx] ?? 0]),
         );
     }, [prediction]);
-
 
     // Build options from all predicted tokens
     const options: TokenOption[] = useMemo(() => {
@@ -98,7 +94,7 @@ export const TargetTokenSelector = ({
     // Sync prediction options into known registry
     useEffect(() => {
         if (options.length === 0) return;
-        setKnownOptionsById(prev => {
+        setKnownOptionsById((prev) => {
             const updated = new Map(prev);
             for (const opt of options) {
                 updated.set(opt.value, opt);
@@ -110,14 +106,14 @@ export const TargetTokenSelector = ({
     const selectedOptions: TokenOption[] = useMemo(() => {
         if (config.token.targetIds.length === 0) return [];
         return config.token.targetIds
-            .map(id => knownOptionsById.get(id))
+            .map((id) => knownOptionsById.get(id))
             .filter((v): v is TokenOption => !!v);
     }, [knownOptionsById, config.token.targetIds]);
 
     const handleChange = (newValue: MultiValue<TokenOption>) => {
-        const newIds = newValue.map(opt => opt.value);
+        const newIds = newValue.map((opt) => opt.value);
         // Persist any newly chosen options into the registry
-        setKnownOptionsById(prev => {
+        setKnownOptionsById((prev) => {
             const updated = new Map(prev);
             for (const opt of newValue) {
                 updated.set(opt.value, opt);
@@ -127,7 +123,7 @@ export const TargetTokenSelector = ({
         const newConfig = {
             ...config,
             token: { ...config.token, targetIds: newIds },
-        }
+        };
         setConfig(newConfig);
 
         // Run line chart 2 seconds after target token IDs change
@@ -140,9 +136,9 @@ export const TargetTokenSelector = ({
             query: string,
             model: string,
             pLookup: Map<number, number> | null,
-            resolve: (options: TokenOption[]) => void
+            resolve: (options: TokenOption[]) => void,
         ) => {
-            const raw = (query ?? "");
+            const raw = query ?? "";
             if (raw.length === 0) {
                 resolve([]);
                 return;
@@ -157,11 +153,14 @@ export const TargetTokenSelector = ({
                 const tokens = data.tokens ?? [];
 
                 // Attach probs and sort by probability descending
-                const opts = tokens.map((t) => ({
-                    value: t.value,
-                    text: t.text,
-                    prob: pLookup?.get(t.value) ?? 0,
-                } as TokenOption));
+                const opts = tokens.map(
+                    (t) =>
+                        ({
+                            value: t.value,
+                            text: t.text,
+                            prob: pLookup?.get(t.value) ?? 0,
+                        }) as TokenOption,
+                );
 
                 opts.sort((a, b) => (b.prob ?? 0) - (a.prob ?? 0));
                 resolve(opts);
@@ -169,7 +168,7 @@ export const TargetTokenSelector = ({
                 resolve([]);
             }
         },
-        500
+        500,
     );
 
     const loadOptions = useCallback(
@@ -183,7 +182,7 @@ export const TargetTokenSelector = ({
                 } else {
                     debouncedFetch(inputValue, config.model, probLookup, (fetched) => {
                         // Merge fetched options into known registry for persistence
-                        setKnownOptionsById(prev => {
+                        setKnownOptionsById((prev) => {
                             const updated = new Map(prev);
                             for (const opt of fetched) updated.set(opt.value, opt);
                             return updated;
@@ -192,7 +191,7 @@ export const TargetTokenSelector = ({
                     });
                 }
             }),
-        [debouncedFetch, config.model, probLookup, options]
+        [debouncedFetch, config.model, probLookup, options],
     );
 
     const [inputValue, setInputValue] = useState<string>("");
@@ -212,7 +211,7 @@ export const TargetTokenSelector = ({
                 </Tooltip>
 
                 <div className="flex items-center gap-3">
-                    {config.token.targetIds.length > 0 &&
+                    {config.token.targetIds.length > 0 && (
                         <button
                             className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground"
                             onClick={() => {
@@ -225,15 +224,16 @@ export const TargetTokenSelector = ({
                             <X className="w-3 h-3" />
                             Clear
                         </button>
-
-                    }
-                    {config.token.targetIds.length > 0 &&
+                    )}
+                    {config.token.targetIds.length > 0 && (
                         <Separator orientation="vertical" className="h-3 w-[0.5px]" />
-                    }
+                    )}
                     <button
                         className={cn(
                             "text-xs flex items-center gap-1 text-muted-foreground",
-                            (isExecuting || lineIsPending || globalLineRunning) ? "cursor-progress" : "cursor-pointer hover:text-foreground"
+                            isExecuting || lineIsPending || globalLineRunning
+                                ? "cursor-progress"
+                                : "cursor-pointer hover:text-foreground",
                         )}
                         disabled={isExecuting || lineIsPending || globalLineRunning}
                         onClick={async () => {
@@ -241,7 +241,11 @@ export const TargetTokenSelector = ({
                             await debouncedRunLineChart(config);
                         }}
                     >
-                        {isExecuting || lineIsPending || globalLineRunning ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                        {isExecuting || lineIsPending || globalLineRunning ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                            <RotateCcw className="w-3 h-3" />
+                        )}
                         Rerun
                     </button>
                 </div>
@@ -265,8 +269,12 @@ export const TargetTokenSelector = ({
                     }}
                     formatOptionLabel={(option: TokenOption) => (
                         <div className="flex items-center justify-between w-full">
-                            <span className="font-medium text-foreground">{renderTokenText(option.text)}</span>
-                            <span className="ml-3 text-xs text-muted-foreground">{(option.prob ?? 0).toFixed(4)}</span>
+                            <span className="font-medium text-foreground">
+                                {renderTokenText(option.text)}
+                            </span>
+                            <span className="ml-3 text-xs text-muted-foreground">
+                                {(option.prob ?? 0).toFixed(4)}
+                            </span>
                         </div>
                     )}
                     components={{
@@ -278,9 +286,9 @@ export const TargetTokenSelector = ({
                     }}
                     onKeyDown={(e) => {
                         // Allow leading space by manually inserting into controlled input, while preventing option selection
-                        if (e.key === ' ' && inputValue.length === 0) {
+                        if (e.key === " " && inputValue.length === 0) {
                             e.preventDefault();
-                            setInputValue(' ');
+                            setInputValue(" ");
                         }
                     }}
                 />
@@ -288,7 +296,6 @@ export const TargetTokenSelector = ({
         </div>
     );
 };
-
 
 // Custom MultiValue component with click handler
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -302,7 +309,7 @@ const CustomMultiValue = (props: any) => {
                 "inline-flex items-center gap-1 px-3 hover:bg-accent rounded text-xs font-medium cursor-pointer transition-colors",
                 isHighlighted
                     ? "bg-popover border border-primary"
-                    : "bg-popover border border-input"
+                    : "bg-popover border border-input",
             )}
             onClick={(e) => {
                 e.preventDefault();
@@ -342,12 +349,8 @@ const selectStyles: StylesConfig<TokenOption, true, GroupBase<TokenOption>> = {
     control: (base, state) => ({
         ...base,
         backgroundColor: "hsl(var(--background))",
-        borderColor: state.isFocused
-            ? "hsl(var(--ring))"
-            : "hsl(var(--input))",
-        boxShadow: state.isFocused
-            ? "0 0 0 1px hsl(var(--ring))"
-            : "none",
+        borderColor: state.isFocused ? "hsl(var(--ring))" : "hsl(var(--input))",
+        boxShadow: state.isFocused ? "0 0 0 1px hsl(var(--ring))" : "none",
         boxSizing: "border-box",
         minHeight: "2rem", // match h-8 icon buttons while allowing wrap growth
         fontSize: "0.875rem", // text-sm
@@ -357,7 +360,7 @@ const selectStyles: StylesConfig<TokenOption, true, GroupBase<TokenOption>> = {
         paddingBottom: 0,
         paddingLeft: 0,
         paddingRight: 0,
-        ':hover': {
+        ":hover": {
             borderColor: "hsl(var(--input))",
         },
     }),
@@ -391,21 +394,17 @@ const selectStyles: StylesConfig<TokenOption, true, GroupBase<TokenOption>> = {
     }),
     menuList: (base) => ({
         ...base,
-        '&::-webkit-scrollbar': {
-            display: 'none',
+        "&::-webkit-scrollbar": {
+            display: "none",
         },
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
     }),
     option: (base, state) => ({
         ...base,
-        backgroundColor: state.isFocused
-            ? "hsl(var(--accent))"
-            : "transparent",
-        color: state.isFocused
-            ? "hsl(var(--accent-foreground))"
-            : "hsl(var(--popover-foreground))",
-        ':active': {
+        backgroundColor: state.isFocused ? "hsl(var(--accent))" : "transparent",
+        color: state.isFocused ? "hsl(var(--accent-foreground))" : "hsl(var(--popover-foreground))",
+        ":active": {
             backgroundColor: "hsl(var(--accent))",
         },
     }),

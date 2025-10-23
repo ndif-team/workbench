@@ -31,7 +31,7 @@ export default function LensArea() {
     const [configModelUnavailable, setConfigModelUnavailable] = useState<string | null>(null);
 
     const { data: models } = useQuery({
-        queryKey: ['models'],
+        queryKey: ["models"],
         queryFn: getModels,
         refetchInterval: 120000,
     });
@@ -41,10 +41,10 @@ export default function LensArea() {
         if (config && models && models.length > 0) {
             const lensConfig = config as LensConfig;
             const configModel = lensConfig.data.model;
-            
+
             // If there's a model in the config, try to select it
             if (configModel && configModel.length > 0) {
-                const modelIndex = models.findIndex(m => m.name === configModel);
+                const modelIndex = models.findIndex((m) => m.name === configModel);
                 if (modelIndex !== -1) {
                     console.log("Setting model selector to config model:", configModel);
                     setSelectedModelIdx(modelIndex);
@@ -69,7 +69,6 @@ export default function LensArea() {
 
     if (!config || !selectedModel) {
         return (
-
             <div className="h-full flex flex-col min-w-80">
                 <div className="p-3 border-b flex items-center justify-between">
                     <h2 className="text-sm pl-2 font-medium">Model</h2>
@@ -80,7 +79,10 @@ export default function LensArea() {
                                     <AlertCircle className="w-4 h-4 text-yellow-500" />
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom" className="max-w-xs">
-                                    <p>Model "{configModelUnavailable}" is not currently available. Please select a different model and retokenize.</p>
+                                    <p>
+                                        Model "{configModelUnavailable}" is not currently available.
+                                        Please select a different model and retokenize.
+                                    </p>
                                 </TooltipContent>
                             </Tooltip>
                         )}
@@ -104,7 +106,10 @@ export default function LensArea() {
                                 <AlertCircle className="w-4 h-4 text-yellow-500" />
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="max-w-xs">
-                                <p>Model "{configModelUnavailable}" is not currently available. Please select a different model and retokenize.</p>
+                                <p>
+                                    Model "{configModelUnavailable}" is not currently available.
+                                    Please select a different model and retokenize.
+                                </p>
                             </TooltipContent>
                         </Tooltip>
                     )}
@@ -114,7 +119,11 @@ export default function LensArea() {
 
             <div className="p-3">
                 {/* Assume lens config here; unified page will gate by config.type */}
-                <CompletionCard initialConfig={config as LensConfig} chartType={chart?.type as ChartType} selectedModel={selectedModel} />
+                <CompletionCard
+                    initialConfig={config as LensConfig}
+                    chartType={chart?.type as ChartType}
+                    selectedModel={selectedModel}
+                />
             </div>
         </div>
     );

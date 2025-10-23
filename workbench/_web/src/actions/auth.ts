@@ -9,13 +9,16 @@ import { createClient } from "@/lib/supabase/server";
 export async function getCurrentUserEmailAction(): Promise<string | null> {
     try {
         const supabase = await createClient();
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error,
+        } = await supabase.auth.getUser();
+
         if (error) {
             console.log("Server: Auth error:", error.message);
             return null;
         }
-        
+
         if (!user || user.email === "") {
             return "guest@localhost";
         }
@@ -33,12 +36,12 @@ export async function getCurrentUserEmailAction(): Promise<string | null> {
  */
 export async function createUserHeadersAction(): Promise<Record<string, string>> {
     const userEmail = await getCurrentUserEmailAction();
-    
+
     if (!userEmail) {
         return {};
     }
-    
+
     return {
-        "X-User-Email": userEmail
+        "X-User-Email": userEmail,
     };
 }

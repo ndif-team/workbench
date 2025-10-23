@@ -13,10 +13,7 @@ interface RawToken {
 
 // Module-level cache for tokenizers by model name
 const tokenizerCache = new Map<string, PreTrainedTokenizer>();
-const tokenListCache = new Map<
-    string,
-    Array<RawToken>
->();
+const tokenListCache = new Map<string, Array<RawToken>>();
 
 async function getTokenizer(modelName: string): Promise<PreTrainedTokenizer> {
     const cached = tokenizerCache.get(modelName);
@@ -38,7 +35,7 @@ interface BatchDecodeResponse {
 export async function encodeText(
     text: string,
     model: string,
-    addSpecialTokens: boolean = true
+    addSpecialTokens: boolean = true,
 ): Promise<Token[]> {
     try {
         if (!model) throw new Error("No model specified");
@@ -46,7 +43,9 @@ export async function encodeText(
 
         const tokenizer = await getTokenizer(model);
         const tokenIds = await Promise.resolve(
-            tokenizer.encode(text, { add_special_tokens: addSpecialTokens }) as unknown as Promise<number[]> | number[]
+            tokenizer.encode(text, { add_special_tokens: addSpecialTokens }) as unknown as
+                | Promise<number[]>
+                | number[],
         );
         const ids = Array.isArray(tokenIds) ? tokenIds : await tokenIds;
 
@@ -68,7 +67,7 @@ export async function encodeText(
 export async function decodeText(
     tokenIds: number[],
     model: string,
-    batch: boolean = false
+    batch: boolean = false,
 ): Promise<DecodeResponse | BatchDecodeResponse> {
     try {
         if (!model) throw new Error("No model specified");
@@ -105,10 +104,7 @@ function normalizeTokenForSearch(token: string): string {
     // - GPT2/BBPE: 'Ġ' indicates a leading space, 'Ċ' often encodes a newline
     // - SentencePiece: '▁' indicates a leading space
     // We replace globally to be safe, though they most often occur at the start
-    return token
-        .replace(/Ċ/g, "\n")
-        .replace(/Ġ/g, " ")
-        .replace(/▁/g, " ");
+    return token.replace(/Ċ/g, "\n").replace(/Ġ/g, " ").replace(/▁/g, " ");
 }
 
 function interpretEscapes(input: string): string {
@@ -121,9 +117,7 @@ function interpretEscapes(input: string): string {
         .replace(/\\\\/g, "\\");
 }
 
-async function getOrBuildTokenList(model: string): Promise<
-    Array<RawToken>
-> {
+async function getOrBuildTokenList(model: string): Promise<Array<RawToken>> {
     const cached = tokenListCache.get(model);
     if (cached) return cached;
 
@@ -132,7 +126,12 @@ async function getOrBuildTokenList(model: string): Promise<
     const vocab: string[] = tokenizer.model.vocab;
     const entries = vocab.map((token, id) => {
         const searchForm = normalizeTokenForSearch(token);
-        return { id, token: searchForm, normalized: searchForm, normalizedNoSpace: searchForm } as RawToken;
+        return {
+            id,
+            token: searchForm,
+            normalized: searchForm,
+            normalizedNoSpace: searchForm,
+        } as RawToken;
     });
 
     tokenListCache.set(model, entries);
@@ -142,10 +141,10 @@ async function getOrBuildTokenList(model: string): Promise<
 export async function queryTokens(
     query: string,
     model: string,
-    limit: number = 50
+    limit: number = 50,
 ): Promise<TokenOption[]> {
     if (!model) throw new Error("No model specified");
-    const raw = (query ?? "");
+    const raw = query ?? "";
     // Query should fire for any non-empty input, including whitespace/newline
     if (raw.length === 0) return [];
     const q = interpretEscapes(raw);
@@ -162,7 +161,7 @@ export async function queryTokens(
             return { t, score };
         })
         .filter((s) => s.score !== Number.POSITIVE_INFINITY)
-        .sort((a, b) => (a.score - b.score) || (a.t.token.length - b.t.token.length))
+        .sort((a, b) => a.score - b.score || a.t.token.length - b.t.token.length)
         .slice(0, Math.max(1, Math.min(200, limit * 2))); // keep a bit extra before decode
 
     const results: TokenOption[] = [];
@@ -172,5 +171,3 @@ export async function queryTokens(
     }
     return results;
 }
-
-

@@ -10,7 +10,7 @@ import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 export interface SelectedComponent {
     tokenIndex: number;
     layerIndex: number;
-    componentType: 'resid' | 'attn' | 'mlp' | 'embed' | 'unembed';
+    componentType: "resid" | "attn" | "mlp" | "embed" | "unembed";
 }
 
 interface LensTransformerProps {
@@ -33,7 +33,7 @@ const getDataFlowComponents = (
     showAttn: boolean,
     showMlp: boolean,
     numLayers: number,
-    rowMode: boolean
+    rowMode: boolean,
 ): Set<string> => {
     const highlighted = new Set<string>();
 
@@ -53,13 +53,13 @@ const getDataFlowComponents = (
     }
 
     // Embed components have no dependencies
-    if (componentType === 'embed') {
+    if (componentType === "embed") {
         highlighted.add(`embed-${tokenIndex}`);
         return highlighted;
     }
 
     // Unembed components see everything
-    if (componentType === 'unembed') {
+    if (componentType === "unembed") {
         for (let t = 0; t <= tokenIndex; t++) {
             for (let l = 0; l < layerIndex; l++) {
                 highlighted.add(`resid-circle-${t}-${l}`);
@@ -86,7 +86,7 @@ const getDataFlowComponents = (
     }
 
     // For residual components
-    if (componentType === 'resid') {
+    if (componentType === "resid") {
         // Add all previous layers
         for (let l = 0; l < layerIndex; l++) {
             for (let t = 0; t <= tokenIndex; t++) {
@@ -115,7 +115,7 @@ const getDataFlowComponents = (
     }
 
     // For attention and MLP components: add all components in previous layers (all tokens)
-    if (componentType === 'attn' || componentType === 'mlp') {
+    if (componentType === "attn" || componentType === "mlp") {
         for (let l = 0; l < layerIndex; l++) {
             for (let t = 0; t <= tokenIndex; t++) {
                 highlighted.add(`resid-circle-${t}-${l}`);
@@ -129,7 +129,7 @@ const getDataFlowComponents = (
     }
 
     // For attention and MLP: add residual circles in current layer for previous tokens
-    if (componentType === 'attn' || componentType === 'mlp') {
+    if (componentType === "attn" || componentType === "mlp") {
         for (let t = 0; t <= tokenIndex; t++) {
             highlighted.add(`resid-circle-${t}-${layerIndex}`);
         }
@@ -143,19 +143,18 @@ const getDataFlowComponents = (
     }
 
     // For MLP: also add the attention component at the same position
-    if (componentType === 'mlp' && showAttn) {
+    if (componentType === "mlp" && showAttn) {
         highlighted.add(`attn-${tokenIndex}-${layerIndex}`);
         highlighted.add(`mlp-${tokenIndex}-${layerIndex}`);
     }
 
     // For attention: include the attention component itself
-    if (componentType === 'attn') {
+    if (componentType === "attn") {
         highlighted.add(`attn-${tokenIndex}-${layerIndex}`);
     }
 
     return highlighted;
 };
-
 
 export default function LensTransformer({
     clickedComponent,
@@ -188,8 +187,8 @@ export default function LensTransformer({
             purple: theme === "dark" ? "#2D1B69" : "#E9D5FF",
             red: theme === "dark" ? "#7F1D1D" : "#FEE2E2",
             green: theme === "dark" ? "#14532D" : "#DCFCE7",
-            blue: theme === "dark" ? "#1E3A8A" : "#DBEAFE"
-        }
+            blue: theme === "dark" ? "#1E3A8A" : "#DBEAFE",
+        },
     };
 
     // Determine which component is currently selected
@@ -199,7 +198,9 @@ export default function LensTransformer({
 
     // Get the set of components that should be highlighted
     const highlightedComponents = useMemo(() => {
-        return activeComponent ? getDataFlowComponents(activeComponent, showAttn, showMlp, numLayers, rowMode) : null;
+        return activeComponent
+            ? getDataFlowComponents(activeComponent, showAttn, showMlp, numLayers, rowMode)
+            : null;
     }, [activeComponent, showAttn, showMlp, numLayers, rowMode]);
 
     // SVG dimensions calculation
@@ -215,10 +216,9 @@ export default function LensTransformer({
             layersWidth,
             rowHeight,
             baseHeight,
-            startY
+            startY,
         };
     }, [numLayers, numTokens]);
-
 
     // Main rendering effect
     useEffect(() => {
@@ -229,7 +229,7 @@ export default function LensTransformer({
             element: d3.Selection<any, unknown, null, undefined>,
             tokenIndex: number,
             layerIndex: number,
-            componentType: 'resid' | 'attn' | 'mlp' | 'embed' | 'unembed'
+            componentType: "resid" | "attn" | "mlp" | "embed" | "unembed",
         ) => {
             element
                 .on("mouseenter", () => {
@@ -238,7 +238,7 @@ export default function LensTransformer({
                         setHoveredComponent({
                             tokenIndex,
                             layerIndex,
-                            componentType
+                            componentType,
                         });
                     }
                 })
@@ -253,7 +253,7 @@ export default function LensTransformer({
                     setClickedComponent({
                         tokenIndex,
                         layerIndex,
-                        componentType
+                        componentType,
                     });
                 });
         };
@@ -264,7 +264,10 @@ export default function LensTransformer({
         const svg = d3.select(svgRef.current);
 
         // Set SVG dimensions with scale - only for layers
-        svg.attr("width", dimensions.layersWidth * scale).attr("height", dimensions.baseHeight * scale);
+        svg.attr("width", dimensions.layersWidth * scale).attr(
+            "height",
+            dimensions.baseHeight * scale,
+        );
 
         // Add background rect to capture mouse events on empty space
         if (showFlowOnHover) {
@@ -305,7 +308,8 @@ export default function LensTransformer({
                 const residArrowId = `resid-arrow-${rowIndex}-${layerIndex}`;
                 const residColor = COLORS.purple;
 
-                const residCircle = g.append("circle")
+                const residCircle = g
+                    .append("circle")
                     .attr("cx", centerX)
                     .attr("cy", centerY)
                     .attr("r", residInRadius)
@@ -319,7 +323,7 @@ export default function LensTransformer({
 
                 // Add hover and click handlers
                 if (showFlowOnHover) {
-                    addComponentHandlers(residCircle, rowIndex, layerIndex, 'resid');
+                    addComponentHandlers(residCircle, rowIndex, layerIndex, "resid");
                 }
 
                 // Residual arrow that components within the layer (attn, mlp) add to
@@ -330,7 +334,9 @@ export default function LensTransformer({
                 // If not the last layer, connect to the next layer's circle minus its radius
                 // If last layer, keep the same arrow length (use residArrowEndX)
                 const isLastLayer = layerIndex === layerRange[1];
-                const actualResidArrowEndX = isLastLayer ? residArrowEndX : (12 + (layerIndex - layerRange[0] + 1) * dimensions.layerWidth) - residInRadius;
+                const actualResidArrowEndX = isLastLayer
+                    ? residArrowEndX
+                    : 12 + (layerIndex - layerRange[0] + 1) * dimensions.layerWidth - residInRadius;
 
                 // Residual arrow color: use standard component color logic
                 const residArrowColor = COLORS.purple;
@@ -351,7 +357,10 @@ export default function LensTransformer({
                 const arrowHeadSize = 10;
                 const arrowHeadX = actualResidArrowEndX;
                 g.append("path")
-                    .attr("d", `M ${arrowHeadX - arrowHeadSize} ${residArrowY - arrowHeadSize / 2} L ${arrowHeadX} ${residArrowY} L ${arrowHeadX - arrowHeadSize} ${residArrowY + arrowHeadSize / 2} Z`)
+                    .attr(
+                        "d",
+                        `M ${arrowHeadX - arrowHeadSize} ${residArrowY - arrowHeadSize / 2} L ${arrowHeadX} ${residArrowY} L ${arrowHeadX - arrowHeadSize} ${residArrowY + arrowHeadSize / 2} Z`,
+                    )
                     .attr("fill", residArrowColor)
                     .attr("data-component-type", "resid")
                     .attr("data-component-subtype", "filled")
@@ -384,7 +393,8 @@ export default function LensTransformer({
                 if (showAttn && !isLastRow) {
                     const attnCrossTokenX = centerX;
                     const attnCrossTokenStartY = centerY + residInRadius;
-                    const nextRowCenterY = dimensions.startY + (rowIndex + 1) * dimensions.rowHeight;
+                    const nextRowCenterY =
+                        dimensions.startY + (rowIndex + 1) * dimensions.rowHeight;
                     const attnCrossTokenEndY = nextRowCenterY - attnCrossTokenRadius;
                     const crossTokenColor = COLORS.red;
 
@@ -403,12 +413,14 @@ export default function LensTransformer({
 
                     // Cross token arrow head (pointing down, at the end of the line)
                     g.append("path")
-                        .attr("d", `M ${attnCrossTokenX - arrowHeadSize / 2} ${attnCrossTokenEndY - arrowHeadSize} L ${attnCrossTokenX} ${attnCrossTokenEndY} L ${attnCrossTokenX + arrowHeadSize / 2} ${attnCrossTokenEndY - arrowHeadSize} Z`)
+                        .attr(
+                            "d",
+                            `M ${attnCrossTokenX - arrowHeadSize / 2} ${attnCrossTokenEndY - arrowHeadSize} L ${attnCrossTokenX} ${attnCrossTokenEndY} L ${attnCrossTokenX + arrowHeadSize / 2} ${attnCrossTokenEndY - arrowHeadSize} Z`,
+                        )
                         .attr("fill", crossTokenColor)
                         .attr("data-component-type", "cross-token")
                         .attr("data-component-subtype", "filled")
                         .attr("data-component-id", crossTokenId);
-
                 } else if (showAttn) {
                     // If the last row, we need to draw a cross token arrow that just goes from resid-in to the y level of attn-in
                     const attnCrossTokenX = centerX;
@@ -468,7 +480,10 @@ export default function LensTransformer({
 
                     // Attn out arrow head (pointing up, at the end of the line)
                     g.append("path")
-                        .attr("d", `M ${attnOutX - arrowHeadSize / 2} ${attnOutYEnd + arrowHeadSize} L ${attnOutX} ${attnOutYEnd} L ${attnOutX + arrowHeadSize / 2} ${attnOutYEnd + arrowHeadSize} Z`)
+                        .attr(
+                            "d",
+                            `M ${attnOutX - arrowHeadSize / 2} ${attnOutYEnd + arrowHeadSize} L ${attnOutX} ${attnOutYEnd} L ${attnOutX + arrowHeadSize / 2} ${attnOutYEnd + arrowHeadSize} Z`,
+                        )
                         .attr("fill", attnColor)
                         .attr("data-component-type", "attn")
                         .attr("data-component-subtype", "filled")
@@ -477,10 +492,11 @@ export default function LensTransformer({
                     // Attention square
                     const attnWidth = 20;
                     const attnHeight = 20;
-                    const attnX = centerX + (attnXEndOffset / 2) - (attnWidth / 2);
-                    const attnY = componentY - (attnHeight / 2);
+                    const attnX = centerX + attnXEndOffset / 2 - attnWidth / 2;
+                    const attnY = componentY - attnHeight / 2;
 
-                    const attnRect = g.append("rect")
+                    const attnRect = g
+                        .append("rect")
                         .attr("x", attnX)
                         .attr("y", attnY)
                         .attr("width", attnWidth)
@@ -495,7 +511,7 @@ export default function LensTransformer({
 
                     // Add hover and click handlers
                     if (showFlowOnHover) {
-                        addComponentHandlers(attnRect, rowIndex, layerIndex, 'attn');
+                        addComponentHandlers(attnRect, rowIndex, layerIndex, "attn");
                     }
                 }
 
@@ -540,7 +556,10 @@ export default function LensTransformer({
 
                     // MLP out arrow connecting the MLP information back to the residual stream
                     g.append("path")
-                        .attr("d", `M ${mlpOutX - arrowHeadSize / 2} ${mlpOutYEnd + arrowHeadSize} L ${mlpOutX} ${mlpOutYEnd} L ${mlpOutX + arrowHeadSize / 2} ${mlpOutYEnd + arrowHeadSize} Z`)
+                        .attr(
+                            "d",
+                            `M ${mlpOutX - arrowHeadSize / 2} ${mlpOutYEnd + arrowHeadSize} L ${mlpOutX} ${mlpOutYEnd} L ${mlpOutX + arrowHeadSize / 2} ${mlpOutYEnd + arrowHeadSize} Z`,
+                        )
                         .attr("fill", mlpColor)
                         .attr("data-component-type", "mlp")
                         .attr("data-component-subtype", "filled")
@@ -562,18 +581,22 @@ export default function LensTransformer({
                     const mlpWidth = 20;
                     const mlpHeight = 20;
                     // Offset is distance between in and out lines, minus half the width of the square
-                    const mlpOffset = ((mlpOutX - mlpInX) / 2) - (mlpWidth / 2);
+                    const mlpOffset = (mlpOutX - mlpInX) / 2 - mlpWidth / 2;
                     const mlpX = mlpInX + mlpOffset;
-                    const mlpY = componentY - (mlpHeight / 2);
+                    const mlpY = componentY - mlpHeight / 2;
 
-                    const mlpRect = g.append("rect")
+                    const mlpRect = g
+                        .append("rect")
                         .attr("x", mlpX)
                         .attr("y", mlpY)
                         .attr("width", mlpWidth)
                         .attr("height", mlpHeight)
                         .attr("stroke", mlpColor)
                         .attr("stroke-width", 2)
-                        .attr("transform", `rotate(45, ${mlpX + mlpWidth / 2}, ${mlpY + mlpHeight / 2})`)
+                        .attr(
+                            "transform",
+                            `rotate(45, ${mlpX + mlpWidth / 2}, ${mlpY + mlpHeight / 2})`,
+                        )
                         .attr("data-component-type", "mlp")
                         .attr("data-component-subtype", "shape")
                         .attr("data-component-id", mlpComponentId)
@@ -582,7 +605,7 @@ export default function LensTransformer({
 
                     // Add hover and click handlers
                     if (showFlowOnHover) {
-                        addComponentHandlers(mlpRect, rowIndex, layerIndex, 'mlp');
+                        addComponentHandlers(mlpRect, rowIndex, layerIndex, "mlp");
                     }
                 }
 
@@ -621,8 +644,10 @@ export default function LensTransformer({
         // Add row hitboxes for row mode (after all layers to avoid duplication)
         if (rowMode && showFlowOnHover) {
             for (let rowIndex = 0; rowIndex < numTokens; rowIndex++) {
-                const hitboxY = dimensions.startY + rowIndex * dimensions.rowHeight - dimensions.rowHeight / 2;
-                const rowHitbox = g.append("rect")
+                const hitboxY =
+                    dimensions.startY + rowIndex * dimensions.rowHeight - dimensions.rowHeight / 2;
+                const rowHitbox = g
+                    .append("rect")
                     .attr("x", 0)
                     .attr("y", hitboxY)
                     .attr("width", dimensions.layersWidth)
@@ -630,13 +655,23 @@ export default function LensTransformer({
                     .attr("fill", "transparent")
                     .attr("stroke", "none")
                     .style("cursor", "pointer");
-                
+
                 // Add handlers - use 'resid' as component type since it triggers row highlighting in row mode
-                addComponentHandlers(rowHitbox, rowIndex, layerRange[0], 'resid');
+                addComponentHandlers(rowHitbox, rowIndex, layerRange[0], "resid");
             }
         }
-
-    }, [dimensions, numTokens, layerRange, showAttn, showMlp, scale, showFlowOnHover, theme, rowMode, clickedComponent]);
+    }, [
+        dimensions,
+        numTokens,
+        layerRange,
+        showAttn,
+        showMlp,
+        scale,
+        showFlowOnHover,
+        theme,
+        rowMode,
+        clickedComponent,
+    ]);
 
     // Separate effect to update highlighting without rebuilding the SVG
     useEffect(() => {
@@ -674,7 +709,9 @@ export default function LensTransformer({
             // When highlightedComponents is null and showFlowOnHover is on, show all as highlighted
             const isHighlighted = highlightedComponents
                 ? highlightedComponents.has(componentId)
-                : (showFlowOnHover ? true : null); // null means preserve current state
+                : showFlowOnHover
+                  ? true
+                  : null; // null means preserve current state
 
             // If isHighlighted is null, don't update colors (preserve current state)
             if (isHighlighted === null) return;
@@ -704,7 +741,6 @@ export default function LensTransformer({
 
         // Remove any existing stroke (cleanup)
         g.selectAll(".row-stroke").remove();
-
     }, [highlightedComponents, theme, showFlowOnHover, rowMode, dimensions]);
 
     return (
@@ -726,7 +762,7 @@ export default function LensTransformer({
                         embedWidth: 75,
                         labelPadding: tokenLabels ? 100 : 0,
                         startY: dimensions.startY,
-                        rowHeight: dimensions.rowHeight
+                        rowHeight: dimensions.rowHeight,
                     }}
                     colors={COLORS}
                     strokeBase={STROKE_BASE}
@@ -762,7 +798,7 @@ export default function LensTransformer({
                         unembedWidth: 75,
                         rightLabelPadding: unembedLabels ? 100 : 0,
                         startY: dimensions.startY,
-                        rowHeight: dimensions.rowHeight
+                        rowHeight: dimensions.rowHeight,
                     }}
                     colors={COLORS}
                     strokeBase={STROKE_BASE}

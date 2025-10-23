@@ -27,7 +27,7 @@ export const useDeleteView = () => {
 
     return useMutation({
         // Pass chartId to invalidate the correct query
-        mutationFn: async ({ id, chartId }: { id: string, chartId: string }) => {
+        mutationFn: async ({ id, chartId }: { id: string; chartId: string }) => {
             await deleteView(id);
         },
         onSuccess: (data, variables) => {
@@ -43,7 +43,15 @@ export const useUpdateView = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ id, chartId, data }: { id: string, chartId: string, data: ChartView }) => {
+        mutationFn: async ({
+            id,
+            chartId,
+            data,
+        }: {
+            id: string;
+            chartId: string;
+            data: ChartView;
+        }) => {
             const view = await updateView(id, data);
             return view;
         },

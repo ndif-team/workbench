@@ -1,18 +1,17 @@
 "use client";
 
-import { useMemo } from 'react'
-import { ResponsiveHeatMapCanvas } from '@nivo/heatmap'
-import { heatmapMargin, heatmapTheme } from '../theming'
-import { resolveThemeCssVars } from '@/lib/utils'
-import { Margin } from '@nivo/core';
-import { HeatmapRow } from '@/types/charts';
-import { Tooltip } from './Tooltip';
-import { Metrics } from '@/types/lens';
-import React from 'react';
-
+import { useMemo } from "react";
+import { ResponsiveHeatMapCanvas } from "@nivo/heatmap";
+import { heatmapMargin, heatmapTheme } from "../theming";
+import { resolveThemeCssVars } from "@/lib/utils";
+import { Margin } from "@nivo/core";
+import { HeatmapRow } from "@/types/charts";
+import { Tooltip } from "./Tooltip";
+import { Metrics } from "@/types/lens";
+import React from "react";
 
 interface HeatmapProps {
-    rows: HeatmapRow[]
+    rows: HeatmapRow[];
     margin?: Margin;
     heatmapCanvasRef?: React.RefObject<HTMLCanvasElement>;
     useTooltip?: boolean;
@@ -22,18 +21,17 @@ interface HeatmapProps {
     statisticType?: Metrics;
 }
 
-
 export function Heatmap({
     rows,
     margin = heatmapMargin,
     heatmapCanvasRef,
     useTooltip = false,
-    onMouseMove = () => { },
-    onMouseLeave = () => { },
-    onMouseDown = () => { },
-    statisticType
+    onMouseMove = () => {},
+    onMouseLeave = () => {},
+    onMouseDown = () => {},
+    statisticType,
 }: HeatmapProps) {
-    const resolvedTheme = useMemo(() => resolveThemeCssVars(heatmapTheme), [])
+    const resolvedTheme = useMemo(() => resolveThemeCssVars(heatmapTheme), []);
 
     // Create a lookup map to access right_axis_label by row.id
     const rightAxisLabelMap = useMemo(() => {
@@ -51,11 +49,14 @@ export function Heatmap({
             return 0;
         } else {
             return rows.reduce((globalMin, row) => {
-                return Math.min(globalMin, row.data.reduce((rowMin, cell) => {
-                    return Math.min(rowMin, cell.y ?? Infinity);
-                }, Infinity));
+                return Math.min(
+                    globalMin,
+                    row.data.reduce((rowMin, cell) => {
+                        return Math.min(rowMin, cell.y ?? Infinity);
+                    }, Infinity),
+                );
             }, Infinity);
-        };
+        }
     }, [rows, statisticType]);
 
     const maxValue = useMemo(() => {
@@ -63,18 +64,23 @@ export function Heatmap({
             return 1;
         } else {
             return rows.reduce((globalMax, row) => {
-                return Math.max(globalMax, row.data.reduce((rowMax, cell) => {
-                    return Math.max(rowMax, cell.y ?? -Infinity);
-                }, -Infinity));
+                return Math.max(
+                    globalMax,
+                    row.data.reduce((rowMax, cell) => {
+                        return Math.max(rowMax, cell.y ?? -Infinity);
+                    }, -Infinity),
+                );
             }, -Infinity);
         }
     }, [rows, statisticType]);
 
     return (
-        <div className="size-full relative cursor-crosshair"
+        <div
+            className="size-full relative cursor-crosshair"
             onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
-            onMouseLeave={onMouseLeave}>
+            onMouseLeave={onMouseLeave}
+        >
             <canvas
                 ref={heatmapCanvasRef}
                 className="absolute inset-0 size-full pointer-events-auto z-20"
@@ -86,7 +92,7 @@ export function Heatmap({
                 valueFormat=">-.2f"
                 axisTop={null}
                 axisBottom={{
-                    legend: 'Layer',
+                    legend: "Layer",
                     legendOffset: 40,
                     tickSize: 0,
                     tickPadding: 10,
@@ -95,32 +101,38 @@ export function Heatmap({
                 axisLeft={{
                     tickSize: 0,
                     tickPadding: 10,
-                    format: (value) => String(value).replace(/-\d+$/, ''),
+                    format: (value) => String(value).replace(/-\d+$/, ""),
                 }}
-                axisRight={statisticType !== Metrics.PROBABILITY ? {
-                    tickSize: 0,
-                    tickPadding: 10,
-                    format: (value) => {
-                        // Access rightAxisLabel using the lookup map
-                        return rightAxisLabelMap[value] || String(value).replace(/-\d+$/, '');
-                    },
-                } : null}
+                axisRight={
+                    statisticType !== Metrics.PROBABILITY
+                        ? {
+                              tickSize: 0,
+                              tickPadding: 10,
+                              format: (value) => {
+                                  // Access rightAxisLabel using the lookup map
+                                  return (
+                                      rightAxisLabelMap[value] || String(value).replace(/-\d+$/, "")
+                                  );
+                              },
+                          }
+                        : null
+                }
                 label={(cell) => {
                     if (cell.data.label) {
                         return cell.data.label;
                     }
-                    return '';
+                    return "";
                 }}
                 labelTextColor={(cell) => {
                     // Use white text for dark cells, black for light cells
-                    const value = cell.data.y
-                    return value !== null && value > 0.5 ? '#ffffff' : '#000000'
+                    const value = cell.data.y;
+                    return value !== null && value > 0.5 ? "#ffffff" : "#000000";
                 }}
                 colors={{
-                    type: 'sequential',
-                    scheme: 'blues',
+                    type: "sequential",
+                    scheme: "blues",
                     minValue: minValue,
-                    maxValue: maxValue
+                    maxValue: maxValue,
                 }}
                 hoverTarget="cell"
                 inactiveOpacity={1}
@@ -130,21 +142,21 @@ export function Heatmap({
                 legends={[
                     {
                         title: statisticType === Metrics.RANK ? "Rank (log)" : statisticType,
-                        anchor: 'right',
+                        anchor: "right",
                         translateX: statisticType !== Metrics.PROBABILITY ? 60 : 30,
                         translateY: 0,
                         length: 400,
                         thickness: 8,
-                        direction: 'column',
-                        tickPosition: 'after',
+                        direction: "column",
+                        tickPosition: "after",
                         tickSize: 3,
                         tickSpacing: 4,
                         tickOverlap: false,
-                        tickFormat: '>-.2f',
-                        titleAlign: 'start',
-                    }
+                        tickFormat: ">-.2f",
+                        titleAlign: "start",
+                    },
                 ]}
             />
         </div>
-    )
+    );
 }

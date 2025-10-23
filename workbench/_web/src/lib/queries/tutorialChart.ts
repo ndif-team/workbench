@@ -37,23 +37,22 @@ const getReportTemplate = async (): Promise<SerializedEditorState> => {
 };
 
 // Replace placeholder chart IDs in the report with actual chart IDs
-const replaceChartIds = (content: SerializedEditorState, chartIdMap: Record<string, string>): SerializedEditorState => {
+const replaceChartIds = (
+    content: SerializedEditorState,
+    chartIdMap: Record<string, string>,
+): SerializedEditorState => {
     const contentStr = JSON.stringify(content);
     let updatedStr = contentStr;
-    
+
     // Replace each placeholder with actual chart ID
     for (const [placeholder, actualId] of Object.entries(chartIdMap)) {
-        updatedStr = updatedStr.replace(new RegExp(placeholder, 'g'), actualId);
+        updatedStr = updatedStr.replace(new RegExp(placeholder, "g"), actualId);
     }
-    
+
     return JSON.parse(updatedStr);
 };
 
-
-export async function pushTutorialChart(
-    workspaceId: string,
-) {
-
+export async function pushTutorialChart(workspaceId: string) {
     const createdCharts = [];
 
     // Tutorial chart 1 - Translation (Heatmap)
@@ -76,15 +75,15 @@ export async function pushTutorialChart(
     // Create default report with embedded charts
     // const reportTemplate = await getReportTemplate();
     const reportTemplate = JSON.parse(JSON.stringify(report_template));
-    
+
     // Map placeholder IDs to actual chart IDs
     const chartIdMap = {
         "8af02dc3-afe9-42aa-9096-249270721891": chart1.id, // Translation heatmap
         "609d061c-2260-417b-a2a6-36cc035e450b": chart2.id, // Knowledge line
     };
-    
+
     const updatedReport = replaceChartIds(reportTemplate, chartIdMap);
-    
+
     // Create the document
     const document = await createDocument(workspaceId);
     await updateDocument(document.id, updatedReport);

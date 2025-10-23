@@ -1,18 +1,23 @@
-import { PostHog } from 'posthog-node'
+import { PostHog } from "posthog-node";
 
-let posthogInstance: PostHog | null = null
+let posthogInstance: PostHog | null = null;
 
 export function getPostHogServer() {
-  if (!posthogInstance) {
-    posthogInstance = new PostHog(
-      process.env.NEXT_PUBLIC_POSTHOG_KEY!,
-      {
-        host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-        flushAt: 1,
-        flushInterval: 0,
-      }
-    )
-  }
+    // Don't initialize PostHog in development or if no key is provided
+    const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    // const isDev = process.env.NODE_ENV === 'development'
 
-  return posthogInstance
+    if (!posthogKey) {
+        return null;
+    }
+
+    if (!posthogInstance) {
+        posthogInstance = new PostHog(posthogKey, {
+            host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+            flushAt: 1,
+            flushInterval: 0,
+        });
+    }
+
+    return posthogInstance;
 }

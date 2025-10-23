@@ -9,7 +9,7 @@ export interface Token {
 export interface TokenOption {
     value: number; // token id
     text: string; // token text
-    prob?: number;  // probability
+    prob?: number; // probability
 }
 
 export interface Prediction {
@@ -24,6 +24,7 @@ export interface Model {
     name: string;
     type: "chat" | "base";
     n_layers: number;
+    params: string;
     gated: boolean;
     allowed: boolean;
 }

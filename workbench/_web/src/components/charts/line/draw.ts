@@ -20,7 +20,7 @@ const drawRectPx = (
     x0: number,
     y0: number,
     x1: number,
-    y1: number
+    y1: number,
 ) => {
     const canvas = lineCanvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -35,7 +35,7 @@ const drawRectPx = (
     const minY = Math.max(innerMinY, Math.min(y0, y1));
     const maxY = Math.min(innerMaxY, Math.max(y0, y1));
     ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-    
+
     // Use dashed red style for selection rectangle
     ctx.save();
     ctx.strokeStyle = "#ef4444"; // red-500
@@ -45,14 +45,14 @@ const drawRectPx = (
         minX + 0.5,
         minY + 0.5,
         Math.max(0, maxX - minX - 1),
-        Math.max(0, maxY - minY - 1)
+        Math.max(0, maxY - minY - 1),
     );
     ctx.restore();
 };
 
 const drawVerticalLinePx = (
     crosshairCanvasRef: React.RefObject<HTMLCanvasElement>,
-    xPx: number
+    xPx: number,
 ) => {
     const canvas = crosshairCanvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -138,4 +138,14 @@ const drawRectData = (
     drawRectPx(lineCanvasRef, x0, y0, x1, y1);
 };
 
-export { clear, clearCrosshair, drawRectPx, drawVerticalLinePx, dataXToPx, dataYToPx, pxToDataY, selectionDataToPx, drawRectData };
+export {
+    clear,
+    clearCrosshair,
+    drawRectPx,
+    drawVerticalLinePx,
+    dataXToPx,
+    dataYToPx,
+    pxToDataY,
+    selectionDataToPx,
+    drawRectData,
+};

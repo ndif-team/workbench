@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -56,15 +57,20 @@ export function CreateWorkspaceDialog({ userId }: CreateWorkspaceDialogProps) {
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                <Button className="px-4 py-3">
-                    Create Workspace
+                <Button
+                    variant="outline"
+                    className="px-4 py-3 border bg-blue-500/10 hover:bg-blue-400/40 border-blue-400/40 hover:border-blue-400 transition-all flex items-center gap-2"
+                >
+                    <Plus className="h-4 w-4" />
+                    workspace
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Create New Workspace</DialogTitle>
                     <DialogDescription>
-                        Create a new workspace to start exploring your model's behavior. You can add Logit Lens and Activation Patching collections after creation.
+                        Create a new workspace to start exploring your model's behavior. You can add
+                        Logit Lens and Activation Patching collections after creation.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
@@ -89,7 +95,7 @@ export function CreateWorkspaceDialog({ userId }: CreateWorkspaceDialogProps) {
                         >
                             Cancel
                         </Button>
-                        <Button 
+                        <Button
                             type="submit"
                             disabled={!name.trim() || createWorkspaceMutation.isPending}
                         >
@@ -100,4 +106,4 @@ export function CreateWorkspaceDialog({ userId }: CreateWorkspaceDialogProps) {
             </DialogContent>
         </Dialog>
     );
-} 
+}

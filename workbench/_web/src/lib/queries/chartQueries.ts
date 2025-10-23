@@ -7,7 +7,11 @@ import { LensConfigData } from "@/types/lens";
 import { PatchingConfig } from "@/types/patching";
 import { eq, desc } from "drizzle-orm";
 
-export const setChartData = async (chartId: string, chartData: ChartData, chartType: "line" | "heatmap") => {
+export const setChartData = async (
+    chartId: string,
+    chartData: ChartData,
+    chartType: "line" | "heatmap",
+) => {
     await db.update(charts).set({ data: chartData, type: chartType }).where(eq(charts.id, chartId));
 };
 
@@ -47,44 +51,46 @@ export const getConfigForChart = async (chartId: string): Promise<Config | null>
 // Create a new chart and config at once. Used in the ChartDisplay.
 export const createLensChartPair = async (
     workspaceId: string,
-    defaultConfig: LensConfigData
+    defaultConfig: LensConfigData,
 ): Promise<{ chart: Chart; config: LensConfig }> => {
     const [newChart] = await db.insert(charts).values({ workspaceId }).returning();
     const [newConfig] = await db
         .insert(configs)
         .values({ workspaceId, type: "lens", data: defaultConfig })
         .returning();
-    
+
     // Create the link between chart and config
     await db.insert(chartConfigLinks).values({
         chartId: newChart.id,
         configId: newConfig.id,
     });
-    
+
     return { chart: newChart as Chart, config: newConfig as LensConfig };
 };
 
 // Create a new patch chart and config pair
 export const createPatchChartPair = async (
     workspaceId: string,
-    defaultConfig: PatchingConfig
+    defaultConfig: PatchingConfig,
 ): Promise<{ chart: Chart; config: Config }> => {
     const [newChart] = await db.insert(charts).values({ workspaceId }).returning();
     const [newConfig] = await db
         .insert(configs)
         .values({ workspaceId, type: "patch", data: defaultConfig })
         .returning();
-    
+
     // Create the link between chart and config
     await db.insert(chartConfigLinks).values({
         chartId: newChart.id,
         configId: newConfig.id,
     });
-    
+
     return { chart: newChart as Chart, config: newConfig as Config };
 };
 
-export const getAllChartsByType = async (workspaceId?: string): Promise<Record<string, Chart[]>> => {
+export const getAllChartsByType = async (
+    workspaceId?: string,
+): Promise<Record<string, Chart[]>> => {
     // Join charts with their configs to get the config type
     const query = db
         .select({
@@ -94,22 +100,22 @@ export const getAllChartsByType = async (workspaceId?: string): Promise<Record<s
         .from(charts)
         .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
         .leftJoin(configs, eq(chartConfigLinks.configId, configs.id));
-    
-    const chartsWithConfigs = workspaceId 
+
+    const chartsWithConfigs = workspaceId
         ? await query.where(eq(charts.workspaceId, workspaceId))
         : await query;
 
     // Group charts by their config type
     const chartsByType: Record<string, Chart[]> = {};
-    
+
     for (const { chart, configType } of chartsWithConfigs) {
-        const type = configType || 'unknown';
+        const type = configType || "unknown";
         if (!chartsByType[type]) {
             chartsByType[type] = [];
         }
         chartsByType[type].push(chart);
     }
-    
+
     return chartsByType;
 };
 
@@ -130,24 +136,29 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
         .groupBy(charts.id, charts.createdAt, charts.updatedAt, charts.type, configs.type)
         .orderBy(desc(charts.updatedAt));
 
-    return rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        chartType: (r.chartType as "line" | "heatmap" | null) ?? null,
-        toolType: (r.toolType as "lens" | "patch" | null) ?? null,
-        createdAt: r.createdAt as Date,
-        updatedAt: r.updatedAt as Date,
-    } as ChartMetadata));
+    return rows.map(
+        (r) =>
+            ({
+                id: r.id,
+                name: r.name,
+                chartType: (r.chartType as "line" | "heatmap" | null) ?? null,
+                toolType: (r.toolType as "lens" | "patch" | null) ?? null,
+                createdAt: r.createdAt as Date,
+                updatedAt: r.updatedAt as Date,
+            }) as ChartMetadata,
+    );
 };
 
-export const getMostRecentChartForWorkspace = async (workspaceId: string): Promise<Chart | null> => {
+export const getMostRecentChartForWorkspace = async (
+    workspaceId: string,
+): Promise<Chart | null> => {
     const [chart] = await db
         .select()
         .from(charts)
         .where(eq(charts.workspaceId, workspaceId))
         .orderBy(desc(charts.updatedAt))
         .limit(1);
-    
+
     return (chart ?? null) as Chart | null;
 };
 
@@ -163,12 +174,12 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
         .select()
         .from(chartConfigLinks)
         .where(eq(chartConfigLinks.chartId, chartId));
-    
+
     const [originalConfig] = await db
         .select()
         .from(configs)
         .where(eq(configs.id, originalLink.configId));
-    
+
     // Create the new chart with copied data
     const [newChart] = await db
         .insert(charts)
@@ -190,7 +201,7 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
             data: originalConfig.data,
         })
         .returning();
-    
+
     // Create the link between new chart and new config
     await db.insert(chartConfigLinks).values({
         chartId: newChart.id,

@@ -1,7 +1,6 @@
 import { HeatmapRow } from "@/types/charts";
 import { heatmapMargin as margin } from "../theming";
 
-
 export interface CellDimensions {
     width: number;
     height: number;
@@ -38,7 +37,7 @@ const getCellFromPosition = (
     canvasRef: React.RefObject<HTMLCanvasElement>,
     data: HeatmapRow[],
     x: number,
-    y: number
+    y: number,
 ) => {
     const dims = getCellDimensions(canvasRef, data);
     if (!dims) return null;

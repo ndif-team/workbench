@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getDocumentById, getDocumentByWorkspaceId, getDocumentsForWorkspace, createDocument } from "@/lib/queries/documentQueries";
+import {
+    getDocumentById,
+    getDocumentByWorkspaceId,
+    getDocumentsForWorkspace,
+    createDocument,
+} from "@/lib/queries/documentQueries";
 import { updateDocument, deleteDocument } from "@/lib/queries/documentQueries";
 import { SerializedEditorState } from "lexical";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
@@ -32,7 +37,15 @@ export const useSaveDocument = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ workspaceId, documentId, content }: { workspaceId: string; documentId: string; content: SerializedEditorState }) => {
+        mutationFn: async ({
+            workspaceId,
+            documentId,
+            content,
+        }: {
+            workspaceId: string;
+            documentId: string;
+            content: SerializedEditorState;
+        }) => {
             return await updateDocument(documentId, content);
         },
         onSuccess: (data, variables) => {
@@ -42,7 +55,9 @@ export const useSaveDocument = () => {
                 queryClient.invalidateQueries({ queryKey: ["document", variables.documentId] });
             }
             // Legacy key invalidation if used elsewhere
-            queryClient.invalidateQueries({ queryKey: ["document-workspace", variables.workspaceId] });
+            queryClient.invalidateQueries({
+                queryKey: ["document-workspace", variables.workspaceId],
+            });
         },
         onError: (error) => {
             console.error("Error saving document:", error);
@@ -70,7 +85,13 @@ export const useCreateDocument = () => {
 export const useDeleteDocument = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ workspaceId, documentId }: { workspaceId: string; documentId: string }) => {
+        mutationFn: async ({
+            workspaceId,
+            documentId,
+        }: {
+            workspaceId: string;
+            documentId: string;
+        }) => {
             await deleteDocument(documentId);
         },
         onSuccess: (_, variables) => {

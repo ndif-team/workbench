@@ -21,7 +21,7 @@ type TokenHighlightEvent = {
 type TokenClickEvent = {
     type: "tokenClick";
     tokenIndex: number;
-};  
+};
 
 type TutorialEventData = ClickEvent | TextInputEvent | TokenHighlightEvent | TokenClickEvent;
 
@@ -61,7 +61,6 @@ export function useTutorialManager() {
                         eventData.type === "tokenClick" &&
                         eventData.tokenIndex === trigger.expectedTokenIndex;
                     break;
-
             }
 
             if (shouldAdvance) {
@@ -71,7 +70,7 @@ export function useTutorialManager() {
                 }, 150);
             }
         },
-        [isOpen, steps, currentStep, setCurrentStep]
+        [isOpen, steps, currentStep, setCurrentStep],
     );
 
     // Event handlers for different trigger types
@@ -82,7 +81,7 @@ export function useTutorialManager() {
                 target,
             });
         },
-        [checkStepCompletion]
+        [checkStepCompletion],
     );
 
     const handleTextInput = useCallback(
@@ -92,7 +91,7 @@ export function useTutorialManager() {
                 value,
             });
         },
-        [checkStepCompletion]
+        [checkStepCompletion],
     );
 
     const handleTokenHighlight = useCallback(
@@ -102,7 +101,7 @@ export function useTutorialManager() {
                 tokenIndex,
             });
         },
-        [checkStepCompletion]
+        [checkStepCompletion],
     );
 
     const handleTokenClick = useCallback(
@@ -112,7 +111,7 @@ export function useTutorialManager() {
                 tokenIndex,
             });
         },
-        [checkStepCompletion]
+        [checkStepCompletion],
     );
 
     return {

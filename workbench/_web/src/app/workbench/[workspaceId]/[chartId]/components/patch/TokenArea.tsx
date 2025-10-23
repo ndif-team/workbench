@@ -24,20 +24,18 @@ const fix = (text: string) => {
     const numNewlines = (text.match(/\n/g) || []).length;
 
     const result = text
-        .replace(/\r\n/g, '\\r\\n')  // Windows line endings
-        .replace(/\n/g, '\\n')       // Newlines
-        .replace(/\r/g, '\\r')       // Carriage returns
-        .replace(/\t/g, '\\t')       // Tabs
+        .replace(/\r\n/g, "\\r\\n") // Windows line endings
+        .replace(/\n/g, "\\n") // Newlines
+        .replace(/\r/g, "\\r") // Carriage returns
+        .replace(/\t/g, "\\t"); // Tabs
 
     return {
         result: result,
         numNewlines: numNewlines,
-    }
-}
+    };
+};
 
-export function TokenArea({
-    side
-}: TokenAreaProps) {
+export function TokenArea({ side }: TokenAreaProps) {
     const { sourceTokenData, destTokenData, mainMode, subMode } = usePatch();
     const {
         isSelecting,
@@ -52,7 +50,8 @@ export function TokenArea({
         toggleAblate,
         toggleLoop,
     } = useTokenHighlight(side);
-    const { connections, startConnection, enterToken, endConnection, drag, clearHover } = useConnections();
+    const { connections, startConnection, enterToken, endConnection, drag, clearHover } =
+        useConnections();
 
     const onMouseLeave = () => {
         if (mainMode === "connect" && side === "destination") {
@@ -61,8 +60,14 @@ export function TokenArea({
     };
 
     const getTokenStyle = (token: Token, idx: number) => {
-        const isDropHover = drag.isDragging && drag.startSide === "source" && side === "destination" && drag.hoverIdx === idx;
-        const isConnected = (side === "source" && connections.some(c => c.sourceIdx === idx)) || (side === "destination" && connections.some(c => c.destIdx === idx));
+        const isDropHover =
+            drag.isDragging &&
+            drag.startSide === "source" &&
+            side === "destination" &&
+            drag.hoverIdx === idx;
+        const isConnected =
+            (side === "source" && connections.some((c) => c.sourceIdx === idx)) ||
+            (side === "destination" && connections.some((c) => c.destIdx === idx));
         const isInAlignGroup = mainMode === "align" && isIdxInAnyGroup(idx);
         const ablated = isAblated(idx);
         const looped = isLooped(idx);
@@ -76,7 +81,10 @@ export function TokenArea({
             mainMode === "connect" && isDropHover && tokenStyles.highlight,
             // Align mode visuals
             mainMode === "align" && isInAlignGroup && tokenStyles.filled,
-            mainMode === "align" && !isInAlignGroup && isInLiveSelection(idx) && tokenStyles.highlight,
+            mainMode === "align" &&
+                !isInAlignGroup &&
+                isInLiveSelection(idx) &&
+                tokenStyles.highlight,
             tokenStyles.hover,
             token.text === "\\n" ? "w-full" : "w-fit",
             "cursor-pointer",
@@ -127,10 +135,7 @@ export function TokenArea({
             style={{ display: "inline" }}
         >
             {tokenData.map((token, idx) => {
-                const styles = getTokenStyle(
-                    token,
-                    idx,
-                );
+                const styles = getTokenStyle(token, idx);
 
                 const { result, numNewlines } = fix(token.text);
 
@@ -152,5 +157,5 @@ export function TokenArea({
                 );
             })}
         </div>
-    )
+    );
 }

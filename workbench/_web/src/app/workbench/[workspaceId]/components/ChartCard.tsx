@@ -9,11 +9,7 @@ import { cn } from "@/lib/utils";
 import { ChartRenameDialog } from "./ChartRenameDialog";
 import { useCopyChart } from "@/lib/api/chartApi";
 import { toast } from "sonner";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 
 export type ChartCardProps = {
@@ -23,12 +19,17 @@ export type ChartCardProps = {
 };
 
 export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCardProps) {
-    const { workspaceId, chartId } = useParams<{ workspaceId: string, chartId: string }>();
+    const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
     const copyChart = useCopyChart();
 
     const isSelected = chartId === metadata.id;
     const router = useRouter();
-    const updatedAt = metadata.updatedAt ? new Date(metadata.updatedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : "";
+    const updatedAt = metadata.updatedAt
+        ? new Date(metadata.updatedAt).toLocaleDateString("en-US", {
+              month: "numeric",
+              day: "numeric",
+          })
+        : "";
 
     const navigateToChart = (chartId: string) => {
         router.push(`/workbench/${workspaceId}/${chartId}`);
@@ -51,18 +52,20 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
     };
 
     const renderChartTypeMini = (chartType: ChartMetadata["chartType"]) => {
-        if (chartType === "line") return (
-            <span className="inline-flex items-center gap-1">
-                <ChartLine className="h-3 w-3" />
-                <span>Line</span>
-            </span>
-        );
-        if (chartType === "heatmap") return (
-            <span className="inline-flex items-center gap-1">
-                <Grid3X3 className="h-3 w-3" />
-                <span>Heatmap</span>
-            </span>
-        );
+        if (chartType === "line")
+            return (
+                <span className="inline-flex items-center gap-1">
+                    <ChartLine className="h-3 w-3" />
+                    <span>Line</span>
+                </span>
+            );
+        if (chartType === "heatmap")
+            return (
+                <span className="inline-flex items-center gap-1">
+                    <Grid3X3 className="h-3 w-3" />
+                    <span>Heatmap</span>
+                </span>
+            );
         return (
             <span className="inline-flex items-center gap-1 opacity-60">
                 <Grid3X3 className="h-3 w-3" />
@@ -74,7 +77,7 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
     const Thumbnail = () => {
         const style = cn(
             "relative w-[35%] h-24 overflow-hidden rounded-l border-border border-y border-r",
-            isSelected && "border-primary"
+            isSelected && "border-primary",
         );
 
         const [imageError, setImageError] = React.useState(false);
@@ -126,13 +129,12 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
         );
     };
 
-
     return (
         <div
             className={cn(
                 // TEMPORARY PROBABLY
                 "flex items-center border h-24 rounded",
-                isSelected && "border-primary"
+                isSelected && "border-primary",
             )}
             onClick={() => handleChartClick(metadata)}
             draggable
@@ -140,10 +142,13 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
                 try {
                     e.dataTransfer.setData(
                         "application/x-chart",
-                        JSON.stringify({ chartId: metadata.id, chartType: metadata.chartType ?? null })
+                        JSON.stringify({
+                            chartId: metadata.id,
+                            chartType: metadata.chartType ?? null,
+                        }),
                     );
                     e.dataTransfer.effectAllowed = "copy";
-                } catch { }
+                } catch {}
             }}
         >
             <Thumbnail />
@@ -151,7 +156,7 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
                 key={metadata.id}
                 className={cn(
                     "p-3 cursor-pointer transition-all h-full w-[65%]",
-                    isSelected ? "bg-primary/5" : "hover:bg-muted/50"
+                    isSelected ? "bg-primary/5" : "hover:bg-muted/50",
                 )}
             >
                 <div className="flex items-start gap-3">
@@ -159,12 +164,14 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
                         <div className="flex items-center gap-3 mb-1">
                             <span className="text-sm font-medium capitalize">
                                 {/* {formatToolType(metadata.toolType)} */}
-                                {metadata.name ? (metadata.name.length > 16 ? `${metadata.name.slice(0, 16)}...` : metadata.name) : 'Untitled'}
+                                {metadata.name
+                                    ? metadata.name.length > 16
+                                        ? `${metadata.name.slice(0, 16)}...`
+                                        : metadata.name
+                                    : "Untitled"}
                             </span>
-
                         </div>
                         <div className="text-xs text-muted-foreground break-words flex items-center gap-3">
-
                             {renderChartTypeMini(metadata.chartType)}
                             {updatedAt && renderChartTypeMini(metadata.chartType) && (
                                 <span className="text-xs text-muted-foreground">•</span>
@@ -189,9 +196,9 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
                                 <Copy className="h-3.5 w-3.5" />
                                 <span>Copy</span>
                             </button>
-                            <ChartRenameDialog 
-                                chartId={metadata.id} 
-                                chartName={metadata.name || ''} 
+                            <ChartRenameDialog
+                                chartId={metadata.id}
+                                chartName={metadata.name || ""}
                                 triggerClassName="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-accent rounded-sm"
                             />
                             <button

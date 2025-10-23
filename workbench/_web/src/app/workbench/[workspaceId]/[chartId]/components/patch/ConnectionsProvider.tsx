@@ -31,7 +31,7 @@ interface ConnectionsActions {
     clearHover: () => void;
 }
 
-const ConnectionsContext = createContext<ConnectionsState & ConnectionsActions | null>(null);
+const ConnectionsContext = createContext<(ConnectionsState & ConnectionsActions) | null>(null);
 
 export function useConnections(): ConnectionsState & ConnectionsActions {
     const ctx = useContext(ConnectionsContext);
@@ -74,7 +74,13 @@ export default function ConnectionsProvider({ children }: { children: React.Reac
 
     const startConnection = (side: Side, idx: number) => {
         if (side !== "source") return;
-        setDrag({ isDragging: true, startSide: side, startIdx: idx, hoverIdx: null, mousePos: null });
+        setDrag({
+            isDragging: true,
+            startSide: side,
+            startIdx: idx,
+            hoverIdx: null,
+            mousePos: null,
+        });
     };
 
     const enterToken = (side: Side, idx: number) => {
@@ -87,10 +93,22 @@ export default function ConnectionsProvider({ children }: { children: React.Reac
     const endConnection = (side: Side, idx: number) => {
         setDrag((prev) => {
             if (!prev.isDragging || prev.startSide === side || prev.startIdx === null) {
-                return { isDragging: false, startSide: null, startIdx: null, hoverIdx: null, mousePos: null };
+                return {
+                    isDragging: false,
+                    startSide: null,
+                    startIdx: null,
+                    hoverIdx: null,
+                    mousePos: null,
+                };
             }
             if (prev.startSide !== "source" || side !== "destination") {
-                return { isDragging: false, startSide: null, startIdx: null, hoverIdx: null, mousePos: null };
+                return {
+                    isDragging: false,
+                    startSide: null,
+                    startIdx: null,
+                    hoverIdx: null,
+                    mousePos: null,
+                };
             }
             const sourceIdx = prev.startIdx;
             const destIdx = idx;
@@ -99,12 +117,24 @@ export default function ConnectionsProvider({ children }: { children: React.Reac
                 if (exists) return curr;
                 return [...curr, { sourceIdx, destIdx }];
             });
-            return { isDragging: false, startSide: null, startIdx: null, hoverIdx: null, mousePos: null };
+            return {
+                isDragging: false,
+                startSide: null,
+                startIdx: null,
+                hoverIdx: null,
+                mousePos: null,
+            };
         });
     };
 
     const cancelConnection = () => {
-        setDrag({ isDragging: false, startSide: null, startIdx: null, hoverIdx: null, mousePos: null });
+        setDrag({
+            isDragging: false,
+            startSide: null,
+            startIdx: null,
+            hoverIdx: null,
+            mousePos: null,
+        });
     };
 
     const clearHover = () => {
@@ -124,7 +154,9 @@ export default function ConnectionsProvider({ children }: { children: React.Reac
     const getTokenCenter = (side: Side, index: number, at: "top" | "bottom") => {
         const container = containerRef.current;
         if (!container) return null;
-        const token = container.querySelector<HTMLElement>(`[data-token-side="${side}"][data-token-id="${index}"]`);
+        const token = container.querySelector<HTMLElement>(
+            `[data-token-side="${side}"][data-token-id="${index}"]`,
+        );
         if (!token) return null;
         const tokenRect = token.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
@@ -140,7 +172,13 @@ export default function ConnectionsProvider({ children }: { children: React.Reac
             if (!start || !end) return null;
             return (
                 <g key={i}>
-                    <path d={createStepPath(start, end)} fill="none" stroke="#3b82f6" strokeWidth={1} markerEnd="url(#arrowhead)" />
+                    <path
+                        d={createStepPath(start, end)}
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth={1}
+                        markerEnd="url(#arrowhead)"
+                    />
                 </g>
             );
         });
@@ -158,7 +196,14 @@ export default function ConnectionsProvider({ children }: { children: React.Reac
         if (!start || !end) return null;
         return (
             <g>
-                <path d={createStepPath(start, end)} fill="none" stroke="#3b82f6" strokeWidth={1} strokeDasharray="5,5" markerEnd="url(#arrowhead)" />
+                <path
+                    d={createStepPath(start, end)}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth={1}
+                    strokeDasharray="5,5"
+                    markerEnd="url(#arrowhead)"
+                />
             </g>
         );
     };
@@ -186,7 +231,14 @@ export default function ConnectionsProvider({ children }: { children: React.Reac
                 {children}
                 <svg className="pointer-events-none absolute inset-0 w-full h-full">
                     <defs>
-                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <marker
+                            id="arrowhead"
+                            markerWidth="10"
+                            markerHeight="7"
+                            refX="9"
+                            refY="3.5"
+                            orient="auto"
+                        >
                             <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
                         </marker>
                     </defs>
