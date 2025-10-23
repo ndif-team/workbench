@@ -43,11 +43,14 @@ const nextConfig = {
     },
 };
 
-export default withPostHogConfig(nextConfig, {
-    personalApiKey: process.env.POSTHOG_API_KEY, // Personal API Key
-    envId: process.env.POSTHOG_ENV_ID, // Environment ID
-    host: process.env.NEXT_PUBLIC_POSTHOG_HOST, // (optional), defaults to https://us.posthog.com
-    sourcemaps: {
-        // (optional)
-    },
-});
+// Only use PostHog config if API key is provided
+export default process.env.POSTHOG_API_KEY
+    ? withPostHogConfig(nextConfig, {
+          personalApiKey: process.env.POSTHOG_API_KEY, // Personal API Key
+          envId: process.env.POSTHOG_ENV_ID, // Environment ID
+          host: process.env.NEXT_PUBLIC_POSTHOG_HOST, // (optional), defaults to https://us.posthog.com
+          sourcemaps: {
+              // (optional)
+          },
+      })
+    : nextConfig;
