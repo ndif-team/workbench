@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
 
 export default function WorkbenchLayout({
-  children,
+    children,
 }: Readonly<{
-  children: React.ReactNode;
+    children: React.ReactNode;
 }>) {
     return (
         <div className="flex flex-col h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
@@ -46,7 +46,12 @@ export default function WorkbenchLayout({
                             Feedback
                         </Button>
                     </Link>
-                    <Button variant="ghost" size="icon" className="bg-transparent hover:!white/10" asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="bg-transparent hover:!white/10"
+                        asChild
+                    >
                         <Link
                             href="https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens"
                             target="_blank"
@@ -54,7 +59,12 @@ export default function WorkbenchLayout({
                             <HelpCircle className="h-4 w-4" />
                         </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" className="bg-transparent hover:!white/10" asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="bg-transparent hover:!white/10"
+                        asChild
+                    >
                         <Link href="https://github.com/ndif-team/workbench" target="_blank">
                             <svg className="h-4 w-4" viewBox="0 0 24 24">
                                 <path

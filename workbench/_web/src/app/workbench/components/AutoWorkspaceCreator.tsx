@@ -16,9 +16,9 @@ interface AutoWorkspaceCreatorProps {
     workspaceName?: string; // Custom workspace name
 }
 
-export function AutoWorkspaceCreator({ 
-    userId, 
-    initialPrompt, 
+export function AutoWorkspaceCreator({
+    userId,
+    initialPrompt,
     initialModel,
     seedWithExamples = true, // Default to true for new users
     workspaceName = "Default Workspace", // Default name
@@ -30,7 +30,7 @@ export function AutoWorkspaceCreator({
     useEffect(() => {
         const createAndRedirect = async () => {
             if (hasStartedRef.current) return; // Prevent double execution
-            
+
             hasStartedRef.current = true;
             setError(null);
 
@@ -38,14 +38,14 @@ export function AutoWorkspaceCreator({
                 console.log("Creating workspace for user:", userId, "with name:", workspaceName);
                 const newWorkspace = await createWorkspace(userId, workspaceName);
                 console.log("Created workspace:", newWorkspace);
-                
+
                 // Seed with example charts if enabled
                 if (seedWithExamples) {
                     console.log("Seeding workspace with example charts...");
                     await pushTutorialChart(newWorkspace.id);
                     console.log("Successfully seeded workspace with examples");
                 }
-                
+
                 // If user submitted a prompt from landing page, create a chart for it
                 let userChartId: string | null = null;
                 if (initialPrompt && initialPrompt.trim() && initialModel) {
@@ -56,12 +56,12 @@ export function AutoWorkspaceCreator({
                         statisticType: Metrics.PROBABILITY,
                         token: { idx: 0, id: 0, text: "", targetIds: [] },
                     };
-                    
+
                     const { chart } = await createLensChartPair(newWorkspace.id, userChartConfig);
                     userChartId = chart.id;
                     console.log("Created user chart:", userChartId);
                 }
-                
+
                 // Small delay to ensure the workspace is fully created
                 setTimeout(() => {
                     // If we created a user chart, redirect directly to it
@@ -73,7 +73,6 @@ export function AutoWorkspaceCreator({
                         router.push(`/workbench/${newWorkspace.id}`);
                     }
                 }, 500);
-                
             } catch (err) {
                 console.error("Failed to create workspace:", err);
                 setError(err instanceof Error ? err.message : "Failed to create workspace");
@@ -87,9 +86,11 @@ export function AutoWorkspaceCreator({
     if (error) {
         return (
             <div className="p-4 border rounded bg-red-50 border-red-200">
-                <h2 className="text-lg font-semibold mb-2 text-red-700">Error Creating Workspace</h2>
+                <h2 className="text-lg font-semibold mb-2 text-red-700">
+                    Error Creating Workspace
+                </h2>
                 <p className="mb-4 text-red-600">{error}</p>
-                <button 
+                <button
                     onClick={() => {
                         setError(null);
                         hasStartedRef.current = false;

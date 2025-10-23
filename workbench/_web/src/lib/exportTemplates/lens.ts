@@ -1,14 +1,14 @@
 import type { LensConfigData } from "@/types/lens";
 
 function escapeTripleDoubleQuotes(text: string): string {
-  return text.replaceAll('"""', '\\"\\"\\"');
+    return text.replaceAll('"""', '\\"\\"\\"');
 }
 
 export function renderLensLine(cfg: LensConfigData): string {
-  const prompt = escapeTripleDoubleQuotes(cfg.prompt);
-  const tokenText = escapeTripleDoubleQuotes(cfg.token.text);
+    const prompt = escapeTripleDoubleQuotes(cfg.prompt);
+    const tokenText = escapeTripleDoubleQuotes(cfg.token.text);
 
-  return `MODEL_NAME = "${cfg.model}"
+    return `MODEL_NAME = "${cfg.model}"
 PROMPT = """${prompt}"""
 TOKEN = {
     "idx": ${cfg.token.idx},
@@ -46,9 +46,9 @@ def line(model, prompt, token):
 }
 
 export function renderLensHeatmap(cfg: LensConfigData): string {
-  const prompt = escapeTripleDoubleQuotes(cfg.prompt);
+    const prompt = escapeTripleDoubleQuotes(cfg.prompt);
 
-  return `MODEL_NAME = "${cfg.model}"
+    return `MODEL_NAME = "${cfg.model}"
 PROMPT = """${prompt}"""
 
 import torch as t

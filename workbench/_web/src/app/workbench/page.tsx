@@ -10,31 +10,30 @@ import { ModeToggle } from "@/components/ui/mode-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
 import { WorkbenchStatus } from "@/components/WorkbenchStatus";
 
-
 import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export default async function WorkbenchPage({
-  searchParams,
+    searchParams,
 }: {
     searchParams: Promise<{ prompt?: string; model?: string; createNew?: string }>;
 }) {
-  const supabase = await createClient();
+    const supabase = await createClient();
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+    const {
+        data: { user },
+        error,
+    } = await supabase.auth.getUser();
 
     // Check if user has any workspaces
     const workspaces = await getWorkspaces(user.id);
-    
+
     // Get the prompt and model from search params
     const params = await searchParams;
     const prompt = params?.prompt;
     const model = params?.model;
-    const createNew = params?.createNew === 'true';
-    
+    const createNew = params?.createNew === "true";
+
     // If no workspaces exist OR createNew flag is set, create a new workspace
     let shouldCreateWorkspace = !workspaces || workspaces.length === 0 || createNew;
 
@@ -51,7 +50,10 @@ export default async function WorkbenchPage({
                     <nav className="flex gap-3 items-center">
                         <WorkbenchStatus />
                         <Link href="https://forms.gle/WsxmZikeLNw34LBV9" target="_blank">
-                            <Button variant="ghost" className="bg-transparent hover:!white/10 border-0">
+                            <Button
+                                variant="ghost"
+                                className="bg-transparent hover:!white/10 border-0"
+                            >
                                 <svg
                                     width="15"
                                     height="15"
@@ -69,7 +71,12 @@ export default async function WorkbenchPage({
                                 Feedback
                             </Button>
                         </Link>
-                        <Button variant="ghost" className="bg-transparent hover:!white/10 border-0" size="icon" asChild>
+                        <Button
+                            variant="ghost"
+                            className="bg-transparent hover:!white/10 border-0"
+                            size="icon"
+                            asChild
+                        >
                             <Link href="https://github.com/ndif-team/workbench" target="_blank">
                                 <svg className="h-4 w-4" viewBox="0 0 24 24">
                                     <path
@@ -84,13 +91,13 @@ export default async function WorkbenchPage({
                     </nav>
                 </header>
 
-                <main> 
+                <main>
                     <ModelsDisplay />
-                    
+
                     {shouldCreateWorkspace ? (
-                        <AutoWorkspaceCreator 
-                            userId={user.id} 
-                            initialPrompt={prompt} 
+                        <AutoWorkspaceCreator
+                            userId={user.id}
+                            initialPrompt={prompt}
                             initialModel={model}
                             workspaceName={createNew ? "Untitled" : "Default Workspace"}
                             seedWithExamples={!createNew} // Don't seed with examples when creating from prompt
