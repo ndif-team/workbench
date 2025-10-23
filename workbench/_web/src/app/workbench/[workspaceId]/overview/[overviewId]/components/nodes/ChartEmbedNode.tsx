@@ -1,15 +1,15 @@
 "use client";
 
 import {
-  DecoratorNode,
-  LexicalEditor,
-  NodeKey,
-  SerializedLexicalNode,
-  Spread,
-  $getNodeByKey,
-  KEY_BACKSPACE_COMMAND,
-  KEY_DELETE_COMMAND,
-  COMMAND_PRIORITY_LOW,
+    DecoratorNode,
+    LexicalEditor,
+    NodeKey,
+    SerializedLexicalNode,
+    Spread,
+    $getNodeByKey,
+    KEY_BACKSPACE_COMMAND,
+    KEY_DELETE_COMMAND,
+    COMMAND_PRIORITY_LOW,
 } from "lexical";
 import * as React from "react";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
@@ -34,257 +34,257 @@ import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { queryKeys } from "@/lib/queryKeys";
 export const INSERT_CHART_EMBED_COMMAND = createCommand<{ chart: ChartMetadata }>(
-  "INSERT_CHART_EMBED_COMMAND",
+    "INSERT_CHART_EMBED_COMMAND",
 );
 
 // Node payload
 export type ChartEmbedPayload = {
-  chartId: string;
-  chartType: "line" | "heatmap" | null;
+    chartId: string;
+    chartType: "line" | "heatmap" | null;
 };
 
 export type SerializedChartEmbedNode = Spread<
-  { type: "chart-embed"; version: 1; chartId: string; chartType: "line" | "heatmap" | null },
-  SerializedLexicalNode
+    { type: "chart-embed"; version: 1; chartId: string; chartType: "line" | "heatmap" | null },
+    SerializedLexicalNode
 >;
 
 export class ChartEmbedNode extends DecoratorNode<JSX.Element> {
-  __chartId: string;
-  __chartType: "line" | "heatmap" | null;
+    __chartId: string;
+    __chartType: "line" | "heatmap" | null;
 
-  static getType(): string {
-    return "chart-embed";
-  }
+    static getType(): string {
+        return "chart-embed";
+    }
 
-  static clone(node: ChartEmbedNode): ChartEmbedNode {
-    return new ChartEmbedNode(node.__chartId, node.__chartType, node.__key);
-  }
+    static clone(node: ChartEmbedNode): ChartEmbedNode {
+        return new ChartEmbedNode(node.__chartId, node.__chartType, node.__key);
+    }
 
-  constructor(chartId: string, chartType: "line" | "heatmap" | null, key?: NodeKey) {
-    super(key);
-    this.__chartId = chartId;
-    this.__chartType = chartType;
-  }
+    constructor(chartId: string, chartType: "line" | "heatmap" | null, key?: NodeKey) {
+        super(key);
+        this.__chartId = chartId;
+        this.__chartType = chartType;
+    }
 
-  static importJSON(serializedNode: SerializedChartEmbedNode): ChartEmbedNode {
-    const node = new ChartEmbedNode(serializedNode.chartId, serializedNode.chartType);
-    return node;
-  }
+    static importJSON(serializedNode: SerializedChartEmbedNode): ChartEmbedNode {
+        const node = new ChartEmbedNode(serializedNode.chartId, serializedNode.chartType);
+        return node;
+    }
 
-  exportJSON(): SerializedChartEmbedNode {
-    return {
-      type: "chart-embed",
-      version: 1,
-      chartId: this.__chartId,
-      chartType: this.__chartType,
-    };
-  }
+    exportJSON(): SerializedChartEmbedNode {
+        return {
+            type: "chart-embed",
+            version: 1,
+            chartId: this.__chartId,
+            chartType: this.__chartType,
+        };
+    }
 
-  createDOM(): HTMLElement {
-    const div = document.createElement("div");
-    div.className = "my-3";
-    return div;
-  }
+    createDOM(): HTMLElement {
+        const div = document.createElement("div");
+        div.className = "my-3";
+        return div;
+    }
 
-  updateDOM(): false {
-    return false;
-  }
+    updateDOM(): false {
+        return false;
+    }
 
-  decorate(editor: LexicalEditor, config: unknown): JSX.Element {
-    return (
-      <ChartEmbedComponent
-        nodeKey={this.getKey()}
-        chartId={this.__chartId}
-        chartType={this.__chartType}
-      />
-    );
-  }
+    decorate(editor: LexicalEditor, config: unknown): JSX.Element {
+        return (
+            <ChartEmbedComponent
+                nodeKey={this.getKey()}
+                chartId={this.__chartId}
+                chartType={this.__chartType}
+            />
+        );
+    }
 }
 
 export function $createChartEmbedNode(payload: ChartEmbedPayload): ChartEmbedNode {
-  return new ChartEmbedNode(payload.chartId, payload.chartType);
+    return new ChartEmbedNode(payload.chartId, payload.chartType);
 }
 
 // React renderer that fetches chart and renders a static version
 function ChartEmbedComponent({
-  nodeKey,
-  chartId,
-  chartType,
+    nodeKey,
+    chartId,
+    chartType,
 }: {
-  nodeKey: NodeKey;
-  chartId: string;
-  chartType: "line" | "heatmap" | null;
+    nodeKey: NodeKey;
+    chartId: string;
+    chartType: "line" | "heatmap" | null;
 }) {
-  const [editor] = useLexicalComposerContext();
-  const { workspaceId } = useParams<{ workspaceId: string }>();
-  const [isSelected, setSelected] = useLexicalNodeSelection(nodeKey);
-  const {
-    data: chart,
-    isLoading: isChartLoading,
-    isError: isChartError,
-  } = useQuery({
-    queryKey: queryKeys.charts.chart(chartId),
-    queryFn: () => getChartById(chartId),
-    enabled: !!chartId,
-    retry: 3,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-  const {
-    data: config,
-    isLoading: isConfigLoading,
-    isError: isConfigError,
-  } = useQuery({
-    queryKey: queryKeys.charts.configByChart(chartId),
-    queryFn: () => getConfigForChart(chartId),
-    enabled: !!chartId,
-    retry: 3,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
+    const [editor] = useLexicalComposerContext();
+    const { workspaceId } = useParams<{ workspaceId: string }>();
+    const [isSelected, setSelected] = useLexicalNodeSelection(nodeKey);
+    const {
+        data: chart,
+        isLoading: isChartLoading,
+        isError: isChartError,
+    } = useQuery({
+        queryKey: queryKeys.charts.chart(chartId),
+        queryFn: () => getChartById(chartId),
+        enabled: !!chartId,
+        retry: 3,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+    const {
+        data: config,
+        isLoading: isConfigLoading,
+        isError: isConfigError,
+    } = useQuery({
+        queryKey: queryKeys.charts.configByChart(chartId),
+        queryFn: () => getConfigForChart(chartId),
+        enabled: !!chartId,
+        retry: 3,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
 
-  const [size, setSize] = useState<"small" | "medium" | "large">("medium");
+    const [size, setSize] = useState<"small" | "medium" | "large">("medium");
 
-  React.useEffect(() => {
-    return mergeRegister(
-      editor.registerCommand(
-        KEY_BACKSPACE_COMMAND,
-        (event) => {
-          if (isSelected) {
-            event?.preventDefault();
-            editor.update(() => {
-              const node = $getNodeByKey(nodeKey);
-              if (node) {
-                node.remove();
-              }
-            });
-            return true;
-          }
-          return false;
-        },
-        COMMAND_PRIORITY_LOW,
-      ),
-      editor.registerCommand(
-        KEY_DELETE_COMMAND,
-        (event) => {
-          if (isSelected) {
-            event?.preventDefault();
-            editor.update(() => {
-              const node = $getNodeByKey(nodeKey);
-              if (node) {
-                node.remove();
-              }
-            });
-            return true;
-          }
-          return false;
-        },
-        COMMAND_PRIORITY_LOW,
-      ),
-    );
-  }, [editor, isSelected, nodeKey]);
+    React.useEffect(() => {
+        return mergeRegister(
+            editor.registerCommand(
+                KEY_BACKSPACE_COMMAND,
+                (event) => {
+                    if (isSelected) {
+                        event?.preventDefault();
+                        editor.update(() => {
+                            const node = $getNodeByKey(nodeKey);
+                            if (node) {
+                                node.remove();
+                            }
+                        });
+                        return true;
+                    }
+                    return false;
+                },
+                COMMAND_PRIORITY_LOW,
+            ),
+            editor.registerCommand(
+                KEY_DELETE_COMMAND,
+                (event) => {
+                    if (isSelected) {
+                        event?.preventDefault();
+                        editor.update(() => {
+                            const node = $getNodeByKey(nodeKey);
+                            if (node) {
+                                node.remove();
+                            }
+                        });
+                        return true;
+                    }
+                    return false;
+                },
+                COMMAND_PRIORITY_LOW,
+            ),
+        );
+    }, [editor, isSelected, nodeKey]);
 
-  const name = chart?.name ?? "Untitled";
-  const type = chart?.type ?? chartType;
+    const name = chart?.name ?? "Untitled";
+    const type = chart?.type ?? chartType;
 
-  // Get statistic from config and ensure it's valid for the chart type
-  const configStatistic = (config?.data as LensConfigData)?.statisticType;
-  const modelName = (config?.data as LensConfigData)?.model;
+    // Get statistic from config and ensure it's valid for the chart type
+    const configStatistic = (config?.data as LensConfigData)?.statisticType;
+    const modelName = (config?.data as LensConfigData)?.model;
 
-  const openChart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    window.open(`/workbench/${workspaceId}/${chartId}`, "_blank");
-  };
-
-  return (
-    <Card
-      className={`p-3 rounded cursor-pointer ${isSelected ? "border-primary ring-1 ring-primary" : ""}`}
-      onClick={(e) => {
+    const openChart = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        setSelected(true);
-        editor.focus();
-      }}
-      tabIndex={0}
-    >
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-muted-foreground">{name}</span>
-        <div className="flex items-center gap-2">
-          <Select
-            value={size}
-            onValueChange={(value) => setSize(value as "small" | "medium" | "large")}
-          >
-            <SelectTrigger
-              className={cn(
-                "w-fit gap-1 border-none !bg-transparent p-0 text-xs text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <SelectValue />
-            </SelectTrigger>
+        window.open(`/workbench/${workspaceId}/${chartId}`, "_blank");
+    };
 
-            <SelectContent align="center">
-              <SelectItem value="small">Small</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="large">Large</SelectItem>
-            </SelectContent>
-          </Select>
+    return (
+        <Card
+            className={`p-3 rounded cursor-pointer ${isSelected ? "border-primary ring-1 ring-primary" : ""}`}
+            onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSelected(true);
+                editor.focus();
+            }}
+            tabIndex={0}
+        >
+            <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">{name}</span>
+                <div className="flex items-center gap-2">
+                    <Select
+                        value={size}
+                        onValueChange={(value) => setSize(value as "small" | "medium" | "large")}
+                    >
+                        <SelectTrigger
+                            className={cn(
+                                "w-fit gap-1 border-none !bg-transparent p-0 text-xs text-muted-foreground hover:text-foreground",
+                            )}
+                        >
+                            <SelectValue />
+                        </SelectTrigger>
 
-          <button
-            className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground"
-            onClick={openChart}
-          >
-            Open <ExternalLink className="w-3 h-3" />
-          </button>
-        </div>
-      </div>
-      <Badge className="h-5 min-w-5 rounded-md px-1 font-mono tabular-nums" variant="outline">
-        {modelName}
-      </Badge>
-      {isChartLoading || isConfigLoading ? (
-        <div className="text-sm text-muted-foreground">Loading chart…</div>
-      ) : isChartError || isConfigError ? (
-        <div className="text-sm text-destructive">Failed to load chart</div>
-      ) : !chart ? (
-        <div className="text-sm text-muted-foreground">Chart not found</div>
-      ) : type === "line" && chart.data ? (
-        <div
-          className={cn("w-full", {
-            "h-[40vh]": size === "small",
-            "h-[60vh]": size === "medium",
-            "h-[80vh]": size === "large",
-          })}
-        >
-          <StaticLineCard
-            chart={chart as LineChart}
-            metricType={configStatistic as LensLineMetrics}
-          />
-        </div>
-      ) : type === "heatmap" && chart.data ? (
-        <div
-          className={cn("w-full", {
-            "h-[40vh]": size === "small",
-            "h-[60vh]": size === "medium",
-            "h-[80vh]": size === "large",
-          })}
-        >
-          <StaticHeatmapCard
-            chart={chart as HeatmapChart}
-            statisticType={configStatistic as LensHeatmapMetrics}
-          />
-        </div>
-      ) : (
-        <div className="text-sm text-muted-foreground">No data available</div>
-      )}
-    </Card>
-  );
+                        <SelectContent align="center">
+                            <SelectItem value="small">Small</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="large">Large</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <button
+                        className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                        onClick={openChart}
+                    >
+                        Open <ExternalLink className="w-3 h-3" />
+                    </button>
+                </div>
+            </div>
+            <Badge className="h-5 min-w-5 rounded-md px-1 font-mono tabular-nums" variant="outline">
+                {modelName}
+            </Badge>
+            {isChartLoading || isConfigLoading ? (
+                <div className="text-sm text-muted-foreground">Loading chart…</div>
+            ) : isChartError || isConfigError ? (
+                <div className="text-sm text-destructive">Failed to load chart</div>
+            ) : !chart ? (
+                <div className="text-sm text-muted-foreground">Chart not found</div>
+            ) : type === "line" && chart.data ? (
+                <div
+                    className={cn("w-full", {
+                        "h-[40vh]": size === "small",
+                        "h-[60vh]": size === "medium",
+                        "h-[80vh]": size === "large",
+                    })}
+                >
+                    <StaticLineCard
+                        chart={chart as LineChart}
+                        metricType={configStatistic as LensLineMetrics}
+                    />
+                </div>
+            ) : type === "heatmap" && chart.data ? (
+                <div
+                    className={cn("w-full", {
+                        "h-[40vh]": size === "small",
+                        "h-[60vh]": size === "medium",
+                        "h-[80vh]": size === "large",
+                    })}
+                >
+                    <StaticHeatmapCard
+                        chart={chart as HeatmapChart}
+                        statisticType={configStatistic as LensHeatmapMetrics}
+                    />
+                </div>
+            ) : (
+                <div className="text-sm text-muted-foreground">No data available</div>
+            )}
+        </Card>
+    );
 }

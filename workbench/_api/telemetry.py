@@ -2,7 +2,6 @@ import logging
 import os
 import time
 from enum import Enum
-from tkinter.constants import NONE
 from typing import TYPE_CHECKING, Optional
 
 from influxdb_client import InfluxDBClient, Point
@@ -24,7 +23,7 @@ class Stage(Enum):
 
 
 class TelemetryClient:
-    _client = NONE
+    _client = None
     _initialized = False
 
     class LatencyRecorder:
@@ -69,7 +68,7 @@ class TelemetryClient:
 
     @classmethod
     def init(cls, state: "AppState"):
-        if not cls._initialized:
+        if not cls._initialized and os.getenv("INFLUXDB_ADMIN_TOKEN") is not None:
             cls._client = InfluxDBClient(
                 url=state.telemetry_url, 
                 token=os.getenv("INFLUXDB_ADMIN_TOKEN")

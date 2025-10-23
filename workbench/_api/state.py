@@ -22,6 +22,16 @@ class ModelConfig(BaseModel):
     rename: dict[str, str]
     config: dict[str, int | str]
 
+
+    def to_dict(self) -> dict[str, str | bool | dict[str, int | str]]:
+        return {
+            "name": self.name,
+            "type": "chat" if self.chat else "base",
+            "n_layers" : self.config["n_layers"],
+            "params" : self.config["params"],
+            "gated": self.gated,
+        }
+
 class ModelsConfig(BaseModel):
     """Root configuration containing all models."""
 
@@ -32,12 +42,7 @@ class ModelsConfig(BaseModel):
     def get_model_list(self) -> list[dict[str, str]]:
         """Get list of models that are served and if they are chat or base."""
         return [
-            {
-                "name": model.name,
-                "type": "chat" if model.chat else "base",
-                "n_layers" : model.config["n_layers"],
-                "gated": model.gated,
-            }
+            model.to_dict()
             for model in self.models.values()
         ]
 
@@ -53,11 +58,22 @@ class AppState:
 
         TelemetryClient.init(self)
 
-    def get_model(self, model_name: str):
+    def add_model(self, model_name: str) -> ModelConfig | None:
+        if model_name in [model.name for model in self.config.models.values()] and model_name not in self.models:
+            return self._load_model(model_name).to_dict()
+
+    def remove_model(self, model_name: str):
+        if model_name in self.models:
+            del self.models[model_name]
+
+    def get_model(self, model_name: str) -> LanguageModel:
         return self.models[model_name]
 
-    def get_config(self):
+    def get_config(self) -> ModelsConfig:
         return self.config
+
+    def get_model_configs(self) -> list[ModelConfig]:
+        return [config for config in self.config.get_model_list() if config['name'] in self.models]
     
     def make_backend(self, model: LanguageModel | None = None, job_id: str | None = None):
         if self.remote:
@@ -102,19 +118,21 @@ class AppState:
         with open(config_path, "r") as f:
             config = ModelsConfig(**toml.load(f))
 
-        # self.remote = config.remote
+        return config
 
-        for _, cfg in config.models.items():
-            model = LanguageModel(
-                cfg.name,
-                rename=cfg.rename,
-                device_map="auto",
-                torch_dtype=torch.bfloat16,
-                dispatch=not self.remote,
-            )
+    def _load_model(self, model_name: str):
+        logger.info(f"Loading model: {model_name}")
 
-            model.config.update(cfg.config)
-            self.models[cfg.name] = model
+        config = {model.name: model for model in self.config.models.values()}[model_name]
+        model = LanguageModel(
+            config.name,
+            rename=config.rename,
+            device_map="auto",
+            torch_dtype=torch.bfloat16,
+            dispatch=not self.remote,
+        )
+        model.config.update(config.config)
+        self.models[model_name] = model
 
         return config
 

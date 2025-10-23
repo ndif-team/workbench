@@ -1,18 +1,18 @@
 import {
-  workspaces as sqliteWorkspaces,
-  charts as sqliteCharts,
-  configs as sqliteConfigs,
-  chartConfigLinks as sqliteChartConfigLinks,
-  views as sqliteViews,
-  documents as sqliteDocuments,
+    workspaces as sqliteWorkspaces,
+    charts as sqliteCharts,
+    configs as sqliteConfigs,
+    chartConfigLinks as sqliteChartConfigLinks,
+    views as sqliteViews,
+    documents as sqliteDocuments,
 } from "./schema.sqlite";
 import {
-  workspaces as pgWorkspaces,
-  charts as pgCharts,
-  configs as pgConfigs,
-  chartConfigLinks as pgChartConfigLinks,
-  views as pgViews,
-  documents as pgDocuments,
+    workspaces as pgWorkspaces,
+    charts as pgCharts,
+    configs as pgConfigs,
+    chartConfigLinks as pgChartConfigLinks,
+    views as pgViews,
+    documents as pgDocuments,
 } from "./schema.pg";
 import type { LensConfigData } from "@/types/lens";
 import type { HeatmapRow, HeatmapViewData, LineViewData, Line } from "@/types/charts";
@@ -47,22 +47,22 @@ export type View = typeof views.$inferSelect;
 export type NewView = typeof views.$inferInsert;
 
 export type HeatmapView = Omit<View, "data"> & {
-  data: HeatmapViewData;
+    data: HeatmapViewData;
 };
 
 export type LineView = Omit<View, "data"> & {
-  data: LineViewData;
+    data: LineViewData;
 };
 
 export type HeatmapChart = Omit<Chart, "data"> & {
-  data: HeatmapRow[];
+    data: HeatmapRow[];
 };
 
 export type LineChart = Omit<Chart, "data"> & {
-  data: Line[];
+    data: Line[];
 };
 
 // Specific chart config types
 export type LensConfig = Omit<Config, "data"> & {
-  data: LensConfigData;
+    data: LensConfigData;
 };

@@ -5,11 +5,11 @@ import { ReactNode } from "react";
 import { useParams } from "next/navigation";
 
 interface LayoutProps {
-  children: ReactNode;
+    children: ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { chartId } = useParams<{ workspaceId: string; chartId: string }>();
+    const { chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
-  return <ViewProvider chartId={chartId}>{children}</ViewProvider>;
+    return <ViewProvider chartId={chartId}>{children}</ViewProvider>;
 }

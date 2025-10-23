@@ -16,11 +16,12 @@ logging.basicConfig(
 
 
 ALLOWED_ORIGINS = [
-    # Local development
-    "http://localhost:3000",
     # Prod
     "https://workbench.ndif.us"
 ]
+
+if os.environ.get('ENVIRONMENT') != "prod":
+    ALLOWED_ORIGINS.append("http://localhost:3000")
 
 ALLOWED_ORIGIN_REGEX = (
     r"^https://workbench-env[a-z0-9\-]*\.vercel\.app$"  # dev/staging previews

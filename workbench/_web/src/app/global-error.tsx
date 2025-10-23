@@ -5,23 +5,26 @@ import NextError from "next/error";
 import { useEffect } from "react";
 
 export default function GlobalError({
-  error,
-  reset,
+    error,
+    reset,
 }: {
-  error: Error & { digest?: string };
-  reset: () => void;
+    error: Error & { digest?: string };
+    reset: () => void;
 }) {
-  useEffect(() => {
-    posthog.captureException(error);
-  }, [error]);
+    useEffect(() => {
+        // Only capture exception if PostHog is initialized
+        if (posthog.__loaded) {
+            posthog.captureException(error);
+        }
+    }, [error]);
 
-  return (
-    // global-error must include html and body tags
-    <html>
-      <body>
-        {/* `NextError` is the default Next.js error page component */}
-        <NextError statusCode={0} />
-      </body>
-    </html>
-  );
+    return (
+        // global-error must include html and body tags
+        <html>
+            <body>
+                {/* `NextError` is the default Next.js error page component */}
+                <NextError statusCode={0} />
+            </body>
+        </html>
+    );
 }

@@ -1,12 +1,8 @@
 FROM workbench_uv:latest
 
 COPY workbench/_api ./app
-COPY models.toml .
-COPY .env .
 COPY scripts/docker.sh ./docker.sh
-
-RUN chmod +x ./docker.sh
 
 EXPOSE 8000
 
-CMD ["./docker.sh"]
+CMD ["bash", "./docker.sh"]
