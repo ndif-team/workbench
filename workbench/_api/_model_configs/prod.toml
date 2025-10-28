@@ -128,7 +128,7 @@ n_layers = 126
 params = "406B"
 
 [models.eight]
-name = "meta-llama/Meta-Llama-3.1-405B"
+name = "meta-llama/Llama-3.1-405B"
 chat = false
 gated = true
 
@@ -140,3 +140,17 @@ self_attn = "attn"
 n_heads = 128
 n_layers = 126
 params = "406B"
+
+[models.nine]
+name = "meta-llama/Llama-2-7b-hf"
+chat = false
+gated = true
+
+[models.nine.rename]
+norm = "ln_f"
+self_attn = "attn"
+
+[models.nine.config]
+n_heads = 32
+n_layers = 32
+params = "7B"
