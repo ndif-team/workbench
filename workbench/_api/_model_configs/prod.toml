@@ -45,7 +45,7 @@ n_layers = 28
 params = "6B"
 
 [models.three]
-name = "meta-llama/Llama-3.1-8B"
+name = "meta-llama/Llama-2-7b-hf"
 chat = false
 gated = true
 
@@ -56,10 +56,10 @@ self_attn = "attn"
 [models.three.config]
 n_heads = 32
 n_layers = 32
-params = "8B"
+params = "7B"
 
 [models.four]
-name = "meta-llama/Llama-3.1-70B"
+name = "meta-llama/Llama-3.1-8B"
 chat = false
 gated = true
 
@@ -68,13 +68,13 @@ norm = "ln_f"
 self_attn = "attn"
 
 [models.four.config]
-n_heads = 64
-n_layers = 80
-params = "71B"
+n_heads = 32
+n_layers = 32
+params = "8B"
 
 [models.five]
-name = "meta-llama/Llama-3.1-70B-Instruct"
-chat = true
+name = "meta-llama/Llama-3.1-70B"
+chat = false
 gated = true
 
 [models.five.rename]
@@ -82,6 +82,20 @@ norm = "ln_f"
 self_attn = "attn"
 
 [models.five.config]
+n_heads = 64
+n_layers = 80
+params = "71B"
+
+[models.six]
+name = "meta-llama/Llama-3.1-70B-Instruct"
+chat = true
+gated = true
+
+[models.six.rename]
+norm = "ln_f"
+self_attn = "attn"
+
+[models.six.config]
 n_heads = 64
 n_layers = 80
 params = "71B"
@@ -99,22 +113,8 @@ params = "71B"
 #n_heads = 32
 #n_layers = 16
 
-[models.six]
-name = "meta-llama/Llama-3.3-70B-Instruct"
-chat = true
-gated = true
-
-[models.six.rename]
-norm = "ln_f"
-self_attn = "attn"
-
-[models.six.config]
-n_heads = 64
-n_layers = 80
-params = "71B"
-
 [models.seven]
-name = "meta-llama/Llama-3.1-405B-Instruct"
+name = "meta-llama/Llama-3.3-70B-Instruct"
 chat = true
 gated = true
 
@@ -123,13 +123,13 @@ norm = "ln_f"
 self_attn = "attn"
 
 [models.seven.config]
-n_heads = 128
-n_layers = 126
-params = "406B"
+n_heads = 64
+n_layers = 80
+params = "71B"
 
 [models.eight]
-name = "meta-llama/Llama-3.1-405B"
-chat = false
+name = "meta-llama/Llama-3.1-405B-Instruct"
+chat = true
 gated = true
 
 [models.eight.rename]
@@ -142,7 +142,7 @@ n_layers = 126
 params = "406B"
 
 [models.nine]
-name = "meta-llama/Llama-2-7b-hf"
+name = "meta-llama/Llama-3.1-405B"
 chat = false
 gated = true
 
@@ -151,6 +151,6 @@ norm = "ln_f"
 self_attn = "attn"
 
 [models.nine.config]
-n_heads = 32
-n_layers = 32
-params = "7B"
+n_heads = 128
+n_layers = 126
+params = "406B"
