@@ -31,6 +31,7 @@ ALLOWED_ORIGIN_REGEX = (
 
 
 def fastapi_app():
+    print("FastAPI app initialized")
     app = FastAPI()
 
     app.add_middleware(
