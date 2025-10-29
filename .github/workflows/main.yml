@@ -49,7 +49,6 @@ jobs:
           push: true
           context: .
           file: docker/Dockerfile
-          outputs: type=registry,type=docker
           tags: ${{ steps.base.outputs.tags }}
           cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/dev/workbench:cache
           cache-to: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/dev/workbench:cache,mode=max
