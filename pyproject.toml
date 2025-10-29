@@ -18,9 +18,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-local = [
-    "uvicorn>=0.33.0",
-]
 dev = [
     "ipykernel>=6.29.5",
     "mkdocs>=1.6.1",

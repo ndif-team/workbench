@@ -51,7 +51,6 @@ node_modules
 # ----- PYTHON -----
 
 .venv
-uv.lock
 __pycache__
 *.DS_Store
 
