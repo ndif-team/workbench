@@ -7,7 +7,8 @@ build_uv:
 build_service:
 	docker build --no-cache -t workbench:latest -f docker/dockerfile.service .
 
-build: build_base build_uv build_service
+build: 
+	docker build -t workbench:latest -f docker/Dockerfile .
 
 # Docker commands
 up:
@@ -17,9 +18,9 @@ down:
 	docker stop workbench-api
 	docker rm workbench-api
 
-make ta:
+ta:
 	make down
-	make build_service
+	make build
 	make up
 
 logs:
