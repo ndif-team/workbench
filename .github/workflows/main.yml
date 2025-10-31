@@ -47,7 +47,7 @@ jobs:
       - name: Build and push base image
         uses: docker/build-push-action@v5
         with:
-          push: github.ref == 'refs/heads/main'
+          push: ${{ github.ref == 'refs/heads/main' }}
           context: .
           file: docker/Dockerfile
           tags: ${{ steps.base.outputs.tags }}
