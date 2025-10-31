@@ -118,6 +118,18 @@ class AppState:
         with open(config_path, "r") as f:
             config = ModelsConfig(**toml.load(f))
 
+        if not self.remote:
+            for cfg in config.models.values():
+                model = LanguageModel(
+                    cfg.name,
+                    rename=cfg.rename,
+                    device_map="auto",
+                    torch_dtype=torch.bfloat16,
+                    dispatch=not self.remote,
+                )
+
+                model.config.update(cfg.config)
+                self.models[cfg.name] = model
         return config
 
     def _load_model(self, model_name: str):
