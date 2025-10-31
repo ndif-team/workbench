@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - dependabot/*
       - ci-*
 
 concurrency:
@@ -46,7 +47,7 @@ jobs:
       - name: Build and push base image
         uses: docker/build-push-action@v5
         with:
-          push: true
+          push: github.ref == 'refs/heads/main'
           context: .
           file: docker/Dockerfile
           tags: ${{ steps.base.outputs.tags }}
