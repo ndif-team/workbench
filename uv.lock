@@ -519,7 +519,7 @@ requires-dist = [
     { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.6.1" },
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.6.16" },
     { name = "modal", specifier = ">=0.65.66" },
-    { name = "nnsight", specifier = ">=0.5.7" },
+    { name = "nnsight", specifier = ">=0.5.10" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "toml", specifier = ">=0.10.2" },
     { name = "uvicorn", specifier = ">=0.33.0" },
@@ -843,7 +843,7 @@ wheels = [
 
 [[package]]
 name = "nnsight"
-version = "0.5.7"
+version = "0.5.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "accelerate" },
@@ -852,16 +852,17 @@ dependencies = [
     { name = "ipython" },
     { name = "pydantic" },
     { name = "python-socketio", extra = ["client"] },
+    { name = "rich" },
     { name = "toml" },
     { name = "torch" },
     { name = "transformers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/26/8e/09bb0b9559fa00e6f7a27a053a9d0521e6b53416b83cf2d0f4522bddb27c/nnsight-0.5.7.tar.gz", hash = "sha256:4dbf4420f05b250053ba3b8f4773703ed97ecf9e1300c7bbd9496e9d072bfcee", size = 223886, upload-time = "2025-10-01T16:16:00.884Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/d1/d0d500887cee68fcf6c3a43ff41342841374781dd93957c70f85acbee545/nnsight-0.5.10.tar.gz", hash = "sha256:bf69c6ec5a2dfc249221f80343d3b427a41cccba98b696c352b62c5755e5286d", size = 225344, upload-time = "2025-10-30T18:34:08.66Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/ff/a30fae653031e7ac0963d4d7c0ec6205d3262cd88a316e9780fc26b00fed/nnsight-0.5.7-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:26faeb836aeff37f46aea6e21d582d3f33dd1e296932d37baaff46d7c5061517", size = 90253, upload-time = "2025-10-01T16:15:33.615Z" },
-    { url = "https://files.pythonhosted.org/packages/b6/d6/7bbef2758e56d2c0bf4e04ac8d50ee314156c3e7bf436110824d159b0b98/nnsight-0.5.7-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:e45a00577cffc71f2b1c7f266c24695d7cd09816a4a37b780bb70ff6d6a0737a", size = 97744, upload-time = "2025-10-01T16:15:34.963Z" },
-    { url = "https://files.pythonhosted.org/packages/73/e8/56984df112caf0eee262b49bdbba3ca0101cc5b7765a9409d7f540caedf0/nnsight-0.5.7-cp312-cp312-win32.whl", hash = "sha256:c035f7d454330df0a978436b88db722b450dbbbcfcea99f98b72b5ea9e10f0b3", size = 92014, upload-time = "2025-10-01T16:15:35.956Z" },
-    { url = "https://files.pythonhosted.org/packages/82/34/6ca7f6be0883696a93b0f0ddf1d7c2e46877d09c23160ae9effcc14c6efc/nnsight-0.5.7-cp312-cp312-win_amd64.whl", hash = "sha256:ebbeaf30de6fa7c2858547f7b8e46ed031ba6ce3e73d80efed436e38597c8a00", size = 92426, upload-time = "2025-10-01T16:15:37.31Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/92/81a76d5734c061ffd9606184b8eb7d8de147250ddbf7eb209b23db55b9e6/nnsight-0.5.10-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:4e93e9ad5ec91e11bf26af30d4b6e57659e87265d064a254d56c8a21b6621ca6", size = 91961, upload-time = "2025-10-30T18:33:46.476Z" },
+    { url = "https://files.pythonhosted.org/packages/56/f0/6661085f92f6063c08d51c5d51068a1028d0181790599209fd86c97b23eb/nnsight-0.5.10-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:598a4a8026e5a667abaafd7aedb2de8b02cf853ba8c39a7b2d126e696d006d44", size = 99444, upload-time = "2025-10-30T18:33:47.535Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/dd/c9d91bf86a40720d90a48f591685686a335e4de91051218202db303e6a83/nnsight-0.5.10-cp312-cp312-win32.whl", hash = "sha256:46d3a19309faa2c107c414ea82d1f632198e3b678251bc789a0c22560db2ea14", size = 93702, upload-time = "2025-10-30T18:33:48.39Z" },
+    { url = "https://files.pythonhosted.org/packages/da/ed/0f25c6ce546b56c1f9ac1c4759565fc982dc48e8536c4824a4d4b1644206/nnsight-0.5.10-cp312-cp312-win_amd64.whl", hash = "sha256:98770133de27d48abf70b6deeac64221c87fc4eb1e9323a846dd928a6ccc453d", size = 94117, upload-time = "2025-10-30T18:33:49.249Z" },
 ]
 
 [[package]]
