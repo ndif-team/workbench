@@ -15,6 +15,7 @@ dependencies = [
     "dill>=0.4.0",
     "influxdb-client>=1.49.0",
     "uvicorn>=0.33.0",
+    "torch>=2.9.0",
 ]
 
 [project.optional-dependencies]
@@ -33,3 +34,16 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["workbench"]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
+]
+torchvision = [
+    { index = "pytorch-cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
