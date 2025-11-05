@@ -25,6 +25,9 @@ import { ChartEmbedNode } from "./nodes/ChartEmbedNode";
 import { DragDropChartPlugin } from "./plugins/DragDropChartPlugin";
 import { Check, Loader2 } from "lucide-react";
 import { useDebouncedCallback } from "use-debounce";
+import { $generateHtmlFromNodes } from "@lexical/html";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import html2pdf from "html2pdf.js";
 
 const theme = {
     ltr: "ltr",
@@ -64,6 +67,28 @@ function Placeholder() {
             Start writing your overview here...
         </div>
     );
+}
+
+function MyLexicalPlugin(): JSX.Element | null {
+    const [editor] = useLexicalComposerContext();
+
+    // useEffect(() => {
+    //     console.log(editor);
+
+    //     if (editor.isComposing()) {
+    //         const htmlString = $generateHtmlFromNodes(editor);
+    //         console.log(htmlString);
+    //     }
+    // }, [editor]);
+
+    const onClick = () => {
+        editor.read(() => {
+            const htmlString = $generateHtmlFromNodes(editor);
+            // html2pdf(htmlString);
+        });
+    };
+
+    return <button onClick={onClick}>Export To PDF</button>;
 }
 
 export function Editor() {
@@ -131,7 +156,7 @@ export function Editor() {
 
     return (
         <div className="h-full w-full flex flex-col">
-            <div className="flex items-center justify-end border-b h-14 px-3 py-3">
+            <div className="flex items-center justify-end border-b h-14 px-3 py-3  print-hide">
                 <div className="text-xs text-muted-foreground inline-flex items-center gap-2 px-3">
                     {isQueuedToSave || mutation.isPending ? (
                         <>
@@ -167,6 +192,7 @@ export function Editor() {
                             <AutoFocusPlugin />
                             {/* <SlashCommandPlugin /> */}
                             <DragDropChartPlugin />
+                            <MyLexicalPlugin />
                         </div>
                     </div>
                 </div>
