@@ -6,10 +6,10 @@ import { Editor } from "./components/Editor";
 export default function OverviewPage() {
     return (
         <div className="flex size-full min-h-0">
-            <div className="w-[20vw]">
+            <div className="w-[20vw] print-hide">
                 <ChartCardsSidebar />
             </div>
-            <div className="pb-3 pr-3 w-[80vw] min-h-0">
+            <div className="pb-3 pr-3 w-[80vw] min-h-0 print:w-full">
                 <div className="size-full border rounded dark:bg-secondary/60 bg-secondary/80">
                     <Editor />
                 </div>

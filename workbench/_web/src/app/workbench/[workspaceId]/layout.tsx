@@ -17,7 +17,7 @@ export default function WorkbenchLayout({
 }>) {
     return (
         <div className="flex flex-col h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
-            <header className="p-3 pl-5 flex items-center justify-between">
+            <header className="p-3 pl-5 flex items-center justify-between print-hide">
                 <Link href="/workbench">
                     <Button variant="ghost" className="bg-transparent hover:!white/10 border-1">
                         <ArrowLeft className="w-4 h-4" />

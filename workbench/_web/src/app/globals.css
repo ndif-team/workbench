@@ -140,3 +140,9 @@
 .scrollbar-hide::-webkit-scrollbar {
     display: none; /* Chrome, Safari and Opera */
 }
+
+.print-hide {
+    @media print {
+        display: none;
+    }
+}
