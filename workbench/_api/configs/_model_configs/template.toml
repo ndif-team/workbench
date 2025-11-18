@@ -1,0 +1,16 @@
+# STANDARD NAMING:
+# model.layers.i.attn
+# model.layers.i.attn.q_proj, v_proj, ...
+# model.layers.i.mlp
+# model.ln_f
+# model.lm_head
+
+[models]
+
+[models.one]
+name = "" # The model's Hugging Face repo id
+chat = false # Whether the model is a chat model (unsupported)
+
+[models.one.rename]
+a = "b" # A list of key value pairs to rename the model's attributes. 
+c = "d" # See the naming convention above.

@@ -1,0 +1,14 @@
+[[models]]
+name = "openai-community/gpt2"
+chat = false
+gated = false
+
+    [models.rename]
+    transformer = "model"
+    h = "layers"
+    c_proj = "o_proj"
+
+    [models.config]
+    n_heads = 12
+    n_layers = 12
+    params = "124M"

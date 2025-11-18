@@ -1,0 +1,21 @@
+[[tools]]
+type = "LogitLens"
+name = "Logit Lens"
+
+[[tools]]
+type = "ConceptLens"
+name = "Concept Lens"
+
+    [[tools.models]]
+    model_name = "meta-llama/Llama-2-7b-hf"
+    n_concept_heads = 80
+
+    [tools.models.data_paths]
+    concept_heads_path = "concept-heads/llama-2-7b-hf.json"
+
+    [[tools.models]]
+    model_name = "meta-llama/Llama-3.1-8B"
+    n_concept_heads = 50
+
+    [tools.models.data_paths]
+    concept_heads_path = "concept-heads/llama-3-1-8B.json"

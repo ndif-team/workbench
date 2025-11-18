@@ -1,0 +1,135 @@
+[[models]]
+name = "openai-community/gpt2"
+chat = false
+gated = false
+
+    [models.rename]
+    transformer = "model"
+    h = "layers"
+    c_proj = "o_proj"
+
+    [models.config]
+    n_heads = 12
+    n_layers = 12
+    params = "124M"
+
+
+[[models]]
+name = "EleutherAI/gpt-j-6b"
+chat = false
+gated = false
+
+    [models.rename]
+    transformer = "model"
+    h = "layers"
+    out_proj = "o_proj"
+
+    [models.config]
+    n_heads = 16
+    n_layers = 28
+    params = "6B"
+
+
+[[models]]
+name = "meta-llama/Llama-3.1-8B"
+chat = false
+gated = true
+
+    [models.rename]
+    norm = "ln_f"
+    self_attn = "attn"
+
+    [models.config]
+    n_heads = 32
+    n_layers = 32
+    params = "8B"
+
+
+[[models]]
+name = "meta-llama/Llama-3.1-70B"
+chat = false
+gated = true
+
+    [models.rename]
+    norm = "ln_f"
+    self_attn = "attn"
+
+    [models.config]
+    n_heads = 64
+    n_layers = 80
+    params = "71B"
+
+
+[[models]]
+name = "meta-llama/Llama-3.1-70B-Instruct"
+chat = true
+gated = true
+
+    [models.rename]
+    norm = "ln_f"
+    self_attn = "attn"
+
+    [models.config]
+    n_heads = 64
+    n_layers = 80
+    params = "71B"
+
+
+[[models]]
+name = "meta-llama/Llama-3.3-70B-Instruct"
+chat = true
+gated = true
+
+    [models.rename]
+    norm = "ln_f"
+    self_attn = "attn"
+
+    [models.config]
+    n_heads = 64
+    n_layers = 80
+    params = "71B"
+
+
+[[models]]
+name = "meta-llama/Llama-3.1-405B-Instruct"
+chat = true
+gated = true
+
+    [models.rename]
+    norm = "ln_f"
+    self_attn = "attn"
+
+    [models.config]
+    n_heads = 128
+    n_layers = 126
+    params = "406B"
+
+
+[[models]]
+name = "meta-llama/Llama-3.1-405B"
+chat = false
+gated = true
+
+    [models.rename]
+    norm = "ln_f"
+    self_attn = "attn"
+
+    [models.config]
+    n_heads = 128
+    n_layers = 126
+    params = "406B"
+
+
+[[models]]
+name = "meta-llama/Llama-2-7b-hf"
+chat = false
+gated = true
+
+    [models.rename]
+    norm = "ln_f"
+    self_attn = "attn"
+
+    [models.config]
+    n_heads = 32
+    n_layers = 32
+    params = "7B"
