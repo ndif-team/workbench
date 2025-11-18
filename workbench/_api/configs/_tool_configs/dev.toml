@@ -5,6 +5,7 @@ name = "Logit Lens"
 [[tools]]
 type = "ConceptLens"
 name = "Concept Lens"
+n_predictions = 5
 
     [[tools.models]]
     model_name = "meta-llama/Llama-2-7b-hf"

@@ -49,6 +49,7 @@ class ConceptLensModelConfig(ToolModelConfig):
 class ConceptLens(ToolConfig):
     type: Literal["ConceptLens"]
     models: list[ConceptLensModelConfig]
+    n_predictions: int
 
 #################################################
 
