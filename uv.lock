@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = "==3.12.*"
 resolution-markers = [
     "sys_platform != 'darwin'",
@@ -526,7 +526,7 @@ requires-dist = [
     { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.6.1" },
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.6.16" },
     { name = "modal", specifier = ">=0.65.66" },
-    { name = "nnsight", specifier = ">=0.5.10" },
+    { name = "nnsight", specifier = ">=0.5.11" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "toml", specifier = ">=0.10.2" },
     { name = "torch", specifier = ">=2.9.0", index = "https://download.pytorch.org/whl/cpu" },
@@ -851,7 +851,7 @@ wheels = [
 
 [[package]]
 name = "nnsight"
-version = "0.5.10"
+version = "0.5.11"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "accelerate" },
@@ -866,12 +866,12 @@ dependencies = [
     { name = "torch", version = "2.9.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
     { name = "transformers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b6/d1/d0d500887cee68fcf6c3a43ff41342841374781dd93957c70f85acbee545/nnsight-0.5.10.tar.gz", hash = "sha256:bf69c6ec5a2dfc249221f80343d3b427a41cccba98b696c352b62c5755e5286d", size = 225344, upload-time = "2025-10-30T18:34:08.66Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bd/10/4eb887d1f1ca996c4dec436008af0d63f57693c300d68997ac36821d5f35/nnsight-0.5.11.tar.gz", hash = "sha256:82702a2b5cab41d662f1d697c52a55f035b3f7909eb735d06e953b4001734e82", size = 225164, upload-time = "2025-11-21T17:36:59.608Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/92/81a76d5734c061ffd9606184b8eb7d8de147250ddbf7eb209b23db55b9e6/nnsight-0.5.10-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:4e93e9ad5ec91e11bf26af30d4b6e57659e87265d064a254d56c8a21b6621ca6", size = 91961, upload-time = "2025-10-30T18:33:46.476Z" },
-    { url = "https://files.pythonhosted.org/packages/56/f0/6661085f92f6063c08d51c5d51068a1028d0181790599209fd86c97b23eb/nnsight-0.5.10-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:598a4a8026e5a667abaafd7aedb2de8b02cf853ba8c39a7b2d126e696d006d44", size = 99444, upload-time = "2025-10-30T18:33:47.535Z" },
-    { url = "https://files.pythonhosted.org/packages/c7/dd/c9d91bf86a40720d90a48f591685686a335e4de91051218202db303e6a83/nnsight-0.5.10-cp312-cp312-win32.whl", hash = "sha256:46d3a19309faa2c107c414ea82d1f632198e3b678251bc789a0c22560db2ea14", size = 93702, upload-time = "2025-10-30T18:33:48.39Z" },
-    { url = "https://files.pythonhosted.org/packages/da/ed/0f25c6ce546b56c1f9ac1c4759565fc982dc48e8536c4824a4d4b1644206/nnsight-0.5.10-cp312-cp312-win_amd64.whl", hash = "sha256:98770133de27d48abf70b6deeac64221c87fc4eb1e9323a846dd928a6ccc453d", size = 94117, upload-time = "2025-10-30T18:33:49.249Z" },
+    { url = "https://files.pythonhosted.org/packages/34/15/4fc6f7d0145a8182f58919ad65d03fcc53bb30bd67d0edd14283d00dd249/nnsight-0.5.11-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:6248fe2ff3a3f66e92422e23ea0dda75f8a6654730f2e2962996299551530260", size = 92673, upload-time = "2025-11-21T17:36:34.754Z" },
+    { url = "https://files.pythonhosted.org/packages/27/e4/caa33e43da5cff964ef1638fff462a4865b86a6f7adc988100365f2d9569/nnsight-0.5.11-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:b1e985860b09d9441427cf2ab948b4e0b622ce8545cdf45817fbb5e88e690d0f", size = 100161, upload-time = "2025-11-21T17:36:35.915Z" },
+    { url = "https://files.pythonhosted.org/packages/04/21/51347ac565b814cff01e6d15930366ab9bd857062dd56f49129f821bfb04/nnsight-0.5.11-cp312-cp312-win32.whl", hash = "sha256:dce123a66f17312542f8b935b819e5e0bbab0858509e8780a692f3cb93e078f8", size = 94414, upload-time = "2025-11-21T17:36:36.808Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/b4/c04624de456103320013aaf45efde21e9c35381b47555ec8d28abf5bf0ab/nnsight-0.5.11-cp312-cp312-win_amd64.whl", hash = "sha256:661b0cde433ebed93761a2c36c8434ef7a645d79942e61f0123581f0bb76b843", size = 94832, upload-time = "2025-11-21T17:36:38.072Z" },
 ]
 
 [[package]]
