@@ -25,15 +25,16 @@ const getLensLine = async (lensRequest: { completion: LensConfigData; chartId: s
     // Transform LensConfigData to LensLineRequest format
     const lineRequest = {
         model: lensRequest.completion.model,
-        stat: lensRequest.completion.statisticType,
         prompt: lensRequest.completion.prompt,
-        token: lensRequest.completion.token,
+        metric: lensRequest.completion.statisticType,
+        tokenPosition: lensRequest.completion.token.idx,
+        targetIds: lensRequest.completion.token.targetIds,
     };
 
     return await startAndPoll<Line[]>(
-        config.endpoints.startLensLine,
+        config.endpoints.logitLens,
         lineRequest,
-        config.endpoints.resultsLensLine,
+        config.endpoints.logitLensLine,
         headers,
     );
 };
@@ -113,14 +114,14 @@ const getLensGrid = async (lensRequest: { completion: LensConfigData; chartId: s
     // Transform LensConfigData to GridLensRequest format
     const gridRequest = {
         model: lensRequest.completion.model,
-        stat: lensRequest.completion.statisticType,
         prompt: lensRequest.completion.prompt,
+        metric: lensRequest.completion.statisticType,
     };
 
     return await startAndPoll<HeatmapRow[]>(
-        config.endpoints.startLensGrid,
+        config.endpoints.logitLens,
         gridRequest,
-        config.endpoints.resultsLensGrid,
+        config.endpoints.logitLensHeatmap,
         headers,
     );
 };

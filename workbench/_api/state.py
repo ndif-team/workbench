@@ -57,6 +57,9 @@ class AppState:
     def get_model(self, model_name: str) -> LanguageModel:
         return self.models[model_name]
 
+    def get_model_tool_data(self, model_name: str, tool_name: str) -> Optional[dict[str, Any]]:
+        return self.tool_data.get(model_name, {}).get(tool_name, None)
+
     def get_config(self) -> Config:
         return self.config
 
@@ -147,5 +150,7 @@ class AppState:
 
         return model_config
 
+APP_STATE = AppState()
+
 def get_state(request: Request):
-    return request.app.state.m
+    return APP_STATE

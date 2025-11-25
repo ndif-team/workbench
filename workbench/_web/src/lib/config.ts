@@ -7,11 +7,9 @@ const config = {
             ? "http://localhost:5001"
             : "https://api.ndif.us",
     endpoints: {
-        startLensLine: "/lens/start-line",
-        resultsLensLine: (jobId: string) => `/lens/results-line/${jobId}`,
-
-        startLensGrid: "/lens/start-grid",
-        resultsLensGrid: (jobId: string) => `/lens/results-grid/${jobId}`,
+        logitLens: "/logit-lens/run",
+        logitLensHeatmap: (jobId: string) => `/logit-lens/heatmap/${jobId}`,
+        logitLensLine: (jobId: string) => `/logit-lens/line/${jobId}`,
 
         startPrediction: "/models/start-prediction",
         resultsPrediction: (jobId: string) => `/models/results-prediction/${jobId}`,

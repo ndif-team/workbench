@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..auth import require_user_email, user_has_model_access
-from ..data_models import NDIFResponse, Token
+from ..data_models.base import NDIFResponse
 from ..state import AppState, get_state
 from ..telemetry import RequestStatus, Stage, TelemetryClient
 
@@ -21,7 +21,6 @@ class LensLineRequest(BaseModel):
     model: str
     stat: LensStatistic
     prompt: str
-    token: Token
 
 
 class Point(BaseModel):
