@@ -25,9 +25,6 @@ import { ChartEmbedNode } from "./nodes/ChartEmbedNode";
 import { DragDropChartPlugin } from "./plugins/DragDropChartPlugin";
 import { Check, Loader2 } from "lucide-react";
 import { useDebouncedCallback } from "use-debounce";
-import { $generateHtmlFromNodes } from "@lexical/html";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import html2pdf from "html2pdf.js";
 
 const theme = {
     ltr: "ltr",
