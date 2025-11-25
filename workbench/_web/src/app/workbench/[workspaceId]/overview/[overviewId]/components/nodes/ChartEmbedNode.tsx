@@ -208,7 +208,7 @@ function ChartEmbedComponent({
 
     return (
         <Card
-            className={`p-3 rounded cursor-pointer ${isSelected ? "border-primary ring-1 ring-primary" : ""}`}
+            className={"p-3 rounded cursor-pointer"}
             onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -219,7 +219,7 @@ function ChartEmbedComponent({
         >
             <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-muted-foreground">{name}</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 print-hide">
                     <Select
                         value={size}
                         onValueChange={(value) => setSize(value as "small" | "medium" | "large")}
@@ -271,7 +271,7 @@ function ChartEmbedComponent({
                 </div>
             ) : type === "heatmap" && chart.data ? (
                 <div
-                    className={cn("w-full", {
+                    className={cn("w-full print:m-auto", {
                         "h-[40vh]": size === "small",
                         "h-[60vh]": size === "medium",
                         "h-[80vh]": size === "large",

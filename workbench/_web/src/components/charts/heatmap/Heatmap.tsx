@@ -76,17 +76,18 @@ export function Heatmap({
 
     return (
         <div
-            className="size-full relative cursor-crosshair"
+            className="size-full relative cursor-crosshair printable-canvas"
             onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
             onMouseLeave={onMouseLeave}
         >
-            <canvas
+            {/*<canvas
                 ref={heatmapCanvasRef}
                 className="absolute inset-0 size-full pointer-events-auto z-20"
-            />
+            />*/}
             {useTooltip && <Tooltip />}
             <ResponsiveHeatMapCanvas
+                ref={heatmapCanvasRef}
                 data={rows}
                 margin={margin}
                 valueFormat=">-.2f"

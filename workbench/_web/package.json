@@ -42,6 +42,7 @@
         "drizzle-orm": "^0.44.4",
         "framer-motion": "^12.23.22",
         "html-to-image": "^1.11.13",
+        "html2pdf.js": "^0.12.1",
         "lexical": "^0.34.0",
         "lucide-react": "^0.540.0",
         "motion": "^12.23.12",

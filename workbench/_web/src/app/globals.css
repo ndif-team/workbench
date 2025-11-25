@@ -146,3 +146,13 @@
         display: none;
     }
 }
+.printable-canvas canvas {
+    background-color: red;
+    @media print {
+        /* 1. Force the canvas to be no wider than the printable area */
+        max-width: 100% !important;
+
+        /* 2. Maintain the aspect ratio by letting the height auto-adjust */
+        height: auto !important;
+    }
+}
