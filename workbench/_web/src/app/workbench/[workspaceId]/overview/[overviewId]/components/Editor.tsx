@@ -131,7 +131,14 @@ export function Editor() {
 
     return (
         <div className="h-full w-full flex flex-col">
-            <div className="flex items-center justify-end border-b h-14 px-3 py-3">
+            <div className="flex items-center justify-between border-b h-14 px-3 py-3 print-hide">
+                <button
+                    onClick={window.print}
+                    className="rounded-md text-sm font-medium border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground px-4 py-2"
+                    title="System print dialog/save to PDF"
+                >
+                    Print/Save PDF
+                </button>
                 <div className="text-xs text-muted-foreground inline-flex items-center gap-2 px-3">
                     {isQueuedToSave || mutation.isPending ? (
                         <>
