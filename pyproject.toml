@@ -16,6 +16,7 @@ dependencies = [
     "influxdb-client>=1.49.0",
     "uvicorn>=0.33.0",
     "torch>=2.9.0",
+    "pytest>=9.0.1",
 ]
 
 [project.optional-dependencies]
