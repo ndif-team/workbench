@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import CodeExport from "@/app/workbench/[workspaceId]/components/CodeExport";
 import { CopyImage } from "../CopyImage";
 import { Metrics } from "@/types/lens";
+import { PrintableCanvasImg } from "../PrintableCanvasImg";
 
 interface HeatmapCardProps {
     chart: HeatmapChart;
@@ -179,7 +180,7 @@ const HeatmapCardContent = ({ captureRef, chart, statisticType }: HeatmapCardCon
                     </Button>
                 </div>
             </div>
-            <div className="flex size-full" ref={captureRef}>
+            <div className="flex size-full relative" ref={captureRef}>
                 <Heatmap
                     rows={data}
                     heatmapCanvasRef={heatmapCanvasRef}

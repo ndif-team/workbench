@@ -146,7 +146,7 @@
         display: none;
     }
 }
-.printable-canvas canvas {
+.printable {
     background-color: red;
     @media print {
         /* 1. Force the canvas to be no wider than the printable area */
