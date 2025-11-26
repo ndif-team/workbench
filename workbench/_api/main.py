@@ -4,7 +4,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import logit_lens, models
+from .routes import models, logit_lens, concept_lens
 
 from dotenv import load_dotenv; load_dotenv()
 
@@ -46,6 +46,7 @@ def fastapi_app():
 
     app.include_router(models, prefix="/models")
     app.include_router(logit_lens, prefix="/logit-lens")
+    app.include_router(concept_lens, prefix="/concept-lens")
 
     return app
 

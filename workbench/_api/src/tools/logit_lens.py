@@ -48,7 +48,6 @@ class LogitLens:
             top_predictions = logits.argmax(dim=-1)[0].to("cpu").tolist()
             logits = metric_func(logits)
             hs_decoded.append(logits)
-
             
             ids = [top_predictions] if use_top_pred_as_target_ids else target_ids
 

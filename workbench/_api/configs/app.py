@@ -8,7 +8,7 @@ class Config(BaseModel):
     
     models: dict[str, ModelConfig]
 
-    tools: list[ToolConfig]
+    tools: dict[str, ToolConfig]
 
     def get_model_list(self) -> list[dict[str, str]]:
         """Get list of models that are served and if they are chat or base."""

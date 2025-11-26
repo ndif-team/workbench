@@ -111,7 +111,7 @@ class AppState:
             model_config = {model["name"]: model for model in model_config}
 
         with open(tool_config_path, "rb") as f:
-            tool_config = [tool_adapter.validate_python(tool) for tool in tomllib.load(f)["tools"]]
+            tool_config = {tool["name"]:tool_adapter.validate_python(tool) for tool in tomllib.load(f)["tools"]}
         
         config = Config(models=model_config, tools=tool_config)
 
@@ -139,7 +139,7 @@ class AppState:
 
         # load any data related to this model for any of the tools supported for it
         tool_config_path = os.path.join(PATH, f"configs/_tool_configs")
-        for tool_config in self.config.tools:
+        for tool_config in self.config.tools.values():
             tool_model_config = tool_config.get_tool_model_config(model_name)
             if tool_model_config is not None:
                 if tool_model_config.data_paths is not None:
