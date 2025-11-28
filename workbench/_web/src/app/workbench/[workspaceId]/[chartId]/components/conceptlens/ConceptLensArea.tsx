@@ -1,9 +1,9 @@
 import { ModelSelector } from "@/components/ModelSelector";
-import { CompletionCard } from "./CompletionCard";
+import { ConceptLensCompletionCard } from "./ConceptLensCompletionCard";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
-import { LensConfig } from "@/db/schema";
+import { ConceptLensConfig } from "@/db/schema";
 import { queryKeys } from "@/lib/queryKeys";
 import { ChartType } from "@/types/charts";
 import { useMemo, useEffect, useState } from "react";
@@ -11,11 +11,11 @@ import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { HelpCircle } from "lucide-react";
 
-export default function LensArea() {
+export default function ConceptLensArea() {
     const { chartId } = useParams<{ chartId: string }>();
 
     const { data: config } = useQuery({
@@ -42,8 +42,8 @@ export default function LensArea() {
     // Sync the model selector with the model stored in the config when chart loads
     useEffect(() => {
         if (config && models && models.length > 0) {
-            const lensConfig = config as LensConfig;
-            const configModel = lensConfig.data.model;
+            const conceptLensConfig = config as ConceptLensConfig;
+            const configModel = conceptLensConfig.data.model;
 
             // If there's a model in the config, try to select it
             if (configModel && configModel.length > 0) {
@@ -68,28 +68,11 @@ export default function LensArea() {
         return models[selectedModelIdx]?.name || models[0].name;
     }, [models, selectedModelIdx]);
 
-    console.log("hiiiii my initial config is", config);
-
     if (!config || !selectedModel) {
         return (
             <div className="h-full flex flex-col min-w-80">
                 <div className="p-3 border-b flex items-center justify-between">
-                    <div className="flex items-center">
-                        <h2 className="text-sm pl-2 font-medium">Logit Lens</h2>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="bg-transparent hover:!white/10"
-                            asChild
-                        >
-                            <Link
-                                href="https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens"
-                                target="_blank"
-                            >
-                                <HelpCircle className="h-4 w-4" />
-                            </Link>
-                        </Button>
-                    </div>
+                    <h2 className="text-sm pl-2 font-medium">Model</h2>
                     <div className="flex items-center gap-2">
                         {configModelUnavailable && (
                             <Tooltip>
@@ -117,7 +100,7 @@ export default function LensArea() {
         <div className="h-full flex flex-col min-w-80">
             <div className="p-3 border-b flex items-center justify-between">
                 <div className="flex items-center">
-                    <h2 className="text-sm pl-2 font-medium">Logit Lens</h2>
+                    <h2 className="text-sm pl-2 font-medium">Concept Lens</h2>
                     <Button
                         variant="ghost"
                         size="icon"
@@ -125,7 +108,7 @@ export default function LensArea() {
                         asChild
                     >
                         <Link
-                            href="https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens"
+                            href="https://dualroute.baulab.info"
                             target="_blank"
                         >
                             <HelpCircle className="h-4 w-4" />
@@ -151,9 +134,8 @@ export default function LensArea() {
             </div>
 
             <div className="p-3">
-                {/* Assume lens config here; unified page will gate by config.type */}
-                <CompletionCard
-                    initialConfig={config as LensConfig}
+                <ConceptLensCompletionCard
+                    initialConfig={config as ConceptLensConfig}
                     chartType={chart?.type as ChartType}
                     selectedModel={selectedModel}
                 />
@@ -161,3 +143,4 @@ export default function LensArea() {
         </div>
     );
 }
+

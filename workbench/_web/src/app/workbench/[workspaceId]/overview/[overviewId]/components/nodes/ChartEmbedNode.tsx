@@ -280,6 +280,7 @@ function ChartEmbedComponent({
                     <StaticHeatmapCard
                         chart={chart as HeatmapChart}
                         statisticType={configStatistic as LensHeatmapMetrics}
+                        toolType={config?.type}
                     />
                 </div>
             ) : (

@@ -10,16 +10,17 @@ import { Metrics } from "@/types/lens";
 interface StaticHeatmapCardProps {
     chart: HeatmapChart;
     statisticType?: Metrics;
+    toolType?: string;
 }
 
-export const StaticHeatmapCard = ({ chart, statisticType }: StaticHeatmapCardProps) => {
+export const StaticHeatmapCard = ({ chart, statisticType, toolType }: StaticHeatmapCardProps) => {
     return (
         <div className="h-full rounded bg-card">
             <ViewProvider chartId={chart.id}>
                 <HeatmapDataProvider chart={chart}>
                     <HeatmapCanvasProvider>
                         <HeatmapHoverProvider>
-                            <StaticHeatmap statisticType={statisticType} />
+                            <StaticHeatmap statisticType={statisticType} toolType={toolType} />
                         </HeatmapHoverProvider>
                     </HeatmapCanvasProvider>
                 </HeatmapDataProvider>
@@ -28,7 +29,7 @@ export const StaticHeatmapCard = ({ chart, statisticType }: StaticHeatmapCardPro
     );
 };
 
-const StaticHeatmap = ({ statisticType }: { statisticType?: Metrics }) => {
+const StaticHeatmap = ({ statisticType, toolType }: { statisticType?: Metrics; toolType?: string }) => {
     const { filteredData: data } = useHeatmapData();
     const { heatmapCanvasRef } = useHeatmapCanvas();
     const { handleMouseMove, handleMouseLeave } = useHeatmapHover();
@@ -42,6 +43,7 @@ const StaticHeatmap = ({ statisticType }: { statisticType?: Metrics }) => {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             statisticType={statisticType}
+            toolType={toolType}
         />
     );
 };

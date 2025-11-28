@@ -49,8 +49,8 @@ export function CodeExport({ chartId, chartType }: Props) {
     const [open, setOpen] = useState(false);
 
     const code = useMemo(() => {
-        if (!config || config.type !== "lens") {
-            return "# Patching export is not implemented.";
+        if (!config || (config.type !== "logit-lens" && config.type !== "concept-lens" && config.type !== "lens")) {
+            return "# Export is only available for lens tools.";
         }
 
         const cfg = config.data as LensConfigData;

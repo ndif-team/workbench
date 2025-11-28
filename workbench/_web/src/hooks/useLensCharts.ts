@@ -26,7 +26,7 @@ export const useLensCharts = ({ configId }: { configId: string }) => {
             config: {
                 data: config,
                 workspaceId: workspaceId as string,
-                type: "lens",
+                type: "logit-lens",
             },
         });
 
@@ -47,7 +47,7 @@ export const useLensCharts = ({ configId }: { configId: string }) => {
             config: {
                 data: config,
                 workspaceId: workspaceId as string,
-                type: "lens",
+                type: "logit-lens",
             },
         });
 

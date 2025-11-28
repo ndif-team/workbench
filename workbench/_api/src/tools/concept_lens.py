@@ -92,7 +92,7 @@ class ConceptLens:
         values = HeatmapPlot.transpose(results[0])
         indices = HeatmapPlot.transpose(results[1])
         cell_labels = [model.tokenizer.batch_decode(row_indices) for row_indices in indices]
-        row_labels = [str(i) for i in range(len(values))]
+        row_labels = [str(i+1) for i in range(len(values))]
 
         return HeatmapPlot.create(
             data=values, 

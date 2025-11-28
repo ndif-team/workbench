@@ -64,6 +64,7 @@ export function ChartDisplay() {
                     chart={chart as HeatmapChart}
                     pending={isPending || !isHeatmapData}
                     statisticType={config?.data?.statisticType}
+                    toolType={config?.type}
                 />
             ) : (
                 <LineCard

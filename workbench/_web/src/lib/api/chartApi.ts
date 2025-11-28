@@ -4,12 +4,13 @@ import {
     setChartData,
     deleteChart,
     createLensChartPair,
+    createConceptLensChartPair,
     createPatchChartPair,
     updateChartName,
     updateChartView,
     copyChart,
 } from "@/lib/queries/chartQueries";
-import { LensConfigData } from "@/types/lens";
+import { LensConfigData, ConceptLensConfigData } from "@/types/lens";
 import { PatchingConfig } from "@/types/patching";
 import { useCapture } from "@/components/providers/CaptureProvider";
 import { Line, HeatmapRow, ChartView } from "@/types/charts";
@@ -111,7 +112,7 @@ export const useLensLine = () => {
 const getLensGrid = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
     const headers = await createUserHeadersAction();
 
-    // Transform LensConfigData to GridLensRequest format
+    // Transform LensConfigData to GridLensRequest format (logit-lens)
     const gridRequest = {
         model: lensRequest.completion.model,
         prompt: lensRequest.completion.prompt,
@@ -122,6 +123,24 @@ const getLensGrid = async (lensRequest: { completion: LensConfigData; chartId: s
         config.endpoints.logitLens,
         gridRequest,
         config.endpoints.logitLensHeatmap,
+        headers,
+    );
+};
+
+const getConceptLensGrid = async (lensRequest: { completion: ConceptLensConfigData; chartId: string }) => {
+    const headers = await createUserHeadersAction();
+
+    // Transform ConceptLensConfigData to ConceptLensRequest format
+    const conceptRequest = {
+        model: lensRequest.completion.model,
+        prompt: lensRequest.completion.prompt,
+        tokenPosition: lensRequest.completion.token?.idx,
+    };
+
+    return await startAndPoll<HeatmapRow[]>(
+        config.endpoints.conceptLens,
+        conceptRequest,
+        config.endpoints.conceptLensHeatmap,
         headers,
     );
 };
@@ -166,7 +185,76 @@ export const useLensGrid = () => {
             if (context?.previousChart) {
                 queryClient.setQueryData(context.chartKey, context.previousChart as any);
             }
-            toast.error("Failed to compute grid lens (timeout or error)");
+            toast.error("Failed to compute logit lens (timeout or error)");
+        },
+        onSuccess: async (data, variables) => {
+            await clearView();
+            const chartKey = queryKeys.charts.chart(variables.lensRequest.chartId);
+            queryClient
+                .invalidateQueries({
+                    queryKey: chartKey,
+                })
+                .then(() => {
+                    setTimeout(() => {
+                        captureChartThumbnail(variables.lensRequest.chartId);
+                    }, 500);
+                });
+            // Invalidate sidebar to update chart type display
+            // Get the chart to find workspaceId for proper cache invalidation
+            const chart = queryClient.getQueryData(chartKey) as any;
+            if (chart?.workspaceId) {
+                queryClient.invalidateQueries({
+                    queryKey: ["chartsForSidebar", chart.workspaceId],
+                });
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId),
+                });
+            }
+        },
+    });
+};
+
+export const useConceptLensGrid = () => {
+    const queryClient = useQueryClient();
+    const { clearView } = useHeatmapView();
+    const { captureChartThumbnail } = useCapture();
+
+    return useMutation({
+        mutationKey: ["conceptLensGrid"],
+        onMutate: async ({
+            lensRequest,
+        }: {
+            lensRequest: { completion: ConceptLensConfigData; chartId: string };
+            configId: string;
+        }) => {
+            const chartKey = queryKeys.charts.chart(lensRequest.chartId);
+            await queryClient.cancelQueries({ queryKey: chartKey });
+            const previousChart = queryClient.getQueryData(chartKey);
+            queryClient.setQueryData(chartKey, (old: any) => {
+                if (!old) return old;
+                return { ...old, type: "heatmap" };
+            });
+            return { previousChart, chartKey } as {
+                previousChart: unknown;
+                chartKey: ReturnType<typeof queryKeys.charts.chart>;
+            };
+        },
+        mutationFn: async ({
+            lensRequest,
+            configId,
+        }: {
+            lensRequest: { completion: ConceptLensConfigData; chartId: string };
+            configId: string;
+        }) => {
+            const response = await getConceptLensGrid(lensRequest);
+            await setChartData(lensRequest.chartId, response, "heatmap");
+            return response;
+        },
+        onError: (error, variables, context) => {
+            if (context?.previousChart) {
+                queryClient.setQueryData(context.chartKey, context.previousChart as any);
+            }
+            toast.error("Failed to compute concept lens (timeout or error)");
         },
         onSuccess: async (data, variables) => {
             await clearView();
@@ -251,6 +339,32 @@ export const useCreateLensChartPair = () => {
             config?: LensConfigData;
         }) => {
             return await createLensChartPair(workspaceId, config);
+        },
+        onSuccess: ({ chart }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        },
+    });
+};
+
+export const useCreateConceptLensChartPair = () => {
+    const queryClient = useQueryClient();
+
+    const defaultConfig = {
+        prompt: "",
+        model: "",
+        token: { idx: 0, id: 0, text: "", targetIds: [] },
+        statisticType: "probability" as const,
+    } as ConceptLensConfigData;
+
+    return useMutation({
+        mutationFn: async ({
+            workspaceId,
+            config = defaultConfig,
+        }: {
+            workspaceId: string;
+            config?: ConceptLensConfigData;
+        }) => {
+            return await createConceptLensChartPair(workspaceId, config);
         },
         onSuccess: ({ chart }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });

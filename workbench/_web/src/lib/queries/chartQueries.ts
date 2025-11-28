@@ -2,8 +2,8 @@
 
 import type { ChartData, ChartMetadata, ChartView } from "@/types/charts";
 import { db } from "@/db/client";
-import { charts, configs, chartConfigLinks, Chart, LensConfig, Config } from "@/db/schema";
-import { LensConfigData } from "@/types/lens";
+import { charts, configs, chartConfigLinks, Chart, LensConfig, ConceptLensConfig, Config } from "@/db/schema";
+import { LensConfigData, ConceptLensConfigData } from "@/types/lens";
 import { PatchingConfig } from "@/types/patching";
 import { eq, desc } from "drizzle-orm";
 
@@ -48,7 +48,7 @@ export const getConfigForChart = async (chartId: string): Promise<Config | null>
     return rows[0].configs as Config;
 };
 
-// Create a new chart and config at once. Used in the ChartDisplay.
+// Create a new logit-lens chart and config at once
 export const createLensChartPair = async (
     workspaceId: string,
     defaultConfig: LensConfigData,
@@ -56,7 +56,7 @@ export const createLensChartPair = async (
     const [newChart] = await db.insert(charts).values({ workspaceId }).returning();
     const [newConfig] = await db
         .insert(configs)
-        .values({ workspaceId, type: "lens", data: defaultConfig })
+        .values({ workspaceId, type: "logit-lens", data: defaultConfig })
         .returning();
 
     // Create the link between chart and config
@@ -66,6 +66,26 @@ export const createLensChartPair = async (
     });
 
     return { chart: newChart as Chart, config: newConfig as LensConfig };
+};
+
+// Create a new concept-lens chart and config pair
+export const createConceptLensChartPair = async (
+    workspaceId: string,
+    defaultConfig: ConceptLensConfigData,
+): Promise<{ chart: Chart; config: ConceptLensConfig }> => {
+    const [newChart] = await db.insert(charts).values({ workspaceId }).returning();
+    const [newConfig] = await db
+        .insert(configs)
+        .values({ workspaceId, type: "concept-lens", data: defaultConfig })
+        .returning();
+
+    // Create the link between chart and config
+    await db.insert(chartConfigLinks).values({
+        chartId: newChart.id,
+        configId: newConfig.id,
+    });
+
+    return { chart: newChart as Chart, config: newConfig as ConceptLensConfig };
 };
 
 // Create a new patch chart and config pair
@@ -142,7 +162,7 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
                 id: r.id,
                 name: r.name,
                 chartType: (r.chartType as "line" | "heatmap" | null) ?? null,
-                toolType: (r.toolType as "lens" | "patch" | null) ?? null,
+                toolType: (r.toolType as "logit-lens" | "concept-lens" | "patch" | null) ?? null,
                 createdAt: r.createdAt as Date,
                 updatedAt: r.updatedAt as Date,
             }) as ChartMetadata,

@@ -4,14 +4,15 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 import { pushTutorialChart } from "@/lib/queries/tutorialChart";
-import { createLensChartPair } from "@/lib/queries/chartQueries";
-import type { LensConfigData } from "@/types/lens";
+import { createLensChartPair, createConceptLensChartPair } from "@/lib/queries/chartQueries";
+import type { LensConfigData, ConceptLensConfigData } from "@/types/lens";
 import { Metrics } from "@/types/lens";
 
 interface AutoWorkspaceCreatorProps {
     userId: string;
     initialPrompt?: string;
     initialModel?: string;
+    initialTool?: string; // Tool type selection
     seedWithExamples?: boolean; // New prop to control seeding
     workspaceName?: string; // Custom workspace name
 }
@@ -20,6 +21,7 @@ export function AutoWorkspaceCreator({
     userId,
     initialPrompt,
     initialModel,
+    initialTool = "logit-lens", // Default to logit-lens
     seedWithExamples = true, // Default to true for new users
     workspaceName = "Default Workspace", // Default name
 }: AutoWorkspaceCreatorProps) {
@@ -49,16 +51,27 @@ export function AutoWorkspaceCreator({
                 // If user submitted a prompt from landing page, create a chart for it
                 let userChartId: string | null = null;
                 if (initialPrompt && initialPrompt.trim() && initialModel) {
-                    console.log("Creating chart for user prompt:", initialPrompt);
-                    const userChartConfig: LensConfigData = {
-                        prompt: initialPrompt,
-                        model: initialModel,
-                        statisticType: Metrics.PROBABILITY,
-                        token: { idx: 0, id: 0, text: "", targetIds: [] },
-                    };
-
-                    const { chart } = await createLensChartPair(newWorkspace.id, userChartConfig);
-                    userChartId = chart.id;
+                    console.log("Creating chart for user prompt:", initialPrompt, "with tool:", initialTool);
+                    
+                    if (initialTool === "concept-lens") {
+                        const userChartConfig: ConceptLensConfigData = {
+                            prompt: initialPrompt,
+                            model: initialModel,
+                            token: { idx: 0, id: 0, text: "", targetIds: [] },
+                            statisticType: Metrics.PROBABILITY,
+                        };
+                        const { chart } = await createConceptLensChartPair(newWorkspace.id, userChartConfig);
+                        userChartId = chart.id;
+                    } else {
+                        const userChartConfig: LensConfigData = {
+                            prompt: initialPrompt,
+                            model: initialModel,
+                            statisticType: Metrics.PROBABILITY,
+                            token: { idx: 0, id: 0, text: "", targetIds: [] },
+                        };
+                        const { chart } = await createLensChartPair(newWorkspace.id, userChartConfig);
+                        userChartId = chart.id;
+                    }
                     console.log("Created user chart:", userChartId);
                 }
 
@@ -81,7 +94,7 @@ export function AutoWorkspaceCreator({
         };
 
         createAndRedirect();
-    }, [userId, router, initialPrompt, initialModel, seedWithExamples, workspaceName]);
+    }, [userId, router, initialPrompt, initialModel, initialTool, seedWithExamples, workspaceName]);
 
     if (error) {
         return (

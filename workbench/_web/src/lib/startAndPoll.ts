@@ -1,7 +1,7 @@
 import config from "./config";
 import { useWorkspace } from "@/stores/useWorkspace";
 
-const POLL_TIMEOUT_MS = 15000;
+const POLL_TIMEOUT_MS = 30000;
 const POLL_INTERVAL_MS = 1000;
 
 async function awaitNDIFJob(jobId: string): Promise<void> {

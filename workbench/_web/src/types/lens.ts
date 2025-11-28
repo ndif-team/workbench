@@ -16,3 +16,11 @@ export interface LensConfigData {
     token: Token;
     prediction?: Prediction;
 }
+
+export interface ConceptLensConfigData {
+    model: string;
+    prompt: string;
+    token: Token;
+    prediction?: Prediction;
+    statisticType: Metrics; // Concept lens always uses probability
+}

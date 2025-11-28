@@ -11,6 +11,9 @@ const config = {
         logitLensHeatmap: (jobId: string) => `/logit-lens/heatmap/${jobId}`,
         logitLensLine: (jobId: string) => `/logit-lens/line/${jobId}`,
 
+        conceptLens: "/concept-lens/run",
+        conceptLensHeatmap: (jobId: string) => `/concept-lens/heatmap/${jobId}`,
+
         startPrediction: "/models/start-prediction",
         resultsPrediction: (jobId: string) => `/models/results-prediction/${jobId}`,
 
