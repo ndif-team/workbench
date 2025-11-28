@@ -63,7 +63,11 @@ export const useGenerate = () => {
     });
 };
 
-export const getModels = async (): Promise<Model[]> => {
+export interface ModelsResponse {
+    [toolName: string]: Model[];
+}
+
+export const getModels = async (): Promise<ModelsResponse> => {
     const headers = await createUserHeadersAction();
     const response = await fetch(config.getApiUrl(config.endpoints.models), {
         headers: {
@@ -77,4 +81,25 @@ export const getModels = async (): Promise<Model[]> => {
     }
 
     return response.json();
+};
+
+// Helper function to get models for a specific tool
+export const getModelsForTool = (modelsResponse: ModelsResponse, toolName: string): Model[] => {
+    return modelsResponse[toolName] || [];
+};
+
+// Helper function to get all models across all tools (union)
+export const getAllModels = (modelsResponse: ModelsResponse): Model[] => {
+    const modelMap = new Map<string, Model>();
+    
+    Object.values(modelsResponse).forEach(models => {
+        models.forEach(model => {
+            // Use model name as key to deduplicate
+            if (!modelMap.has(model.name)) {
+                modelMap.set(model.name, model);
+            }
+        });
+    });
+    
+    return Array.from(modelMap.values());
 };

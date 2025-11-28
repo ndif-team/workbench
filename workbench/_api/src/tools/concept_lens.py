@@ -76,9 +76,9 @@ class ConceptLens:
     @staticmethod
     def get_concept_heads(state, model_name: str):
 
-        n_concept_heads = state.config.tools["Concept Lens"].get_tool_model_config(model_name).n_concept_heads
+        n_concept_heads = state.config.tools["concept-lens"].get_tool_model_config(model_name).n_concept_heads
 
-        concept_heads = state.get_model_tool_data(model_name, "Concept Lens")["concept_heads"]
+        concept_heads = state.get_model_tool_data(model_name, "concept-lens")["concept_heads"]
         concept_heads = concept_heads[:n_concept_heads]
 
         return concept_heads

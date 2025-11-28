@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { getModels } from "@/lib/api/modelsApi";
+import { getModels, getModelsForTool } from "@/lib/api/modelsApi";
 import {
     Select,
     SelectContent,
@@ -52,21 +52,36 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
         fetchUser();
     }, [loggedIn]);
 
-    const { data: models, isLoading: modelsLoading } = useQuery({
+    const { data: modelsResponse, isLoading: modelsLoading } = useQuery({
         queryKey: ["models"],
         queryFn: getModels,
         refetchInterval: 120000,
     });
-    const modelsToSelect: Model[] = models || [
-        {
-            name: "openai-community/gpt2",
-            type: "base",
-            n_layers: 12,
-            params: "124M",
-            gated: false,
-            allowed: true,
-        },
-    ];
+
+    // Get models for the selected tool
+    const modelsToSelect: Model[] = modelsResponse 
+        ? getModelsForTool(modelsResponse, selectedTool)
+        : [
+            {
+                name: "openai-community/gpt2",
+                type: "base",
+                n_layers: 12,
+                params: "124M",
+                gated: false,
+                allowed: true,
+            },
+        ];
+
+    // Update selected model when tool changes if current model is not available
+    useEffect(() => {
+        if (modelsToSelect.length > 0) {
+            const isCurrentModelAvailable = modelsToSelect.some(m => m.name === selectedModel);
+            if (!isCurrentModelAvailable) {
+                // Set to first available model
+                setSelectedModel(modelsToSelect[0].name);
+            }
+        }
+    }, [selectedTool, modelsToSelect, selectedModel]);
 
     const handleCaptchaVerify = async (token: string) => {
         const supabase = createClient();

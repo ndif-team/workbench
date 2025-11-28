@@ -1,6 +1,8 @@
 import logging
 import time
 
+from collections import defaultdict
+
 import requests
 import torch as t
 from fastapi import APIRouter, Depends, HTTPException
@@ -69,7 +71,19 @@ async def get_models(
         is_user_signed_in: bool = user_email is not None and user_email != "guest@localhost"
         models = get_remote_models(state, is_user_signed_in)
 
-        return models
+        status = defaultdict(list)
+        for tool in state.config.tools.values():
+            if tool.models == list():
+                # Tool has no specific model restrictions, all models are supported
+                status[tool.name] = models
+            else:
+                # Tool has specific model restrictions
+                tool_model_names = [m.model_name for m in tool.models]
+                for model in models:
+                    if model["name"] in tool_model_names:
+                        status[tool.name].append(model)
+
+        return status
 
     else:
         return state.get_config().get_model_list()

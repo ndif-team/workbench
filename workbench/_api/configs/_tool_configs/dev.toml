@@ -1,10 +1,10 @@
 [[tools]]
 type = "LogitLens"
-name = "Logit Lens"
+name = "logit-lens"
 
 [[tools]]
 type = "ConceptLens"
-name = "Concept Lens"
+name = "concept-lens"
 n_predictions = 5
 
     [[tools.models]]

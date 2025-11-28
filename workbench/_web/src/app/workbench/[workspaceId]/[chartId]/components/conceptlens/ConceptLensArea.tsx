@@ -7,7 +7,7 @@ import { ConceptLensConfig } from "@/db/schema";
 import { queryKeys } from "@/lib/queryKeys";
 import { ChartType } from "@/types/charts";
 import { useMemo, useEffect, useState } from "react";
-import { getModels } from "@/lib/api/modelsApi";
+import { getModels, getModelsForTool } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -33,11 +33,17 @@ export default function ConceptLensArea() {
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
     const [configModelUnavailable, setConfigModelUnavailable] = useState<string | null>(null);
 
-    const { data: models } = useQuery({
+    const { data: modelsResponse } = useQuery({
         queryKey: ["models"],
         queryFn: getModels,
         refetchInterval: 120000,
     });
+
+    // Get models for concept-lens tool
+    const models = useMemo(() => {
+        if (!modelsResponse) return [];
+        return getModelsForTool(modelsResponse, "concept-lens");
+    }, [modelsResponse]);
 
     // Sync the model selector with the model stored in the config when chart loads
     useEffect(() => {
@@ -87,7 +93,7 @@ export default function ConceptLensArea() {
                                 </TooltipContent>
                             </Tooltip>
                         )}
-                        <ModelSelector />
+                        <ModelSelector toolType="concept-lens" />
                     </div>
                 </div>
 
@@ -129,7 +135,7 @@ export default function ConceptLensArea() {
                             </TooltipContent>
                         </Tooltip>
                     )}
-                    <ModelSelector />
+                    <ModelSelector toolType="concept-lens" />
                 </div>
             </div>
 
