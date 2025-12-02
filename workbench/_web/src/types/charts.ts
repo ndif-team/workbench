@@ -1,5 +1,6 @@
 import { LensConfigData, ConceptLensConfigData } from "./lens";
 import { PatchingConfig } from "./patching";
+import { ActivationPatchingConfigData } from "./activationPatching";
 
 // Heatmap Data Types
 
@@ -63,10 +64,10 @@ export interface LineViewData {
 
 export type ChartData = Line[] | HeatmapRow[];
 export type ChartView = HeatmapViewData | LineViewData;
-export type ConfigData = LensConfigData | ConceptLensConfigData | PatchingConfig;
+export type ConfigData = LensConfigData | ConceptLensConfigData | PatchingConfig | ActivationPatchingConfigData;
 
 export type ChartType = "line" | "heatmap";
-export type ToolType = "logit-lens" | "concept-lens" | "patch";
+export type ToolType = "logit-lens" | "concept-lens" | "patch" | "activation-patching";
 
 export type ChartMetadata = {
     id: string;

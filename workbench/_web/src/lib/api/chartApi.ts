@@ -6,12 +6,14 @@ import {
     createLensChartPair,
     createConceptLensChartPair,
     createPatchChartPair,
+    createActivationPatchingChartPair,
     updateChartName,
     updateChartView,
     copyChart,
 } from "@/lib/queries/chartQueries";
 import { LensConfigData, ConceptLensConfigData } from "@/types/lens";
 import { PatchingConfig } from "@/types/patching";
+import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { useCapture } from "@/components/providers/CaptureProvider";
 import { Line, HeatmapRow, ChartView } from "@/types/charts";
 import { queryKeys } from "../queryKeys";
@@ -141,6 +143,28 @@ const getConceptLensGrid = async (lensRequest: { completion: ConceptLensConfigDa
         config.endpoints.conceptLens,
         conceptRequest,
         config.endpoints.conceptLensHeatmap,
+        headers,
+    );
+};
+
+const getActivationPatchingLine = async (patchingRequest: { completion: ActivationPatchingConfigData; chartId: string }) => {
+    const headers = await createUserHeadersAction();
+
+    // Transform ActivationPatchingConfigData to backend format
+    const lineRequest = {
+        model: patchingRequest.completion.model,
+        srcPrompt: patchingRequest.completion.srcPrompt,
+        srcPosition: patchingRequest.completion.srcPosition,
+        tgtPrompt: patchingRequest.completion.tgtPrompt,
+        tgtPosition: patchingRequest.completion.tgtPosition,
+        metric: patchingRequest.completion.metric,
+        targetIds: patchingRequest.completion.targetIds,
+    };
+
+    return await startAndPoll<Line[]>(
+        config.endpoints.activationPatching,
+        lineRequest,
+        config.endpoints.activationPatchingLine,
         headers,
     );
 };
@@ -283,6 +307,75 @@ export const useConceptLensGrid = () => {
     });
 };
 
+export const useActivationPatchingLine = () => {
+    const queryClient = useQueryClient();
+    const { clearView } = useLineView();
+    const { captureChartThumbnail } = useCapture();
+
+    return useMutation({
+        mutationKey: ["activationPatchingLine"],
+        onMutate: async ({
+            patchingRequest,
+        }: {
+            patchingRequest: { completion: ActivationPatchingConfigData; chartId: string };
+            configId: string;
+        }) => {
+            const chartKey = queryKeys.charts.chart(patchingRequest.chartId);
+            await queryClient.cancelQueries({ queryKey: chartKey });
+            const previousChart = queryClient.getQueryData(chartKey);
+            queryClient.setQueryData(chartKey, (old: any) => {
+                if (!old) return old;
+                return { ...old, type: "line" };
+            });
+            return { previousChart, chartKey } as {
+                previousChart: unknown;
+                chartKey: ReturnType<typeof queryKeys.charts.chart>;
+            };
+        },
+        mutationFn: async ({
+            patchingRequest,
+            configId,
+        }: {
+            patchingRequest: { completion: ActivationPatchingConfigData; chartId: string };
+            configId: string;
+        }) => {
+            const response = await getActivationPatchingLine(patchingRequest);
+            await setChartData(patchingRequest.chartId, response, "line");
+            return response;
+        },
+        onError: (error, variables, context) => {
+            if (context?.previousChart) {
+                queryClient.setQueryData(context.chartKey, context.previousChart as any);
+            }
+            toast.error("Failed to compute activation patching (timeout or error)");
+        },
+        onSuccess: async (data, variables) => {
+            await clearView();
+            const chartKey = queryKeys.charts.chart(variables.patchingRequest.chartId);
+            queryClient
+                .invalidateQueries({
+                    queryKey: chartKey,
+                })
+                .then(() => {
+                    setTimeout(() => {
+                        captureChartThumbnail(variables.patchingRequest.chartId);
+                    }, 500);
+                });
+            // Invalidate sidebar to update chart type display
+            // Get the chart to find workspaceId for proper cache invalidation
+            const chart = queryClient.getQueryData(chartKey) as any;
+            if (chart?.workspaceId) {
+                queryClient.invalidateQueries({
+                    queryKey: ["chartsForSidebar", chart.workspaceId],
+                });
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.charts.configByChart(variables.patchingRequest.chartId),
+                });
+            }
+        },
+    });
+};
+
 export const useUpdateChartName = () => {
     const queryClient = useQueryClient();
 
@@ -402,6 +495,37 @@ export const useCreatePatchChartPair = () => {
             queryClient.invalidateQueries({ queryKey: ["patchCharts"] });
             // Note: This invalidates all chart configs - consider if this is needed
             queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
+        },
+    });
+};
+
+export const useCreateActivationPatchingChartPair = () => {
+    const queryClient = useQueryClient();
+
+    const defaultConfig = {
+        model: "",
+        srcPrompt: "",
+        tgtPrompt: "",
+        srcPosition: -1,
+        tgtPosition: -1,
+        metric: "probability" as const,
+        targetIds: [],
+        srcTokens: [],
+        tgtTokens: [],
+    } as ActivationPatchingConfigData;
+
+    return useMutation({
+        mutationFn: async ({
+            workspaceId,
+            config = defaultConfig,
+        }: {
+            workspaceId: string;
+            config?: ActivationPatchingConfigData;
+        }) => {
+            return await createActivationPatchingChartPair(workspaceId, config);
+        },
+        onSuccess: ({ chart }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
         },
     });
 };

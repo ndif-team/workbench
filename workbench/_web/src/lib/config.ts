@@ -14,6 +14,9 @@ const config = {
         conceptLens: "/concept-lens/run",
         conceptLensHeatmap: (jobId: string) => `/concept-lens/heatmap/${jobId}`,
 
+        activationPatching: "/activation-patching/run",
+        activationPatchingLine: (jobId: string) => `/activation-patching/line/${jobId}`,
+
         startPrediction: "/models/start-prediction",
         resultsPrediction: (jobId: string) => `/models/results-prediction/${jobId}`,
 

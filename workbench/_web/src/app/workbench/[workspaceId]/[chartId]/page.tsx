@@ -5,6 +5,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import ChartCardsSidebar from "../components/ChartCardsSidebar";
 import LensArea from "./components/lens/LensArea";
 import ConceptLensArea from "./components/conceptlens/ConceptLensArea";
+import ActivationPatchingArea from "./components/activationpatching/ActivationPatchingArea";
 // import SimplePatchArea from "./components/patch/SimplePatchArea";
 import { ChartDisplay } from "@/components/charts/ChartDisplay";
 import { useParams } from "next/navigation";
@@ -39,6 +40,8 @@ export default function ChartPage() {
                 return <LensArea />;
             case "concept-lens":
                 return <ConceptLensArea />;
+            case "activation-patching":
+                return <ActivationPatchingArea />;
             case "patch":
                 // return <SimplePatchArea />;
                 return <div>Patch tool coming soon</div>;
