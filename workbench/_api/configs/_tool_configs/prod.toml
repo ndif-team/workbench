@@ -20,3 +20,8 @@ n_predictions = 5
 
     [tools.models.data_paths]
     concept_heads = "concept-heads/llama-3-1-8B.json"
+
+
+[[tools]]
+type = "ActivationPatching"
+name = "activation-patching"

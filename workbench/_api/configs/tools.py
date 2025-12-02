@@ -33,7 +33,6 @@ class ToolConfig(BaseModel):
 
 class LogitLens(ToolConfig):
     type: Literal["LogitLens"]
-    pass
 
 ################### CONCEPT LENS ###################
 
@@ -51,6 +50,11 @@ class ConceptLens(ToolConfig):
     models: list[ConceptLensModelConfig]
     n_predictions: int
 
+################### ACTIVATION PATCHING ###################
+
+class ActivationPatching(ToolConfig):
+    type: Literal["ActivationPatching"]
+
 #################################################
 
-ToolType = Annotated[Union[ConceptLens, LogitLens], Field(discriminator="type")]
+ToolType = Annotated[Union[ConceptLens, LogitLens, ActivationPatching], Field(discriminator="type")]
