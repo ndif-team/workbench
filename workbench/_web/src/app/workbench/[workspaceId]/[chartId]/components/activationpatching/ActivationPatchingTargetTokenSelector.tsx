@@ -68,6 +68,7 @@ export const ActivationPatchingTargetTokenSelector = ({
     
     // Initialize prediction from config if it exists, otherwise null
     const [prediction, setPrediction] = useState<any>(config.prediction || null);
+    const [isFetchingPredictions, setIsFetchingPredictions] = useState(false);
 
     // Sync prediction from config when configId changes (chart switch)
     useEffect(() => {
@@ -108,6 +109,8 @@ export const ActivationPatchingTargetTokenSelector = ({
                 config.model
             ) {
                 try {
+                    setIsFetchingPredictions(true);
+                    
                     // Use the LAST token index for predictions (what the model predicts next)
                     const srcLastTokenIdx = config.srcTokens[config.srcTokens.length - 1].idx;
                     const tgtLastTokenIdx = config.tgtTokens[config.tgtTokens.length - 1].idx;
@@ -210,25 +213,27 @@ export const ActivationPatchingTargetTokenSelector = ({
                         
                         console.log("Setting default target IDs:", defaultTargets);
                         
-                        setConfig({
-                            ...config,
-                            targetIds: defaultTargets,
-                            prediction: mergedPrediction, // Save prediction for reload
-                        });
-                    } else {
-                        // Just update prediction without changing targetIds
-                        setConfig({
-                            ...config,
-                            prediction: mergedPrediction,
-                        });
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch predictions:", error);
+                    setConfig({
+                        ...config,
+                        targetIds: defaultTargets,
+                        prediction: mergedPrediction, // Save prediction for reload
+                    });
+                } else {
+                    // Just update prediction without changing targetIds
+                    setConfig({
+                        ...config,
+                        prediction: mergedPrediction,
+                    });
                 }
+            } catch (error) {
+                console.error("Failed to fetch predictions:", error);
+            } finally {
+                setIsFetchingPredictions(false);
             }
-        };
-        fetchPredictions();
-    }, [config.srcPrompt, config.tgtPrompt, config.srcTokens, config.tgtTokens, config.model]);
+        }
+    };
+    fetchPredictions();
+}, [config.srcPrompt, config.tgtPrompt, config.srcTokens, config.tgtTokens, config.model]);
 
     // Debounced function to run line chart 3 seconds after target token IDs change
     const debouncedRunLineChart = useDebouncedCallback(async (currentConfig: ActivationPatchingConfigData) => {
@@ -480,47 +485,54 @@ export const ActivationPatchingTargetTokenSelector = ({
                 </div>
             </div>
             <div className="w-full flex-1 min-w-[12rem]">
-                <AsyncSelect<TokenOption, true>
-                    classNamePrefix="pred-select"
-                    isMulti
-                    isClearable
-                    defaultOptions={options}
-                    cacheOptions
-                    loadOptions={loadOptions}
-                    value={selectedOptions}
-                    onChange={handleChange}
-                    styles={selectStyles}
-                    placeholder="Enter a token..."
-                    closeMenuOnSelect={false}
-                    inputValue={inputValue}
-                    onInputChange={(newValue) => {
-                        setInputValue(newValue);
-                    }}
-                    formatOptionLabel={(option: TokenOption) => (
-                        <div className="flex items-center justify-between w-full">
-                            <span className="font-medium text-foreground">
-                                {renderTokenText(option.text)}
-                            </span>
-                            <span className="ml-3 text-xs text-muted-foreground">
-                                {(option.prob ?? 0).toFixed(4)}
-                            </span>
-                        </div>
-                    )}
-                    components={{
-                        IndicatorSeparator: () => null,
-                        DropdownIndicator: () => null,
-                        ClearIndicator: () => null,
-                        IndicatorsContainer: () => null,
-                        MultiValue: CustomMultiValue,
-                    }}
-                    onKeyDown={(e) => {
-                        // Allow leading space by manually inserting into controlled input, while preventing option selection
-                        if (e.key === " " && inputValue.length === 0) {
-                            e.preventDefault();
-                            setInputValue(" ");
-                        }
-                    }}
-                />
+                {isFetchingPredictions ? (
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-4 px-3 border rounded bg-background">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Loading predictions...</span>
+                    </div>
+                ) : (
+                    <AsyncSelect<TokenOption, true>
+                        classNamePrefix="pred-select"
+                        isMulti
+                        isClearable
+                        defaultOptions={options}
+                        cacheOptions
+                        loadOptions={loadOptions}
+                        value={selectedOptions}
+                        onChange={handleChange}
+                        styles={selectStyles}
+                        placeholder="Enter a token..."
+                        closeMenuOnSelect={false}
+                        inputValue={inputValue}
+                        onInputChange={(newValue) => {
+                            setInputValue(newValue);
+                        }}
+                        formatOptionLabel={(option: TokenOption) => (
+                            <div className="flex items-center justify-between w-full">
+                                <span className="font-medium text-foreground">
+                                    {renderTokenText(option.text)}
+                                </span>
+                                <span className="ml-3 text-xs text-muted-foreground">
+                                    {(option.prob ?? 0).toFixed(4)}
+                                </span>
+                            </div>
+                        )}
+                        components={{
+                            IndicatorSeparator: () => null,
+                            DropdownIndicator: () => null,
+                            ClearIndicator: () => null,
+                            IndicatorsContainer: () => null,
+                            MultiValue: CustomMultiValue,
+                        }}
+                        onKeyDown={(e) => {
+                            // Allow leading space by manually inserting into controlled input, while preventing option selection
+                            if (e.key === " " && inputValue.length === 0) {
+                                e.preventDefault();
+                                setInputValue(" ");
+                            }
+                        }}
+                    />
+                )}
             </div>
         </div>
     );
