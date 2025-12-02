@@ -5,9 +5,6 @@
 # model.ln_f
 # model.lm_head
 
-remote = false # Whether to use NDIF remote
-callback_url = "" # Callback URL on the Next app
-
 [models]
 
 [models.one]

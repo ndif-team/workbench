@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getModels } from "@/lib/api/modelsApi";
+import { getModels, getAllModels } from "@/lib/api/modelsApi";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import { Layers, Grip } from "lucide-react";
@@ -186,7 +186,7 @@ export function ModelsDisplay() {
     }, []);
 
     const {
-        data: models = [],
+        data: modelsResponse,
         isLoading,
         error,
     } = useQuery({
@@ -194,6 +194,9 @@ export function ModelsDisplay() {
         queryFn: getModels,
         refetchInterval: 120000,
     });
+
+    // Get union of all models across all tools
+    const models = modelsResponse ? getAllModels(modelsResponse) : [];
 
     const baseModels = models.filter((model) => model.type === "base");
     const chatModels = models.filter((model) => model.type === "chat");

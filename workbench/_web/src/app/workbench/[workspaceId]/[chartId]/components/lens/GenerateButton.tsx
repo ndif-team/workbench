@@ -2,7 +2,7 @@
 
 import { useGenerate } from "@/lib/api/modelsApi";
 import { Token } from "@/types/models";
-import { LensConfigData } from "@/types/lens";
+import { LensConfigData, ConceptLensConfigData } from "@/types/lens";
 import { useState } from "react";
 import type { GenerationResponse } from "@/lib/api/modelsApi";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -10,19 +10,20 @@ import { CornerDownLeft, ChevronDown, Loader2 } from "lucide-react";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { useParams } from "next/navigation";
 
-interface GenerateButtonProps {
+interface GenerateButtonProps<T extends LensConfigData | ConceptLensConfigData> {
     configId: string;
-    config: LensConfigData;
-    setConfig: (config: LensConfigData) => void;
+    config: T;
+    setConfig: (config: T) => void;
     setTokenData: (tokenData: Token[]) => void;
     setEditingText: (editingText: boolean) => void;
     handleTokenize: () => void;
     isExecuting: boolean;
     selectedModel: string;
-    handleCreateHeatmap: (config: LensConfigData) => Promise<unknown>;
+    handleCreateHeatmap: (config: T) => Promise<unknown>;
+    toolType: "logit-lens" | "concept-lens";
 }
 
-export default function GenerateButton({
+export default function GenerateButton<T extends LensConfigData | ConceptLensConfigData>({
     configId,
     config,
     setConfig,
@@ -32,7 +33,8 @@ export default function GenerateButton({
     handleTokenize,
     selectedModel,
     handleCreateHeatmap,
-}: GenerateButtonProps) {
+    toolType,
+}: GenerateButtonProps<T>) {
     const [maxNewTokens, setMaxNewTokens] = useState(10);
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const { mutateAsync: generate, isPending: isGenerating } = useGenerate();
@@ -57,7 +59,7 @@ export default function GenerateButton({
                 text: completion[completion.length - 1].text,
                 targetIds: last_token_prediction.ids.slice(0, 3),
             },
-        };
+        } as T;
 
         // If there weren't existing predictions, create a heatmap
         if (!config.prediction) {
@@ -71,7 +73,7 @@ export default function GenerateButton({
             config: {
                 data: newConfig,
                 workspaceId,
-                type: "lens",
+                type: toolType,
             },
         });
 

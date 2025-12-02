@@ -19,6 +19,7 @@ interface HeatmapProps {
     onMouseLeave?: () => void;
     onMouseDown?: (e: React.MouseEvent<any>) => void;
     statisticType?: Metrics;
+    toolType?: string;
 }
 
 export function Heatmap({
@@ -30,6 +31,7 @@ export function Heatmap({
     onMouseLeave = () => {},
     onMouseDown = () => {},
     statisticType,
+    toolType,
 }: HeatmapProps) {
     const resolvedTheme = useMemo(() => resolveThemeCssVars(heatmapTheme), []);
 
@@ -102,6 +104,9 @@ export function Heatmap({
                     tickSize: 0,
                     tickPadding: 10,
                     format: (value) => String(value).replace(/-\d+$/, ""),
+                    legend: toolType === "concept-lens" ? "Rank" : undefined,
+                    legendOffset: -30,
+                    legendPosition: "middle",
                 }}
                 axisRight={
                     statisticType !== Metrics.PROBABILITY
@@ -130,7 +135,7 @@ export function Heatmap({
                 }}
                 colors={{
                     type: "sequential",
-                    scheme: "blues",
+                    scheme: toolType === "concept-lens" ? "reds" : "blues",
                     minValue: minValue,
                     maxValue: maxValue,
                 }}

@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function WorkbenchPage({
     searchParams,
 }: {
-    searchParams: Promise<{ prompt?: string; model?: string; createNew?: string }>;
+    searchParams: Promise<{ prompt?: string; model?: string; tool?: string; createNew?: string }>;
 }) {
     const supabase = await createClient();
 
@@ -28,10 +28,11 @@ export default async function WorkbenchPage({
     // Check if user has any workspaces
     const workspaces = await getWorkspaces(user.id);
 
-    // Get the prompt and model from search params
+    // Get the prompt, model, and tool from search params
     const params = await searchParams;
     const prompt = params?.prompt;
     const model = params?.model;
+    const tool = params?.tool;
     const createNew = params?.createNew === "true";
 
     // If no workspaces exist OR createNew flag is set, create a new workspace
@@ -99,6 +100,7 @@ export default async function WorkbenchPage({
                             userId={user.id}
                             initialPrompt={prompt}
                             initialModel={model}
+                            initialTool={tool}
                             workspaceName={createNew ? "Untitled" : "Default Workspace"}
                             seedWithExamples={!createNew} // Don't seed with examples when creating from prompt
                         />

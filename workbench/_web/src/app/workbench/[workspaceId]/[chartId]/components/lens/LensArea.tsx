@@ -7,10 +7,13 @@ import { LensConfig } from "@/db/schema";
 import { queryKeys } from "@/lib/queryKeys";
 import { ChartType } from "@/types/charts";
 import { useMemo, useEffect, useState } from "react";
-import { getModels } from "@/lib/api/modelsApi";
+import { getModels, getModelsForTool } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { HelpCircle } from "lucide-react";
 
 export default function LensArea() {
     const { chartId } = useParams<{ chartId: string }>();
@@ -30,11 +33,17 @@ export default function LensArea() {
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
     const [configModelUnavailable, setConfigModelUnavailable] = useState<string | null>(null);
 
-    const { data: models } = useQuery({
+    const { data: modelsResponse } = useQuery({
         queryKey: ["models"],
         queryFn: getModels,
         refetchInterval: 120000,
     });
+
+    // Get models for logit-lens tool
+    const models = useMemo(() => {
+        if (!modelsResponse) return [];
+        return getModelsForTool(modelsResponse, "logit-lens");
+    }, [modelsResponse]);
 
     // Sync the model selector with the model stored in the config when chart loads
     useEffect(() => {
@@ -71,7 +80,22 @@ export default function LensArea() {
         return (
             <div className="h-full flex flex-col min-w-80">
                 <div className="p-3 border-b flex items-center justify-between">
-                    <h2 className="text-sm pl-2 font-medium">Model</h2>
+                    <div className="flex items-center">
+                        <h2 className="text-sm pl-2 font-medium">Logit Lens</h2>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="bg-transparent hover:!white/10"
+                            asChild
+                        >
+                            <Link
+                                href="https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens"
+                                target="_blank"
+                            >
+                                <HelpCircle className="h-4 w-4" />
+                            </Link>
+                        </Button>
+                    </div>
                     <div className="flex items-center gap-2">
                         {configModelUnavailable && (
                             <Tooltip>
@@ -86,7 +110,7 @@ export default function LensArea() {
                                 </TooltipContent>
                             </Tooltip>
                         )}
-                        <ModelSelector />
+                        <ModelSelector toolType="logit-lens" />
                     </div>
                 </div>
 
@@ -98,7 +122,22 @@ export default function LensArea() {
     return (
         <div className="h-full flex flex-col min-w-80">
             <div className="p-3 border-b flex items-center justify-between">
-                <h2 className="text-sm pl-2 font-medium">Model</h2>
+                <div className="flex items-center">
+                    <h2 className="text-sm pl-2 font-medium">Logit Lens</h2>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="bg-transparent hover:!white/10"
+                        asChild
+                    >
+                        <Link
+                            href="https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens"
+                            target="_blank"
+                        >
+                            <HelpCircle className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </div>
                 <div className="flex items-center gap-2">
                     {configModelUnavailable && (
                         <Tooltip>
@@ -113,7 +152,7 @@ export default function LensArea() {
                             </TooltipContent>
                         </Tooltip>
                     )}
-                    <ModelSelector />
+                    <ModelSelector toolType="logit-lens" />
                 </div>
             </div>
 

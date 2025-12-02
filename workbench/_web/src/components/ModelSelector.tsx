@@ -13,16 +13,30 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useQuery } from "@tanstack/react-query";
-import { getModels } from "@/lib/api/modelsApi";
+import { getModels, getAllModels, getModelsForTool } from "@/lib/api/modelsApi";
+import type { Model } from "@/types/models";
 
-export function ModelSelector() {
+interface ModelSelectorProps {
+    toolType?: "logit-lens" | "concept-lens";
+}
+
+export function ModelSelector({ toolType }: ModelSelectorProps) {
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
 
-    const { data: models, isLoading } = useQuery({
+    const { data: modelsResponse, isLoading } = useQuery({
         queryKey: ["models"],
         queryFn: getModels,
         refetchInterval: 120000,
     });
+
+    // Get appropriate models based on tool type
+    const models = React.useMemo(() => {
+        if (!modelsResponse) return [];
+        if (toolType) {
+            return getModelsForTool(modelsResponse, toolType);
+        }
+        return getAllModels(modelsResponse);
+    }, [modelsResponse, toolType]);
 
     if (!models || models.length === 0) {
         return <div className="h-8 animate-pulse bg-muted/50" />;

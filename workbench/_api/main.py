@@ -1,10 +1,10 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
 
-from .routes import lens, patch, models
-from .state import AppState
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from .routes import models, logit_lens, concept_lens, activation_patching
 
 from dotenv import load_dotenv; load_dotenv()
 
@@ -44,11 +44,10 @@ def fastapi_app():
         max_age=3600,
     )
 
-    app.include_router(lens, prefix="/lens")
-    app.include_router(patch, prefix="/patch")
     app.include_router(models, prefix="/models")
-
-    app.state.m = AppState()
+    app.include_router(logit_lens, prefix="/logit-lens")
+    app.include_router(concept_lens, prefix="/concept-lens")
+    app.include_router(activation_patching, prefix="/activation-patching")
 
     return app
 

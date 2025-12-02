@@ -1,7 +1,7 @@
 import config from "./config";
 import { useWorkspace } from "@/stores/useWorkspace";
 
-const POLL_TIMEOUT_MS = 15000;
+const POLL_TIMEOUT_MS = 30000;
 const POLL_INTERVAL_MS = 1000;
 
 async function awaitNDIFJob(jobId: string): Promise<void> {
@@ -10,6 +10,7 @@ async function awaitNDIFJob(jobId: string): Promise<void> {
     while (true) {
         if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
             setJobStatus("timeout");
+            console.error("Timed out waiting for job to complete");
             throw new Error("Timed out waiting for job to complete");
         }
 
@@ -24,6 +25,8 @@ async function awaitNDIFJob(jobId: string): Promise<void> {
         }
         if (status === "ERROR" || status === "NNSIGHT_ERROR") {
             setJobStatus("Error");
+            console.log("Error: ", data)
+            console.log(data["description"])
             throw new Error("Job failed");
         }
 

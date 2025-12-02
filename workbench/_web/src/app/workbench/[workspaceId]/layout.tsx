@@ -46,7 +46,7 @@ export default function WorkbenchLayout({
                             Feedback
                         </Button>
                     </Link>
-                    <Button
+                    {/* <Button
                         variant="ghost"
                         size="icon"
                         className="bg-transparent hover:!white/10"
@@ -58,7 +58,7 @@ export default function WorkbenchLayout({
                         >
                             <HelpCircle className="h-4 w-4" />
                         </Link>
-                    </Button>
+                    </Button> */}
                     <Button
                         variant="ghost"
                         size="icon"

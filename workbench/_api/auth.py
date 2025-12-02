@@ -52,3 +52,12 @@ def user_has_model_access(user_email: str, model_name: str, state: "AppState") -
 
     return True
 
+
+def validate_user(request: Request) -> str:
+    user_email = get_user_email(request)
+    if not user_email:
+        raise HTTPException(
+            status_code=401,
+            detail="X-User-Email header is required"
+        )
+    return user_email

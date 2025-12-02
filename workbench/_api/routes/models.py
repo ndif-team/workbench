@@ -1,19 +1,17 @@
 import logging
 import time
 
+from collections import defaultdict
+
 import requests
 import torch as t
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..auth import get_user_email, require_user_email, user_has_model_access
-from ..data_models import NDIFResponse, Token
-from ..telemetry import TelemetryClient, RequestStatus
+from ..data_models.base import NDIFResponse, Token
 from ..state import AppState, get_state
-from ..data_models import Token, NDIFResponse
-from ..auth import require_user_email, get_user_email
-
-import logging
+from ..telemetry import RequestStatus, TelemetryClient
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +21,7 @@ MODELS = list()
 MODELS_LAST_UPDATED = 0
 MODEL_INTERVAL = 60
 
-def get_remot_models(state: AppState, is_user_signed_in: bool):
+def get_remote_models(state: AppState, is_user_signed_in: bool):
 
     global MODELS, MODELS_LAST_UPDATED
 
@@ -45,7 +43,9 @@ def get_remot_models(state: AppState, is_user_signed_in: bool):
         data = stats_resp.json()
 
         for deployment_state in data["deployments"].values():
-            if deployment_state['deployment_level'] == "HOT" and deployment_state['application_state'] == "RUNNING":
+            if deployment_state['deployment_level'] == "HOT" \
+                and deployment_state['application_state'] == "RUNNING"\
+                and deployment_state['dedicated'] == True:
                 state.add_model(deployment_state['repo_id'])
             else:
                 state.remove_model(deployment_state['repo_id'])
@@ -69,9 +69,21 @@ async def get_models(
 ):
     if state.remote:
         is_user_signed_in: bool = user_email is not None and user_email != "guest@localhost"
-        models = get_remot_models(state, is_user_signed_in)
+        models = get_remote_models(state, is_user_signed_in)
 
-        return models
+        status = defaultdict(list)
+        for tool in state.config.tools.values():
+            if tool.models == list():
+                # Tool has no specific model restrictions, all models are supported
+                status[tool.name] = models
+            else:
+                # Tool has specific model restrictions
+                tool_model_names = [m.model_name for m in tool.models]
+                for model in models:
+                    if model["name"] in tool_model_names:
+                        status[tool.name].append(model)
+
+        return status
 
     else:
         return state.get_config().get_model_list()

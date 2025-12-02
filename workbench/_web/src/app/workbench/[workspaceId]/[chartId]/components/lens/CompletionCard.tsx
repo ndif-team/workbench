@@ -257,7 +257,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
             config: {
                 data: updatedConfig,
                 workspaceId,
-                type: "lens",
+                type: "logit-lens",
             },
         });
 
@@ -273,6 +273,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
             }
         }
     };
+
 
     // Newline on shift + enter and tokenize on enter
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -434,6 +435,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                             selectedModel={selectedModel}
                             handleTokenize={handleTokenize}
                             handleCreateHeatmap={handleCreateHeatmap}
+                            toolType="logit-lens"
                         />
                     )}
                 </div>

@@ -18,9 +18,10 @@ interface HeatmapCardProps {
     pending: boolean;
     captureRef?: RefObject<HTMLDivElement>;
     statisticType?: Metrics;
+    toolType?: string;
 }
 
-export const HeatmapCard = ({ chart, captureRef, pending, statisticType }: HeatmapCardProps) => {
+export const HeatmapCard = ({ chart, captureRef, pending, statisticType, toolType }: HeatmapCardProps) => {
     return (
         <div className="flex size-full flex-col">
             {pending ? (
@@ -33,6 +34,7 @@ export const HeatmapCard = ({ chart, captureRef, pending, statisticType }: Heatm
                                 captureRef={captureRef}
                                 chart={chart}
                                 statisticType={statisticType}
+                                toolType={toolType}
                             />
                         </HeatmapHoverProvider>
                     </HeatmapCanvasProvider>
@@ -98,9 +100,10 @@ interface HeatmapCardContentProps {
     captureRef?: RefObject<HTMLDivElement>;
     chart: HeatmapChart;
     statisticType?: Metrics;
+    toolType?: string;
 }
 
-const HeatmapCardContent = ({ captureRef, chart, statisticType }: HeatmapCardContentProps) => {
+const HeatmapCardContent = ({ captureRef, chart, statisticType, toolType }: HeatmapCardContentProps) => {
     const {
         filteredData: data,
         bounds,
@@ -188,6 +191,7 @@ const HeatmapCardContent = ({ captureRef, chart, statisticType }: HeatmapCardCon
                     onMouseLeave={handleMouseLeave}
                     onMouseDown={onMouseDown}
                     statisticType={statisticType}
+                    toolType={toolType}
                 />
             </div>
         </div>

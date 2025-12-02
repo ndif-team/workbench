@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { getModels } from "@/lib/api/modelsApi";
+import { getModels, getModelsForTool } from "@/lib/api/modelsApi";
 import {
     Select,
     SelectContent,
@@ -33,7 +33,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     const [showCaptcha, setShowCaptcha] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedModel, setSelectedModel] = useState<string>("openai-community/gpt2");
-    const [selectedTool, setSelectedTool] = useState<string>("Logit Lens");
+    const [selectedTool, setSelectedTool] = useState<string>("logit-lens");
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const captchaRef = useRef<ElementRef<typeof HCaptcha> | null>(null);
     const router = useRouter();
@@ -52,21 +52,36 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
         fetchUser();
     }, [loggedIn]);
 
-    const { data: models, isLoading: modelsLoading } = useQuery({
+    const { data: modelsResponse, isLoading: modelsLoading } = useQuery({
         queryKey: ["models"],
         queryFn: getModels,
         refetchInterval: 120000,
     });
-    const modelsToSelect: Model[] = models || [
-        {
-            name: "openai-community/gpt2",
-            type: "base",
-            n_layers: 12,
-            params: "124M",
-            gated: false,
-            allowed: true,
-        },
-    ];
+
+    // Get models for the selected tool
+    const modelsToSelect: Model[] = modelsResponse 
+        ? getModelsForTool(modelsResponse, selectedTool)
+        : [
+            {
+                name: "openai-community/gpt2",
+                type: "base",
+                n_layers: 12,
+                params: "124M",
+                gated: false,
+                allowed: true,
+            },
+        ];
+
+    // Update selected model when tool changes if current model is not available
+    useEffect(() => {
+        if (modelsToSelect.length > 0) {
+            const isCurrentModelAvailable = modelsToSelect.some(m => m.name === selectedModel);
+            if (!isCurrentModelAvailable) {
+                // Set to first available model
+                setSelectedModel(modelsToSelect[0].name);
+            }
+        }
+    }, [selectedTool, modelsToSelect, selectedModel]);
 
     const handleCaptchaVerify = async (token: string) => {
         const supabase = createClient();
@@ -84,10 +99,11 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                 captchaRef.current?.resetCaptcha();
                 setIsSubmitting(false);
             } else {
-                // Redirect to workbench with the prompt and model as query parameters
+                // Redirect to workbench with the prompt, model, and tool as query parameters
                 const params = new URLSearchParams({
                     prompt: prompt,
                     model: selectedModel,
+                    tool: selectedTool,
                 });
                 window.location.href = `/workbench?${params.toString()}`;
             }
@@ -108,6 +124,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
             const params = new URLSearchParams({
                 prompt: prompt,
                 model: selectedModel,
+                tool: selectedTool,
                 createNew: "true", // Flag to always create new workspace
             });
             router.push(`/workbench?${params.toString()}`);
@@ -295,15 +312,19 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                     <SelectGroup>
                                                         <SelectLabel>Tools</SelectLabel>
                                                         <SelectItem
-                                                            key="Logit Lens"
-                                                            value="Logit Lens"
+                                                            key="logit-lens"
+                                                            value="logit-lens"
                                                             className="text-xs"
                                                         >
-                                                            {selectedTool}
+                                                            Logit Lens
                                                         </SelectItem>
-                                                        <SelectLabel className="italic">
-                                                            More tools coming soon...
-                                                        </SelectLabel>
+                                                        <SelectItem
+                                                            key="concept-lens"
+                                                            value="concept-lens"
+                                                            className="text-xs"
+                                                        >
+                                                            Concept Lens
+                                                        </SelectItem>
                                                     </SelectGroup>
                                                 </SelectContent>
                                             </Select>

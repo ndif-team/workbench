@@ -5,7 +5,9 @@ import { getChartsMetadata } from "@/lib/queries/chartQueries";
 import { useParams, useRouter } from "next/navigation";
 import {
     useCreateLensChartPair,
+    useCreateConceptLensChartPair,
     useCreatePatchChartPair,
+    useCreateActivationPatchingChartPair,
     useDeleteChart,
 } from "@/lib/api/chartApi";
 import {
@@ -35,7 +37,9 @@ export default function ChartCardsSidebar() {
     );
 
     const { mutate: createLensPair, isPending: isCreatingLens } = useCreateLensChartPair();
+    const { mutate: createConceptLensPair, isPending: isCreatingConceptLens } = useCreateConceptLensChartPair();
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
+    const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } = useCreateActivationPatchingChartPair();
     const { mutate: deleteChart } = useDeleteChart();
     const { mutate: createDocument, isPending: isCreatingDocument } = useCreateDocument();
     const { mutate: deleteDocument } = useDeleteDocument();
@@ -84,8 +88,12 @@ export default function ChartCardsSidebar() {
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (toolType: "lens" | "patch") => {
-        const mutation = toolType === "lens" ? createLensPair : createPatchPair;
+    const handleCreate = (toolType: "logit-lens" | "concept-lens" | "patch" | "activation-patching") => {
+        const mutation = 
+            toolType === "logit-lens" ? createLensPair :
+            toolType === "concept-lens" ? createConceptLensPair :
+            toolType === "activation-patching" ? createActivationPatchingPair :
+            createPatchPair;
         mutation(
             {
                 workspaceId: workspaceId as string,
@@ -140,25 +148,12 @@ export default function ChartCardsSidebar() {
     };
 
     const ActionButtons = () => (
-        <div className="flex flex-row w-full gap-3 text-sm">
-            <Button
-                variant="outline"
-                onClick={() => handleCreate("lens")}
-                disabled={isCreatingPatch}
-                className="flex-1"
-            >
-                {isCreatingLens ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                    <Plus className="w-4 h-4" />
-                )}
-                <span>Lens</span>
-            </Button>
+        <div className="flex flex-col w-full gap-2 text-sm">
             <Button
                 variant="outline"
                 onClick={handleOverviewClick}
-                disabled={isCreatingLens}
-                className="flex-1"
+                disabled={isCreatingLens || isCreatingConceptLens || isCreatingActivationPatching}
+                className="w-full"
             >
                 {isCreatingDocument ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -167,6 +162,49 @@ export default function ChartCardsSidebar() {
                 )}
                 <span>Report</span>
             </Button>
+            <div className="flex flex-row w-full gap-2">
+                <Button
+                    variant="outline"
+                    onClick={() => handleCreate("logit-lens")}
+                    disabled={isCreatingConceptLens || isCreatingPatch || isCreatingActivationPatching}
+                    className="flex-1"
+                >
+                    {isCreatingLens ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                        <Plus className="w-4 h-4" />
+                    )}
+                    <span>Logit Lens</span>
+                </Button>
+                <Button
+                    variant="outline"
+                    onClick={() => handleCreate("concept-lens")}
+                    disabled={isCreatingLens || isCreatingPatch || isCreatingActivationPatching}
+                    className="flex-1"
+                >
+                    {isCreatingConceptLens ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                        <Plus className="w-4 h-4" />
+                    )}
+                    <span>Concept Lens</span>
+                </Button>
+            </div>
+            <div className="flex flex-row w-1/2 gap-2">
+                <Button
+                    variant="outline"
+                    onClick={() => handleCreate("activation-patching")}
+                    disabled={isCreatingLens || isCreatingConceptLens || isCreatingPatch}
+                    className=""
+                >
+                    {isCreatingActivationPatching ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                        <Plus className="w-4 h-4" />
+                    )}
+                    <span>Activation Patching</span>
+                </Button>
+            </div>
         </div>
     );
 
