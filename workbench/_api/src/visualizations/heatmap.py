@@ -21,7 +21,7 @@ class HeatmapPlot:
         rows: List[HeatmapRow] = list()
         for row_idx, row_data in enumerate(data):
             row = HeatmapRow(
-                id=row_labels[row_idx],
+                id=f"{row_labels[row_idx]}-{row_idx}",
                 data=[
                     HeatmapCell(
                         x=col_idx, 
