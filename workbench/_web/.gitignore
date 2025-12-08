@@ -11,3 +11,5 @@ node_modules/
 
 /sqlite-migrations/
 /pg-migrations/
+*storybook.log
+storybook-static
