@@ -1,4 +1,4 @@
-import { HeatmapRow, HeatmapCell } from "@/types/charts";
+import { HeatmapRow, HeatmapCell, TopToken } from "@/types/charts";
 
 /**
  * Mock HeatmapChart type for Storybook (avoids db schema dependency)
@@ -360,6 +360,147 @@ export function generateEntropyData(numRows: number, numCols: number): HeatmapRo
     return rows;
 }
 
+/**
+ * Generate realistic top-k probability distributions for a given cell value
+ * Creates a distribution where the top token matches the cell's label/value
+ */
+function generateTopTokens(
+    k: number,
+    topTokenValue: number | null,
+    topTokenLabel?: string,
+    layer: number = 0
+): TopToken[] {
+    // Always generate tokens if we have a valid value, even if small
+    if (topTokenValue === null) {
+        return [];
+    }
+    
+    // Use a minimum value to ensure we generate tokens even for very small probabilities
+    const effectiveValue = Math.max(topTokenValue, 0.01);
+
+    // Common vocabulary tokens that might appear in logit lens outputs
+    const commonTokens = [
+        "Paris",
+        "France",
+        "city",
+        "the",
+        "of",
+        "in",
+        "is",
+        "Tower",
+        "Eiffel",
+        "located",
+        "el",
+        "iff",
+        "ighty",
+        "ffic",
+        "fficient",
+        "lights",
+        "stands",
+        "iconic",
+        "near",
+        "center",
+        "heart",
+        "midst",
+        "centre",
+        "scape",
+        "▁the",
+        "▁a",
+        "▁is",
+        "▁to",
+        "▁in",
+        "▁and",
+        "▁of",
+        "▁Paris",
+        "▁France",
+        "▁city",
+    ];
+
+    // Layer-specific tokens that become more likely in later layers
+    const layerTokens: Record<number, string[]> = {
+        12: ["Paris", "France", "city"],
+        14: ["Paris", "France", "city", "the"],
+        16: ["Paris", "France", "city", "the", "of"],
+        18: ["Paris", "France", "city", "the", "of", "in"],
+        20: ["Paris", "France", "city", "the", "of", "in", "is"],
+        22: ["Paris", "France", "city", "the", "of", "in", "is", "located"],
+        24: ["Paris", "France", "city", "the", "of", "in", "is", "located", "Tower"],
+        26: ["Paris", "France", "city", "the", "of", "in", "is", "located", "Tower", "Eiffel"],
+    };
+
+    // Get tokens relevant to this layer
+    const relevantTokens = layerTokens[layer] || commonTokens;
+
+    // Use the label if provided, otherwise pick from relevant tokens
+    const primaryToken = topTokenLabel || relevantTokens[0] || commonTokens[0];
+
+    const tokens: TopToken[] = [];
+    let remainingProb = 1.0;
+
+    // First token gets a probability based on the cell value, but ensure it's reasonable
+    // For small values, use the value directly; for larger values, cap it
+    const firstProb = Math.min(effectiveValue, remainingProb * 0.6);
+    tokens.push({
+        token: primaryToken,
+        probability: firstProb,
+    });
+    remainingProb -= firstProb;
+
+    // Generate remaining tokens with decreasing probabilities
+    const usedTokens = new Set([primaryToken]);
+    const availableTokens = relevantTokens.filter((t) => !usedTokens.has(t));
+
+    // Ensure we generate at least a few tokens
+    const minTokens = Math.min(5, k);
+    for (let i = 1; i < k && (remainingProb > 0.001 || i < minTokens) && availableTokens.length > 0; i++) {
+        // Exponential decay for remaining probabilities
+        const decayFactor = Math.pow(0.65, i);
+        const maxProb = remainingProb * decayFactor;
+        // Ensure minimum probability for early tokens
+        const prob = Math.max(0.002, Math.min(maxProb, remainingProb * 0.4));
+
+        // Pick a random token from available ones
+        const tokenIndex = Math.floor(Math.random() * availableTokens.length);
+        const token = availableTokens[tokenIndex];
+        availableTokens.splice(tokenIndex, 1);
+        usedTokens.add(token);
+
+        tokens.push({
+            token,
+            probability: prob,
+        });
+        remainingProb -= prob;
+    }
+
+    // Normalize to sum to approximately 1.0 (real distributions don't sum exactly to 1)
+    const total = tokens.reduce((sum, t) => sum + t.probability, 0);
+    if (total > 0) {
+        return tokens.map((t) => ({
+            ...t,
+            probability: t.probability / total,
+        }));
+    }
+
+    return tokens;
+}
+
+/**
+ * Enhanced Eiffel Tower data with topTokens for each cell
+ * This enables the TokenPopover to display probability distributions
+ */
+export const eiffelTowerDataWithTopTokens: HeatmapRow[] = eiffelTowerData.map((row) => ({
+    ...row,
+    data: row.data.map((cell) => {
+        const layer = typeof cell.x === "number" ? cell.x : 0;
+        // Always generate tokens if y is not null (even if 0, we'll use a minimum value)
+        const topTokens = cell.y !== null ? generateTopTokens(15, cell.y, cell.label, layer) : [];
+        return {
+            ...cell,
+            topTokens: topTokens.length > 0 ? topTokens : undefined,
+        };
+    }),
+}));
+
 // Pre-generated datasets for stories - using the real Eiffel Tower data as default
 export const smallHeatmapData = eiffelTowerData;
 export const mediumHeatmapData = eiffelTowerData;
@@ -416,4 +557,9 @@ export const mockEntropyChart = createMockHeatmapChart(entropyHeatmapData, {
 export const mockEmptyChart = createMockHeatmapChart([], {
     id: "empty-chart",
     name: "Empty Heatmap",
+});
+
+export const mockChartWithTopTokens = createMockHeatmapChart(eiffelTowerDataWithTopTokens, {
+    id: "eiffel-tower-popover-chart",
+    name: "Eiffel Tower Logit Lens (with Token Popover)",
 });

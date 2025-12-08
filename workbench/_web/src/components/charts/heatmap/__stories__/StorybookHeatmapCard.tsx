@@ -15,6 +15,7 @@ import { useMockAnnotationSelection } from "./useMockAnnotationSelection";
 import { HeatmapViewData } from "@/types/charts";
 import { MockHeatmapChart } from "./mockData";
 import { Margin } from "@nivo/core";
+import { StorybookTokenPopover } from "./StorybookTokenPopover";
 
 // Default margin for Storybook - larger margins to show axis labels
 const storybookMargin: Margin = { top: 10, right: 90, bottom: 70, left: 80 };
@@ -212,7 +213,8 @@ const StorybookHeatmapCardContent = ({
                 <Heatmap
                     rows={data}
                     heatmapCanvasRef={heatmapCanvasRef}
-                    useTooltip={false}
+                    useTooltip={true}
+                    tooltipComponent={<StorybookTokenPopover />}
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
                     onMouseDown={onMouseDown}

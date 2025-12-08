@@ -8,6 +8,7 @@ import {
     mockRankChart,
     mockEntropyChart,
     mockEmptyChart,
+    mockChartWithTopTokens,
 } from "./mockData";
 
 const meta: Meta<typeof StorybookHeatmapCard> = {
@@ -60,7 +61,7 @@ type Story = StoryObj<typeof meta>;
  */
 export const EiffelTower: Story = {
     args: {
-        chart: mockMediumChart,
+        chart: mockChartWithTopTokens,
         statisticType: Metrics.PROBABILITY,
         pending: false,
     },
@@ -248,6 +249,26 @@ export const DarkMode: Story = {
             description: {
                 story:
                     "Heatmap in dark mode. Toggle the theme in the Storybook toolbar to compare light/dark modes.",
+            },
+        },
+    },
+};
+
+/**
+ * Heatmap with enhanced token popover showing top N tokens and their probabilities.
+ * Hover over any cell to see the probability distribution for that layer/position.
+ */
+export const WithTokenPopover: Story = {
+    args: {
+        chart: mockChartWithTopTokens,
+        statisticType: Metrics.PROBABILITY,
+        pending: false,
+    },
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    "Enhanced heatmap with token popover. Hover over any cell to see a sleek popover displaying the top 10 tokens and their probabilities as horizontal bars. The popover uses the same blues color scheme as the main heatmap and automatically positions itself to avoid going off-screen.",
             },
         },
     },
