@@ -1,12 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Heatmap } from "../Heatmap";
 import { Metrics } from "@/types/lens";
-import {
-    eiffelTowerData,
-    largeHeatmapData,
-    rankHeatmapData,
-    entropyHeatmapData,
-} from "./mockData";
+import { eiffelTowerData, largeHeatmapData, rankHeatmapData, entropyHeatmapData } from "./mockData";
 
 // Storybook-optimized margin with room for axis labels
 const storybookMargin = { top: 10, right: 90, bottom: 60, left: 70 };
@@ -65,8 +60,7 @@ export const EiffelTower: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Real Logit Lens data showing predictions for 'Eiffel Tower is located in the city of'. Watch how later layers (16+) confidently predict 'Paris' with high probability.",
+                story: "Real Logit Lens data showing predictions for 'Eiffel Tower is located in the city of'. Watch how later layers (16+) confidently predict 'Paris' with high probability.",
             },
         },
     },
@@ -91,8 +85,7 @@ export const Large: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "A large heatmap (30x48) to test rendering performance with many cells.",
+                story: "A large heatmap (30x48) to test rendering performance with many cells.",
             },
         },
     },
@@ -110,8 +103,7 @@ export const WithRankMetric: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Heatmap showing rank values (log scale). Notice the right axis labels showing predicted tokens.",
+                story: "Heatmap showing rank values (log scale). Notice the right axis labels showing predicted tokens.",
             },
         },
     },
@@ -129,8 +121,7 @@ export const WithEntropyMetric: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Heatmap showing entropy values (bits). Lower entropy indicates more confident predictions.",
+                story: "Heatmap showing entropy values (bits). Lower entropy indicates more confident predictions.",
             },
         },
     },
@@ -172,4 +163,3 @@ export const CustomMargins: Story = {
         },
     },
 };
-

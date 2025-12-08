@@ -23,7 +23,9 @@ export const useHeatmapCanvas = () => {
     return ctx;
 };
 
-export const MockHeatmapCanvasProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const MockHeatmapCanvasProvider: React.FC<{ children: React.ReactNode }> = ({
+    children,
+}) => {
     const heatmapCanvasRef = useRef<HTMLCanvasElement>(null);
     const { filteredData: data } = useMockHeatmapData();
     const [cellDimensions, setCellDimensions] = useState<CellDimensions | null>(null);
@@ -87,4 +89,3 @@ export const MockHeatmapCanvasProvider: React.FC<{ children: React.ReactNode }> 
 
 // Re-export for compatibility
 export { MockHeatmapCanvasProvider as HeatmapCanvasProvider };
-

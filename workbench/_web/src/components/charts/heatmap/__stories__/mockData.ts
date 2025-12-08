@@ -33,7 +33,7 @@ export const eiffelTowerData: HeatmapRow[] = [
             { x: 16, y: 0.78, label: "ffic" },
             { x: 18, y: 0.75, label: "ffic" },
             { x: 20, y: 0.72, label: "ffic" },
-            { x: 22, y: 0.70, label: "ffic" },
+            { x: 22, y: 0.7, label: "ffic" },
             { x: 24, y: 0.68, label: "ffic" },
             { x: 26, y: 0.12, label: "-" },
         ],
@@ -50,7 +50,7 @@ export const eiffelTowerData: HeatmapRow[] = [
             { x: 12, y: 0.85, label: "el" },
             { x: 14, y: 0.88, label: "el" },
             { x: 16, y: 0.92, label: "el" },
-            { x: 18, y: 0.90, label: "el" },
+            { x: 18, y: 0.9, label: "el" },
             { x: 20, y: 0.88, label: "el" },
             { x: 22, y: 0.86, label: "el" },
             { x: 24, y: 0.84, label: "el" },
@@ -66,7 +66,7 @@ export const eiffelTowerData: HeatmapRow[] = [
             { x: 6, y: 0.82, label: "Tower" },
             { x: 8, y: 0.85, label: "Tower" },
             { x: 10, y: 0.88, label: "Tower" },
-            { x: 12, y: 0.90, label: "Tower" },
+            { x: 12, y: 0.9, label: "Tower" },
             { x: 14, y: 0.92, label: "Tower" },
             { x: 16, y: 0.95, label: "Tower" },
             { x: 18, y: 0.94, label: "Tower" },
@@ -83,7 +83,7 @@ export const eiffelTowerData: HeatmapRow[] = [
             { x: 2, y: 0.35, label: "ism" },
             { x: 4, y: 0.32, label: "ing" },
             { x: 6, y: 0.28, label: "fr" },
-            { x: 8, y: 0.30, label: "fr" },
+            { x: 8, y: 0.3, label: "fr" },
             { x: 10, y: 0.38, label: "isk" },
             { x: 12, y: 0.72, label: "Paris" },
             { x: 14, y: 0.78, label: "lights" },
@@ -145,7 +145,7 @@ export const eiffelTowerData: HeatmapRow[] = [
             { x: 12, y: 0.75, label: "France" },
             { x: 14, y: 0.88, label: "Paris" },
             { x: 16, y: 0.92, label: "Paris" },
-            { x: 18, y: 0.90, label: "Paris" },
+            { x: 18, y: 0.9, label: "Paris" },
             { x: 20, y: 0.88, label: "Paris" },
             { x: 22, y: 0.86, label: "Paris" },
             { x: 24, y: 0.84, label: "Paris" },
@@ -221,20 +221,53 @@ export function generateHeatmapData(
         includeLabels?: boolean;
         includeRightAxisLabel?: boolean;
         valueRange?: [number, number];
-    } = {}
+    } = {},
 ): HeatmapRow[] {
-    const {
-        includeLabels = false,
-        includeRightAxisLabel = false,
-        valueRange = [0, 1],
-    } = options;
+    const { includeLabels = false, includeRightAxisLabel = false, valueRange = [0, 1] } = options;
 
     const tokens = [
-        "The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog",
-        "Hello", "world", "!", "How", "are", "you", "?", "I", "am", "fine",
-        "thanks", "for", "asking", ".", "Let", "me", "tell", "you", "about",
-        "neural", "networks", "and", "transformers", ".", "They", "are",
-        "fascinating", "!", "GPT", "models", "use", "attention", "mechanisms",
+        "The",
+        "quick",
+        "brown",
+        "fox",
+        "jumps",
+        "over",
+        "the",
+        "lazy",
+        "dog",
+        "Hello",
+        "world",
+        "!",
+        "How",
+        "are",
+        "you",
+        "?",
+        "I",
+        "am",
+        "fine",
+        "thanks",
+        "for",
+        "asking",
+        ".",
+        "Let",
+        "me",
+        "tell",
+        "you",
+        "about",
+        "neural",
+        "networks",
+        "and",
+        "transformers",
+        ".",
+        "They",
+        "are",
+        "fascinating",
+        "!",
+        "GPT",
+        "models",
+        "use",
+        "attention",
+        "mechanisms",
     ];
 
     const rows: HeatmapRow[] = [];
@@ -248,11 +281,10 @@ export function generateHeatmapData(
             // Create some patterns to make it visually interesting
             const baseValue = Math.random();
             const patternValue =
-                Math.sin((row * 0.3) + (col * 0.2)) * 0.3 +
-                Math.cos((row * 0.1) - (col * 0.15)) * 0.2;
+                Math.sin(row * 0.3 + col * 0.2) * 0.3 + Math.cos(row * 0.1 - col * 0.15) * 0.2;
             const normalizedValue = Math.max(
                 valueRange[0],
-                Math.min(valueRange[1], baseValue * 0.5 + patternValue + 0.3)
+                Math.min(valueRange[1], baseValue * 0.5 + patternValue + 0.3),
             );
 
             const cell: HeatmapCell = {
@@ -289,8 +321,17 @@ export function generateHeatmapData(
  */
 export function generateRankData(numRows: number, numCols: number): HeatmapRow[] {
     const tokens = [
-        "The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog",
-        "Hello", "world",
+        "The",
+        "quick",
+        "brown",
+        "fox",
+        "jumps",
+        "over",
+        "the",
+        "lazy",
+        "dog",
+        "Hello",
+        "world",
     ];
 
     const rows: HeatmapRow[] = [];
@@ -327,8 +368,17 @@ export function generateRankData(numRows: number, numCols: number): HeatmapRow[]
  */
 export function generateEntropyData(numRows: number, numCols: number): HeatmapRow[] {
     const tokens = [
-        "The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog",
-        "Hello", "world",
+        "The",
+        "quick",
+        "brown",
+        "fox",
+        "jumps",
+        "over",
+        "the",
+        "lazy",
+        "dog",
+        "Hello",
+        "world",
     ];
 
     const rows: HeatmapRow[] = [];
@@ -368,13 +418,13 @@ function generateTopTokens(
     k: number,
     topTokenValue: number | null,
     topTokenLabel?: string,
-    layer: number = 0
+    layer: number = 0,
 ): TopToken[] {
     // Always generate tokens if we have a valid value, even if small
     if (topTokenValue === null) {
         return [];
     }
-    
+
     // Use a minimum value to ensure we generate tokens even for very small probabilities
     const effectiveValue = Math.max(topTokenValue, 0.01);
 
@@ -452,7 +502,11 @@ function generateTopTokens(
 
     // Ensure we generate at least a few tokens
     const minTokens = Math.min(5, k);
-    for (let i = 1; i < k && (remainingProb > 0.001 || i < minTokens) && availableTokens.length > 0; i++) {
+    for (
+        let i = 1;
+        i < k && (remainingProb > 0.001 || i < minTokens) && availableTokens.length > 0;
+        i++
+    ) {
         // Exponential decay for remaining probabilities
         const decayFactor = Math.pow(0.65, i);
         const maxProb = remainingProb * decayFactor;
@@ -514,7 +568,7 @@ export const entropyHeatmapData = generateEntropyData(10, 20);
  */
 export function createMockHeatmapChart(
     data: HeatmapRow[],
-    overrides: Partial<MockHeatmapChart> = {}
+    overrides: Partial<MockHeatmapChart> = {},
 ): MockHeatmapChart {
     return {
         id: overrides.id ?? "mock-chart-1",

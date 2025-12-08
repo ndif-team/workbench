@@ -4,19 +4,18 @@
  */
 
 export function config() {
-  // No-op in browser
-  return { parsed: {} };
+    // No-op in browser
+    return { parsed: {} };
 }
 
 export function parse() {
-  return {};
+    return {};
 }
 
 export const configDotenv = config;
 
 export default {
-  config,
-  parse,
-  configDotenv,
+    config,
+    parse,
+    configDotenv,
 };
-

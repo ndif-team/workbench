@@ -187,11 +187,7 @@ const StorybookHeatmapCardContent = ({
                             void zoomIntoActiveSelection();
                         }}
                         disabled={!activeSelection}
-                        title={
-                            activeSelection
-                                ? "Zoom into selection"
-                                : "Draw a selection first"
-                        }
+                        title={activeSelection ? "Zoom into selection" : "Draw a selection first"}
                     >
                         <Crop className="w-4 h-4" />
                     </Button>

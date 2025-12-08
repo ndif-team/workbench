@@ -102,7 +102,10 @@ export const TokenPopover = ({ maxTokens = 10 }: TokenPopoverProps) => {
                         >
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between gap-2 mb-1">
-                                    <span className="text-xs font-mono truncate" title={token.token}>
+                                    <span
+                                        className="text-xs font-mono truncate"
+                                        title={token.token}
+                                    >
                                         {token.token}
                                     </span>
                                     <span className="text-xs text-muted-foreground whitespace-nowrap">

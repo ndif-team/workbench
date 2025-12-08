@@ -81,7 +81,7 @@ export const useMockSelection = () => {
             window.addEventListener("mousemove", onMove);
             window.addEventListener("mouseup", onUp);
         },
-        [data, setActiveSelection, heatmapCanvasRef, persistView, xStep, cancelPersistView]
+        [data, setActiveSelection, heatmapCanvasRef, persistView, xStep, cancelPersistView],
     );
 
     const clearSelection = useCallback(async () => {
@@ -100,19 +100,19 @@ export const useMockSelection = () => {
 
         const absMinCol = Math.max(
             bounds.minCol,
-            Math.min(bounds.maxCol, xOffset + zoomBounds.minCol)
+            Math.min(bounds.maxCol, xOffset + zoomBounds.minCol),
         );
         const absMaxCol = Math.max(
             bounds.minCol,
-            Math.min(bounds.maxCol, xOffset + zoomBounds.maxCol)
+            Math.min(bounds.maxCol, xOffset + zoomBounds.maxCol),
         );
         const absMinRow = Math.max(
             bounds.minRow,
-            Math.min(bounds.maxRow, yOffset + zoomBounds.minRow)
+            Math.min(bounds.maxRow, yOffset + zoomBounds.minRow),
         );
         const absMaxRow = Math.max(
             bounds.minRow,
-            Math.min(bounds.maxRow, yOffset + zoomBounds.maxRow)
+            Math.min(bounds.maxRow, yOffset + zoomBounds.maxRow),
         );
 
         const currentX = hasX ? xRange : ([bounds.minCol, bounds.maxCol] as Range);

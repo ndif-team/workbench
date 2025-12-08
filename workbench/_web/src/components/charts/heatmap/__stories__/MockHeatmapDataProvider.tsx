@@ -121,7 +121,7 @@ export const MockHeatmapDataProvider: React.FC<MockHeatmapDataProviderProps> = (
                 persistView({ xStep: step });
             }
         },
-        [bounds.maxCol, bounds.minCol, persistView]
+        [bounds.maxCol, bounds.minCol, persistView],
     );
 
     // Filter data based on ranges and stepping

@@ -68,8 +68,7 @@ export const EiffelTower: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Real Logit Lens data for 'Eiffel Tower is located in the city of'. Watch how later layers (16+) confidently predict 'Paris'. Click and drag to select cells, use the crop button to zoom.",
+                story: "Real Logit Lens data for 'Eiffel Tower is located in the city of'. Watch how later layers (16+) confidently predict 'Paris'. Click and drag to select cells, use the crop button to zoom.",
             },
         },
     },
@@ -94,8 +93,7 @@ export const LargeDataset: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Large heatmap (30x48) to test rendering and interaction performance with many cells.",
+                story: "Large heatmap (30x48) to test rendering and interaction performance with many cells.",
             },
         },
     },
@@ -113,8 +111,7 @@ export const RankMetric: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Heatmap displaying rank values (log scale). Notice the right axis shows predicted tokens.",
+                story: "Heatmap displaying rank values (log scale). Notice the right axis shows predicted tokens.",
             },
         },
     },
@@ -132,8 +129,7 @@ export const EntropyMetric: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Heatmap displaying entropy values (bits). Lower entropy = more confident predictions.",
+                story: "Heatmap displaying entropy values (bits). Lower entropy = more confident predictions.",
             },
         },
     },
@@ -151,8 +147,7 @@ export const Pending: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Loading state shown while chart data is being fetched. Features a shimmer animation overlay.",
+                story: "Loading state shown while chart data is being fetched. Features a shimmer animation overlay.",
             },
         },
     },
@@ -197,8 +192,7 @@ export const WithSelection: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Heatmap with a pre-defined selection region. Use the crop button to zoom into the selection.",
+                story: "Heatmap with a pre-defined selection region. Use the crop button to zoom into the selection.",
             },
         },
     },
@@ -225,8 +219,7 @@ export const Zoomed: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Heatmap with initial zoom applied. Click the reset button to return to full view.",
+                story: "Heatmap with initial zoom applied. Click the reset button to return to full view.",
             },
         },
     },
@@ -247,8 +240,7 @@ export const DarkMode: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Heatmap in dark mode. Toggle the theme in the Storybook toolbar to compare light/dark modes.",
+                story: "Heatmap in dark mode. Toggle the theme in the Storybook toolbar to compare light/dark modes.",
             },
         },
     },
@@ -267,10 +259,8 @@ export const WithTokenPopover: Story = {
     parameters: {
         docs: {
             description: {
-                story:
-                    "Enhanced heatmap with token popover. Hover over any cell to see a sleek popover displaying the top 10 tokens and their probabilities as horizontal bars. The popover uses the same blues color scheme as the main heatmap and automatically positions itself to avoid going off-screen.",
+                story: "Enhanced heatmap with token popover. Hover over any cell to see a sleek popover displaying the top 10 tokens and their probabilities as horizontal bars. The popover uses the same blues color scheme as the main heatmap and automatically positions itself to avoid going off-screen.",
             },
         },
     },
 };
-

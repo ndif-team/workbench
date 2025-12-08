@@ -48,9 +48,12 @@ export const MockHeatmapHoverProvider: React.FC<{ children: React.ReactNode }> =
         hoverY,
     };
 
-    return <MockHeatmapHoverContext.Provider value={value}>{children}</MockHeatmapHoverContext.Provider>;
+    return (
+        <MockHeatmapHoverContext.Provider value={value}>
+            {children}
+        </MockHeatmapHoverContext.Provider>
+    );
 };
 
 // Re-export for compatibility
 export { MockHeatmapHoverProvider as HeatmapHoverProvider };
-

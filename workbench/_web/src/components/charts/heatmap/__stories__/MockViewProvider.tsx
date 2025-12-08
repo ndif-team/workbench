@@ -1,12 +1,6 @@
 "use client";
 
-import {
-    createContext,
-    ReactNode,
-    useCallback,
-    useContext,
-    useState,
-} from "react";
+import { createContext, ReactNode, useCallback, useContext, useState } from "react";
 import { ChartType, ChartView, HeatmapViewData, LineViewData } from "@/types/charts";
 
 /**
@@ -69,7 +63,7 @@ export const MockViewProvider = ({
     children,
 }: MockViewProviderProps) => {
     const [viewData, setViewData] = useState<ChartView | null>(
-        initialViewData ? (initialViewData as ChartView) : null
+        initialViewData ? (initialViewData as ChartView) : null,
     );
 
     const view: MockView | null = viewData
@@ -82,16 +76,13 @@ export const MockViewProvider = ({
           }
         : null;
 
-    const persistView = useCallback(
-        (newViewData: Partial<ChartView>) => {
-            setViewData((prev) => {
-                const merged = { ...(prev ?? {}), ...newViewData } as ChartView;
-                console.log("[MockViewProvider] Persisting view:", merged);
-                return merged;
-            });
-        },
-        []
-    );
+    const persistView = useCallback((newViewData: Partial<ChartView>) => {
+        setViewData((prev) => {
+            const merged = { ...(prev ?? {}), ...newViewData } as ChartView;
+            console.log("[MockViewProvider] Persisting view:", merged);
+            return merged;
+        });
+    }, []);
 
     const cancelPersistView = useCallback(() => {
         console.log("[MockViewProvider] Cancel persist called");
@@ -111,11 +102,7 @@ export const MockViewProvider = ({
         clearView,
     };
 
-    return (
-        <MockViewContext.Provider value={contextValue}>
-            {children}
-        </MockViewContext.Provider>
-    );
+    return <MockViewContext.Provider value={contextValue}>{children}</MockViewContext.Provider>;
 };
 
 export default MockViewProvider;
