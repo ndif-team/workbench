@@ -759,22 +759,12 @@ export function LogitLensWidget(
               : "#fff"
             : probToColor(cellProb, winningColor);
 
-        let textColor: string;
-        if (isDarkMode()) {
-          textColor =
-            state.colorModes.length === 0
-              ? "#e0e0e0"
-              : cellProb < 0.7
-              ? "#e0e0e0"
-              : "#fff";
-        } else {
-          textColor =
-            state.colorModes.length === 0
-              ? "#333"
-              : cellProb < 0.5
-              ? "#333"
-              : "#fff";
-        }
+        // Text color: use contrast color based on probability and dark mode
+        const dark = isDarkMode();
+        const defaultText = dark ? "#e0e0e0" : "#333";
+        const textColor = state.colorModes.length === 0
+          ? defaultText
+          : cellProb < (dark ? 0.7 : 0.5) ? defaultText : "#fff";
 
         let pinnedColor = getColorForToken(cellData.token);
         if (!pinnedColor) {
@@ -824,6 +814,7 @@ export function LogitLensWidget(
     updateTitle();
     updateVisibility();
 
+    // Update hint text (listeners attached once during init)
     const hint = dom.resizeHint();
     if (hint) {
       const hintMain =
@@ -831,17 +822,6 @@ export function LogitLensWidget(
           ? `showing every ${state.currentStride} layers ending at ${nLayers - 1}`
           : `showing all ${nLayers} layers`;
       hint.innerHTML = `<span class="resize-hint-main">${hintMain}</span><span class="resize-hint-extra"> (drag column borders to adjust)</span>`;
-
-      hint.addEventListener("mouseenter", () => {
-        const extra = hint.querySelector(".resize-hint-extra") as HTMLElement;
-        if (extra) extra.style.display = "inline";
-        dom.widget()?.classList.add("show-all-handles");
-      });
-      hint.addEventListener("mouseleave", () => {
-        const extra = hint.querySelector(".resize-hint-extra") as HTMLElement;
-        if (extra) extra.style.display = "none";
-        dom.widget()?.classList.remove("show-all-handles");
-      });
     }
   }
 
@@ -1827,6 +1807,21 @@ export function LogitLensWidget(
   }
 
   applyDarkMode(isDarkMode());
+
+  // Set up hint hover listeners (once, not on every rebuild)
+  const hint = dom.resizeHint();
+  if (hint) {
+    hint.addEventListener("mouseenter", () => {
+      const extra = hint.querySelector(".resize-hint-extra") as HTMLElement;
+      if (extra) extra.style.display = "inline";
+      dom.widget()?.classList.add("show-all-handles");
+    });
+    hint.addEventListener("mouseleave", () => {
+      const extra = hint.querySelector(".resize-hint-extra") as HTMLElement;
+      if (extra) extra.style.display = "none";
+      dom.widget()?.classList.remove("show-all-handles");
+    });
+  }
 
   // Watch for style changes
   let lastDetectedDarkMode = isDarkMode();

@@ -1575,12 +1575,9 @@ var LogitLensWidgetModule = (() => {
             });
           }
           const color = state.colorModes.length === 0 ? isDarkMode() ? "#1e1e1e" : "#fff" : probToColor(cellProb, winningColor);
-          let textColor;
-          if (isDarkMode()) {
-            textColor = state.colorModes.length === 0 ? "#e0e0e0" : cellProb < 0.7 ? "#e0e0e0" : "#fff";
-          } else {
-            textColor = state.colorModes.length === 0 ? "#333" : cellProb < 0.5 ? "#333" : "#fff";
-          }
+          const dark = isDarkMode();
+          const defaultText = dark ? "#e0e0e0" : "#333";
+          const textColor = state.colorModes.length === 0 ? defaultText : cellProb < (dark ? 0.7 : 0.5) ? defaultText : "#fff";
           let pinnedColor = getColorForToken(cellData.token);
           if (!pinnedColor) {
             const winningGroup = getWinningGroupAtCell(pos, li);
@@ -1616,20 +1613,10 @@ var LogitLensWidgetModule = (() => {
       drawAllTrajectoriesWrapper(null, null, null, chartInnerWidth, state.currentHoverPos);
       updateTitle();
       updateVisibility();
-      const hint = dom.resizeHint();
-      if (hint) {
+      const hint2 = dom.resizeHint();
+      if (hint2) {
         const hintMain = state.currentStride > 1 ? `showing every ${state.currentStride} layers ending at ${nLayers - 1}` : `showing all ${nLayers} layers`;
-        hint.innerHTML = `<span class="resize-hint-main">${hintMain}</span><span class="resize-hint-extra"> (drag column borders to adjust)</span>`;
-        hint.addEventListener("mouseenter", () => {
-          const extra = hint.querySelector(".resize-hint-extra");
-          if (extra) extra.style.display = "inline";
-          dom.widget()?.classList.add("show-all-handles");
-        });
-        hint.addEventListener("mouseleave", () => {
-          const extra = hint.querySelector(".resize-hint-extra");
-          if (extra) extra.style.display = "none";
-          dom.widget()?.classList.remove("show-all-handles");
-        });
+        hint2.innerHTML = `<span class="resize-hint-main">${hintMain}</span><span class="resize-hint-extra"> (drag column borders to adjust)</span>`;
       }
     }
     const chartContext = {
@@ -2441,6 +2428,19 @@ var LogitLensWidgetModule = (() => {
       svg2.setAttribute("height", String(getActualChartHeight()));
     }
     applyDarkMode(isDarkMode());
+    const hint = dom.resizeHint();
+    if (hint) {
+      hint.addEventListener("mouseenter", () => {
+        const extra = hint.querySelector(".resize-hint-extra");
+        if (extra) extra.style.display = "inline";
+        dom.widget()?.classList.add("show-all-handles");
+      });
+      hint.addEventListener("mouseleave", () => {
+        const extra = hint.querySelector(".resize-hint-extra");
+        if (extra) extra.style.display = "none";
+        dom.widget()?.classList.remove("show-all-handles");
+      });
+    }
     let lastDetectedDarkMode = isDarkMode();
     const styleObserver = new MutationObserver(() => {
       const widgetEl = dom.widget();
