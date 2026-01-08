@@ -5,6 +5,10 @@
 - Do NOT use emojis in commit messages
 - Keep messages concise and descriptive
 - Use conventional commit format when appropriate
+- Sign commits with Claude as co-author:
+  ```
+  Co-Authored-By: Claude <noreply@anthropic.com>
+  ```
 
 ## Testing
 
