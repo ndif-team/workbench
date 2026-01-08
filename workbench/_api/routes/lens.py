@@ -539,15 +539,14 @@ class LogitLensV2Response(NDIFResponse):
 
 def collect_logit_lens_v2(
     req: LogitLensV2Request, state: AppState
-) -> dict:
+) -> dict | str:
     """
     Collect logit lens data in V2 format (LogitLensKit compatible).
 
     Returns top-k predictions and probability trajectories for all tracked tokens,
     optimized for bandwidth (server-side reduction).
 
-    This now uses the shared collect_logit_lens implementation from workbench.logitlens,
-    which supports both normalized (API) and native (notebook) model architectures.
+    Uses the shared collect_logit_lens implementation from workbench.logitlens.
     """
     from workbench.logitlens.collect import collect_logit_lens
 
@@ -557,7 +556,7 @@ def collect_logit_lens_v2(
     # Call the unified collect_logit_lens function
     # For remote execution with non-blocking backend, returns job_id string
     # For local execution, returns dict with tensor results
-    result = collect_logit_lens(
+    return collect_logit_lens(
         prompt=req.prompt,
         model=model,
         k=req.k,
@@ -567,94 +566,52 @@ def collect_logit_lens_v2(
         include_entropy=req.include_entropy,
     )
 
-    # For remote execution, result is job_id string
-    if isinstance(result, str):
-        return result
-
-    # For local execution, extract raw tensor results for process_v2_results
-    return {
-        "topk": result["topk"],
-        "tracked": result["tracked"],
-        "probs": result["probs"],
-        "ranks": result.get("ranks"),
-        "entropy": result.get("entropy"),
-    }
-
 
 def process_v2_results(
     result: dict,
-    req: LogitLensV2Request,
-    state: AppState,
+    req: LogitLensV2Request = None,
+    state: AppState = None,
 ) -> dict:
-    """Process V2 results into frontend-ready format."""
+    """Convert tensor results to frontend-ready V2 JSON format.
+
+    Uses the shared to_js_format implementation from workbench.logitlens.display.
+
+    For local execution, result already contains vocab/model/input/layers.
+    For remote execution, we need to build those from req/state.
+    """
+    from workbench.logitlens.display import to_js_format
+
+    # Check if result already has vocab (local execution path)
+    if "vocab" in result:
+        return to_js_format(result)
+
+    # Remote execution path: build missing metadata
     model = state[req.model]
     tok = model.tokenizer
 
-    topk_tensor = result["topk"]
-    tracked_list = result["tracked"]
-    probs_list = result["probs"]
-    ranks_list = result.get("ranks")  # May be None if not requested
-    entropy_tensor = result.get("entropy")  # May be None if not requested
-
-    n_layers = topk_tensor.shape[0]
-    n_pos = topk_tensor.shape[1]
-
-    # Build vocabulary map
-    all_ids = set(topk_tensor.flatten().tolist())
-    for t_ids in tracked_list:
+    # Build vocabulary map from tensors
+    all_ids = set(result["topk"].flatten().tolist())
+    for t_ids in result["tracked"]:
         all_ids.update(t_ids.tolist())
     vocab = {i: tok.decode([i]) for i in all_ids}
 
-    # Convert topk to string format: [layer][position][k]
-    topk_str = [
-        [[vocab[idx.item()] for idx in topk_tensor[li, pos]]
-         for pos in range(n_pos)]
-        for li in range(n_layers)
-    ]
-
-    # Convert tracked/probs to dict format: [position]{token: {prob, rank} or trajectory}
-    if ranks_list is not None:
-        # Include both prob and rank in TrackedTrajectory format
-        tracked_dict = [
-            {
-                vocab[idx.item()]: {
-                    "prob": [round(p, 5) for p in probs_list[pos][:, i].tolist()],
-                    "rank": [int(r) for r in ranks_list[pos][:, i].tolist()]
-                }
-                for i, idx in enumerate(tracked_list[pos])
-            }
-            for pos in range(n_pos)
-        ]
-    else:
-        # Just probability trajectories (backward compatible)
-        tracked_dict = [
-            {
-                vocab[idx.item()]: [round(p, 5) for p in probs_list[pos][:, i].tolist()]
-                for i, idx in enumerate(tracked_list[pos])
-            }
-            for pos in range(n_pos)
-        ]
-
-    # Get input tokens
-    input_tokens = [tok.decode([t]) for t in tok.encode(req.prompt)]
-
-    response = {
-        "meta": {"version": 2, "model": req.model},
-        "input": input_tokens,
+    # Build complete result dict for to_js_format
+    n_layers = result["topk"].shape[0]
+    complete_result = {
+        "model": req.model,
+        "input": [tok.decode([t]) for t in tok.encode(req.prompt)],
         "layers": list(range(n_layers)),
-        "topk": topk_str,
-        "tracked": tracked_dict,
+        "topk": result["topk"],
+        "tracked": result["tracked"],
+        "probs": result["probs"],
+        "vocab": vocab,
     }
+    if "ranks" in result and result["ranks"] is not None:
+        complete_result["ranks"] = result["ranks"]
+    if "entropy" in result and result["entropy"] is not None:
+        complete_result["entropy"] = result["entropy"]
 
-    # Add entropy if requested and available
-    if entropy_tensor is not None:
-        # Convert to [layer][position] format
-        response["entropy"] = [
-            [round(e, 5) for e in entropy_tensor[li].tolist()]
-            for li in range(n_layers)
-        ]
-
-    return response
+    return to_js_format(complete_result)
 
 
 @router.post("/start-v2", response_model=LogitLensV2Response)
