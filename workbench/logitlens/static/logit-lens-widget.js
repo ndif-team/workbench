@@ -280,6 +280,20 @@ var LogitLensWidgetModule = (() => {
   }
 
   // src/lib/logit-lens-widget/utils.ts
+  function svg(tag, attrs, styles) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    if (attrs) {
+      for (const [key, value] of Object.entries(attrs)) {
+        el.setAttribute(key, String(value));
+      }
+    }
+    if (styles) {
+      for (const [key, value] of Object.entries(styles)) {
+        el.style.setProperty(key, value);
+      }
+    }
+    return el;
+  }
   function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text;
@@ -438,12 +452,64 @@ var LogitLensWidgetModule = (() => {
   }
 
   // src/lib/logit-lens-widget/chart.ts
+  function createLegendEntry(opts) {
+    const g = svg("g", { transform: `translate(${opts.x}, ${opts.y})` }, { cursor: "pointer" });
+    g.appendChild(svg("rect", {
+      x: -15,
+      y: -8,
+      width: opts.hitWidth,
+      height: 14,
+      fill: "transparent"
+    }));
+    const closeBtn = svg("text", {
+      class: "legend-close",
+      x: opts.closeX,
+      y: 0,
+      "dominant-baseline": "middle",
+      fill: "#999"
+    }, { fontSize: "var(--ll-content-size, 14px)", display: "none" });
+    closeBtn.textContent = "\xD7";
+    g.appendChild(closeBtn);
+    if (opts.line) {
+      const line = svg("line", {
+        x1: 0,
+        y1: 0,
+        x2: 15 * opts.fontScale,
+        y2: 0,
+        stroke: opts.line.color,
+        "stroke-width": opts.strokeWidth
+      });
+      if (opts.line.dash) {
+        line.setAttribute("stroke-dasharray", opts.line.dash);
+      }
+      g.appendChild(line);
+    }
+    const textX = opts.line ? 20 * opts.fontScale : 0;
+    const text = svg("text", {
+      x: textX,
+      y: opts.textY,
+      fill: opts.labelColor
+    }, { fontSize: "var(--ll-content-size, 14px)" });
+    if (opts.boldLabel) {
+      text.style.fontWeight = "500";
+    }
+    text.textContent = opts.label;
+    g.appendChild(text);
+    g.addEventListener("mouseenter", () => {
+      closeBtn.style.display = "block";
+    });
+    g.addEventListener("mouseleave", () => {
+      closeBtn.style.display = "none";
+    });
+    closeBtn.addEventListener("click", opts.onClose);
+    return g;
+  }
   function drawAllTrajectories(ctx, hoverTrajectory, hoverColor, hoverLabel, chartInnerWidth, pos) {
     const { uid, data, state, dom, isDarkMode, getActualChartHeight } = ctx;
     const nLayers = data.layers.length;
-    const svg = dom.chart();
-    if (!svg) return;
-    svg.innerHTML = "";
+    const svgEl = dom.chart();
+    if (!svgEl) return;
+    svgEl.innerHTML = "";
     const table = dom.table();
     if (!table) return;
     const firstInputCell = table.querySelector(".input-token");
@@ -460,7 +526,7 @@ var LogitLensWidgetModule = (() => {
       "transform",
       `translate(${actualInputRight},${chartMargin.top})`
     );
-    svg.appendChild(g);
+    svgEl.appendChild(g);
     const fontScale = getContentFontSizePx(dom) / 10;
     const dotRadius = 3 * fontScale;
     const strokeWidth = 2 * fontScale;
@@ -473,35 +539,29 @@ var LogitLensWidgetModule = (() => {
       if (visibleLayerRange <= 0) return usableWidth / 2;
       return dotRadius + (layerIdx - state.plotMinLayer) / visibleLayerRange * (usableWidth - 2 * dotRadius);
     }
-    const xAxisGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    xAxisGroup.style.cursor = "row-resize";
-    const xAxisHoverBg = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "rect"
-    );
-    xAxisHoverBg.setAttribute("x", "0");
-    xAxisHoverBg.setAttribute("y", String(chartInnerHeight - 2));
-    xAxisHoverBg.setAttribute("width", String(chartInnerWidth));
-    xAxisHoverBg.setAttribute("height", "4");
-    xAxisHoverBg.setAttribute("fill", "rgba(33, 150, 243, 0.3)");
-    xAxisHoverBg.style.display = "none";
+    const xAxisGroup = svg("g", {}, { cursor: "row-resize" });
+    const xAxisHoverBg = svg("rect", {
+      x: 0,
+      y: chartInnerHeight - 2,
+      width: chartInnerWidth,
+      height: 4,
+      fill: "rgba(33, 150, 243, 0.3)"
+    }, { display: "none" });
     xAxisGroup.appendChild(xAxisHoverBg);
-    const xAxisHitTarget = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "rect"
-    );
-    xAxisHitTarget.setAttribute("x", "0");
-    xAxisHitTarget.setAttribute("y", String(chartInnerHeight - 4));
-    xAxisHitTarget.setAttribute("width", String(chartInnerWidth));
-    xAxisHitTarget.setAttribute("height", "8");
-    xAxisHitTarget.setAttribute("fill", "transparent");
-    xAxisGroup.appendChild(xAxisHitTarget);
-    const xAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    xAxis.setAttribute("x1", "0");
-    xAxis.setAttribute("y1", String(chartInnerHeight));
-    xAxis.setAttribute("x2", String(chartInnerWidth));
-    xAxis.setAttribute("y2", String(chartInnerHeight));
-    xAxis.setAttribute("stroke", "#ccc");
+    xAxisGroup.appendChild(svg("rect", {
+      x: 0,
+      y: chartInnerHeight - 4,
+      width: chartInnerWidth,
+      height: 8,
+      fill: "transparent"
+    }));
+    const xAxis = svg("line", {
+      x1: 0,
+      y1: chartInnerHeight,
+      x2: chartInnerWidth,
+      y2: chartInnerHeight,
+      stroke: "#ccc"
+    });
     xAxisGroup.appendChild(xAxis);
     g.appendChild(xAxisGroup);
     xAxisGroup.addEventListener("mouseenter", () => {
@@ -524,46 +584,28 @@ var LogitLensWidgetModule = (() => {
     const clipFontSize = getContentFontSizePx(dom);
     const clipLeftExtent = 10 + clipFontSize * 5;
     const clipTopExtent = clipFontSize * 1.2;
-    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    const defs = svg("defs");
     const clipId = `${uid}_chart_clip`;
-    const clipPath = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "clipPath"
-    );
-    clipPath.setAttribute("id", clipId);
-    const clipRect = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "rect"
-    );
-    clipRect.setAttribute("x", String(-clipLeftExtent));
-    clipRect.setAttribute("y", String(-clipTopExtent));
-    clipRect.setAttribute("width", String(chartInnerWidth + clipLeftExtent));
-    clipRect.setAttribute(
-      "height",
-      String(chartInnerHeight + clipTopExtent + chartMargin.bottom + clipFontSize * 0.5)
-    );
-    clipPath.appendChild(clipRect);
+    const clipPath = svg("clipPath", { id: clipId });
+    clipPath.appendChild(svg("rect", {
+      x: -clipLeftExtent,
+      y: -clipTopExtent,
+      width: chartInnerWidth + clipLeftExtent,
+      height: chartInnerHeight + clipTopExtent + chartMargin.bottom + clipFontSize * 0.5
+    }));
     defs.appendChild(clipPath);
     const trajClipId = `${uid}_traj_clip`;
-    const trajClipPath = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "clipPath"
-    );
-    trajClipPath.setAttribute("id", trajClipId);
-    const trajClipRect = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "rect"
-    );
-    trajClipRect.setAttribute("x", "0");
-    trajClipRect.setAttribute("y", String(-clipTopExtent));
-    trajClipRect.setAttribute("width", String(chartInnerWidth));
-    trajClipRect.setAttribute("height", String(chartInnerHeight + clipTopExtent + 10));
-    trajClipPath.appendChild(trajClipRect);
+    const trajClipPath = svg("clipPath", { id: trajClipId });
+    trajClipPath.appendChild(svg("rect", {
+      x: 0,
+      y: -clipTopExtent,
+      width: chartInnerWidth,
+      height: chartInnerHeight + clipTopExtent + 10
+    }));
     defs.appendChild(trajClipPath);
-    svg.appendChild(defs);
+    svgEl.appendChild(defs);
     g.setAttribute("clip-path", `url(#${clipId})`);
-    const trajG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    trajG.setAttribute("clip-path", `url(#${trajClipId})`);
+    const trajG = svg("g", { "clip-path": `url(#${trajClipId})` });
     g.appendChild(trajG);
     const minTickGap = 24;
     let labelStride = 1;
@@ -644,35 +686,29 @@ var LogitLensWidgetModule = (() => {
         g.appendChild(tickGroup);
       }
     });
-    const yAxisGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    yAxisGroup.style.cursor = "col-resize";
-    const yAxisHoverBg = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "rect"
-    );
-    yAxisHoverBg.setAttribute("x", "-2");
-    yAxisHoverBg.setAttribute("y", "0");
-    yAxisHoverBg.setAttribute("width", "4");
-    yAxisHoverBg.setAttribute("height", String(chartInnerHeight));
-    yAxisHoverBg.setAttribute("fill", "rgba(33, 150, 243, 0.3)");
-    yAxisHoverBg.style.display = "none";
+    const yAxisGroup = svg("g", {}, { cursor: "col-resize" });
+    const yAxisHoverBg = svg("rect", {
+      x: -2,
+      y: 0,
+      width: 4,
+      height: chartInnerHeight,
+      fill: "rgba(33, 150, 243, 0.3)"
+    }, { display: "none" });
     yAxisGroup.appendChild(yAxisHoverBg);
-    const yAxisHitTarget = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "rect"
-    );
-    yAxisHitTarget.setAttribute("x", "-4");
-    yAxisHitTarget.setAttribute("y", "0");
-    yAxisHitTarget.setAttribute("width", "8");
-    yAxisHitTarget.setAttribute("height", String(chartInnerHeight));
-    yAxisHitTarget.setAttribute("fill", "transparent");
-    yAxisGroup.appendChild(yAxisHitTarget);
-    const yAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    yAxis.setAttribute("x1", "0");
-    yAxis.setAttribute("y1", "0");
-    yAxis.setAttribute("x2", "0");
-    yAxis.setAttribute("y2", String(chartInnerHeight));
-    yAxis.setAttribute("stroke", "#ccc");
+    yAxisGroup.appendChild(svg("rect", {
+      x: -4,
+      y: 0,
+      width: 8,
+      height: chartInnerHeight,
+      fill: "transparent"
+    }));
+    const yAxis = svg("line", {
+      x1: 0,
+      y1: 0,
+      x2: 0,
+      y2: chartInnerHeight,
+      stroke: "#ccc"
+    });
     yAxisGroup.appendChild(yAxis);
     g.appendChild(yAxisGroup);
     yAxisGroup.addEventListener("mouseenter", () => {
@@ -701,7 +737,7 @@ var LogitLensWidgetModule = (() => {
     yLabel.setAttribute("fill", "#666");
     yLabel.setAttribute("transform", "rotate(-90)");
     yLabel.textContent = metric === "rank" ? "Rank" : "Probability";
-    svg.appendChild(yLabel);
+    svgEl.appendChild(yLabel);
     const positionsToShow = [];
     if (state.pinnedRows.length > 0) {
       state.pinnedRows.forEach((pr) => positionsToShow.push(pr.pos));
@@ -864,169 +900,67 @@ var LogitLensWidgetModule = (() => {
         );
       });
     });
+    const legendOpts = {
+      hitWidth: state.inputTokenWidth - 5,
+      closeX: legendCloseX,
+      textY: legendTextY,
+      fontScale,
+      strokeWidth
+    };
     if (isMultiRowMode) {
       const group = state.pinnedGroups[0];
-      const groupLabel = ctx.getGroupLabel(group);
-      const rowIndent = legendIndent + 10 * fontScale;
-      const groupItem = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      groupItem.setAttribute("transform", `translate(${legendIndent - 5 * fontScale}, ${legendY})`);
-      groupItem.style.cursor = "pointer";
-      const groupHitTarget = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      groupHitTarget.setAttribute("x", "-15");
-      groupHitTarget.setAttribute("y", "-8");
-      groupHitTarget.setAttribute("width", String(state.inputTokenWidth - 5));
-      groupHitTarget.setAttribute("height", "14");
-      groupHitTarget.setAttribute("fill", "transparent");
-      groupItem.appendChild(groupHitTarget);
-      const groupCloseBtn = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      groupCloseBtn.setAttribute("class", "legend-close");
-      groupCloseBtn.setAttribute("x", String(legendCloseX));
-      groupCloseBtn.setAttribute("y", "0");
-      groupCloseBtn.setAttribute("dominant-baseline", "middle");
-      groupCloseBtn.style.fontSize = "var(--ll-content-size, 14px)";
-      groupCloseBtn.setAttribute("fill", "#999");
-      groupCloseBtn.style.display = "none";
-      groupCloseBtn.textContent = "\xD7";
-      groupItem.appendChild(groupCloseBtn);
-      const groupText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      groupText.setAttribute("x", "0");
-      groupText.setAttribute("y", String(legendTextY));
-      groupText.style.fontSize = "var(--ll-content-size, 14px)";
-      groupText.setAttribute("fill", group.color);
-      groupText.style.fontWeight = "500";
-      groupText.textContent = groupLabel;
-      groupItem.appendChild(groupText);
-      groupItem.addEventListener("mouseenter", () => {
-        groupCloseBtn.style.display = "block";
-      });
-      groupItem.addEventListener("mouseleave", () => {
-        groupCloseBtn.style.display = "none";
-      });
-      groupCloseBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        state.pinnedGroups.splice(0, 1);
-        state.lastPinnedGroupIndex = -1;
-        ctx.buildTable(state.currentCellWidth, state.currentVisibleIndices, state.currentMaxRows);
-      });
-      legendG.appendChild(groupItem);
+      legendG.appendChild(createLegendEntry({
+        ...legendOpts,
+        x: legendIndent - 5 * fontScale,
+        y: legendY,
+        label: ctx.getGroupLabel(group),
+        labelColor: group.color,
+        boldLabel: true,
+        onClose: (e) => {
+          e.stopPropagation();
+          state.pinnedGroups.splice(0, 1);
+          state.lastPinnedGroupIndex = -1;
+          ctx.buildTable(state.currentCellWidth, state.currentVisibleIndices, state.currentMaxRows);
+        }
+      }));
       legendY += legendEntryHeight;
       state.pinnedRows.forEach((row, rowIdx) => {
         const token = data.tokens[row.pos] || `pos ${row.pos}`;
-        const rowLabel = visualizeSpaces(token);
-        const rowItem = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        rowItem.setAttribute("transform", `translate(${legendIndent}, ${legendY})`);
-        rowItem.style.cursor = "pointer";
-        const rowHitTarget = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        rowHitTarget.setAttribute("x", "-15");
-        rowHitTarget.setAttribute("y", "-8");
-        rowHitTarget.setAttribute("width", String(state.inputTokenWidth - 5));
-        rowHitTarget.setAttribute("height", "14");
-        rowHitTarget.setAttribute("fill", "transparent");
-        rowItem.appendChild(rowHitTarget);
-        const rowCloseBtn = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        rowCloseBtn.setAttribute("class", "legend-close");
-        rowCloseBtn.setAttribute("x", String(legendCloseX));
-        rowCloseBtn.setAttribute("y", "0");
-        rowCloseBtn.setAttribute("dominant-baseline", "middle");
-        rowCloseBtn.style.fontSize = "var(--ll-content-size, 14px)";
-        rowCloseBtn.setAttribute("fill", "#999");
-        rowCloseBtn.style.display = "none";
-        rowCloseBtn.textContent = "\xD7";
-        rowItem.appendChild(rowCloseBtn);
-        const rowLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        rowLine.setAttribute("x1", "0");
-        rowLine.setAttribute("y1", "0");
-        rowLine.setAttribute("x2", String(15 * fontScale));
-        rowLine.setAttribute("y2", "0");
-        rowLine.setAttribute("stroke", group.color);
-        rowLine.setAttribute("stroke-width", String(strokeWidth));
-        if (row.lineStyle.dash) {
-          rowLine.setAttribute("stroke-dasharray", row.lineStyle.dash);
-        }
-        rowItem.appendChild(rowLine);
-        const rowText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        rowText.setAttribute("x", String(20 * fontScale));
-        rowText.setAttribute("y", String(legendTextY));
-        rowText.style.fontSize = "var(--ll-content-size, 14px)";
-        rowText.setAttribute("fill", isDarkMode() ? "#ddd" : "#333");
-        rowText.textContent = rowLabel;
-        rowItem.appendChild(rowText);
-        rowItem.addEventListener("mouseenter", () => {
-          rowCloseBtn.style.display = "block";
-        });
-        rowItem.addEventListener("mouseleave", () => {
-          rowCloseBtn.style.display = "none";
-        });
-        rowCloseBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          state.pinnedRows.splice(rowIdx, 1);
-          ctx.emit("pinnedRows", ctx.getSerializedPinnedRows());
-          ctx.buildTable(state.currentCellWidth, state.currentVisibleIndices, state.currentMaxRows);
-        });
-        legendG.appendChild(rowItem);
+        legendG.appendChild(createLegendEntry({
+          ...legendOpts,
+          x: legendIndent,
+          y: legendY,
+          label: visualizeSpaces(token),
+          labelColor: isDarkMode() ? "#ddd" : "#333",
+          line: { color: group.color, dash: row.lineStyle.dash },
+          onClose: (e) => {
+            e.stopPropagation();
+            state.pinnedRows.splice(rowIdx, 1);
+            ctx.emit("pinnedRows", ctx.getSerializedPinnedRows());
+            ctx.buildTable(state.currentCellWidth, state.currentVisibleIndices, state.currentMaxRows);
+          }
+        }));
         legendY += legendEntryHeight;
       });
     } else {
       state.pinnedGroups.forEach((group, groupIdx) => {
-        const groupLabel = ctx.getGroupLabel(group);
-        const legendItem = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        legendItem.setAttribute(
-          "transform",
-          `translate(${legendIndent}, ${legendY})`
-        );
-        legendItem.style.cursor = "pointer";
-        const hitTarget = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        hitTarget.setAttribute("x", "-15");
-        hitTarget.setAttribute("y", "-8");
-        hitTarget.setAttribute("width", String(state.inputTokenWidth - 5));
-        hitTarget.setAttribute("height", "14");
-        hitTarget.setAttribute("fill", "transparent");
-        legendItem.appendChild(hitTarget);
-        const closeBtn = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        closeBtn.setAttribute("class", "legend-close");
-        closeBtn.setAttribute("x", String(legendCloseX));
-        closeBtn.setAttribute("y", "0");
-        closeBtn.setAttribute("dominant-baseline", "middle");
-        closeBtn.style.fontSize = "var(--ll-content-size, 14px)";
-        closeBtn.setAttribute("fill", "#999");
-        closeBtn.style.display = "none";
-        closeBtn.textContent = "\xD7";
-        legendItem.appendChild(closeBtn);
-        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute("x1", "0");
-        line.setAttribute("y1", "0");
-        line.setAttribute("x2", String(15 * fontScale));
-        line.setAttribute("y2", "0");
-        line.setAttribute("stroke", group.color);
-        line.setAttribute("stroke-width", String(strokeWidth));
-        legendItem.appendChild(line);
-        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        text.setAttribute("x", String(20 * fontScale));
-        text.setAttribute("y", String(legendTextY));
-        text.style.fontSize = "var(--ll-content-size, 14px)";
-        text.setAttribute("fill", isDarkMode() ? "#ddd" : "#333");
-        text.textContent = groupLabel;
-        legendItem.appendChild(text);
-        legendItem.addEventListener("mouseenter", () => {
-          closeBtn.style.display = "block";
-        });
-        legendItem.addEventListener("mouseleave", () => {
-          closeBtn.style.display = "none";
-        });
-        closeBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          state.pinnedGroups.splice(groupIdx, 1);
-          if (state.lastPinnedGroupIndex >= state.pinnedGroups.length) {
-            state.lastPinnedGroupIndex = state.pinnedGroups.length - 1;
+        legendG.appendChild(createLegendEntry({
+          ...legendOpts,
+          x: legendIndent,
+          y: legendY,
+          label: ctx.getGroupLabel(group),
+          labelColor: isDarkMode() ? "#ddd" : "#333",
+          line: { color: group.color },
+          onClose: (e) => {
+            e.stopPropagation();
+            state.pinnedGroups.splice(groupIdx, 1);
+            if (state.lastPinnedGroupIndex >= state.pinnedGroups.length) {
+              state.lastPinnedGroupIndex = state.pinnedGroups.length - 1;
+            }
+            ctx.emit("pinnedGroups", JSON.parse(JSON.stringify(state.pinnedGroups)));
+            ctx.buildTable(state.currentCellWidth, state.currentVisibleIndices, state.currentMaxRows);
           }
-          ctx.emit("pinnedGroups", JSON.parse(JSON.stringify(state.pinnedGroups)));
-          ctx.buildTable(
-            state.currentCellWidth,
-            state.currentVisibleIndices,
-            state.currentMaxRows
-          );
-        });
-        legendG.appendChild(legendItem);
+        }));
         legendY += legendEntryHeight;
       });
     }
@@ -1076,7 +1010,7 @@ var LogitLensWidgetModule = (() => {
       legendItem.appendChild(text);
       legendG.appendChild(legendItem);
     }
-    svg.appendChild(legendG);
+    svgEl.appendChild(legendG);
   }
   function drawSingleTrajectory(g, trajectory, color, maxValue, label, isHover, chartInnerWidth, dashPattern, state, data, dom, layerToX, chartInnerHeight, fontScale, isRankMode = false) {
     if (!trajectory || trajectory.length === 0) return;
@@ -1517,11 +1451,11 @@ var LogitLensWidgetModule = (() => {
     }
     function updateChartDimensions() {
       const table = dom.table();
-      const svg2 = dom.chart();
-      if (!table || !svg2) return 0;
+      const svg3 = dom.chart();
+      if (!table || !svg3) return 0;
       const tableWidth = table.offsetWidth;
-      svg2.setAttribute("width", String(tableWidth));
-      svg2.setAttribute("height", String(getActualChartHeight()));
+      svg3.setAttribute("width", String(tableWidth));
+      svg3.setAttribute("height", String(getActualChartHeight()));
       const firstInputCell = table.querySelector(".input-token");
       if (firstInputCell) {
         const tableRect = table.getBoundingClientRect();
@@ -2268,8 +2202,8 @@ var LogitLensWidgetModule = (() => {
         const currentHeight = getActualChartHeight();
         if (Math.abs(newHeight - currentHeight) > 2) {
           state.chartHeight = newHeight;
-          const svg2 = dom.chart();
-          if (svg2) svg2.setAttribute("height", String(state.chartHeight));
+          const svg3 = dom.chart();
+          if (svg3) svg3.setAttribute("height", String(state.chartHeight));
           const chartInnerWidth = updateChartDimensions();
           drawAllTrajectoriesWrapper(null, null, null, chartInnerWidth, state.currentHoverPos);
         }
@@ -2502,9 +2436,9 @@ var LogitLensWidgetModule = (() => {
     const containerWidth = getContainerWidth();
     const result = computeVisibleLayers(state.currentCellWidth, containerWidth);
     buildTable(state.currentCellWidth, result.indices, state.currentMaxRows, result.stride);
-    const svg = dom.chart();
-    if (svg) {
-      svg.setAttribute("height", String(getActualChartHeight()));
+    const svg2 = dom.chart();
+    if (svg2) {
+      svg2.setAttribute("height", String(getActualChartHeight()));
     }
     applyDarkMode(isDarkMode());
     let lastDetectedDarkMode = isDarkMode();

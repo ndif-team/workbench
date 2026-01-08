@@ -4,6 +4,40 @@
 
 import type { DOMHelpers, ChartMargin } from "./types";
 
+// ═══════════════════════════════════════════════════════════════
+// SVG HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+type SVGAttributes = Record<string, string | number>;
+type SVGStyles = Record<string, string>;
+
+/**
+ * Create an SVG element with attributes and optional styles.
+ * Numeric values are automatically converted to strings.
+ */
+export function svg<K extends keyof SVGElementTagNameMap>(
+  tag: K,
+  attrs?: SVGAttributes,
+  styles?: SVGStyles
+): SVGElementTagNameMap[K] {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  if (attrs) {
+    for (const [key, value] of Object.entries(attrs)) {
+      el.setAttribute(key, String(value));
+    }
+  }
+  if (styles) {
+    for (const [key, value] of Object.entries(styles)) {
+      el.style.setProperty(key, value);
+    }
+  }
+  return el;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HTML HELPERS
+// ═══════════════════════════════════════════════════════════════
+
 /**
  * Escape HTML special characters
  */

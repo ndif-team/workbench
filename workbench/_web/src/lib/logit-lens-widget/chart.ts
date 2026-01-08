@@ -20,7 +20,90 @@ import {
   getContentFontSizePx,
   getChartMargin,
   getDefaultChartHeight,
+  svg,
 } from "./utils";
+
+/** Options for creating a legend entry */
+interface LegendEntryOptions {
+  x: number;
+  y: number;
+  label: string;
+  labelColor: string;
+  hitWidth: number;
+  closeX: number;
+  textY: number;
+  fontScale: number;
+  strokeWidth: number;
+  // Optional line before label
+  line?: {
+    color: string;
+    dash?: string;
+  };
+  // Whether label should be bold (for group headers)
+  boldLabel?: boolean;
+  onClose: (e: MouseEvent) => void;
+}
+
+/**
+ * Create a legend entry with hit target, close button, optional line, and label.
+ * Returns the container group element.
+ */
+function createLegendEntry(opts: LegendEntryOptions): SVGGElement {
+  const g = svg("g", { transform: `translate(${opts.x}, ${opts.y})` }, { cursor: "pointer" });
+
+  // Hit target for hover/click
+  g.appendChild(svg("rect", {
+    x: -15, y: -8,
+    width: opts.hitWidth,
+    height: 14,
+    fill: "transparent",
+  }));
+
+  // Close button (hidden until hover)
+  const closeBtn = svg("text", {
+    class: "legend-close",
+    x: opts.closeX,
+    y: 0,
+    "dominant-baseline": "middle",
+    fill: "#999",
+  }, { fontSize: "var(--ll-content-size, 14px)", display: "none" });
+  closeBtn.textContent = "\u00d7";
+  g.appendChild(closeBtn);
+
+  // Optional line sample
+  if (opts.line) {
+    const line = svg("line", {
+      x1: 0, y1: 0,
+      x2: 15 * opts.fontScale, y2: 0,
+      stroke: opts.line.color,
+      "stroke-width": opts.strokeWidth,
+    });
+    if (opts.line.dash) {
+      line.setAttribute("stroke-dasharray", opts.line.dash);
+    }
+    g.appendChild(line);
+  }
+
+  // Label text
+  const textX = opts.line ? 20 * opts.fontScale : 0;
+  const text = svg("text", {
+    x: textX,
+    y: opts.textY,
+    fill: opts.labelColor,
+  }, { fontSize: "var(--ll-content-size, 14px)" });
+  if (opts.boldLabel) {
+    text.style.fontWeight = "500";
+  }
+  text.textContent = opts.label;
+  g.appendChild(text);
+
+  // Hover behavior for close button
+  g.addEventListener("mouseenter", () => { closeBtn.style.display = "block"; });
+  g.addEventListener("mouseleave", () => { closeBtn.style.display = "none"; });
+  closeBtn.addEventListener("click", opts.onClose);
+
+  return g;
+}
 
 export interface ChartContext {
   uid: string;
@@ -58,9 +141,9 @@ export function drawAllTrajectories(
   const { uid, data, state, dom, isDarkMode, getActualChartHeight } = ctx;
   const nLayers = data.layers.length;
 
-  const svg = dom.chart();
-  if (!svg) return;
-  svg.innerHTML = "";
+  const svgEl = dom.chart();
+  if (!svgEl) return;
+  svgEl.innerHTML = "";
 
   const table = dom.table();
   if (!table) return;
@@ -86,7 +169,7 @@ export function drawAllTrajectories(
     "transform",
     `translate(${actualInputRight},${chartMargin.top})`
   );
-  svg.appendChild(g);
+  svgEl.appendChild(g);
 
   // Font scale for sizing
   const fontScale = getContentFontSizePx(dom) / 10;
@@ -109,38 +192,20 @@ export function drawAllTrajectories(
   }
 
   // Create X-axis with drag handler
-  const xAxisGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  xAxisGroup.style.cursor = "row-resize";
-
-  const xAxisHoverBg = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "rect"
-  );
-  xAxisHoverBg.setAttribute("x", "0");
-  xAxisHoverBg.setAttribute("y", String(chartInnerHeight - 2));
-  xAxisHoverBg.setAttribute("width", String(chartInnerWidth));
-  xAxisHoverBg.setAttribute("height", "4");
-  xAxisHoverBg.setAttribute("fill", "rgba(33, 150, 243, 0.3)");
-  xAxisHoverBg.style.display = "none";
+  const xAxisGroup = svg("g", {}, { cursor: "row-resize" });
+  const xAxisHoverBg = svg("rect", {
+    x: 0, y: chartInnerHeight - 2, width: chartInnerWidth, height: 4,
+    fill: "rgba(33, 150, 243, 0.3)",
+  }, { display: "none" });
   xAxisGroup.appendChild(xAxisHoverBg);
-
-  const xAxisHitTarget = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "rect"
-  );
-  xAxisHitTarget.setAttribute("x", "0");
-  xAxisHitTarget.setAttribute("y", String(chartInnerHeight - 4));
-  xAxisHitTarget.setAttribute("width", String(chartInnerWidth));
-  xAxisHitTarget.setAttribute("height", "8");
-  xAxisHitTarget.setAttribute("fill", "transparent");
-  xAxisGroup.appendChild(xAxisHitTarget);
-
-  const xAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  xAxis.setAttribute("x1", "0");
-  xAxis.setAttribute("y1", String(chartInnerHeight));
-  xAxis.setAttribute("x2", String(chartInnerWidth));
-  xAxis.setAttribute("y2", String(chartInnerHeight));
-  xAxis.setAttribute("stroke", "#ccc");
+  xAxisGroup.appendChild(svg("rect", {
+    x: 0, y: chartInnerHeight - 4, width: chartInnerWidth, height: 8,
+    fill: "transparent",
+  }));
+  const xAxis = svg("line", {
+    x1: 0, y1: chartInnerHeight, x2: chartInnerWidth, y2: chartInnerHeight,
+    stroke: "#ccc",
+  });
   xAxisGroup.appendChild(xAxis);
   g.appendChild(xAxisGroup);
 
@@ -167,53 +232,29 @@ export function drawAllTrajectories(
   const clipLeftExtent = 10 + clipFontSize * 5;
   const clipTopExtent = clipFontSize * 1.2;
 
-  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-
-  // Main chart clip
+  const defs = svg("defs");
   const clipId = `${uid}_chart_clip`;
-  const clipPath = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "clipPath"
-  );
-  clipPath.setAttribute("id", clipId);
-  const clipRect = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "rect"
-  );
-  clipRect.setAttribute("x", String(-clipLeftExtent));
-  clipRect.setAttribute("y", String(-clipTopExtent));
-  clipRect.setAttribute("width", String(chartInnerWidth + clipLeftExtent));
-  clipRect.setAttribute(
-    "height",
-    String(chartInnerHeight + clipTopExtent + chartMargin.bottom + clipFontSize * 0.5)
-  );
-  clipPath.appendChild(clipRect);
+  const clipPath = svg("clipPath", { id: clipId });
+  clipPath.appendChild(svg("rect", {
+    x: -clipLeftExtent, y: -clipTopExtent,
+    width: chartInnerWidth + clipLeftExtent,
+    height: chartInnerHeight + clipTopExtent + chartMargin.bottom + clipFontSize * 0.5,
+  }));
   defs.appendChild(clipPath);
 
-  // Trajectory clip (clips at x=0)
   const trajClipId = `${uid}_traj_clip`;
-  const trajClipPath = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "clipPath"
-  );
-  trajClipPath.setAttribute("id", trajClipId);
-  const trajClipRect = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "rect"
-  );
-  trajClipRect.setAttribute("x", "0");
-  trajClipRect.setAttribute("y", String(-clipTopExtent));
-  trajClipRect.setAttribute("width", String(chartInnerWidth));
-  trajClipRect.setAttribute("height", String(chartInnerHeight + clipTopExtent + 10));
-  trajClipPath.appendChild(trajClipRect);
+  const trajClipPath = svg("clipPath", { id: trajClipId });
+  trajClipPath.appendChild(svg("rect", {
+    x: 0, y: -clipTopExtent,
+    width: chartInnerWidth,
+    height: chartInnerHeight + clipTopExtent + 10,
+  }));
   defs.appendChild(trajClipPath);
 
-  svg.appendChild(defs);
+  svgEl.appendChild(defs);
   g.setAttribute("clip-path", `url(#${clipId})`);
 
-  // Create trajectory group
-  const trajG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  trajG.setAttribute("clip-path", `url(#${trajClipId})`);
+  const trajG = svg("g", { "clip-path": `url(#${trajClipId})` });
   g.appendChild(trajG);
 
   // X-axis tick labels
@@ -307,38 +348,20 @@ export function drawAllTrajectories(
   });
 
   // Y-axis with drag handler
-  const yAxisGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  yAxisGroup.style.cursor = "col-resize";
-
-  const yAxisHoverBg = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "rect"
-  );
-  yAxisHoverBg.setAttribute("x", "-2");
-  yAxisHoverBg.setAttribute("y", "0");
-  yAxisHoverBg.setAttribute("width", "4");
-  yAxisHoverBg.setAttribute("height", String(chartInnerHeight));
-  yAxisHoverBg.setAttribute("fill", "rgba(33, 150, 243, 0.3)");
-  yAxisHoverBg.style.display = "none";
+  const yAxisGroup = svg("g", {}, { cursor: "col-resize" });
+  const yAxisHoverBg = svg("rect", {
+    x: -2, y: 0, width: 4, height: chartInnerHeight,
+    fill: "rgba(33, 150, 243, 0.3)",
+  }, { display: "none" });
   yAxisGroup.appendChild(yAxisHoverBg);
-
-  const yAxisHitTarget = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "rect"
-  );
-  yAxisHitTarget.setAttribute("x", "-4");
-  yAxisHitTarget.setAttribute("y", "0");
-  yAxisHitTarget.setAttribute("width", "8");
-  yAxisHitTarget.setAttribute("height", String(chartInnerHeight));
-  yAxisHitTarget.setAttribute("fill", "transparent");
-  yAxisGroup.appendChild(yAxisHitTarget);
-
-  const yAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  yAxis.setAttribute("x1", "0");
-  yAxis.setAttribute("y1", "0");
-  yAxis.setAttribute("x2", "0");
-  yAxis.setAttribute("y2", String(chartInnerHeight));
-  yAxis.setAttribute("stroke", "#ccc");
+  yAxisGroup.appendChild(svg("rect", {
+    x: -4, y: 0, width: 8, height: chartInnerHeight,
+    fill: "transparent",
+  }));
+  const yAxis = svg("line", {
+    x1: 0, y1: 0, x2: 0, y2: chartInnerHeight,
+    stroke: "#ccc",
+  });
   yAxisGroup.appendChild(yAxis);
   g.appendChild(yAxisGroup);
 
@@ -370,7 +393,7 @@ export function drawAllTrajectories(
   yLabel.setAttribute("fill", "#666");
   yLabel.setAttribute("transform", "rotate(-90)");
   yLabel.textContent = metric === "rank" ? "Rank" : "Probability";
-  svg.appendChild(yLabel);
+  svgEl.appendChild(yLabel);
 
   // Determine positions to show
   const positionsToShow: number[] = [];
@@ -575,190 +598,75 @@ export function drawAllTrajectories(
   });
 
   // Draw legend entries
+  // Common options for all legend entries
+  const legendOpts = {
+    hitWidth: state.inputTokenWidth - 5,
+    closeX: legendCloseX,
+    textY: legendTextY,
+    fontScale,
+    strokeWidth,
+  };
+
   if (isMultiRowMode) {
-    // Multi-row mode: show group header (token name in color, outdented), then each row with its line style
+    // Multi-row mode: group header (no line, bold) + row entries (with line)
     const group = state.pinnedGroups[0];
-    const groupLabel = ctx.getGroupLabel(group);
-    const rowIndent = legendIndent + 10 * fontScale; // Row entries indented more than group header
 
-    // Group header entry (no line, just colored text, outdented)
-    const groupItem = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    groupItem.setAttribute("transform", `translate(${legendIndent - 5 * fontScale}, ${legendY})`);
-    groupItem.style.cursor = "pointer";
-
-    const groupHitTarget = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    groupHitTarget.setAttribute("x", "-15");
-    groupHitTarget.setAttribute("y", "-8");
-    groupHitTarget.setAttribute("width", String(state.inputTokenWidth - 5));
-    groupHitTarget.setAttribute("height", "14");
-    groupHitTarget.setAttribute("fill", "transparent");
-    groupItem.appendChild(groupHitTarget);
-
-    const groupCloseBtn = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    groupCloseBtn.setAttribute("class", "legend-close");
-    groupCloseBtn.setAttribute("x", String(legendCloseX));
-    groupCloseBtn.setAttribute("y", "0");
-    groupCloseBtn.setAttribute("dominant-baseline", "middle");
-    groupCloseBtn.style.fontSize = "var(--ll-content-size, 14px)";
-    groupCloseBtn.setAttribute("fill", "#999");
-    groupCloseBtn.style.display = "none";
-    groupCloseBtn.textContent = "\u00d7";
-    groupItem.appendChild(groupCloseBtn);
-
-    // No line for group header, just colored text
-    const groupText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    groupText.setAttribute("x", "0");
-    groupText.setAttribute("y", String(legendTextY));
-    groupText.style.fontSize = "var(--ll-content-size, 14px)";
-    groupText.setAttribute("fill", group.color);
-    groupText.style.fontWeight = "500";
-    groupText.textContent = groupLabel;
-    groupItem.appendChild(groupText);
-
-    groupItem.addEventListener("mouseenter", () => { groupCloseBtn.style.display = "block"; });
-    groupItem.addEventListener("mouseleave", () => { groupCloseBtn.style.display = "none"; });
-    groupCloseBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      state.pinnedGroups.splice(0, 1);
-      state.lastPinnedGroupIndex = -1;
-      ctx.buildTable(state.currentCellWidth, state.currentVisibleIndices, state.currentMaxRows);
-    });
-
-    legendG.appendChild(groupItem);
+    // Group header entry (no line, colored text, outdented)
+    legendG.appendChild(createLegendEntry({
+      ...legendOpts,
+      x: legendIndent - 5 * fontScale,
+      y: legendY,
+      label: ctx.getGroupLabel(group),
+      labelColor: group.color,
+      boldLabel: true,
+      onClose: (e) => {
+        e.stopPropagation();
+        state.pinnedGroups.splice(0, 1);
+        state.lastPinnedGroupIndex = -1;
+        ctx.buildTable(state.currentCellWidth, state.currentVisibleIndices, state.currentMaxRows);
+      },
+    }));
     legendY += legendEntryHeight;
 
-    // Row entries with line styles (no text prefix, just line + token)
+    // Row entries with line styles
     state.pinnedRows.forEach((row, rowIdx) => {
       const token = data.tokens[row.pos] || `pos ${row.pos}`;
-      const rowLabel = visualizeSpaces(token);
-
-      const rowItem = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      rowItem.setAttribute("transform", `translate(${legendIndent}, ${legendY})`);
-      rowItem.style.cursor = "pointer";
-
-      const rowHitTarget = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rowHitTarget.setAttribute("x", "-15");
-      rowHitTarget.setAttribute("y", "-8");
-      rowHitTarget.setAttribute("width", String(state.inputTokenWidth - 5));
-      rowHitTarget.setAttribute("height", "14");
-      rowHitTarget.setAttribute("fill", "transparent");
-      rowItem.appendChild(rowHitTarget);
-
-      const rowCloseBtn = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      rowCloseBtn.setAttribute("class", "legend-close");
-      rowCloseBtn.setAttribute("x", String(legendCloseX));
-      rowCloseBtn.setAttribute("y", "0");
-      rowCloseBtn.setAttribute("dominant-baseline", "middle");
-      rowCloseBtn.style.fontSize = "var(--ll-content-size, 14px)";
-      rowCloseBtn.setAttribute("fill", "#999");
-      rowCloseBtn.style.display = "none";
-      rowCloseBtn.textContent = "\u00d7";
-      rowItem.appendChild(rowCloseBtn);
-
-      const rowLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      rowLine.setAttribute("x1", "0");
-      rowLine.setAttribute("y1", "0");
-      rowLine.setAttribute("x2", String(15 * fontScale));
-      rowLine.setAttribute("y2", "0");
-      rowLine.setAttribute("stroke", group.color);
-      rowLine.setAttribute("stroke-width", String(strokeWidth));
-      if (row.lineStyle.dash) {
-        rowLine.setAttribute("stroke-dasharray", row.lineStyle.dash);
-      }
-      rowItem.appendChild(rowLine);
-
-      const rowText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      rowText.setAttribute("x", String(20 * fontScale));
-      rowText.setAttribute("y", String(legendTextY));
-      rowText.style.fontSize = "var(--ll-content-size, 14px)";
-      rowText.setAttribute("fill", isDarkMode() ? "#ddd" : "#333");
-      rowText.textContent = rowLabel;
-      rowItem.appendChild(rowText);
-
-      rowItem.addEventListener("mouseenter", () => { rowCloseBtn.style.display = "block"; });
-      rowItem.addEventListener("mouseleave", () => { rowCloseBtn.style.display = "none"; });
-      rowCloseBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        state.pinnedRows.splice(rowIdx, 1);
-        ctx.emit("pinnedRows", ctx.getSerializedPinnedRows());
-        ctx.buildTable(state.currentCellWidth, state.currentVisibleIndices, state.currentMaxRows);
-      });
-
-      legendG.appendChild(rowItem);
+      legendG.appendChild(createLegendEntry({
+        ...legendOpts,
+        x: legendIndent,
+        y: legendY,
+        label: visualizeSpaces(token),
+        labelColor: isDarkMode() ? "#ddd" : "#333",
+        line: { color: group.color, dash: row.lineStyle.dash },
+        onClose: (e) => {
+          e.stopPropagation();
+          state.pinnedRows.splice(rowIdx, 1);
+          ctx.emit("pinnedRows", ctx.getSerializedPinnedRows());
+          ctx.buildTable(state.currentCellWidth, state.currentVisibleIndices, state.currentMaxRows);
+        },
+      }));
       legendY += legendEntryHeight;
     });
   } else {
-    // Normal mode: show each group
+    // Normal mode: show each group with line sample
     state.pinnedGroups.forEach((group, groupIdx) => {
-      const groupLabel = ctx.getGroupLabel(group);
-      const legendItem = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      legendItem.setAttribute(
-        "transform",
-        `translate(${legendIndent}, ${legendY})`
-      );
-      legendItem.style.cursor = "pointer";
-
-      // Hit target
-      const hitTarget = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      hitTarget.setAttribute("x", "-15");
-      hitTarget.setAttribute("y", "-8");
-      hitTarget.setAttribute("width", String(state.inputTokenWidth - 5));
-      hitTarget.setAttribute("height", "14");
-      hitTarget.setAttribute("fill", "transparent");
-      legendItem.appendChild(hitTarget);
-
-      // Close button
-      const closeBtn = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      closeBtn.setAttribute("class", "legend-close");
-      closeBtn.setAttribute("x", String(legendCloseX));
-      closeBtn.setAttribute("y", "0");
-      closeBtn.setAttribute("dominant-baseline", "middle");
-      closeBtn.style.fontSize = "var(--ll-content-size, 14px)";
-      closeBtn.setAttribute("fill", "#999");
-      closeBtn.style.display = "none";
-      closeBtn.textContent = "\u00d7";
-      legendItem.appendChild(closeBtn);
-
-      // Line sample
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", "0");
-      line.setAttribute("y1", "0");
-      line.setAttribute("x2", String(15 * fontScale));
-      line.setAttribute("y2", "0");
-      line.setAttribute("stroke", group.color);
-      line.setAttribute("stroke-width", String(strokeWidth));
-      legendItem.appendChild(line);
-
-      // Label text
-      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      text.setAttribute("x", String(20 * fontScale));
-      text.setAttribute("y", String(legendTextY));
-      text.style.fontSize = "var(--ll-content-size, 14px)";
-      text.setAttribute("fill", isDarkMode() ? "#ddd" : "#333");
-      text.textContent = groupLabel;
-      legendItem.appendChild(text);
-
-      legendItem.addEventListener("mouseenter", () => {
-        closeBtn.style.display = "block";
-      });
-      legendItem.addEventListener("mouseleave", () => {
-        closeBtn.style.display = "none";
-      });
-      closeBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        state.pinnedGroups.splice(groupIdx, 1);
-        if (state.lastPinnedGroupIndex >= state.pinnedGroups.length) {
-          state.lastPinnedGroupIndex = state.pinnedGroups.length - 1;
-        }
-        ctx.emit("pinnedGroups", JSON.parse(JSON.stringify(state.pinnedGroups)));
-        ctx.buildTable(
-          state.currentCellWidth,
-          state.currentVisibleIndices,
-          state.currentMaxRows
-        );
-      });
-
-      legendG.appendChild(legendItem);
+      legendG.appendChild(createLegendEntry({
+        ...legendOpts,
+        x: legendIndent,
+        y: legendY,
+        label: ctx.getGroupLabel(group),
+        labelColor: isDarkMode() ? "#ddd" : "#333",
+        line: { color: group.color },
+        onClose: (e) => {
+          e.stopPropagation();
+          state.pinnedGroups.splice(groupIdx, 1);
+          if (state.lastPinnedGroupIndex >= state.pinnedGroups.length) {
+            state.lastPinnedGroupIndex = state.pinnedGroups.length - 1;
+          }
+          ctx.emit("pinnedGroups", JSON.parse(JSON.stringify(state.pinnedGroups)));
+          ctx.buildTable(state.currentCellWidth, state.currentVisibleIndices, state.currentMaxRows);
+        },
+      }));
       legendY += legendEntryHeight;
     });
   }
@@ -816,7 +724,7 @@ export function drawAllTrajectories(
   }
 
   // Append legend group last so it renders on top of chart content
-  svg.appendChild(legendG);
+  svgEl.appendChild(legendG);
 }
 
 function drawSingleTrajectory(
