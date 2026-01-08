@@ -1,8 +1,8 @@
 """
-NDIF - National Deep Inference Fabric interpretability workbench.
+LogitLens - Efficient logit lens data collection and visualization.
 
-This package provides tools for interpretability research on large language models,
-with efficient data collection optimized for NDIF remote execution.
+This module provides tools for collecting and visualizing logit lens data
+from transformer language models, optimized for NDIF remote execution.
 
 Example:
     >>> from nnsight import LanguageModel
@@ -13,14 +13,8 @@ Example:
     >>> show_logit_lens(data)
 """
 
-from .logitlens import (
-    collect_logit_lens,
-    show_logit_lens,
-    display_logit_lens,
-    to_js_format,
-)
-
-__version__ = "0.1.0"
+from .collect import collect_logit_lens
+from .display import show_logit_lens, display_logit_lens, to_js_format
 
 __all__ = [
     "collect_logit_lens",
