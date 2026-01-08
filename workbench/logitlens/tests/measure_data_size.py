@@ -29,7 +29,7 @@ Results help optimize bandwidth usage for NDIF remote execution.
 import argparse
 import json
 import sys
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any
 
 
 def parse_args():
@@ -83,152 +83,6 @@ def format_size(size_bytes: int) -> str:
         return f"{size_bytes / (1024 * 1024):.2f} MB"
 
 
-def collect_logit_lens_inline(
-    prompt: str,
-    model,
-    k: int = 5,
-    remote: bool = True,
-    include_rank: bool = False,
-    include_entropy: bool = False,
-    track_all_topk: bool = False,
-) -> Dict[str, Any]:
-    """
-    Inline logit lens collection that works with NDIF remote execution.
-
-    This avoids the whitelisting issues by not importing local modules inside
-    the trace context. All model access is done through direct attribute paths.
-    """
-    import torch as t
-
-    # Tokenize
-    token_ids = model.tokenizer.encode(prompt)
-    n_pos = len(token_ids)
-
-    # Detect model architecture by checking available attributes
-    # These are accessed BEFORE the trace to avoid serialization issues
-    config = model.config
-    model_type = getattr(config, "model_type", "").lower()
-
-    # Determine layer access path - check what exists on the model
-    # For Llama-style: model.model.layers, model.model.norm
-    # For GPT2-style: model.transformer.h, model.transformer.ln_f
-    is_llama_style = hasattr(model, "model") and hasattr(model.model, "layers")
-
-    # Get number of layers BEFORE trace
-    if is_llama_style:
-        n_layers = len(model.model.layers)
-    else:
-        n_layers = len(model.transformer.h)
-
-    # Extract primitives before trace
-    k_val = k
-    do_rank = include_rank
-    do_entropy = include_entropy
-    do_track_all = track_all_topk
-    n_layers_val = n_layers
-
-    with model.trace(token_ids, remote=remote):
-        all_probs = []
-        all_topk = []
-        all_entropy = [] if do_entropy else None
-
-        if is_llama_style:
-            # Llama/Mistral style architecture
-            for layer in model.model.layers:
-                hs = layer.output
-                if isinstance(hs, tuple):
-                    hs = hs[0]
-                logits = model.lm_head(model.model.norm(hs))
-                probs = t.nn.functional.softmax(logits[0], dim=-1)
-                all_probs.append(probs)
-                all_topk.append(probs.topk(k_val, dim=-1).indices)
-                if do_entropy:
-                    log_probs = t.nn.functional.log_softmax(logits[0], dim=-1)
-                    entropy = -(probs * log_probs).sum(dim=-1)
-                    all_entropy.append(entropy)
-        else:
-            # GPT-2 style architecture
-            for layer in model.transformer.h:
-                hs = layer.output
-                if isinstance(hs, tuple):
-                    hs = hs[0]
-                logits = model.lm_head(model.transformer.ln_f(hs))
-                probs = t.nn.functional.softmax(logits[0], dim=-1)
-                all_probs.append(probs)
-                all_topk.append(probs.topk(k_val, dim=-1).indices)
-                if do_entropy:
-                    log_probs = t.nn.functional.log_softmax(logits[0], dim=-1)
-                    entropy = -(probs * log_probs).sum(dim=-1)
-                    all_entropy.append(entropy)
-
-        # Stack top-k indices: [n_layers, n_pos, k]
-        topk = t.stack(all_topk).to(t.int32)
-
-        # Determine which tokens to track
-        if do_track_all:
-            global_unique = t.unique(topk.flatten()).to(t.int32)
-
-        # For each position: extract trajectories
-        tracked = []
-        probs_out = []
-        ranks_out = [] if do_rank else None
-
-        for pos in range(n_pos):
-            if do_track_all:
-                unique = global_unique
-            else:
-                unique = t.unique(topk[:, pos, :].flatten()).to(t.int32)
-
-            traj = t.stack([all_probs[li][pos, unique] for li in range(n_layers_val)])
-            tracked.append(unique)
-            probs_out.append(traj)
-
-            if do_rank:
-                rank_traj = []
-                for li in range(n_layers_val):
-                    sorted_indices = all_probs[li][pos].argsort(descending=True)
-                    rank_map = t.empty_like(sorted_indices)
-                    rank_map[sorted_indices] = t.arange(1, len(sorted_indices) + 1, device=sorted_indices.device)
-                    rank_traj.append(rank_map[unique])
-                ranks_out.append(t.stack(rank_traj).to(t.int32))
-
-        # Save results
-        topk.save()
-        tracked.save()
-        probs_out.save()
-        if do_rank:
-            ranks_out.save()
-        if do_entropy:
-            entropy_tensor = t.stack(all_entropy)
-            entropy_tensor.save()
-
-    # Build vocabulary map (client-side)
-    all_ids = set(topk.flatten().tolist())
-    for tr in tracked:
-        all_ids.update(tr.tolist())
-    vocab = {i: model.tokenizer.decode([i]) for i in all_ids}
-
-    # Get model name
-    model_name = getattr(config, '_name_or_path', getattr(config, 'name_or_path', 'unknown'))
-
-    output = {
-        "model": model_name,
-        "input": [model.tokenizer.decode([t]) for t in token_ids],
-        "layers": list(range(n_layers)),
-        "topk": topk,
-        "tracked": tracked,
-        "probs": probs_out,
-        "vocab": vocab,
-    }
-
-    if do_rank:
-        output["ranks"] = ranks_out
-    if do_entropy:
-        output["entropy"] = entropy_tensor
-
-    return output
-
-
 def run_measurements(args=None):
     """Run data size measurements with different configurations."""
     if args is None:
@@ -240,6 +94,7 @@ def run_measurements(args=None):
         print("ERROR: nnsight not installed. Install with: pip install nnsight")
         sys.exit(1)
 
+    from workbench.logitlens.collect import collect_logit_lens
     from workbench.logitlens.display import to_js_format
 
     print("=" * 70)
@@ -313,7 +168,7 @@ def run_measurements(args=None):
             for config in configs:
                 try:
                     print(f"  Running: {config['name']}...", end=" ", flush=True)
-                    data = collect_logit_lens_inline(
+                    data = collect_logit_lens(
                         prompt,
                         model,
                         k=5,
