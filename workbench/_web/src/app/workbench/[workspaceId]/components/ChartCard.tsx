@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Grid3X3, ChartLine, Trash2, Copy, MoreVertical } from "lucide-react";
 import Image from "next/image";
@@ -21,6 +21,7 @@ export type ChartCardProps = {
 export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCardProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
     const copyChart = useCopyChart();
+    const [popoverOpen, setPopoverOpen] = useState(false);
 
     const isSelected = chartId === metadata.id;
     const router = useRouter();
@@ -182,7 +183,7 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
                             )}
                         </div>
                     </div>
-                    <Popover>
+                    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                         <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                                 <MoreVertical className="h-4 w-4" />
@@ -200,6 +201,7 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
                                 chartId={metadata.id}
                                 chartName={metadata.name || ""}
                                 triggerClassName="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-accent rounded-sm"
+                                onSuccess={() => setPopoverOpen(false)}
                             />
                             <button
                                 className={`flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-accent rounded-sm text-destructive ${!canDelete ? "opacity-40 cursor-not-allowed" : ""}`}

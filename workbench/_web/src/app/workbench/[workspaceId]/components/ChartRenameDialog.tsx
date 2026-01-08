@@ -17,21 +17,29 @@ interface ChartRenameDialogProps {
     chartId: string;
     chartName: string;
     triggerClassName?: string;
+    onSuccess?: () => void;
 }
 
 export function ChartRenameDialog({
     chartId,
     chartName,
     triggerClassName,
+    onSuccess,
 }: ChartRenameDialogProps) {
     const { mutate: updateChartName } = useUpdateChartName();
 
     const [newName, setNewName] = useState(chartName);
     const [open, setOpen] = useState(false);
 
-    const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const handleSubmit = () => {
         updateChartName({ chartId, name: newName });
         setOpen(false);
+        onSuccess?.();
+    };
+
+    const handleFormSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        handleSubmit();
     };
 
     return (
@@ -46,23 +54,27 @@ export function ChartRenameDialog({
                 </button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[325px]">
-                <DialogHeader>
-                    <DialogTitle>Rename chart</DialogTitle>
-                </DialogHeader>
-                <Input
-                    id="name-1"
-                    name="name"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                />
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant="outline">Cancel</Button>
-                    </DialogClose>
-                    <Button type="submit" onClick={handleSubmit}>
-                        Save changes
-                    </Button>
-                </DialogFooter>
+                <form onSubmit={handleFormSubmit}>
+                    <DialogHeader>
+                        <DialogTitle>Rename chart</DialogTitle>
+                    </DialogHeader>
+                    <Input
+                        id="name-1"
+                        name="name"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        className="my-4"
+                        autoFocus
+                    />
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button type="button" variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <Button type="submit">
+                            Save changes
+                        </Button>
+                    </DialogFooter>
+                </form>
             </DialogContent>
         </Dialog>
     );

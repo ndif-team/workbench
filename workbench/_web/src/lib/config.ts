@@ -13,6 +13,9 @@ const config = {
         startLensGrid: "/lens/start-grid",
         resultsLensGrid: (jobId: string) => `/lens/results-grid/${jobId}`,
 
+        startLensV2: "/lens/start-v2",
+        resultsLensV2: (jobId: string) => `/lens/results-v2/${jobId}`,
+
         startPrediction: "/models/start-prediction",
         resultsPrediction: (jobId: string) => `/models/results-prediction/${jobId}`,
 

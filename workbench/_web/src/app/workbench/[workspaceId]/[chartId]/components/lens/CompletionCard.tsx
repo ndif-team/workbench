@@ -1,37 +1,26 @@
 "use client";
 
-import { ChartLine, Grid3x3, Loader2, TriangleAlert, ChevronDown } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { TokenArea } from "./TokenArea";
 import { useState, useEffect, useRef } from "react";
 import { usePrediction } from "@/lib/api/modelsApi";
 import type { LensConfigData, LensHeatmapMetrics, LensLineMetrics } from "@/types/lens";
 import { Metrics } from "@/types/lens";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-
 import { TargetTokenSelector } from "./TargetTokenSelector";
-
+import { DisplayControls } from "./DisplayControls";
 import { encodeText } from "@/actions/tok";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { useParams } from "next/navigation";
 import { useLensCharts } from "@/hooks/useLensCharts";
 import { cn } from "@/lib/utils";
-
 import { LensConfig } from "@/db/schema";
 import GenerateButton from "./GenerateButton";
-import { DecoderSelector } from "./DecoderSelector";
 import { ChartType } from "@/types/charts";
 import { Token } from "@/types/models";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { useLensWorkspace } from "@/stores/useLensWorkspace";
 
 interface CompletionCardProps {
     initialConfig: LensConfig;
@@ -79,6 +68,7 @@ const ensureValidStatistic = (config: LensConfigData, chartType: ChartType): Len
 
 export function CompletionCard({ initialConfig, chartType, selectedModel }: CompletionCardProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
+    const { togglePinnedRow, widgetRef } = useLensWorkspace();
 
     const [tokenData, setTokenData] = useState<Token[]>([]);
 
@@ -353,6 +343,14 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
         event.preventDefault();
         event.stopPropagation();
 
+        // If widget is available, toggle the pinned row directly
+        // This syncs TokenArea clicks with the widget's row pinning behavior
+        if (widgetRef) {
+            togglePinnedRow(idx);
+            return;
+        }
+
+        // Fallback to old behavior if widget is not available
         // Skip if the token is already selected
         if (config.token.idx === idx) return;
 
@@ -466,102 +464,14 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                                 : "pointer-events-auto",
                         )}
                     >
-                        <div className="flex w-full justify-between items-center gap-2 flex-nowrap min-w-60">
-                            <div className="flex items-center p-1 h-8 bg-background rounded flex-shrink-0">
-                                <button
-                                    onClick={() => handleCreateHeatmap(config)}
-                                    disabled={
-                                        isExecuting || isCreatingLineChart || isCreatingHeatmap
-                                    }
-                                    className={cn(
-                                        "relative overflow-hidden flex items-center gap-2 px-3 py-0.5 rounded text-xs bg-transparent",
-                                        ((chartType === "heatmap" && !isCreatingLineChart) ||
-                                            isCreatingHeatmap) &&
-                                            "bg-popover border",
-                                    )}
-                                >
-                                    {isCreatingHeatmap ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Grid3x3 className="w-4 h-4" />
-                                    )}
-                                    Heatmap
-                                </button>
-                                <button
-                                    onClick={() => handleCreateLineChart(config)}
-                                    disabled={
-                                        isExecuting ||
-                                        isCreatingLineChart ||
-                                        isCreatingHeatmap ||
-                                        config.token.targetIds.length === 0
-                                    }
-                                    className={cn(
-                                        "relative overflow-hidden flex items-center gap-2 px-3 py-0.5 rounded text-xs bg-transparent",
-                                        ((chartType === "line" && !isCreatingHeatmap) ||
-                                            isCreatingLineChart) &&
-                                            "bg-popover border",
-                                    )}
-                                >
-                                    {isCreatingLineChart ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <ChartLine className="w-4 h-4" />
-                                    )}
-                                    Line
-                                </button>
-                            </div>
-
-                            {/* Statistics Type Dropdown */}
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-8 text-xs min-w-20 max-w-28 flex-shrink-0 border-0"
-                                        disabled={
-                                            isExecuting || isCreatingLineChart || isCreatingHeatmap
-                                        }
-                                    >
-                                        <span className="flex items-center gap-1 truncate">
-                                            <span className="truncate">
-                                                {capitalizeStatistic(config.statisticType)}
-                                            </span>
-                                            <ChevronDown className="w-3 h-3 flex-shrink-0" />
-                                        </span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent className="w-auto min-w-24">
-                                    <DropdownMenuLabel className="text-xs">
-                                        Metrics
-                                    </DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    {getValidStatistics(chartType).map((statistic) => (
-                                        <DropdownMenuItem
-                                            key={statistic}
-                                            onClick={() => handleStatisticChange(statistic)}
-                                            className="text-xs"
-                                        >
-                                            {capitalizeStatistic(statistic)}
-                                        </DropdownMenuItem>
-                                    ))}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-
-                        <div
-                            className={cn(
-                                "size-full",
-                                chartType === "heatmap"
-                                    ? "opacity-50 pointer-events-none"
-                                    : "pointer-events-auto",
-                            )}
-                        >
+                        <div className="size-full">
                             <TargetTokenSelector
                                 config={config}
                                 setConfig={setConfig}
                                 configId={initialConfig.id}
                             />
                         </div>
+                        <DisplayControls />
                     </div>
                 </div>
             )}
