@@ -6,8 +6,14 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 
+# Colab test auth state (contains session cookies - do not commit!)
+/.auth/
+colab-*.png
+
 
 # Migrations (for now?)
 
 /sqlite-migrations/
 /pg-migrations/
+*storybook.log
+storybook-static
