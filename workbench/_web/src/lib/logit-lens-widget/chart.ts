@@ -395,11 +395,11 @@ export function drawAllTrajectories(
   yLabel.textContent = metric === "rank" ? "Rank" : "Probability";
   svgEl.appendChild(yLabel);
 
-  // Determine positions to show
+  // Determine positions to show: always include hover position + any pinned rows
   const positionsToShow: number[] = [];
-  if (state.pinnedRows.length > 0) {
-    state.pinnedRows.forEach((pr) => positionsToShow.push(pr.pos));
-  } else {
+  state.pinnedRows.forEach((pr) => positionsToShow.push(pr.pos));
+  // Also include the current hover position if not already pinned
+  if (!positionsToShow.includes(pos)) {
     positionsToShow.push(pos);
   }
 

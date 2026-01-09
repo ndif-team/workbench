@@ -739,9 +739,8 @@ var LogitLensWidgetModule = (() => {
     yLabel.textContent = metric === "rank" ? "Rank" : "Probability";
     svgEl.appendChild(yLabel);
     const positionsToShow = [];
-    if (state.pinnedRows.length > 0) {
-      state.pinnedRows.forEach((pr) => positionsToShow.push(pr.pos));
-    } else {
+    state.pinnedRows.forEach((pr) => positionsToShow.push(pr.pos));
+    if (!positionsToShow.includes(pos)) {
       positionsToShow.push(pos);
     }
     let allValues = [];

@@ -23,6 +23,7 @@ import { test, expect, Page } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { execSync } from "child_process";
 
 // ES module compatibility
 const __filename = fileURLToPath(import.meta.url);
@@ -42,6 +43,42 @@ const GPT2_MODEL = "openai-community/gpt2";
 
 // Timeout for model inference (GPT-2 is fast but first load can be slow)
 const INFERENCE_TIMEOUT = 60000;
+
+// Helper to check and initialize the SQLite database if needed
+function ensureDatabaseInitialized(): void {
+    const webDir = path.join(__dirname, "..");
+    const dbPath = path.join(webDir, "local.db");
+
+    // Check if database file exists and has tables
+    let needsInit = false;
+    try {
+        if (!fs.existsSync(dbPath)) {
+            needsInit = true;
+        } else {
+            // Check if database has required tables
+            const result = execSync(`sqlite3 "${dbPath}" ".tables"`, { encoding: "utf-8" });
+            if (!result.includes("workspaces")) {
+                needsInit = true;
+            }
+        }
+    } catch {
+        needsInit = true;
+    }
+
+    if (needsInit) {
+        console.log("Database needs initialization, running drizzle-kit push...");
+        try {
+            execSync("npx drizzle-kit push", {
+                cwd: webDir,
+                encoding: "utf-8",
+                stdio: "pipe"
+            });
+            console.log("Database initialized successfully");
+        } catch (e: any) {
+            throw new Error(`Failed to initialize database: ${e.message}`);
+        }
+    }
+}
 
 // Helper to check if backend is in local mode
 async function checkBackendMode(request: any): Promise<{ isLocal: boolean; error?: string }> {
@@ -92,6 +129,9 @@ test.describe("End-to-End Tests", () => {
     test.setTimeout(120000);
 
     test.beforeAll(async ({ request }) => {
+        // Ensure SQLite database is initialized (for frontend tests)
+        ensureDatabaseInitialized();
+
         // Verify backend is running in local mode
         const { isLocal, error } = await checkBackendMode(request);
         if (!isLocal) {

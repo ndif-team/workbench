@@ -155,12 +155,45 @@ start_backend() {
     fi
 }
 
+# Ensure SQLite database is initialized
+ensure_database() {
+    local DB_PATH="$WEB_DIR/local.db"
+    local NEEDS_INIT=false
+
+    if [ ! -f "$DB_PATH" ]; then
+        NEEDS_INIT=true
+    else
+        # Check if database has required tables
+        local TABLES
+        TABLES=$(sqlite3 "$DB_PATH" ".tables" 2>/dev/null || echo "")
+        if ! echo "$TABLES" | grep -q "workspaces"; then
+            NEEDS_INIT=true
+        fi
+    fi
+
+    if [ "$NEEDS_INIT" = true ]; then
+        log_info "Initializing SQLite database..."
+        cd "$WEB_DIR"
+        npx drizzle-kit push > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            log_success "Database initialized"
+        else
+            log_error "Failed to initialize database"
+            return 1
+        fi
+    fi
+    return 0
+}
+
 # Start frontend (Next.js dev server)
 start_frontend() {
     if port_in_use 3000; then
         log_success "Frontend already running on port 3000"
         return 0
     fi
+
+    # Ensure database is initialized before starting frontend
+    ensure_database || return 1
 
     log_info "Starting frontend (Next.js)..."
     cd "$WEB_DIR"
@@ -195,11 +228,11 @@ run_widget_tests() {
     echo ""
     cd "$WEB_DIR"
     npx playwright test tests/logitlens.spec.ts \
-        --grep-invert "Full App Integration" \
+        --grep-invert "Full App Integration|React Integration Tests" \
         --project=chromium \
         --reporter=list
     echo ""
-    log_success "Widget unit tests completed (27 tests)"
+    log_success "Widget unit tests completed"
 }
 
 # Run React integration tests (needs frontend, mocks backend)
