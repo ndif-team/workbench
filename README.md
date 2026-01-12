@@ -1,4 +1,26 @@
-# Workbench
+<p align="center">
+  <img src="./workbench_logo.png" alt="Workbench" width="300">
+</p>
+
+<h3 align="center">
+AI Interpretability Research Platform
+</h3>
+
+<h4 align="center">
+<a href="https://workbench.ndif.us/">Use Workbench now!</a>
+</h4>
+
+<p align="center">
+<a href="https://github.com/ndif-team/workbench"><b>GitHub</b></a> | <a href="https://discord.gg/6uFJmCSwW7"><b>Discord</b></a> | <a href="https://discuss.ndif.us/"><b>Forum</b></a> | <a href="https://x.com/ndif_team"><b>Twitter</b></a>
+</p>
+
+---
+
+## About
+
+**Workbench** is a UI for doing exploratory analysis on open source AI models by applying interpretability techniques. It leverages both [NNsight](https://github.com/ndif-team/nnsight) and [NDIF](https://github.com/ndif-team/ndif) to provide an interactive environment for exploring LLM internals and building experiments.
+
+---
 
 ## Setup
 
