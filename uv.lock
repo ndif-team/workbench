@@ -879,7 +879,7 @@ wheels = [
 
 [[package]]
 name = "nnsight"
-version = "0.5.13"
+version = "0.5.14"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "accelerate" },
@@ -895,12 +895,12 @@ dependencies = [
     { name = "torch", version = "2.9.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
     { name = "transformers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c0/85/cae0158d919f1771c125e142a45af8439eceb1473640a95b2c6fef3c3e9a/nnsight-0.5.13.tar.gz", hash = "sha256:993f71c776f5c79ad29b26e04d8c83d365fdbb07390bac4e4f346b432b93c8e3", size = 223360, upload-time = "2025-12-19T22:38:07.082Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b3/35/aaa537b59c350638b7879c650175df4c82344827de90ce168560aae2b550/nnsight-0.5.14.tar.gz", hash = "sha256:17cbcfe4470a6928a36a8c39ebf841d7e04c76e9eac515f89cdc88c74099025a", size = 181560, upload-time = "2026-01-08T05:06:25.036Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9f/20/07bbdf9c9e7ae9916b6bff1e868e536441c0b03b94ccaccd573d1cb0135c/nnsight-0.5.13-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:669ebb183b832ac4d9b0b13b344ed01cbe569b1024e08619a9caffcc051fb260", size = 91570, upload-time = "2025-12-19T22:37:49.312Z" },
-    { url = "https://files.pythonhosted.org/packages/94/59/f10fba384ce7dc782cef2550b96b0963147ca400897cfc097baf14a0e469/nnsight-0.5.13-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:c97f63934562f495eefd4bce0b2e35fd67ceb314309d1a504e472fbd69624361", size = 99045, upload-time = "2025-12-19T22:37:50.318Z" },
-    { url = "https://files.pythonhosted.org/packages/00/7f/5f6595c53de323aa79669a5b5e0c8d0a1fef17959af6efeecaa25e9d0a0d/nnsight-0.5.13-cp312-cp312-win32.whl", hash = "sha256:c6fe643b3a2adfffb3720173cd490a77b239ca76d49e1d03d9e7aec2681fa904", size = 93217, upload-time = "2025-12-19T22:37:51.292Z" },
-    { url = "https://files.pythonhosted.org/packages/5d/6e/c6ffe603c8827704ee570d7c1cfdfad693ea8c1bf316a4910d2ae7c9bd04/nnsight-0.5.13-cp312-cp312-win_amd64.whl", hash = "sha256:e4c3de8a8037d7e36a12cda5b91b0a282120771e82f58dc33e630f6681e2be2a", size = 93628, upload-time = "2025-12-19T22:37:52.312Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/2d/c23fe2b68fd3aca7ad384b7e4971535710ddc66d97510b05ef19c82febf9/nnsight-0.5.14-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:e73960744646e497a13ae53906e7333d0fba10694376c6e58d1ac0f846da7eba", size = 96698, upload-time = "2026-01-08T05:06:07.798Z" },
+    { url = "https://files.pythonhosted.org/packages/55/de/492c1b565c9ce0e04c64e2c8f40275f266f4b9b4b10ebbe6bf8a32c16422/nnsight-0.5.14-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:9cb097ab6ba47535d7aa13f44a6cf8a11bd5119729b49a1a3e6a7240b9f7b293", size = 104178, upload-time = "2026-01-08T05:06:08.646Z" },
+    { url = "https://files.pythonhosted.org/packages/01/a1/1fc2979691199d3b7607bacba72a1b7827683a1a31c568e44a709e90c3e5/nnsight-0.5.14-cp312-cp312-win32.whl", hash = "sha256:c0674b94fbf5f22a0e29208882db7bb863398c3a5e258d5243e4f1ce9b715c86", size = 98387, upload-time = "2026-01-08T05:06:09.976Z" },
+    { url = "https://files.pythonhosted.org/packages/08/3c/b8e667f984ae9841842acafa11831e6b612b9cc57bac1916015c3db27114/nnsight-0.5.14-cp312-cp312-win_amd64.whl", hash = "sha256:586fe47fcf053a979fb89a091b3a85223e329aae52514cf78d3a6133b9a95520", size = 98797, upload-time = "2026-01-08T05:06:11.256Z" },
 ]
 
 [[package]]
