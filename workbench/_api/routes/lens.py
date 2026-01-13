@@ -492,18 +492,18 @@ async def collect_grid(
         probs, pred_ids = get_remote_heatmap(user_email, job_id, state)
     except Exception as e:
         TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email, 
-            job_id=job_id, 
+            RequestStatus.ERROR,
+            user_email,
+            job_id=job_id,
             method="LENS",
             type="GRID",
             metric=lens_request.stat.value,
             msg=str(e)
         )
         raise e
-    
+
     TelemetryClient.log_request(
-        RequestStatus.COMPLETE, 
+        RequestStatus.COMPLETE,
         user_email,
         job_id=job_id,
         method="LENS",
@@ -511,3 +511,199 @@ async def collect_grid(
         metric=lens_request.stat.value
     )
     return {"data": process_grid_results(probs, pred_ids, lens_request, state)}
+
+
+############ V2 FORMAT (LogitLensKit compatible) ############
+
+class LogitLensV2Request(BaseModel):
+    model: str
+    prompt: str
+    k: int = 5  # Top-k predictions to track
+    include_rank: bool = True  # Whether to include rank trajectories
+    include_entropy: bool = True  # Whether to include entropy data
+
+
+class LogitLensV2Meta(BaseModel):
+    version: int = 2
+    model: str
+
+
+class LogitLensV2Response(NDIFResponse):
+    meta: LogitLensV2Meta | None = None
+    input: list[str] | None = None
+    layers: list[int] | None = None
+    topk: list[list[list[str]]] | None = None  # [layer][position][k]
+    tracked: list[dict[str, dict | list[float]]] | None = None  # [position]{token: {prob, rank} or trajectory}
+    entropy: list[list[float]] | None = None  # [layer][position] - entropy at each position/layer
+
+
+def collect_logit_lens_v2(
+    req: LogitLensV2Request, state: AppState
+) -> dict | str:
+    """
+    Collect logit lens data in V2 format (LogitLensKit compatible).
+
+    Returns top-k predictions and probability trajectories for all tracked tokens,
+    optimized for bandwidth (server-side reduction).
+
+    Uses the shared collect_logit_lens implementation from workbench.logitlens.
+    """
+    from workbench.logitlens.collect import collect_logit_lens
+
+    model = state[req.model]
+    backend = state.make_backend(model=model)
+
+    # Call the unified collect_logit_lens function
+    # For remote execution with non-blocking backend, returns job_id string
+    # For local execution, returns dict with tensor results
+    return collect_logit_lens(
+        prompt=req.prompt,
+        model=model,
+        k=req.k,
+        remote=state.remote,
+        backend=backend,
+        include_rank=req.include_rank,
+        include_entropy=req.include_entropy,
+    )
+
+
+def process_v2_results(
+    result: dict,
+    req: LogitLensV2Request = None,
+    state: AppState = None,
+) -> dict:
+    """Convert tensor results to frontend-ready V2 JSON format.
+
+    Uses the shared to_js_format implementation from workbench.logitlens.display.
+
+    For local execution, result already contains vocab/model/input/layers.
+    For remote execution, we need to build those from req/state.
+    """
+    from workbench.logitlens.display import to_js_format
+
+    # Check if result already has vocab (local execution path)
+    if "vocab" in result:
+        return to_js_format(result)
+
+    # Remote execution path: build missing metadata
+    model = state[req.model]
+    tok = model.tokenizer
+
+    # Build vocabulary map from tensors
+    all_ids = set(result["topk"].flatten().tolist())
+    for t_ids in result["tracked"]:
+        all_ids.update(t_ids.tolist())
+    vocab = {i: tok.decode([i]) for i in all_ids}
+
+    # Build complete result dict for to_js_format
+    n_layers = result["topk"].shape[0]
+    complete_result = {
+        "model": req.model,
+        "input": [tok.decode([t]) for t in tok.encode(req.prompt)],
+        "layers": list(range(n_layers)),
+        "topk": result["topk"],
+        "tracked": result["tracked"],
+        "probs": result["probs"],
+        "vocab": vocab,
+    }
+    if "ranks" in result and result["ranks"] is not None:
+        complete_result["ranks"] = result["ranks"]
+    if "entropy" in result and result["entropy"] is not None:
+        complete_result["entropy"] = result["entropy"]
+
+    return to_js_format(complete_result)
+
+
+@router.post("/start-v2", response_model=LogitLensV2Response)
+async def start_v2(
+    req: LogitLensV2Request,
+    state: AppState = Depends(get_state),
+    user_email: str = Depends(require_user_email)
+):
+    """Start V2 format logit lens collection (LogitLensKit compatible)."""
+
+    if state.remote:
+        if not user_has_model_access(user_email, req.model, state):
+            message = f"User does not have access to {req.model}"
+            TelemetryClient.log_request(
+                RequestStatus.ERROR,
+                user_email,
+                method="LENS",
+                type="V2",
+                msg=message,
+            )
+            raise HTTPException(status_code=403, detail=message)
+
+    TelemetryClient.log_request(
+        RequestStatus.STARTED,
+        user_email,
+        method="LENS",
+        type="V2",
+    )
+
+    try:
+        result = collect_logit_lens_v2(req, state)
+    except Exception as e:
+        TelemetryClient.log_request(
+            RequestStatus.ERROR,
+            user_email,
+            method="LENS",
+            type="V2",
+            msg=str(e),
+        )
+        raise e
+
+    if state.remote:
+        TelemetryClient.log_request(
+            RequestStatus.READY,
+            user_email,
+            method="LENS",
+            type="V2",
+            job_id=result,
+        )
+        return {"job_id": result}
+
+    processed = process_v2_results(result, req, state)
+    return processed
+
+
+@router.post("/results-v2/{job_id}", response_model=LogitLensV2Response)
+async def collect_v2(
+    job_id: str,
+    req: LogitLensV2Request,
+    state: AppState = Depends(get_state),
+    user_email: str = Depends(require_user_email)
+):
+    """Collect V2 format results for remote job."""
+    backend = state.make_backend(job_id=job_id)
+
+    try:
+        with TelemetryClient.log_latency(
+            user_email=user_email,
+            job_id=job_id,
+            method="LENS",
+            type="V2",
+            stage=Stage.DOWNLOAD
+        ):
+            results = backend()
+    except Exception as e:
+        TelemetryClient.log_request(
+            RequestStatus.ERROR,
+            user_email,
+            job_id=job_id,
+            method="LENS",
+            type="V2",
+            msg=str(e)
+        )
+        raise e
+
+    TelemetryClient.log_request(
+        RequestStatus.COMPLETE,
+        user_email,
+        job_id=job_id,
+        method="LENS",
+        type="V2",
+    )
+
+    processed = process_v2_results(results, req, state)
+    return processed

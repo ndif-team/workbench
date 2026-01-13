@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createWorkspace, deleteWorkspace } from "@/lib/queries/workspaceQueries";
+import { createWorkspace, deleteWorkspace, updateWorkspaceName } from "@/lib/queries/workspaceQueries";
 import { setConfig } from "@/lib/queries/configQueries";
 import { NewConfig } from "@/db/schema";
 
@@ -52,6 +52,24 @@ export const useUpdateChartConfig = () => {
         },
         onError: (error) => {
             console.error("Error updating workspace:", error);
+        },
+    });
+};
+
+export const useUpdateWorkspaceName = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ workspaceId, name }: { workspaceId: string; name: string }) => {
+            await updateWorkspaceName(workspaceId, name);
+            return { workspaceId };
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+            queryClient.invalidateQueries({ queryKey: ["workspace", data.workspaceId] });
+        },
+        onError: (error) => {
+            console.error("Error updating workspace name:", error);
         },
     });
 };

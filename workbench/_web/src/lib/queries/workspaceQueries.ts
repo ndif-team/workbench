@@ -69,3 +69,13 @@ export const createWorkspace = async (userId: string, name: string) => {
 
     return workspace;
 };
+
+export const updateWorkspaceName = async (workspaceId: string, name: string) => {
+    const [updatedWorkspace] = await db
+        .update(workspaces)
+        .set({ name })
+        .where(eq(workspaces.id, workspaceId))
+        .returning();
+
+    return updatedWorkspace;
+};

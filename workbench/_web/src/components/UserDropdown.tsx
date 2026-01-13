@@ -17,6 +17,8 @@ import Link from "next/link";
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
 
+const isAuthDisabled = process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
+
 export function UserDropdown() {
     const router = useRouter();
     // const posthog = usePostHog();
@@ -24,6 +26,8 @@ export function UserDropdown() {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     useEffect(() => {
+        if (isAuthDisabled) return;
+
         const fetchUser = async () => {
             const supabase = createClient();
             const {
@@ -34,6 +38,11 @@ export function UserDropdown() {
 
         fetchUser();
     }, []);
+
+    // When auth is disabled, don't show user dropdown
+    if (isAuthDisabled) {
+        return null;
+    }
 
     const handleLogout = async () => {
         setIsLoggingOut(true);

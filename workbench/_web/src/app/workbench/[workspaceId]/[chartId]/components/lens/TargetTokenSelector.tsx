@@ -1,16 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import AsyncSelect from "react-select/async";
-import type { MultiValue, StylesConfig, GroupBase } from "react-select";
-import { LensConfigData, Metrics } from "@/types/lens";
-import { TokenOption } from "@/types/models";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useLensWorkspace } from "@/stores/useLensWorkspace";
-import { useDebouncedCallback } from "use-debounce";
-import { Loader2, RotateCcw, X } from "lucide-react";
+import { X, Search } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useLensCharts } from "@/hooks/useLensCharts";
-import { useIsMutating } from "@tanstack/react-query";
-import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import type { LensConfigData } from "@/types/lens";
 
 // Helper function to render token text with blue underscore for leading spaces and blue "\n" for newlines
 const renderTokenText = (text: string | undefined) => {
@@ -50,154 +43,177 @@ const renderTokenText = (text: string | undefined) => {
     return elements.length ? <>{elements}</> : text;
 };
 
+// Normalize string for matching: lowercase, optionally strip spaces/punctuation
+const normalizeForMatch = (str: string, preserveSpecial: boolean): string => {
+    if (preserveSpecial) {
+        return str.toLowerCase();
+    }
+    // Remove spaces and punctuation for fuzzy matching
+    return str.toLowerCase().replace(/[\s\p{P}]/gu, "");
+};
+
+// Check if query matches token with smart matching
+const matchesQuery = (token: string, query: string): boolean => {
+    if (!query) return true;
+
+    // Check if query has special characters (spaces, punctuation)
+    const hasSpecialChars = /[\s\p{P}]/u.test(query);
+
+    if (hasSpecialChars) {
+        // Exact match respecting spaces/punctuation (case-insensitive)
+        return token.toLowerCase().includes(query.toLowerCase());
+    } else {
+        // Fuzzy match ignoring spaces/punctuation
+        const normalizedToken = normalizeForMatch(token, false);
+        const normalizedQuery = normalizeForMatch(query, false);
+        return normalizedToken.includes(normalizedQuery);
+    }
+};
+
 interface TargetTokenSelectorProps {
     configId: string;
     config: LensConfigData;
     setConfig: (config: LensConfigData) => void;
 }
 
+// Token option type for the select component (token text + color)
+interface PinnedTokenOption {
+    value: string; // token text
+    label: string;
+    color?: string;
+    groupIndex?: number;
+}
+
 export const TargetTokenSelector = ({ configId, config, setConfig }: TargetTokenSelectorProps) => {
-    const { handleCreateLineChart, isExecuting } = useLensCharts({ configId });
-    const [lineIsPending, setLineIsPending] = useState(false);
-    const globalLineRunning = useIsMutating({ mutationKey: ["lensLine"] }) > 0;
+    const { pinnedGroups, togglePinnedTrajectory, widgetRef, trackedTokens } = useLensWorkspace();
+    const [searchQuery, setSearchQuery] = useState("");
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const suggestionsRef = useRef<HTMLDivElement>(null);
 
-    // Debounced function to run line chart 2 seconds after target token IDs change
-    const debouncedRunLineChart = useDebouncedCallback(async (currentConfig: LensConfigData) => {
-        if (currentConfig.token.targetIds.length > 0) {
-            await handleCreateLineChart(currentConfig);
-        }
-        setLineIsPending(false);
-    }, 3000);
+    // Convert pinned groups to grouped select options (tokens grouped by color)
+    const groupedOptions: { color: string; tokens: string[] }[] = useMemo(() => {
+        return pinnedGroups.map((group) => ({
+            color: group.color,
+            tokens: group.tokens,
+        }));
+    }, [pinnedGroups]);
 
-    const prediction = config.prediction;
-
-    const probLookup = useMemo(() => {
-        if (!prediction) return null as Map<number, number> | null;
-        return new Map<number, number>(
-            prediction.ids.map((id: number, idx: number) => [id, prediction.probs[idx] ?? 0]),
-        );
-    }, [prediction]);
-
-    // Build options from all predicted tokens
-    const options: TokenOption[] = useMemo(() => {
-        if (!prediction) return [];
-        return prediction.ids.map((id: number, index: number) => {
-            const text = prediction.texts[index] ?? "";
-            const prob = prediction.probs[index] ?? 0;
-            return { value: id, text, prob } as TokenOption;
+    // Flat list of all pinned tokens (for pinnedTokenSet)
+    const selectedOptions: PinnedTokenOption[] = useMemo(() => {
+        const options: PinnedTokenOption[] = [];
+        pinnedGroups.forEach((group, groupIndex) => {
+            group.tokens.forEach((token) => {
+                options.push({
+                    value: token,
+                    label: token,
+                    color: group.color,
+                    groupIndex,
+                });
+            });
         });
-    }, [prediction]);
+        return options;
+    }, [pinnedGroups]);
 
-    // Maintain a local registry of known options so selections from queries persist
-    const [knownOptionsById, setKnownOptionsById] = useState<Map<number, TokenOption>>(new Map());
+    // Get tokens that are already pinned
+    const pinnedTokenSet = useMemo(() => {
+        return new Set(selectedOptions.map((opt) => opt.value));
+    }, [selectedOptions]);
 
-    // Sync prediction options into known registry
+    // Filter suggestions based on search query
+    const suggestions = useMemo(() => {
+        if (!searchQuery) return [];
+        return trackedTokens
+            .filter((token) => !pinnedTokenSet.has(token) && matchesQuery(token, searchQuery))
+            .slice(0, 10); // Limit to 10 suggestions
+    }, [trackedTokens, searchQuery, pinnedTokenSet]);
+
+    // Reset selected index when suggestions change
     useEffect(() => {
-        if (options.length === 0) return;
-        setKnownOptionsById((prev) => {
-            const updated = new Map(prev);
-            for (const opt of options) {
-                updated.set(opt.value, opt);
-            }
-            return updated;
-        });
-    }, [options]);
+        setSelectedIndex(0);
+    }, [suggestions]);
 
-    const selectedOptions: TokenOption[] = useMemo(() => {
-        if (config.token.targetIds.length === 0) return [];
-        return config.token.targetIds
-            .map((id) => knownOptionsById.get(id))
-            .filter((v): v is TokenOption => !!v);
-    }, [knownOptionsById, config.token.targetIds]);
-
-    const handleChange = (newValue: MultiValue<TokenOption>) => {
-        const newIds = newValue.map((opt) => opt.value);
-        // Persist any newly chosen options into the registry
-        setKnownOptionsById((prev) => {
-            const updated = new Map(prev);
-            for (const opt of newValue) {
-                updated.set(opt.value, opt);
+    // Handle clicking outside to close suggestions
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (
+                suggestionsRef.current &&
+                !suggestionsRef.current.contains(e.target as Node) &&
+                inputRef.current &&
+                !inputRef.current.contains(e.target as Node)
+            ) {
+                setShowSuggestions(false);
             }
-            return updated;
-        });
-        const newConfig = {
-            ...config,
-            token: { ...config.token, targetIds: newIds },
         };
-        setConfig(newConfig);
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
-        // Run line chart 2 seconds after target token IDs change
-        debouncedRunLineChart(newConfig);
-        setLineIsPending(true);
+    // Handle removing a token from pinned groups
+    const handleRemoveToken = (tokenText: string) => {
+        if (widgetRef) {
+            togglePinnedTrajectory(tokenText, false);
+        }
     };
 
-    const debouncedFetch = useDebouncedCallback(
-        async (
-            query: string,
-            model: string,
-            pLookup: Map<number, number> | null,
-            resolve: (options: TokenOption[]) => void,
-        ) => {
-            const raw = query ?? "";
-            if (raw.length === 0) {
-                resolve([]);
-                return;
+    // Handle selecting a suggestion
+    const handleSelectSuggestion = (token: string) => {
+        if (widgetRef) {
+            togglePinnedTrajectory(token, false);
+        }
+        setSearchQuery("");
+        setShowSuggestions(false);
+        inputRef.current?.focus();
+    };
+
+    // Handle keyboard navigation
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (!showSuggestions || suggestions.length === 0) {
+            if (e.key === "ArrowDown" && searchQuery) {
+                setShowSuggestions(true);
             }
-            try {
-                const resp = await fetch("/api/tokens/query", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ query: raw, model, limit: 50 }),
-                });
-                const data = (await resp.json()) as { tokens?: TokenOption[] };
-                const tokens = data.tokens ?? [];
+            return;
+        }
 
-                // Attach probs and sort by probability descending
-                const opts = tokens.map(
-                    (t) =>
-                        ({
-                            value: t.value,
-                            text: t.text,
-                            prob: pLookup?.get(t.value) ?? 0,
-                        }) as TokenOption,
-                );
-
-                opts.sort((a, b) => (b.prob ?? 0) - (a.prob ?? 0));
-                resolve(opts);
-            } catch {
-                resolve([]);
-            }
-        },
-        500,
-    );
-
-    const loadOptions = useCallback(
-        (inputValue: string): Promise<TokenOption[]> =>
-            new Promise((resolve) => {
-                debouncedFetch.cancel();
-                // If input is empty or whitespace-only, show predictions; otherwise query
-                const raw = inputValue ?? "";
-                if (raw.length === 0 || /^\s*$/.test(raw)) {
-                    resolve(options);
-                } else {
-                    debouncedFetch(inputValue, config.model, probLookup, (fetched) => {
-                        // Merge fetched options into known registry for persistence
-                        setKnownOptionsById((prev) => {
-                            const updated = new Map(prev);
-                            for (const opt of fetched) updated.set(opt.value, opt);
-                            return updated;
-                        });
-                        resolve(fetched);
-                    });
+        switch (e.key) {
+            case "ArrowDown":
+                e.preventDefault();
+                setSelectedIndex((prev) => Math.min(prev + 1, suggestions.length - 1));
+                break;
+            case "ArrowUp":
+                e.preventDefault();
+                setSelectedIndex((prev) => Math.max(prev - 1, 0));
+                break;
+            case "Enter":
+                e.preventDefault();
+                if (suggestions[selectedIndex]) {
+                    handleSelectSuggestion(suggestions[selectedIndex]);
                 }
-            }),
-        [debouncedFetch, config.model, probLookup, options],
-    );
+                break;
+            case "Escape":
+                setShowSuggestions(false);
+                break;
+        }
+    };
 
-    const [inputValue, setInputValue] = useState<string>("");
-
-    if (!prediction) {
-        return null;
+    // If no widget is available, show nothing (waiting for widget to load)
+    if (!widgetRef) {
+        return (
+            <div className="flex flex-col gap-1.5 w-full">
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span className="text-xs text-muted-foreground">Pinned Tokens</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                        Click tokens in the input or widget table to pin trajectories.
+                    </TooltipContent>
+                </Tooltip>
+                <div className="text-xs text-muted-foreground italic">
+                    Loading widget...
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -205,207 +221,115 @@ export const TargetTokenSelector = ({ configId, config, setConfig }: TargetToken
             <div className="flex justify-between items-center">
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <span className="text-xs">Target Tokens</span>
+                        <span className="text-xs">Pinned Tokens</span>
                     </TooltipTrigger>
-                    <TooltipContent side="right">Defaults to top 3.</TooltipContent>
+                    <TooltipContent side="right">
+                        Click tokens in the input or widget table to pin trajectories.
+                    </TooltipContent>
                 </Tooltip>
 
-                <div className="flex items-center gap-3">
-                    {config.token.targetIds.length > 0 && (
-                        <button
-                            className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground"
-                            onClick={() => {
-                                setConfig({
-                                    ...config,
-                                    token: { ...config.token, targetIds: [] },
-                                });
-                            }}
-                        >
-                            <X className="w-3 h-3" />
-                            Clear
-                        </button>
-                    )}
-                    {config.token.targetIds.length > 0 && (
-                        <Separator orientation="vertical" className="h-3 w-[0.5px]" />
-                    )}
+                {selectedOptions.length > 0 && (
                     <button
-                        className={cn(
-                            "text-xs flex items-center gap-1 text-muted-foreground",
-                            isExecuting || lineIsPending || globalLineRunning
-                                ? "cursor-progress"
-                                : "cursor-pointer hover:text-foreground",
-                        )}
-                        disabled={isExecuting || lineIsPending || globalLineRunning}
-                        onClick={async () => {
-                            setLineIsPending(true);
-                            await debouncedRunLineChart(config);
+                        className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                            // Clear all pinned trajectories
+                            selectedOptions.forEach((opt) => {
+                                togglePinnedTrajectory(opt.value, false);
+                            });
                         }}
                     >
-                        {isExecuting || lineIsPending || globalLineRunning ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                            <RotateCcw className="w-3 h-3" />
-                        )}
-                        Rerun
+                        <X className="w-3 h-3" />
+                        Clear All
                     </button>
+                )}
+            </div>
+
+            {/* Search input with autocomplete */}
+            <div className="relative">
+                <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                    <Input
+                        ref={inputRef}
+                        type="text"
+                        placeholder="Type to search tokens..."
+                        value={searchQuery}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setShowSuggestions(true);
+                        }}
+                        onFocus={() => searchQuery && setShowSuggestions(true)}
+                        onKeyDown={handleKeyDown}
+                        className="h-7 text-xs pl-7 pr-2"
+                    />
                 </div>
+
+                {/* Suggestions dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                    <div
+                        ref={suggestionsRef}
+                        className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-48 overflow-auto"
+                    >
+                        {suggestions.map((token, idx) => (
+                            <div
+                                key={token}
+                                className={`px-2 py-1.5 text-xs cursor-pointer flex items-center gap-2 ${
+                                    idx === selectedIndex
+                                        ? "bg-accent text-accent-foreground"
+                                        : "hover:bg-accent/50"
+                                }`}
+                                onClick={() => handleSelectSuggestion(token)}
+                                onMouseEnter={() => setSelectedIndex(idx)}
+                            >
+                                <span className="font-mono">{renderTokenText(token)}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
-            <div className="w-full flex-1 min-w-[12rem]">
-                <AsyncSelect<TokenOption, true>
-                    classNamePrefix="pred-select"
-                    isMulti
-                    isClearable
-                    defaultOptions={options}
-                    cacheOptions
-                    loadOptions={loadOptions}
-                    value={selectedOptions}
-                    onChange={handleChange}
-                    styles={selectStyles}
-                    placeholder="Enter a token..."
-                    closeMenuOnSelect={false}
-                    inputValue={inputValue}
-                    onInputChange={(newValue) => {
-                        setInputValue(newValue);
-                    }}
-                    formatOptionLabel={(option: TokenOption) => (
-                        <div className="flex items-center justify-between w-full">
-                            <span className="font-medium text-foreground">
-                                {renderTokenText(option.text)}
-                            </span>
-                            <span className="ml-3 text-xs text-muted-foreground">
-                                {(option.prob ?? 0).toFixed(4)}
-                            </span>
+
+            {/* Display pinned tokens grouped by color */}
+            <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
+                {groupedOptions.length === 0 ? (
+                    <span className="text-xs text-muted-foreground italic">
+                        No pinned tokens. Click tokens or search above to pin trajectories.
+                    </span>
+                ) : (
+                    groupedOptions.map((group, groupIdx) => (
+                        <div
+                            key={`group-${groupIdx}-${group.color}`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-popover border"
+                            style={{
+                                borderColor: group.color || undefined,
+                                borderLeftWidth: group.color ? 3 : 1,
+                            }}
+                        >
+                            {group.tokens.map((token, tokenIdx) => (
+                                <span
+                                    key={`${token}-${tokenIdx}`}
+                                    className="inline-flex items-center gap-0.5"
+                                >
+                                    {tokenIdx > 0 && (
+                                        <span className="text-muted-foreground/50 mx-0.5">|</span>
+                                    )}
+                                    <span className="text-muted-foreground font-mono">
+                                        {renderTokenText(token)}
+                                    </span>
+                                    <button
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleRemoveToken(token);
+                                        }}
+                                        className="text-muted-foreground hover:text-foreground"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </span>
+                            ))}
                         </div>
-                    )}
-                    components={{
-                        IndicatorSeparator: () => null,
-                        DropdownIndicator: () => null,
-                        ClearIndicator: () => null,
-                        IndicatorsContainer: () => null,
-                        MultiValue: CustomMultiValue,
-                    }}
-                    onKeyDown={(e) => {
-                        // Allow leading space by manually inserting into controlled input, while preventing option selection
-                        if (e.key === " " && inputValue.length === 0) {
-                            e.preventDefault();
-                            setInputValue(" ");
-                        }
-                    }}
-                />
+                    ))
+                )}
             </div>
         </div>
     );
-};
-
-// Custom MultiValue component with click handler
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomMultiValue = (props: any) => {
-    const { toggleLineHighlight } = useLensWorkspace();
-    const isHighlighted = useLensWorkspace.getState().highlightedLineIds.has(props.data.text);
-
-    return (
-        <div
-            className={cn(
-                "inline-flex items-center gap-1 px-3 hover:bg-accent rounded text-xs font-medium cursor-pointer transition-colors",
-                isHighlighted
-                    ? "bg-popover border border-primary"
-                    : "bg-popover border border-input",
-            )}
-            onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleLineHighlight(props.data.text);
-            }}
-            onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            }}
-        >
-            <span className="text-muted-foreground">{renderTokenText(props.data.text)}</span>
-            <button
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    props.removeProps.onClick(e);
-                }}
-                onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }}
-                className="ml-1 text-muted-foreground hover:text-foreground"
-            >
-                <X className="w-3 h-3" />
-            </button>
-        </div>
-    );
-};
-
-// Theme-aware styles for react-select using shadcn/tailwind CSS variables
-const selectStyles: StylesConfig<TokenOption, true, GroupBase<TokenOption>> = {
-    container: (base) => ({
-        ...base,
-        width: "100%",
-    }),
-    control: (base, state) => ({
-        ...base,
-        backgroundColor: "hsl(var(--background))",
-        borderColor: state.isFocused ? "hsl(var(--ring))" : "hsl(var(--input))",
-        boxShadow: state.isFocused ? "0 0 0 1px hsl(var(--ring))" : "none",
-        boxSizing: "border-box",
-        minHeight: "2rem", // match h-8 icon buttons while allowing wrap growth
-        fontSize: "0.875rem", // text-sm
-        lineHeight: "1rem",
-        alignItems: "center",
-        paddingTop: 0,
-        paddingBottom: 0,
-        paddingLeft: 0,
-        paddingRight: 0,
-        ":hover": {
-            borderColor: "hsl(var(--input))",
-        },
-    }),
-    valueContainer: (base) => ({
-        ...base,
-        position: "relative",
-        paddingTop: 4,
-        paddingBottom: 4,
-        paddingLeft: 4,
-        gap: 4,
-        alignItems: "center",
-        minHeight: "2rem",
-        flexWrap: "wrap",
-    }),
-    input: (base) => ({
-        ...base,
-        color: "hsl(var(--foreground))",
-        margin: 0,
-        padding: 0,
-        order: 1,
-        minWidth: 2,
-        paddingLeft: 2,
-    }),
-    menu: (base) => ({
-        ...base,
-        backgroundColor: "hsl(var(--popover))",
-        border: "1px solid hsl(var(--border))",
-        overflow: "hidden",
-        zIndex: 50,
-        fontSize: "0.75rem",
-    }),
-    menuList: (base) => ({
-        ...base,
-        "&::-webkit-scrollbar": {
-            display: "none",
-        },
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-    }),
-    option: (base, state) => ({
-        ...base,
-        backgroundColor: state.isFocused ? "hsl(var(--accent))" : "transparent",
-        color: state.isFocused ? "hsl(var(--accent-foreground))" : "hsl(var(--popover-foreground))",
-        ":active": {
-            backgroundColor: "hsl(var(--accent))",
-        },
-    }),
 };

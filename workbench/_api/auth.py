@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from fastapi import Depends, HTTPException, Request
 
 if TYPE_CHECKING:
-    from workbench._api.state import AppState
+    from ndif._api.state import AppState
 
 logger = logging.getLogger(__name__)
 

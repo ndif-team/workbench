@@ -23,11 +23,14 @@ const getLensLine = async (lensRequest: { completion: LensConfigData; chartId: s
     const headers = await createUserHeadersAction();
 
     // Transform LensConfigData to LensLineRequest format
+    // Include rank and entropy by default for the workbench UI
     const lineRequest = {
         model: lensRequest.completion.model,
         stat: lensRequest.completion.statisticType,
         prompt: lensRequest.completion.prompt,
         token: lensRequest.completion.token,
+        include_rank: true,
+        include_entropy: true,
     };
 
     return await startAndPoll<Line[]>(
@@ -107,14 +110,47 @@ export const useLensLine = () => {
     });
 };
 
+// V2 response type that includes rank and entropy data
+interface LensV2Response {
+    meta: { version: number; model: string };
+    input: string[];
+    layers: number[];
+    topk: string[][][];
+    tracked: Record<string, number[] | { prob: number[]; rank?: number[] }>[];
+    entropy?: number[][];
+}
+
+const getLensV2 = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
+    const headers = await createUserHeadersAction();
+
+    // Transform LensConfigData to V2 request format
+    const v2Request = {
+        model: lensRequest.completion.model,
+        prompt: lensRequest.completion.prompt,
+        k: 5,  // Top-k predictions to track
+        include_rank: true,
+        include_entropy: true,
+    };
+
+    return await startAndPoll<LensV2Response>(
+        config.endpoints.startLensV2,
+        v2Request,
+        config.endpoints.resultsLensV2,
+        headers,
+    );
+};
+
 const getLensGrid = async (lensRequest: { completion: LensConfigData; chartId: string }) => {
     const headers = await createUserHeadersAction();
 
     // Transform LensConfigData to GridLensRequest format
+    // Include rank and entropy by default for the workbench UI
     const gridRequest = {
         model: lensRequest.completion.model,
         stat: lensRequest.completion.statisticType,
         prompt: lensRequest.completion.prompt,
+        include_rank: true,
+        include_entropy: true,
     };
 
     return await startAndPoll<HeatmapRow[]>(
@@ -157,7 +193,8 @@ export const useLensGrid = () => {
             lensRequest: { completion: LensConfigData; chartId: string };
             configId: string;
         }) => {
-            const response = await getLensGrid(lensRequest);
+            // Use V2 endpoint which includes rank and entropy data
+            const response = await getLensV2(lensRequest);
             await setChartData(lensRequest.chartId, response, "heatmap");
             return response;
         },
@@ -203,6 +240,7 @@ export const useUpdateChartName = () => {
         },
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(variables.chartId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
         },
     });
 };
