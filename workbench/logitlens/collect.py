@@ -205,6 +205,7 @@ def collect_logit_lens(
     track_all_topk: bool = False,
     include_rank: bool = False,
     include_entropy: bool = False,
+    max_loc: Optional[int] = None,
 ) -> Union[Dict, str]:
     """
     Collect logit lens data: top-k predictions and probability trajectories.
@@ -231,6 +232,9 @@ def collect_logit_lens(
                        unions. Enabling this produces more complete data but larger output.
         include_rank: If True, compute rank trajectories for tracked tokens (default: False)
         include_entropy: If True, compute entropy at each layer/position (default: False)
+        max_loc: Maximum number of token positions to return (default: all).
+                If set and prompt has more tokens, only the last max_loc positions
+                are returned. This reduces memory/bandwidth for long prompts.
 
     Returns:
         Dict with data (normal case), or str job_id (when using non-blocking backend).
@@ -283,7 +287,18 @@ def collect_logit_lens(
     """
     # Tokenize once, client-side
     token_ids = model.tokenizer.encode(prompt)
-    n_pos = len(token_ids)
+    n_pos_total = len(token_ids)
+
+    # Determine how many positions to return
+    if max_loc is not None and n_pos_total > max_loc:
+        # We'll slice to keep only the last max_loc positions
+        loc_start = n_pos_total - max_loc
+        n_pos = max_loc
+        token_ids_out = token_ids[loc_start:]
+    else:
+        loc_start = 0
+        n_pos = n_pos_total
+        token_ids_out = token_ids
 
     # Convert track_tokens to token IDs (client-side)
     extra_token_ids = set()
@@ -346,6 +361,12 @@ def collect_logit_lens(
             # - 3D [1, seq, vocab] -> squeeze(0) -> [seq, vocab]
             # - 2D [seq, vocab] -> squeeze(0) -> [seq, vocab] (no-op)
             logits_2d = logits.squeeze(0)
+
+            # Slice to keep only the last max_loc positions (if set)
+            # This happens server-side, reducing bandwidth for long prompts
+            if loc_start > 0:
+                logits_2d = logits_2d[loc_start:]
+
             probs = torch.softmax(logits_2d, dim=-1)
             all_probs.append(probs)
             all_topk.append(probs.topk(k_val, dim=-1).indices)
@@ -440,7 +461,7 @@ def collect_logit_lens(
 
     output = {
         "model": model_name,
-        "input": [model.tokenizer.decode([t]) for t in token_ids],
+        "input": [model.tokenizer.decode([t]) for t in token_ids_out],
         "layers": layers,
         "topk": result["topk"],
         "tracked": result["tracked"],
