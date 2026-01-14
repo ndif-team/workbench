@@ -87,12 +87,11 @@ class AppState:
                 CONFIG.API.HOST = ndif_backend
                 CONFIG.API.SSL = False
             else:
-                CONFIG.API.HOST = "api.ndif.us"
-                CONFIG.API.SSL = True
+                CONFIG.API.HOST = "https://api.ndif.us"
 
         CONFIG.set_default_api_key(os.environ.get("NDIF_API_KEY"))
 
-        self.ndif_backend_url = f"http{'s' if CONFIG.API.SSL else ''}://{CONFIG.API.HOST}"
+        self.ndif_backend_url = "https://api.ndif.us"
         logger.info(f"Backend URL: {self.ndif_backend_url}")
         self.telemetry_url = f"http://{CONFIG.API.HOST.split(':')[0]}:{os.environ.get('INFLUXDB_PORT', '8086')}"
         logger.info(f"Telemetry URL: {self.telemetry_url}")
