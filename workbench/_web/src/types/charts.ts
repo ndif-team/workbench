@@ -3,10 +3,16 @@ import { PatchingConfig } from "./patching";
 
 // Heatmap Data Types
 
+export interface TopToken {
+    token: string;
+    probability: number;
+}
+
 export interface HeatmapCell {
     x: string | number;
     y: number | null;
     label?: string;
+    topTokens?: TopToken[]; // Optional - enables enhanced popover
 }
 
 export interface HeatmapRow {

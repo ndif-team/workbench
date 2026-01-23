@@ -6,7 +6,7 @@ import { heatmapMargin, heatmapTheme } from "../theming";
 import { resolveThemeCssVars } from "@/lib/utils";
 import { Margin } from "@nivo/core";
 import { HeatmapRow } from "@/types/charts";
-import { Tooltip } from "./Tooltip";
+import { TokenPopover } from "./TokenPopover";
 import { Metrics } from "@/types/lens";
 import React from "react";
 
@@ -15,6 +15,7 @@ interface HeatmapProps {
     margin?: Margin;
     heatmapCanvasRef?: React.RefObject<HTMLCanvasElement>;
     useTooltip?: boolean;
+    tooltipComponent?: React.ReactNode; // Custom tooltip/popover component
     onMouseMove?: (e: React.MouseEvent) => void;
     onMouseLeave?: () => void;
     onMouseDown?: (e: React.MouseEvent<any>) => void;
@@ -26,6 +27,7 @@ export function Heatmap({
     margin = heatmapMargin,
     heatmapCanvasRef,
     useTooltip = false,
+    tooltipComponent,
     onMouseMove = () => {},
     onMouseLeave = () => {},
     onMouseDown = () => {},
@@ -85,7 +87,7 @@ export function Heatmap({
                 ref={heatmapCanvasRef}
                 className="absolute inset-0 size-full pointer-events-auto z-20"
             />
-            {useTooltip && <Tooltip />}
+            {useTooltip && (tooltipComponent ?? <TokenPopover />)}
             <ResponsiveHeatMapCanvas
                 data={rows}
                 margin={margin}

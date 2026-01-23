@@ -16,15 +16,22 @@ const baseTheme = {
                 strokeWidth: 0,
             },
         },
+        legend: {
+            text: {
+                fontSize: 12,
+                fontFamily: fontFamily,
+                fill: "#374151", // gray-700 fallback for canvas
+            },
+        },
         ticks: {
             line: {
-                stroke: "hsl(var(--border))",
+                stroke: "#e5e7eb", // gray-200 fallback
                 strokeWidth: 1,
             },
             text: {
-                fontSize: ".75rem",
+                fontSize: 11,
                 fontFamily: fontFamily,
-                fill: "hsl(var(--muted-foreground))",
+                fill: "#6b7280", // gray-500 fallback for canvas
                 outlineColor: "transparent",
             },
         },
