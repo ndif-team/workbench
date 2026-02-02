@@ -37,3 +37,22 @@ AI Interpretability Research Platform
 Now, run the frontend and backend together, with:
 1. bash ./scripts/web.sh
 1. bash ./scripts/api.sh
+
+---
+
+## Local Database
+
+To use a local SQLite database instead of Supabase, add these to your root `.env`:
+
+```env
+NEXT_PUBLIC_LOCAL_DB=true
+LOCAL_SQLITE_URL=./local.db
+```
+
+Then create the database tables:
+
+```bash
+cd workbench/_web
+bunx drizzle-kit generate
+bunx drizzle-kit push
+```
