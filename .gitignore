@@ -61,3 +61,4 @@ cdk.out
 /nnsight
 
 local.db
+.test.db

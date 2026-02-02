@@ -9,8 +9,8 @@
  * 5. JSON storage works properly in SQLite
  */
 
-import { describe, it, expect, beforeAll, beforeEach } from "bun:test";
-import { db, initializeSchema, clearDatabase } from "../client";
+import { describe, it, expect, beforeEach } from "bun:test";
+import { db, clearDatabase } from "../client";
 
 // Import actual query functions
 import {
@@ -70,10 +70,7 @@ const createTestLensConfig = (prompt: string = "test"): LensConfigData => ({
     token: { idx: 0, id: 0, text: "", targetIds: [] },
 });
 
-beforeAll(async () => {
-    // Initialize database schema
-    await initializeSchema();
-});
+// Schema is created by drizzle-kit push in setup.ts
 
 beforeEach(async () => {
     // Clear all tables before each test
