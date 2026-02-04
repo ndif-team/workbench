@@ -17,9 +17,11 @@ import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
 import { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, PanelLeftClose, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
+
+const SIDEBAR_COLLAPSED_KEY = "workbench_sidebar_collapsed";
 
 export default function ChartCardsSidebar() {
     const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -44,6 +46,20 @@ export default function ChartCardsSidebar() {
     const cardsRef = useRef<HTMLDivElement | null>(null);
     const buttonsMeasureRef = useRef<HTMLDivElement | null>(null);
     const [canInlineButtons, setCanInlineButtons] = useState(true);
+
+    // Collapse state - persisted in localStorage
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
+        }
+        return false;
+    });
+
+    const toggleCollapse = () => {
+        const newState = !isCollapsed;
+        setIsCollapsed(newState);
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newState));
+    };
 
     useEffect(() => {
         const listEl = listRef.current;
@@ -170,8 +186,42 @@ export default function ChartCardsSidebar() {
         </div>
     );
 
+    // Collapsed view - just a thin strip with expand button
+    if (isCollapsed) {
+        return (
+            <div className="flex h-full flex-col w-12 p-2 pt-0 items-center transition-all duration-300 ease-in-out">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleCollapse}
+                    className="mt-2 hover:bg-muted"
+                    title="Expand sidebar"
+                >
+                    <PanelLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex-1 flex flex-col items-center justify-center gap-2 py-4">
+                    <span className="text-xs text-muted-foreground [writing-mode:vertical-lr] rotate-180">
+                        {charts?.length || 0} charts
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex h-full flex-col w-[20vw] p-3 pt-0 relative">
+        <div className="flex h-full flex-col w-[20vw] p-3 pt-0 relative transition-all duration-300 ease-in-out">
+            {/* Collapse toggle button */}
+            <div className="flex justify-end py-2">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleCollapse}
+                    className="h-7 w-7 hover:bg-muted"
+                    title="Collapse sidebar"
+                >
+                    <PanelLeftClose className="h-4 w-4" />
+                </Button>
+            </div>
             <div ref={listRef} className="flex-1 scrollbar-hide overflow-auto">
                 <div ref={cardsRef} className="space-y-3">
                     {(isChartsLoading || isReportsLoading) && (
