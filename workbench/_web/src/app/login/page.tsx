@@ -1,26 +1,84 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { redirect } from "next/navigation";
+import { redirect, useSearchParams } from "next/navigation";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
-import { useRef, useState, type ElementRef } from "react";
+import { useRef, useState, useEffect, type ElementRef, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { HatGlasses } from "lucide-react";
+import { HatGlasses, Sparkles } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default function LoginPage() {
+// Key for storing pending request in localStorage
+const PENDING_REQUEST_KEY = "workbench_pending_request";
+
+export interface PendingRequest {
+    prompt: string;
+    model: string;
+    timestamp: number;
+}
+
+// Helper to save pending request to localStorage
+export function savePendingRequest(prompt: string, model: string) {
+    const request: PendingRequest = {
+        prompt,
+        model,
+        timestamp: Date.now(),
+    };
+    localStorage.setItem(PENDING_REQUEST_KEY, JSON.stringify(request));
+}
+
+// Helper to get and clear pending request from localStorage
+export function getPendingRequest(): PendingRequest | null {
+    const stored = localStorage.getItem(PENDING_REQUEST_KEY);
+    if (!stored) return null;
+
+    try {
+        const request = JSON.parse(stored) as PendingRequest;
+        // Clear after reading
+        localStorage.removeItem(PENDING_REQUEST_KEY);
+
+        // Expire after 10 minutes
+        if (Date.now() - request.timestamp > 10 * 60 * 1000) {
+            return null;
+        }
+
+        return request;
+    } catch {
+        localStorage.removeItem(PENDING_REQUEST_KEY);
+        return null;
+    }
+}
+
+function LoginContent() {
     const [showCaptcha, setShowCaptcha] = useState(false);
     const captchaRef = useRef<ElementRef<typeof HCaptcha> | null>(null);
+    const searchParams = useSearchParams();
+
+    // Get pending request params (from gated model redirect)
+    const pendingPrompt = searchParams.get("prompt");
+    const pendingModel = searchParams.get("model");
+    const isGatedModelRequest = searchParams.get("gatedModel") === "true";
+
+    // Save pending request to localStorage when the page loads with gated model params
+    useEffect(() => {
+        if (pendingPrompt && pendingModel && isGatedModelRequest) {
+            savePendingRequest(pendingPrompt, pendingModel);
+        }
+    }, [pendingPrompt, pendingModel, isGatedModelRequest]);
 
     if (process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
         redirect("/workbench");
     }
 
+    const getRedirectUrl = () => {
+        return `${process.env.NEXT_PUBLIC_BASE_URL || window.location.origin}/auth/callback`;
+    };
+
     const handleGitHubLogin = async () => {
         const supabase = createClient();
-        const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || window.location.origin}/auth/callback`;
+        const redirectUrl = getRedirectUrl();
 
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: "github",
@@ -38,7 +96,7 @@ export default function LoginPage() {
 
     const handleGoogleLogin = async () => {
         const supabase = createClient();
-        const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || window.location.origin}/auth/callback`;
+        const redirectUrl = getRedirectUrl();
 
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: "google",
@@ -94,9 +152,19 @@ export default function LoginPage() {
             <div className="w-full max-w-md">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Sign in to continue</CardTitle>
+                        <CardTitle>Sign in</CardTitle>
                         <CardDescription>
-                            Choose how you'd like to access the workbench
+                            {isGatedModelRequest ? (
+                                <span className="flex items-center gap-2 mt-2">
+                                    <Sparkles className="w-4 h-4 text-purple-500" />
+                                    <span>
+                                        {" "}
+                                        <strong className="text-foreground">{pendingModel}</strong> is a gated model are requires sign in.
+                                    </span>
+                                </span>
+                            ) : (
+                                "Choose how you'd like to access the workbench"
+                            )}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -130,48 +198,56 @@ export default function LoginPage() {
                                 Sign in with Google
                             </Button>
 
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                    <span className="w-full border-t" />
-                                </div>
-                                <div className="relative flex justify-center text-xs">
-                                    <span className="bg-card px-3 text-card-foreground">Or</span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                {!showCaptcha ? (
-                                    <Button
-                                        onClick={handleShowCaptcha}
-                                        className="w-full"
-                                        variant="outline"
-                                    >
-                                        <HatGlasses className="mr-1 h-4 w-4" />
-                                        Continue as Guest
-                                    </Button>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <HCaptcha
-                                            ref={captchaRef}
-                                            sitekey={
-                                                process.env.NEXT_PUBLIC_HCAPTCHA_SITEKEY as string
-                                            }
-                                            onVerify={handleCaptchaVerify}
-                                        />
-                                        <Button
-                                            onClick={() => {
-                                                setShowCaptcha(false);
-                                                captchaRef.current?.resetCaptcha();
-                                            }}
-                                            variant="destructive"
-                                            size="sm"
-                                            className="w-full"
-                                        >
-                                            Cancel
-                                        </Button>
+                            {/* Hide guest option for gated model requests */}
+                            {!isGatedModelRequest && (
+                                <>
+                                    <div className="relative">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <span className="w-full border-t" />
+                                        </div>
+                                        <div className="relative flex justify-center text-xs">
+                                            <span className="bg-card px-3 text-card-foreground">
+                                                Or
+                                            </span>
+                                        </div>
                                     </div>
-                                )}
-                            </div>
+
+                                    <div className="space-y-3">
+                                        {!showCaptcha ? (
+                                            <Button
+                                                onClick={handleShowCaptcha}
+                                                className="w-full"
+                                                variant="outline"
+                                            >
+                                                <HatGlasses className="mr-1 h-4 w-4" />
+                                                Continue as Guest
+                                            </Button>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                <HCaptcha
+                                                    ref={captchaRef}
+                                                    sitekey={
+                                                        process.env
+                                                            .NEXT_PUBLIC_HCAPTCHA_SITEKEY as string
+                                                    }
+                                                    onVerify={handleCaptchaVerify}
+                                                />
+                                                <Button
+                                                    onClick={() => {
+                                                        setShowCaptcha(false);
+                                                        captchaRef.current?.resetCaptcha();
+                                                    }}
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="w-full"
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
                         {/* {process.env.NODE_ENV === 'development' && (
               <div className="mt-6 pt-4 border-t">
@@ -189,5 +265,26 @@ export default function LoginPage() {
                 </Card>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="flex items-center justify-center min-h-screen p-4 bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
+                    <div className="w-full max-w-md">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Sign in to continue</CardTitle>
+                                <CardDescription>Loading...</CardDescription>
+                            </CardHeader>
+                        </Card>
+                    </div>
+                </div>
+            }
+        >
+            <LoginContent />
+        </Suspense>
     );
 }
