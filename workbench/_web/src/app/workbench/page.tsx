@@ -4,11 +4,13 @@ import { ModelsDisplay } from "@/app/workbench/components/ModelsDisplay";
 import { WorkspaceList } from "@/app/workbench/components/WorkspaceList";
 import { getWorkspaces, createWorkspace } from "@/lib/queries/workspaceQueries";
 import { AutoWorkspaceCreator } from "@/app/workbench/components/AutoWorkspaceCreator";
+import { PendingRequestHandler } from "@/app/workbench/components/PendingRequestHandler";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
 import { WorkbenchStatus } from "@/components/WorkbenchStatus";
+import { Suspense } from "react";
 
 import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
@@ -39,6 +41,10 @@ export default async function WorkbenchPage({
 
     return (
         <>
+            {/* Check for pending requests from OAuth redirect */}
+            <Suspense fallback={null}>
+                <PendingRequestHandler />
+            </Suspense>
             <div className="min-h-screen px-6 pb-6 bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
                 <header className="p-3 pl-5 flex items-center justify-between">
                     <div className="flex items-center gap-2">

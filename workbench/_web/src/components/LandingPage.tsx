@@ -99,9 +99,27 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
         }
     };
 
+    // Check if the selected model is gated
+    const isSelectedModelGated = (): boolean => {
+        const model = modelsToSelect.find((m) => m.name === selectedModel);
+        return model?.gated === true && model?.allowed === false;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!prompt.trim()) return;
+
+        // Check if user is trying to use a gated model without being logged in
+        if (isSelectedModelGated() && (!loggedIn || !currentUser || currentUser.is_anonymous)) {
+            // Redirect to login with the prompt/model info
+            const params = new URLSearchParams({
+                prompt: prompt,
+                model: selectedModel,
+                gatedModel: "true",
+            });
+            router.push(`/login?${params.toString()}`);
+            return;
+        }
 
         // If user is logged in (not anonymous), redirect directly to workbench with prompt
         if (loggedIn && currentUser && !currentUser.is_anonymous) {
@@ -334,16 +352,18 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                             </SelectItem>
                                                         ) : (
                                                             modelsToSelect?.map((model) =>
-                                                                !model.allowed ? (
+                                                                model.gated && !model.allowed ? (
                                                                     <SelectItem
                                                                         key={model.name}
                                                                         value={model.name}
-                                                                        disabled={!model.allowed}
-                                                                        className="text-xs opacity-50 cursor-not-allowed"
+                                                                        className="text-xs"
                                                                     >
                                                                         <div className="flex items-center gap-2">
                                                                             {model.name}
-                                                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                                            <div
+                                                                                className="w-1.5 h-1.5 rounded-full bg-purple-500"
+                                                                                title="Requires sign-in"
+                                                                            />
                                                                         </div>
                                                                     </SelectItem>
                                                                 ) : (
