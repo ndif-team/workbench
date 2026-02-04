@@ -17,7 +17,7 @@ import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
 import { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
-import { Loader2, Plus, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Loader2, Plus, PanelLeftClose, PanelLeft, Search, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 
@@ -186,19 +186,53 @@ export default function ChartCardsSidebar() {
         </div>
     );
 
-    // Collapsed view - just a thin strip with expand button
+    // Collapsed view - just a thin strip with expand button at top
     if (isCollapsed) {
         return (
-            <div className="flex h-full flex-col w-12 p-2 pt-0 items-center transition-all duration-300 ease-in-out">
+            <div className="flex h-full flex-col w-10 p-2 pt-0 items-center transition-all duration-300 ease-in-out">
+                {/* Expand button - top */}
                 <Button
                     variant="ghost"
                     size="icon"
                     onClick={toggleCollapse}
-                    className="mt-2 hover:bg-muted"
+                    className="mt-2 h-7 w-7 hover:bg-muted"
                     title="Expand sidebar"
                 >
                     <PanelLeft className="h-4 w-4" />
                 </Button>
+
+                {/* Action buttons - below expand */}
+                <div className="flex flex-col items-center gap-2 mt-3">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleCreate("lens")}
+                        disabled={isCreatingLens || isCreatingPatch}
+                        className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
+                        title="New Lens chart"
+                    >
+                        {isCreatingLens ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Search className="h-4 w-4" />
+                        )}
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleOverviewClick}
+                        disabled={isCreatingDocument || isCreatingLens}
+                        className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
+                        title="New Report"
+                    >
+                        {isCreatingDocument ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <FileText className="h-4 w-4" />
+                        )}
+                    </Button>
+                </div>
+
                 <div className="flex-1 flex flex-col items-center justify-center gap-2 py-4">
                     <span className="text-xs text-muted-foreground [writing-mode:vertical-lr] rotate-180">
                         {charts?.length || 0} charts
@@ -209,19 +243,17 @@ export default function ChartCardsSidebar() {
     }
 
     return (
-        <div className="flex h-full flex-col w-[20vw] p-3 pt-0 relative transition-all duration-300 ease-in-out">
-            {/* Collapse toggle button */}
-            <div className="flex justify-end py-2">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={toggleCollapse}
-                    className="h-7 w-7 hover:bg-muted"
-                    title="Collapse sidebar"
-                >
-                    <PanelLeftClose className="h-4 w-4" />
-                </Button>
-            </div>
+        <div className="relative flex h-full flex-col w-[20vw] p-3 pt-3 transition-all duration-300 ease-in-out">
+            {/* Collapse button - centered vertically on the right edge */}
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleCollapse}
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-6 w-6 rounded-full bg-background/60 hover:bg-background/90 border border-border/50 opacity-40 hover:opacity-100 transition-opacity z-10"
+                title="Collapse sidebar"
+            >
+                <PanelLeftClose className="h-3 w-3" />
+            </Button>
             <div ref={listRef} className="flex-1 scrollbar-hide overflow-auto">
                 <div ref={cardsRef} className="space-y-3">
                     {(isChartsLoading || isReportsLoading) && (
