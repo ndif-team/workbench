@@ -5,6 +5,7 @@ import { getChartsMetadata } from "@/lib/queries/chartQueries";
 import { useParams, useRouter } from "next/navigation";
 import {
     useCreateLensChartPair,
+    useCreateLens2ChartPair,
     useCreatePatchChartPair,
     useDeleteChart,
 } from "@/lib/api/chartApi";
@@ -17,7 +18,7 @@ import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
 import { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
-import { Loader2, Plus, PanelLeftClose, PanelLeft, Search, FileText } from "lucide-react";
+import { Loader2, Plus, PanelLeftClose, PanelLeft, Search, FileText, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 
@@ -37,6 +38,7 @@ export default function ChartCardsSidebar() {
     );
 
     const { mutate: createLensPair, isPending: isCreatingLens } = useCreateLensChartPair();
+    const { mutate: createLens2Pair, isPending: isCreatingLens2 } = useCreateLens2ChartPair();
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
     const { mutate: deleteChart } = useDeleteChart();
     const { mutate: createDocument, isPending: isCreatingDocument } = useCreateDocument();
@@ -92,22 +94,36 @@ export default function ChartCardsSidebar() {
         };
     }, [charts, reports]);
 
-    const navigateToChart = (chartId: string) => {
-        router.push(`/workbench/${workspaceId}/${chartId}`);
+    const navigateToChart = (chartId: string, toolType?: string) => {
+        // Route lens2 charts to the lens2 path
+        if (toolType === "lens2") {
+            router.push(`/workbench/${workspaceId}/lens2/${chartId}`);
+        } else {
+            router.push(`/workbench/${workspaceId}/${chartId}`);
+        }
     };
 
     const navigateToOverview = (documentId: string) => {
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (toolType: "lens" | "patch") => {
+    const handleCreate = (toolType: "lens" | "lens2" | "patch") => {
+        if (toolType === "lens2") {
+            createLens2Pair(
+                { workspaceId: workspaceId as string },
+                {
+                    onSuccess: ({ chart }) => navigateToChart(chart.id, "lens2"),
+                },
+            );
+            return;
+        }
         const mutation = toolType === "lens" ? createLensPair : createPatchPair;
         mutation(
             {
                 workspaceId: workspaceId as string,
             },
             {
-                onSuccess: ({ chart }) => navigateToChart(chart.id),
+                onSuccess: ({ chart }) => navigateToChart(chart.id, toolType),
             },
         );
     };
@@ -117,10 +133,10 @@ export default function ChartCardsSidebar() {
         if (!charts || charts.length <= 1) return;
         // Choose next chart to focus
         const remaining = charts.filter((c) => c.id !== chartId);
-        const nextId = remaining[0]?.id;
+        const nextChart = remaining[0];
         deleteChart(chartId, {
             onSuccess: () => {
-                if (nextId) navigateToChart(nextId);
+                if (nextChart) navigateToChart(nextChart.id, nextChart.toolType ?? undefined);
             },
         });
     };
@@ -146,35 +162,54 @@ export default function ChartCardsSidebar() {
             {
                 onSuccess: () => {
                     // If the current route is the deleted report, navigate to first chart if any
-                    const firstChartId = charts && charts.length > 0 ? charts[0].id : null;
-                    if (firstChartId) {
-                        navigateToChart(firstChartId);
+                    const firstChart = charts && charts.length > 0 ? charts[0] : null;
+                    if (firstChart) {
+                        navigateToChart(firstChart.id, firstChart.toolType ?? undefined);
                     }
                 },
             },
         );
     };
 
+    const isCreatingAny = isCreatingLens || isCreatingLens2 || isCreatingPatch || isCreatingDocument;
+
     const ActionButtons = () => (
-        <div className="flex flex-row w-full gap-3 text-sm">
-            <Button
-                variant="outline"
-                onClick={() => handleCreate("lens")}
-                disabled={isCreatingPatch}
-                className="flex-1"
-            >
-                {isCreatingLens ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                    <Plus className="w-4 h-4" />
-                )}
-                <span>Lens</span>
-            </Button>
+        <div className="flex flex-col w-full gap-2 text-sm">
+            <div className="flex flex-row w-full gap-2">
+                <Button
+                    variant="outline"
+                    onClick={() => handleCreate("lens")}
+                    disabled={isCreatingAny}
+                    className="flex-1"
+                    title="Original Lens (Line/Heatmap)"
+                >
+                    {isCreatingLens ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                        <Plus className="w-4 h-4" />
+                    )}
+                    <span>Lens</span>
+                </Button>
+                <Button
+                    variant="outline"
+                    onClick={() => handleCreate("lens2")}
+                    disabled={isCreatingAny}
+                    className="flex-1"
+                    title="New Logit Lens Visualization"
+                >
+                    {isCreatingLens2 ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                        <Layers className="w-4 h-4" />
+                    )}
+                    <span>Lens 2</span>
+                </Button>
+            </div>
             <Button
                 variant="outline"
                 onClick={handleOverviewClick}
-                disabled={isCreatingLens}
-                className="flex-1"
+                disabled={isCreatingAny}
+                className="w-full"
             >
                 {isCreatingDocument ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -207,7 +242,7 @@ export default function ChartCardsSidebar() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleCreate("lens")}
-                        disabled={isCreatingLens || isCreatingPatch}
+                        disabled={isCreatingAny}
                         className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
                         title="New Lens chart"
                     >
@@ -220,8 +255,22 @@ export default function ChartCardsSidebar() {
                     <Button
                         variant="ghost"
                         size="icon"
+                        onClick={() => handleCreate("lens2")}
+                        disabled={isCreatingAny}
+                        className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
+                        title="New Logit Lens visualization"
+                    >
+                        {isCreatingLens2 ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Layers className="h-4 w-4" />
+                        )}
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={handleOverviewClick}
-                        disabled={isCreatingDocument || isCreatingLens}
+                        disabled={isCreatingAny}
                         className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
                         title="New Report"
                     >

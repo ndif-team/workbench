@@ -1,4 +1,5 @@
 import { LensConfigData } from "./lens";
+import { Lens2ConfigData, Lens2Data } from "./lens2";
 import { PatchingConfig } from "./patching";
 
 // Heatmap Data Types
@@ -61,12 +62,12 @@ export interface LineViewData {
 
 // Combined Types
 
-export type ChartData = Line[] | HeatmapRow[];
+export type ChartData = Line[] | HeatmapRow[] | Lens2Data;
 export type ChartView = HeatmapViewData | LineViewData;
-export type ConfigData = LensConfigData | PatchingConfig;
+export type ConfigData = LensConfigData | Lens2ConfigData | PatchingConfig;
 
-export type ChartType = "line" | "heatmap";
-export type ToolType = "lens" | "patch";
+export type ChartType = "line" | "heatmap" | "lens2";
+export type ToolType = "lens" | "lens2" | "patch";
 
 export type ChartMetadata = {
     id: string;

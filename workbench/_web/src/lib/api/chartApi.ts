@@ -4,12 +4,14 @@ import {
     setChartData,
     deleteChart,
     createLensChartPair,
+    createLens2ChartPair,
     createPatchChartPair,
     updateChartName,
     updateChartView,
     copyChart,
 } from "@/lib/queries/chartQueries";
 import { LensConfigData } from "@/types/lens";
+import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
 import { useCapture } from "@/components/providers/CaptureProvider";
 import { Line, HeatmapRow, ChartView } from "@/types/charts";
@@ -252,6 +254,32 @@ export const useCreateLensChartPair = () => {
             return await createLensChartPair(workspaceId, config);
         },
         onSuccess: ({ chart }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        },
+    });
+};
+
+export const useCreateLens2ChartPair = () => {
+    const queryClient = useQueryClient();
+
+    const defaultConfig: Lens2ConfigData = {
+        prompt: "",
+        model: "",
+        topk: 5,
+        includeEntropy: true,
+    };
+
+    return useMutation({
+        mutationFn: async ({
+            workspaceId,
+            config = defaultConfig,
+        }: {
+            workspaceId: string;
+            config?: Lens2ConfigData;
+        }) => {
+            return await createLens2ChartPair(workspaceId, config);
+        },
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
         },
     });

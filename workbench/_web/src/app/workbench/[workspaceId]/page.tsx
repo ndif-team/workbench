@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
-import { getMostRecentChartForWorkspace, createLensChartPair } from "@/lib/queries/chartQueries";
+import { getMostRecentChartForWorkspace, createLensChartPair, getConfigForChart } from "@/lib/queries/chartQueries";
 import { LensConfigData } from "@/types/lens";
 
 export default async function Page({
     params,
     searchParams,
 }: {
-    params: { workspaceId: string };
+    params: Promise<{ workspaceId: string }>;
     searchParams: Promise<{ prompt?: string; model?: string }>;
 }) {
-    const { workspaceId } = params;
+    const { workspaceId } = await params;
     const urlParams = await searchParams;
     const initialPrompt = urlParams?.prompt || "";
     const initialModel = urlParams?.model || "";
@@ -29,6 +29,14 @@ export default async function Page({
         chart = result.chart;
     }
 
-    // Redirect to the chart
-    redirect(`/workbench/${workspaceId}/${chart.id}`);
+    // Check if this is a lens2 chart by looking at its config type
+    const config = await getConfigForChart(chart.id);
+    const isLens2 = config?.type === "lens2" || chart.type === "lens2";
+
+    // Redirect to the appropriate chart route
+    if (isLens2) {
+        redirect(`/workbench/${workspaceId}/lens2/${chart.id}`);
+    } else {
+        redirect(`/workbench/${workspaceId}/${chart.id}`);
+    }
 }
