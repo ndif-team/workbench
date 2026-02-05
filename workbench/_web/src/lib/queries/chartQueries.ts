@@ -1,16 +1,17 @@
 "use server";
 
-import type { ChartData, ChartMetadata, ChartView } from "@/types/charts";
+import type { ChartData, ChartMetadata, ChartView, ChartType, ToolType } from "@/types/charts";
 import { db } from "@/db/client";
 import { charts, configs, chartConfigLinks, Chart, LensConfig, Config } from "@/db/schema";
 import { LensConfigData } from "@/types/lens";
+import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
 import { eq, desc } from "drizzle-orm";
 
 export const setChartData = async (
     chartId: string,
     chartData: ChartData,
-    chartType: "line" | "heatmap",
+    chartType: ChartType,
 ) => {
     await db.update(charts).set({ data: chartData, type: chartType }).where(eq(charts.id, chartId));
 };
@@ -66,6 +67,26 @@ export const createLensChartPair = async (
     });
 
     return { chart: newChart as Chart, config: newConfig as LensConfig };
+};
+
+// Create a new lens2 chart and config pair
+export const createLens2ChartPair = async (
+    workspaceId: string,
+    defaultConfig: Lens2ConfigData,
+): Promise<{ chart: Chart; config: Config }> => {
+    const [newChart] = await db.insert(charts).values({ workspaceId }).returning();
+    const [newConfig] = await db
+        .insert(configs)
+        .values({ workspaceId, type: "lens2", data: defaultConfig })
+        .returning();
+
+    // Create the link between chart and config
+    await db.insert(chartConfigLinks).values({
+        chartId: newChart.id,
+        configId: newConfig.id,
+    });
+
+    return { chart: newChart as Chart, config: newConfig as Config };
 };
 
 // Create a new patch chart and config pair
@@ -141,8 +162,8 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
             ({
                 id: r.id,
                 name: r.name,
-                chartType: (r.chartType as "line" | "heatmap" | null) ?? null,
-                toolType: (r.toolType as "lens" | "patch" | null) ?? null,
+                chartType: (r.chartType as ChartType | null) ?? null,
+                toolType: (r.toolType as ToolType | null) ?? null,
                 createdAt: r.createdAt as Date,
                 updatedAt: r.updatedAt as Date,
             }) as ChartMetadata,

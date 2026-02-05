@@ -31,12 +31,17 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
           })
         : "";
 
-    const navigateToChart = (chartId: string) => {
-        router.push(`/workbench/${workspaceId}/${chartId}`);
+    const navigateToChart = (chart: ChartMetadata) => {
+        // Route lens2 charts to the lens2 path
+        if (chart.toolType === "lens2" || chart.chartType === "lens2") {
+            router.push(`/workbench/${workspaceId}/lens2/${chart.id}`);
+        } else {
+            router.push(`/workbench/${workspaceId}/${chart.id}`);
+        }
     };
 
     const handleChartClick = (metadata: ChartMetadata) => {
-        navigateToChart(metadata.id);
+        navigateToChart(metadata);
     };
 
     const handleCopy = async (e: React.MouseEvent, chartId: string) => {
@@ -44,7 +49,11 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
         try {
             const newChart = await copyChart.mutateAsync(chartId);
             toast.success("Chart copied successfully");
-            navigateToChart(newChart.id);
+            // Navigate to the copied chart with same type as original
+            navigateToChart({
+                ...metadata,
+                id: newChart.id,
+            });
         } catch (error) {
             console.error("Failed to copy chart:", error);
             toast.error("Failed to copy chart");
@@ -64,6 +73,13 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
                 <span className="inline-flex items-center gap-1">
                     <Grid3X3 className="h-3 w-3" />
                     <span>Heatmap</span>
+                </span>
+            );
+        if (chartType === "lens2")
+            return (
+                <span className="inline-flex items-center gap-1">
+                    <Grid3X3 className="h-3 w-3" />
+                    <span>Logit Lens</span>
                 </span>
             );
         return (
