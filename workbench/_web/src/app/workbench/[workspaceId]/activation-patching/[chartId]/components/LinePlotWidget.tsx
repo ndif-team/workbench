@@ -59,6 +59,9 @@ export function LinePlotWidget({
     // Tooltip state
     const [tooltip, setTooltip] = useState<TooltipState | null>(null);
     
+    // Resize counter to force redraw on container size change
+    const [resizeCounter, setResizeCounter] = useState(0);
+    
     // Store chart geometry for mouse calculations
     const chartGeometryRef = useRef<{
         margin: { top: number; right: number; bottom: number; left: number };
@@ -396,19 +399,16 @@ export function LinePlotWidget({
                 ctx.fill();
             });
         });
-    }, [data, chartConfig, isDarkMode, title, xAxisLabel, yAxisLabel, transparentBackground, hiddenLines, tooltip]);
+    }, [data, chartConfig, isDarkMode, title, xAxisLabel, yAxisLabel, transparentBackground, hiddenLines, tooltip, resizeCounter]);
 
-    // Handle resize
+    // Handle resize - increment counter to trigger redraw
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
 
         const observer = new ResizeObserver(() => {
-            const canvas = canvasRef.current;
-            if (canvas) {
-                canvas.style.width = "0";
-                canvas.style.width = "";
-            }
+            // Increment counter to trigger the drawing effect
+            setResizeCounter(c => c + 1);
         });
 
         observer.observe(container);
