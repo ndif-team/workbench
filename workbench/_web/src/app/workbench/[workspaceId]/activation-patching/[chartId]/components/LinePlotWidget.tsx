@@ -10,12 +10,18 @@ interface LinePlotData {
     labels?: string[];  // Optional labels for each line
 }
 
+type PlotMode = "probability" | "rank";
+
 interface LinePlotWidgetProps {
     data: LinePlotData;
     title?: string;
     yAxisLabel?: string;
     xAxisLabel?: string;
     transparentBackground?: boolean;
+    mode?: PlotMode;
+    minValue?: number;  // Custom min for y-axis
+    maxValue?: number;  // Custom max for y-axis
+    invertYAxis?: boolean;  // If true, lower values appear higher (useful for ranks)
 }
 
 interface TooltipState {
@@ -85,6 +91,10 @@ export function LinePlotWidget({
     yAxisLabel = "Probability",
     xAxisLabel = "Layer",
     transparentBackground = false,
+    mode = "probability",
+    minValue: customMinValue,
+    maxValue: customMaxValue,
+    invertYAxis = false,
 }: LinePlotWidgetProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -135,14 +145,30 @@ export function LinePlotWidget({
 
         const numLayers = data.lines[0]?.length || 0;
 
-        // Fixed y-axis range from 0 to 1
+        // Compute min/max from data if not provided
+        let minValue = customMinValue;
+        let maxValue = customMaxValue;
+        
+        if (minValue === undefined || maxValue === undefined) {
+            const allValues = data.lines.flat();
+            const dataMin = Math.min(...allValues);
+            const dataMax = Math.max(...allValues);
+            
+            if (minValue === undefined) {
+                minValue = mode === "probability" ? 0 : Math.floor(dataMin * 0.9);
+            }
+            if (maxValue === undefined) {
+                maxValue = mode === "probability" ? 1 : Math.ceil(dataMax * 1.1);
+            }
+        }
+
         return {
             numLayers,
-            minValue: 0,
-            maxValue: 1,
+            minValue,
+            maxValue,
             numLines: data.lines.length,
         };
-    }, [data]);
+    }, [data, customMinValue, customMaxValue, mode]);
 
     // Handle mouse move for tooltip
     const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -274,6 +300,10 @@ export function LinePlotWidget({
 
         const yScale = (value: number) => {
             const normalized = (value - chartConfig.minValue) / (chartConfig.maxValue - chartConfig.minValue);
+            // If invertYAxis is true, flip the scale (useful for ranks where lower is better)
+            if (invertYAxis) {
+                return margin.top + normalized * chartHeight;
+            }
             return margin.top + chartHeight - normalized * chartHeight;
         };
 
@@ -282,7 +312,21 @@ export function LinePlotWidget({
         ctx.strokeStyle = colors.grid;
         ctx.lineWidth = 1;
 
-        const yTicks = [0, 0.25, 0.5, 0.75, 1.0];
+        // Generate y-axis ticks based on mode
+        const yTicks: number[] = [];
+        const range = chartConfig.maxValue - chartConfig.minValue;
+        if (mode === "probability") {
+            // Fixed ticks for probability mode
+            yTicks.push(0, 0.25, 0.5, 0.75, 1.0);
+        } else {
+            // Dynamic ticks for rank mode
+            const numTicks = 5;
+            for (let i = 0; i < numTicks; i++) {
+                const value = chartConfig.minValue + (i / (numTicks - 1)) * range;
+                yTicks.push(Math.round(value));
+            }
+        }
+
         yTicks.forEach(tick => {
             const y = yScale(tick);
             ctx.beginPath();
@@ -297,12 +341,14 @@ export function LinePlotWidget({
         // Draw Y-axis labels
         ctx.fillStyle = colors.text;
         ctx.font = "400 11px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-            ctx.textAlign = "right";
+        ctx.textAlign = "right";
         ctx.textBaseline = "middle";
 
         yTicks.forEach(tick => {
             const y = yScale(tick);
-            ctx.fillText(tick.toFixed(2), margin.left - 12, y);
+            // Format based on mode: decimals for probability, integers for rank
+            const label = mode === "probability" ? tick.toFixed(2) : Math.round(tick).toString();
+            ctx.fillText(label, margin.left - 12, y);
         });
 
         // Draw X-axis labels
@@ -437,7 +483,7 @@ export function LinePlotWidget({
                 ctx.fill();
             });
         });
-    }, [data, chartConfig, isDarkMode, title, xAxisLabel, yAxisLabel, transparentBackground, hiddenLines, tooltip, resizeCounter]);
+    }, [data, chartConfig, isDarkMode, title, xAxisLabel, yAxisLabel, transparentBackground, hiddenLines, tooltip, resizeCounter, mode, invertYAxis]);
 
     // Handle resize - increment counter to trigger redraw
     useEffect(() => {

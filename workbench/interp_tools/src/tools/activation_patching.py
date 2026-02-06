@@ -112,10 +112,12 @@ def format_data(
 
     probabilities = [d["probs"] for d in final_token_stats]
     ranks = [d["ranks"] for d in final_token_stats]
-
-    labels = [tokenizer.decode(token_id) for token_id in unique_indices]
+    
+    # Labels must match the order of final_token_stats (not unique_indices)
+    labels = [tokenizer.decode(d["token_id"]) for d in final_token_stats]
 
     return ActivationPatchingData(
         lines=probabilities,
+        ranks=ranks,
         tokenLabels=labels
     )
