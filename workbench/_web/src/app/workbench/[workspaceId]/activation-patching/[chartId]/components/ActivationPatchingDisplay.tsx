@@ -56,12 +56,13 @@ export function ActivationPatchingDisplay() {
     const patchingConfig = config as ActivationPatchingConfig | undefined;
     const hasData = patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
 
-    // Get the chart's saved name
-    const chartName = patchingChart?.name || "";
+    // Get the chart's saved name (treat "Untitled Chart" default as empty)
+    const rawChartName = patchingChart?.name || "";
+    const chartName = rawChartName === "Untitled Chart" ? "" : rawChartName;
     
     // The display title: use localTitle while editing, otherwise use chart name
     const displayTitle = localTitle !== null ? localTitle : chartName;
-    const hasTitle = displayTitle.trim().length > 0;
+    const hasTitle = displayTitle.trim().length > 0 && displayTitle.trim() !== "Untitled Chart";
 
     // Reset local title when chart changes
     useEffect(() => {
@@ -190,15 +191,19 @@ export function ActivationPatchingDisplay() {
                         placeholder="Untitled Chart"
                         className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
                     />
+                ) : hasTitle ? (
+                    <h2
+                        onClick={handleTitleClick}
+                        className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold"
+                    >
+                        {displayTitle}
+                    </h2>
                 ) : (
                     <h2
                         onClick={handleTitleClick}
-                        className={cn(
-                            "cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg",
-                            hasTitle ? "font-semibold" : "font-medium text-muted-foreground italic"
-                        )}
+                        className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
                     >
-                        {hasTitle ? displayTitle : "Untitled Chart"}
+                        Untitled Chart
                     </h2>
                 )}
             </div>
