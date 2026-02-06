@@ -206,7 +206,16 @@ export const useUpdateChartName = () => {
             return await updateChartName(chartId, name);
         },
         onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(variables.chartId) });
+            const chartKey = queryKeys.charts.chart(variables.chartId);
+            queryClient.invalidateQueries({ queryKey: chartKey });
+            
+            // Also invalidate sidebar to update the chart name in the card
+            const chart = queryClient.getQueryData(chartKey) as { workspaceId?: string } | undefined;
+            if (chart?.workspaceId) {
+                queryClient.invalidateQueries({
+                    queryKey: ["chartsForSidebar", chart.workspaceId],
+                });
+            }
         },
     });
 };
