@@ -6,6 +6,7 @@ import { charts, configs, chartConfigLinks, Chart, LensConfig, Config } from "@/
 import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
+import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { eq, desc } from "drizzle-orm";
 
 export const setChartData = async (
@@ -98,6 +99,26 @@ export const createPatchChartPair = async (
     const [newConfig] = await db
         .insert(configs)
         .values({ workspaceId, type: "patch", data: defaultConfig })
+        .returning();
+
+    // Create the link between chart and config
+    await db.insert(chartConfigLinks).values({
+        chartId: newChart.id,
+        configId: newConfig.id,
+    });
+
+    return { chart: newChart as Chart, config: newConfig as Config };
+};
+
+// Create a new activation patching chart and config pair
+export const createActivationPatchingChartPair = async (
+    workspaceId: string,
+    defaultConfig: ActivationPatchingConfigData,
+): Promise<{ chart: Chart; config: Config }> => {
+    const [newChart] = await db.insert(charts).values({ workspaceId }).returning();
+    const [newConfig] = await db
+        .insert(configs)
+        .values({ workspaceId, type: "activation-patching", data: defaultConfig })
         .returning();
 
     // Create the link between chart and config
