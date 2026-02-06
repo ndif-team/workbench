@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
+import { Eye, EyeOff } from "lucide-react";
 
 interface LinePlotData {
     lines: number[][];  // Each line is [value_layer_0, value_layer_1, ...]
@@ -13,13 +15,25 @@ interface LinePlotWidgetProps {
     title?: string;
     yAxisLabel?: string;
     xAxisLabel?: string;
+    transparentBackground?: boolean;
 }
 
-// Color palette for lines
+interface TooltipState {
+    visible: boolean;
+    x: number;
+    y: number;
+    lineIdx: number;
+    layerIdx: number;
+    value: number;
+    label: string;
+    color: string;
+}
+
+// Refined color palette - more professional, slightly desaturated
 const LINE_COLORS = [
-    "#3b82f6",  // blue
-    "#ef4444",  // red
-    "#22c55e",  // green
+    "#6366f1",  // indigo
+    "#f43f5e",  // rose
+    "#10b981",  // emerald
     "#f59e0b",  // amber
     "#8b5cf6",  // violet
     "#ec4899",  // pink
@@ -29,14 +43,48 @@ const LINE_COLORS = [
 
 export function LinePlotWidget({
     data,
-    title = "Activation Patching Results",
+    title,
     yAxisLabel = "Probability",
     xAxisLabel = "Layer",
+    transparentBackground = false,
 }: LinePlotWidgetProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { resolvedTheme } = useTheme();
     const isDarkMode = resolvedTheme === "dark";
+    
+    // Track which lines are visible (all visible by default)
+    const [hiddenLines, setHiddenLines] = useState<Set<number>>(new Set());
+    
+    // Tooltip state
+    const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+    
+    // Store chart geometry for mouse calculations
+    const chartGeometryRef = useRef<{
+        margin: { top: number; right: number; bottom: number; left: number };
+        chartWidth: number;
+        chartHeight: number;
+        width: number;
+        height: number;
+    } | null>(null);
+
+    // Toggle line visibility
+    const toggleLine = useCallback((lineIdx: number) => {
+        setHiddenLines(prev => {
+            const next = new Set(prev);
+            if (next.has(lineIdx)) {
+                next.delete(lineIdx);
+            } else {
+                next.add(lineIdx);
+            }
+            return next;
+        });
+    }, []);
+
+    // Get labels for legend
+    const labels = useMemo(() => {
+        return data.labels || data.lines.map((_, i) => `Line ${i + 1}`);
+    }, [data.labels, data.lines]);
 
     // Compute chart dimensions and data bounds
     const chartConfig = useMemo(() => {
@@ -54,6 +102,73 @@ export function LinePlotWidget({
             numLines: data.lines.length,
         };
     }, [data]);
+
+    // Handle mouse move for tooltip
+    const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (!chartConfig || !chartGeometryRef.current) return;
+        
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        const { margin, chartWidth, chartHeight } = chartGeometryRef.current;
+        
+        // Check if mouse is within chart area
+        if (
+            mouseX < margin.left || 
+            mouseX > margin.left + chartWidth ||
+            mouseY < margin.top || 
+            mouseY > margin.top + chartHeight
+        ) {
+            setTooltip(null);
+            return;
+        }
+        
+        // Find nearest data point
+        let nearestPoint: TooltipState | null = null;
+        let minDistance = Infinity;
+        const maxDistance = 20; // Max distance in pixels to show tooltip
+        
+        data.lines.forEach((line, lineIdx) => {
+            if (hiddenLines.has(lineIdx)) return;
+            
+            line.forEach((value, layerIdx) => {
+                // Calculate point position
+                const x = chartConfig.numLayers <= 1 
+                    ? margin.left + chartWidth / 2
+                    : margin.left + (layerIdx / (chartConfig.numLayers - 1)) * chartWidth;
+                const normalized = (value - chartConfig.minValue) / (chartConfig.maxValue - chartConfig.minValue);
+                const y = margin.top + chartHeight - normalized * chartHeight;
+                
+                // Calculate distance
+                const distance = Math.sqrt(Math.pow(mouseX - x, 2) + Math.pow(mouseY - y, 2));
+                
+                if (distance < minDistance && distance < maxDistance) {
+                    minDistance = distance;
+                    nearestPoint = {
+                        visible: true,
+                        x,
+                        y,
+                        lineIdx,
+                        layerIdx,
+                        value,
+                        label: labels[lineIdx] || `Line ${lineIdx + 1}`,
+                        color: LINE_COLORS[lineIdx % LINE_COLORS.length],
+                    };
+                }
+            });
+        });
+        
+        setTooltip(nearestPoint);
+    }, [chartConfig, data.lines, hiddenLines, labels]);
+
+    // Handle mouse leave
+    const handleMouseLeave = useCallback(() => {
+        setTooltip(null);
+    }, []);
 
     // Draw the chart
     useEffect(() => {
@@ -76,29 +191,43 @@ export function LinePlotWidget({
         const width = rect.width;
         const height = rect.height;
 
-        // Chart margins
-        const margin = { top: 40, right: 120, bottom: 50, left: 60 };
+        // Professional margins with breathing room
+        const margin = { top: title ? 48 : 24, right: 24, bottom: 56, left: 64 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
+        
+        // Store geometry for mouse calculations
+        chartGeometryRef.current = { margin, chartWidth, chartHeight, width, height };
 
-        // Colors based on theme
-        const bgColor = isDarkMode ? "#1e1e1e" : "#fafafa";
-        const textColor = isDarkMode ? "#a0a0a0" : "#666666";
-        const gridColor = isDarkMode ? "#333333" : "#e5e5e5";
-        const axisColor = isDarkMode ? "#555555" : "#cccccc";
+        // Refined color palette based on theme
+        const colors = {
+            background: isDarkMode ? "#0a0a0a" : "#fafafa",
+            text: isDarkMode ? "#71717a" : "#71717a",
+            textMuted: isDarkMode ? "#52525b" : "#a1a1aa",
+            grid: isDarkMode ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+            axis: isDarkMode ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)",
+            titleText: isDarkMode ? "#e4e4e7" : "#27272a",
+        };
 
         // Clear canvas
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, width, height);
+        if (transparentBackground) {
+            ctx.clearRect(0, 0, width, height);
+        } else {
+            ctx.fillStyle = colors.background;
+            ctx.fillRect(0, 0, width, height);
+        }
 
-        // Draw title
-        ctx.fillStyle = isDarkMode ? "#e0e0e0" : "#333333";
-        ctx.font = "600 16px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(title, width / 2, 24);
+        // Draw title (if provided)
+        if (title) {
+            ctx.fillStyle = colors.titleText;
+            ctx.font = "500 14px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+            ctx.textAlign = "left";
+            ctx.fillText(title, margin.left, 28);
+        }
 
         // Transform functions
         const xScale = (layerIdx: number) => {
+            if (chartConfig.numLayers <= 1) return margin.left + chartWidth / 2;
             return margin.left + (layerIdx / (chartConfig.numLayers - 1)) * chartWidth;
         };
 
@@ -107,45 +236,51 @@ export function LinePlotWidget({
             return margin.top + chartHeight - normalized * chartHeight;
         };
 
-        // Draw grid lines
-        ctx.strokeStyle = gridColor;
+        // Draw subtle horizontal grid lines with dashed pattern
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = colors.grid;
         ctx.lineWidth = 1;
 
-        // Horizontal grid lines (5 lines)
-        for (let i = 0; i <= 4; i++) {
-            const y = margin.top + (i / 4) * chartHeight;
+        const yTicks = [0, 0.25, 0.5, 0.75, 1.0];
+        yTicks.forEach(tick => {
+            const y = yScale(tick);
             ctx.beginPath();
             ctx.moveTo(margin.left, y);
             ctx.lineTo(margin.left + chartWidth, y);
             ctx.stroke();
+        });
 
-            // Y-axis labels
-            const value = chartConfig.maxValue - (i / 4) * (chartConfig.maxValue - chartConfig.minValue);
-            ctx.fillStyle = textColor;
-            ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-            ctx.textAlign = "right";
-            ctx.fillText(value.toFixed(2), margin.left - 10, y + 4);
-        }
+        // Reset line dash
+        ctx.setLineDash([]);
 
-        // Vertical grid lines (every ~10 layers or so)
-        const layerStep = Math.max(1, Math.floor(chartConfig.numLayers / 10));
+        // Draw Y-axis labels
+        ctx.fillStyle = colors.text;
+        ctx.font = "400 11px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+
+        yTicks.forEach(tick => {
+            const y = yScale(tick);
+            ctx.fillText(tick.toFixed(2), margin.left - 12, y);
+        });
+
+        // Draw X-axis labels
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        
+        const layerStep = Math.max(1, Math.ceil(chartConfig.numLayers / 8));
         for (let i = 0; i < chartConfig.numLayers; i += layerStep) {
             const x = xScale(i);
-            ctx.beginPath();
-            ctx.strokeStyle = gridColor;
-            ctx.moveTo(x, margin.top);
-            ctx.lineTo(x, margin.top + chartHeight);
-            ctx.stroke();
-
-            // X-axis labels
-            ctx.fillStyle = textColor;
-            ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText(i.toString(), x, margin.top + chartHeight + 20);
+            ctx.fillText(i.toString(), x, margin.top + chartHeight + 12);
+        }
+        // Always show last layer
+        if ((chartConfig.numLayers - 1) % layerStep !== 0) {
+            const x = xScale(chartConfig.numLayers - 1);
+            ctx.fillText((chartConfig.numLayers - 1).toString(), x, margin.top + chartHeight + 12);
         }
 
-        // Draw axes
-        ctx.strokeStyle = axisColor;
+        // Draw minimal axes (just the L-shape border)
+        ctx.strokeStyle = isDarkMode ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.25)";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(margin.left, margin.top);
@@ -153,29 +288,80 @@ export function LinePlotWidget({
         ctx.lineTo(margin.left + chartWidth, margin.top + chartHeight);
         ctx.stroke();
 
-        // Axis labels
-        ctx.fillStyle = textColor;
-        ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        // Draw axis labels
+        ctx.fillStyle = colors.textMuted;
+        ctx.font = "500 10px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+        
+        // X-axis label
         ctx.textAlign = "center";
-        ctx.fillText(xAxisLabel, margin.left + chartWidth / 2, height - 10);
+        ctx.textBaseline = "top";
+        ctx.fillText(xAxisLabel.toUpperCase(), margin.left + chartWidth / 2, height - 16);
 
         // Y-axis label (rotated)
         ctx.save();
-        ctx.translate(15, margin.top + chartHeight / 2);
+        ctx.translate(16, margin.top + chartHeight / 2);
         ctx.rotate(-Math.PI / 2);
-        ctx.fillText(yAxisLabel, 0, 0);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText(yAxisLabel.toUpperCase(), 0, 0);
         ctx.restore();
 
-        // Draw lines
+        // Faded color for hidden lines
+        const fadedColor = isDarkMode ? "#3f3f46" : "#d4d4d8";
+        
+        // Draw lines with smooth rendering
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        // First pass: draw faded/hidden lines
         data.lines.forEach((line, lineIdx) => {
+            if (!hiddenLines.has(lineIdx)) return;
+
+            ctx.beginPath();
+            ctx.strokeStyle = fadedColor;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.35;
+
+            line.forEach((value, layerIdx) => {
+                const x = xScale(layerIdx);
+                const y = yScale(value);
+                if (layerIdx === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        });
+
+        // Second pass: draw active lines on top
+        data.lines.forEach((line, lineIdx) => {
+            if (hiddenLines.has(lineIdx)) return;
+            
             const color = LINE_COLORS[lineIdx % LINE_COLORS.length];
 
-            // Draw the line path
+            // Draw line shadow for depth
             ctx.beginPath();
             ctx.strokeStyle = color;
-            ctx.lineWidth = 2.5;
-            ctx.lineJoin = "round";
-            ctx.lineCap = "round";
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = 0.15;
+            line.forEach((value, layerIdx) => {
+                const x = xScale(layerIdx);
+                const y = yScale(value);
+                if (layerIdx === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+
+            // Draw the main line
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
 
             line.forEach((value, layerIdx) => {
                 const x = xScale(layerIdx);
@@ -188,39 +374,29 @@ export function LinePlotWidget({
             });
             ctx.stroke();
 
-            // Draw dots at each point
+            // Draw refined data points (smaller, with subtle ring)
             line.forEach((value, layerIdx) => {
                 const x = xScale(layerIdx);
                 const y = yScale(value);
+                
+                // Check if this is the hovered point
+                const isHovered = tooltip?.lineIdx === lineIdx && tooltip?.layerIdx === layerIdx;
+                
+                // Outer ring (larger when hovered)
                 ctx.beginPath();
-                ctx.fillStyle = color;
-                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = isHovered ? 2 : 1.5;
+                ctx.arc(x, y, isHovered ? 5 : 3.5, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner fill
+                ctx.beginPath();
+                ctx.fillStyle = isDarkMode ? "#18181b" : "#ffffff";
+                ctx.arc(x, y, isHovered ? 3.5 : 2.5, 0, Math.PI * 2);
                 ctx.fill();
             });
         });
-
-        // Draw legend
-        const legendX = margin.left + chartWidth + 15;
-        const legendY = margin.top + 10;
-        const legendItemHeight = 24;
-
-        const labels = data.labels || data.lines.map((_, i) => `Line ${i + 1}`);
-
-        labels.forEach((label, idx) => {
-            const y = legendY + idx * legendItemHeight;
-            const color = LINE_COLORS[idx % LINE_COLORS.length];
-
-            // Color box
-            ctx.fillStyle = color;
-            ctx.fillRect(legendX, y - 6, 16, 12);
-
-            // Label text
-            ctx.fillStyle = textColor;
-            ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-            ctx.textAlign = "left";
-            ctx.fillText(label, legendX + 22, y + 4);
-        });
-    }, [data, chartConfig, isDarkMode, title, xAxisLabel, yAxisLabel]);
+    }, [data, chartConfig, isDarkMode, title, xAxisLabel, yAxisLabel, transparentBackground, hiddenLines, tooltip]);
 
     // Handle resize
     useEffect(() => {
@@ -228,10 +404,9 @@ export function LinePlotWidget({
         if (!container) return;
 
         const observer = new ResizeObserver(() => {
-            // Trigger re-render by updating a dummy state or just let the effect re-run
             const canvas = canvasRef.current;
             if (canvas) {
-                canvas.style.width = "0";  // Force reflow
+                canvas.style.width = "0";
                 canvas.style.width = "";
             }
         });
@@ -249,8 +424,106 @@ export function LinePlotWidget({
     }
 
     return (
-        <div ref={containerRef} className="w-full h-full min-h-[300px]">
-            <canvas ref={canvasRef} className="w-full h-full" />
+        <div ref={containerRef} className="relative w-full h-full min-h-[300px]">
+            <canvas 
+                ref={canvasRef} 
+                className="w-full h-full cursor-crosshair" 
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+            />
+            
+            {/* Tooltip */}
+            {tooltip && (
+                <div
+                    className="absolute pointer-events-none z-50 animate-in fade-in-0 zoom-in-95 duration-100"
+                    style={{
+                        left: tooltip.x,
+                        top: tooltip.y,
+                        transform: `translate(${tooltip.x > (chartGeometryRef.current?.width || 0) / 2 ? 'calc(-100% - 12px)' : '12px'}, -50%)`,
+                    }}
+                >
+                    <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-lg px-3 py-2 min-w-[120px]">
+                        {/* Label with color indicator */}
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <span
+                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: tooltip.color }}
+                            />
+                            <span className="text-xs font-medium text-foreground truncate max-w-[100px]">
+                                {tooltip.label}
+                            </span>
+                        </div>
+                        
+                        {/* Values */}
+                        <div className="space-y-0.5 text-[11px]">
+                            <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground">Layer</span>
+                                <span className="font-medium text-foreground">{tooltip.layerIdx}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground">Value</span>
+                                <span className="font-medium text-foreground">{tooltip.value.toFixed(4)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Refined Interactive Legend */}
+            <div className="absolute top-2 right-3 flex flex-col gap-0.5 py-1.5 px-1 rounded-md bg-background/70 backdrop-blur-md border border-border/40">
+                {labels.map((label, idx) => {
+                    const color = LINE_COLORS[idx % LINE_COLORS.length];
+                    const isHidden = hiddenLines.has(idx);
+                    
+                    return (
+                        <button
+                            key={idx}
+                            onClick={() => toggleLine(idx)}
+                            className={cn(
+                                "group flex items-center gap-2 pl-2 pr-2 py-1 rounded transition-all duration-150",
+                                "hover:bg-accent/40",
+                                isHidden ? "opacity-50" : "opacity-100"
+                            )}
+                        >
+                            {/* Color indicator with ring style matching data points */}
+                            <span className="relative flex-shrink-0">
+                                <span
+                                    className={cn(
+                                        "block w-2.5 h-2.5 rounded-full border-[1.5px] transition-all duration-150",
+                                        isHidden ? "bg-muted border-muted-foreground/30" : "bg-background"
+                                    )}
+                                    style={{ 
+                                        borderColor: isHidden ? undefined : color,
+                                    }}
+                                />
+                            </span>
+                            
+                            {/* Label */}
+                            <span 
+                                className={cn(
+                                    "text-[11px] font-medium truncate max-w-[72px] transition-colors duration-150",
+                                    isHidden ? "text-muted-foreground/60" : "text-foreground/80"
+                                )}
+                                title={label}
+                            >
+                                {label}
+                            </span>
+                            
+                            {/* Visibility indicator */}
+                            <span className={cn(
+                                "ml-auto transition-opacity duration-150",
+                                isHidden ? "opacity-60" : "opacity-0 group-hover:opacity-40"
+                            )}>
+                                {isHidden ? (
+                                    <EyeOff className="w-3 h-3 text-muted-foreground" />
+                                ) : (
+                                    <Eye className="w-3 h-3 text-muted-foreground" />
+                                )}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 }

@@ -478,6 +478,7 @@ export function ActivationPatchingDisplay() {
                         title="Activation Patching: Token Probability by Layer"
                         yAxisLabel="Probability"
                         xAxisLabel="Layer"
+                        transparentBackground
                     />
                 ) : (
                     <div className="flex size-full items-center justify-center text-muted-foreground">
