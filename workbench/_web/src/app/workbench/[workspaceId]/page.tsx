@@ -29,13 +29,15 @@ export default async function Page({
         chart = result.chart;
     }
 
-    // Check if this is a lens2 chart by looking at its config type
+    // Check the chart/config type to determine the route
     const config = await getConfigForChart(chart.id);
-    const isLens2 = config?.type === "lens2" || chart.type === "lens2";
+    const chartType = config?.type || chart.type;
 
-    // Redirect to the appropriate chart route
-    if (isLens2) {
+    // Redirect to the appropriate chart route based on type
+    if (chartType === "lens2") {
         redirect(`/workbench/${workspaceId}/lens2/${chart.id}`);
+    } else if (chartType === "activation-patching") {
+        redirect(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
     } else {
         redirect(`/workbench/${workspaceId}/${chart.id}`);
     }

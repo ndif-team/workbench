@@ -6,6 +6,7 @@ import {
     createLensChartPair,
     createLens2ChartPair,
     createPatchChartPair,
+    createActivationPatchingChartPair,
     updateChartName,
     updateChartView,
     copyChart,
@@ -13,6 +14,7 @@ import {
 import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
+import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { useCapture } from "@/components/providers/CaptureProvider";
 import { Line, HeatmapRow, ChartView } from "@/types/charts";
 import { queryKeys } from "../queryKeys";
@@ -324,6 +326,33 @@ export const useCopyChart = () => {
 
     return useMutation({
         mutationFn: (chartId: string) => copyChart(chartId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        },
+    });
+};
+
+export const useCreateActivationPatchingChartPair = () => {
+    const queryClient = useQueryClient();
+
+    const defaultConfig: ActivationPatchingConfigData = {
+        model: "",
+        srcPrompt: "",
+        tgtPrompt: "",
+        srcPos: null,
+        tgtPos: null,
+    };
+
+    return useMutation({
+        mutationFn: async ({
+            workspaceId,
+            config = defaultConfig,
+        }: {
+            workspaceId: string;
+            config?: ActivationPatchingConfigData;
+        }) => {
+            return await createActivationPatchingChartPair(workspaceId, config);
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
         },

@@ -24,6 +24,7 @@ async function awaitNDIFJob(jobId: string): Promise<void> {
         }
         if (status === "ERROR" || status === "NNSIGHT_ERROR") {
             setJobStatus("Error");
+            console.error(data);
             throw new Error("Job failed");
         }
 

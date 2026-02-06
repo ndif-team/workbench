@@ -7,6 +7,7 @@ import {
     useCreateLensChartPair,
     useCreateLens2ChartPair,
     useCreatePatchChartPair,
+    useCreateActivationPatchingChartPair,
     useDeleteChart,
 } from "@/lib/api/chartApi";
 import {
@@ -18,7 +19,7 @@ import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
 import { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
-import { Loader2, Plus, PanelLeftClose, PanelLeft, Search, FileText, Layers } from "lucide-react";
+import { Loader2, Plus, PanelLeftClose, PanelLeft, Search, FileText, Layers, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 
@@ -40,6 +41,8 @@ export default function ChartCardsSidebar() {
     const { mutate: createLensPair, isPending: isCreatingLens } = useCreateLensChartPair();
     const { mutate: createLens2Pair, isPending: isCreatingLens2 } = useCreateLens2ChartPair();
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
+    const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
+        useCreateActivationPatchingChartPair();
     const { mutate: deleteChart } = useDeleteChart();
     const { mutate: createDocument, isPending: isCreatingDocument } = useCreateDocument();
     const { mutate: deleteDocument } = useDeleteDocument();
@@ -95,9 +98,11 @@ export default function ChartCardsSidebar() {
     }, [charts, reports]);
 
     const navigateToChart = (chartId: string, toolType?: string) => {
-        // Route lens2 charts to the lens2 path
+        // Route based on tool type
         if (toolType === "lens2") {
             router.push(`/workbench/${workspaceId}/lens2/${chartId}`);
+        } else if (toolType === "activation-patching") {
+            router.push(`/workbench/${workspaceId}/activation-patching/${chartId}`);
         } else {
             router.push(`/workbench/${workspaceId}/${chartId}`);
         }
@@ -107,12 +112,21 @@ export default function ChartCardsSidebar() {
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (toolType: "lens" | "lens2" | "patch") => {
+    const handleCreate = (toolType: "lens" | "lens2" | "patch" | "activation-patching") => {
         if (toolType === "lens2") {
             createLens2Pair(
                 { workspaceId: workspaceId as string },
                 {
                     onSuccess: ({ chart }) => navigateToChart(chart.id, "lens2"),
+                },
+            );
+            return;
+        }
+        if (toolType === "activation-patching") {
+            createActivationPatchingPair(
+                { workspaceId: workspaceId as string },
+                {
+                    onSuccess: ({ chart }) => navigateToChart(chart.id, "activation-patching"),
                 },
             );
             return;
@@ -171,7 +185,7 @@ export default function ChartCardsSidebar() {
         );
     };
 
-    const isCreatingAny = isCreatingLens || isCreatingLens2 || isCreatingPatch || isCreatingDocument;
+    const isCreatingAny = isCreatingLens || isCreatingLens2 || isCreatingPatch || isCreatingActivationPatching || isCreatingDocument;
 
     const ActionButtons = () => (
         <div className="flex flex-col w-full gap-2 text-sm">
@@ -205,6 +219,20 @@ export default function ChartCardsSidebar() {
                     <span>Lens 2</span>
                 </Button>
             </div>
+            <Button
+                variant="outline"
+                onClick={() => handleCreate("activation-patching")}
+                disabled={isCreatingAny}
+                className="w-full"
+                title="Activation Patching"
+            >
+                {isCreatingActivationPatching ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                    <GitBranch className="w-4 h-4" />
+                )}
+                <span>Activation Patching</span>
+            </Button>
             <Button
                 variant="outline"
                 onClick={handleOverviewClick}
@@ -264,6 +292,20 @@ export default function ChartCardsSidebar() {
                             <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                             <Layers className="h-4 w-4" />
+                        )}
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleCreate("activation-patching")}
+                        disabled={isCreatingAny}
+                        className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
+                        title="New Activation Patching"
+                    >
+                        {isCreatingActivationPatching ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <GitBranch className="h-4 w-4" />
                         )}
                     </Button>
                     <Button
