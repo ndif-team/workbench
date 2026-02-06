@@ -170,14 +170,24 @@ const CustomMultiValue = (props: any) => {
     );
 };
 
-// Custom Option component
+// Custom Option component with badges for source/target predictions
 const CustomOption = (props: any) => {
+    const tokenIndex = props.data.value;
+    const badge = tokenIndex === 0 ? "source pred" : tokenIndex === 1 ? "target pred" : null;
+    
     return (
         <components.Option {...props}>
-            <div className="flex items-center justify-between w-full">
-                <span>{props.data.label}</span>
+            <div className="flex items-center justify-between w-full gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                    <span className="truncate">{props.data.label}</span>
+                    {badge && (
+                        <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded bg-violet-500/15 text-violet-500 border border-violet-500/20">
+                            {badge}
+                        </span>
+                    )}
+                </div>
                 {props.isSelected && (
-                    <span className="text-xs text-muted-foreground">selected</span>
+                    <span className="flex-shrink-0 text-xs text-muted-foreground">selected</span>
                 )}
             </div>
         </components.Option>
