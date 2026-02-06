@@ -2,18 +2,22 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, Play, TriangleAlert, MousePointerClick } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
-import { ActivationPatchingConfigData } from "@/types/activationPatching";
+import { ActivationPatchingConfigData, ActivationPatchingData } from "@/types/activationPatching";
 import { encodeText } from "@/actions/tok";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { getChartById } from "@/lib/queries/chartQueries";
+import { queryKeys } from "@/lib/queryKeys";
+import { TokenSelector } from "./TokenSelector";
 
 // Create a smooth bezier curve path between two points
 function createCurvePath(start: { x: number; y: number }, end: { x: number; y: number }): string {
@@ -290,15 +294,143 @@ export function ActivationPatchingControls({
 
     // Mutations
     const { mutateAsync: computePatching, isPending: isComputing } = useActivationPatching();
-    const { mutateAsync: updateConfig, isPending: isUpdatingConfig } = useUpdateChartConfig();
+    const { mutateAsync: updateConfig } = useUpdateChartConfig();
 
-    const isExecuting = isComputing || isUpdatingConfig;
+    // Only track actual computation for the Run button state
+    // Config updates (like saving line selection) should not affect the Run button
+    const isExecuting = isComputing;
 
     // Track if both tokens have been selected at least once (for auto-run logic)
     // If existing data is present, we've already run once (from a previous session)
     const hasRunOnceRef = useRef(hasExistingData);
     const prevSrcPosRef = useRef<number | null>(hasExistingData ? (initialConfig.data?.srcPos ?? null) : null);
     const prevTgtPosRef = useRef<number | null>(hasExistingData ? (initialConfig.data?.tgtPos ?? null) : null);
+
+    // Token line selector state
+    const [selectedLineIndices, setSelectedLineIndices] = useState<Set<number>>(
+        new Set(initialConfig.data?.selectedLineIndices ?? [0, 1])
+    );
+    const hasInitializedLinesRef = useRef(false);
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const previousDataRef = useRef<string | null>(null);
+
+    // Fetch chart data for token labels (cached by React Query)
+    interface ActivationPatchingChart {
+        id: string;
+        data: ActivationPatchingData | null;
+        type: string;
+    }
+    
+    const { data: chart } = useQuery({
+        queryKey: queryKeys.charts.chart(chartId),
+        queryFn: () => getChartById(chartId as string),
+        enabled: !!chartId,
+    });
+
+    const patchingChart = chart as ActivationPatchingChart | undefined;
+    const hasChartData = patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
+
+    // Get token labels from chart data
+    const allLabels = useMemo(() => {
+        if (!hasChartData || !patchingChart?.data?.tokenLabels) return [];
+        return patchingChart.data.tokenLabels;
+    }, [hasChartData, patchingChart?.data?.tokenLabels]);
+
+    // Get default selection (first two tokens - source and target predictions)
+    const getDefaultSelection = useCallback((numLines: number) => {
+        const defaults = new Set<number>();
+        if (numLines > 0) defaults.add(0);
+        if (numLines > 1) defaults.add(1);
+        return defaults;
+    }, []);
+
+    const defaultSelection = useMemo(() => {
+        const numLines = patchingChart?.data?.lines?.length || 0;
+        return getDefaultSelection(numLines);
+    }, [patchingChart?.data?.lines?.length, getDefaultSelection]);
+
+    // Create a fingerprint of the data to detect when new results arrive
+    const dataFingerprint = useMemo(() => {
+        if (!hasChartData || !patchingChart?.data?.tokenLabels) return null;
+        return patchingChart.data.tokenLabels.slice(0, 3).join(",");
+    }, [hasChartData, patchingChart?.data?.tokenLabels]);
+
+    // Reset to defaults when new data arrives (after a re-run)
+    useEffect(() => {
+        if (!hasChartData || !patchingChart?.data?.lines) return;
+        
+        const currentFingerprint = dataFingerprint;
+        if (currentFingerprint && previousDataRef.current !== null && previousDataRef.current !== currentFingerprint) {
+            // Data changed - reset to default selection (first two tokens)
+            const defaultIndices = getDefaultSelection(patchingChart.data.lines.length);
+            setSelectedLineIndices(defaultIndices);
+            
+            // Also save the default selection to config
+            updateConfig({
+                configId: initialConfig.id,
+                chartId,
+                config: {
+                    data: {
+                        ...initialConfig.data,
+                        selectedLineIndices: Array.from(defaultIndices),
+                    },
+                    workspaceId,
+                    type: "activation-patching",
+                },
+            });
+        }
+        previousDataRef.current = currentFingerprint;
+    }, [dataFingerprint, hasChartData, patchingChart?.data?.lines, getDefaultSelection, initialConfig, chartId, workspaceId, updateConfig]);
+
+    // Initialize selection from config when it loads (first load only)
+    useEffect(() => {
+        if (initialConfig.data?.selectedLineIndices && !hasInitializedLinesRef.current) {
+            setSelectedLineIndices(new Set(initialConfig.data.selectedLineIndices));
+            hasInitializedLinesRef.current = true;
+        } else if (hasChartData && patchingChart?.data?.lines && !hasInitializedLinesRef.current) {
+            // Default to first two lines if no saved selection
+            const defaultIndices = getDefaultSelection(patchingChart.data.lines.length);
+            setSelectedLineIndices(defaultIndices);
+            hasInitializedLinesRef.current = true;
+        }
+    }, [initialConfig.data?.selectedLineIndices, hasChartData, patchingChart?.data?.lines, getDefaultSelection]);
+
+    // Reset initialization flag when chart changes
+    useEffect(() => {
+        hasInitializedLinesRef.current = false;
+        previousDataRef.current = null;
+    }, [chartId]);
+
+    // Save selection to config (debounced)
+    const saveLineSelection = useCallback((indices: Set<number>) => {
+        if (!initialConfig?.id) return;
+        
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+
+        saveTimeoutRef.current = setTimeout(() => {
+            updateConfig({
+                configId: initialConfig.id,
+                chartId,
+                config: {
+                    data: {
+                        ...initialConfig.data,
+                        selectedLineIndices: Array.from(indices),
+                    },
+                    workspaceId,
+                    type: "activation-patching",
+                },
+            });
+        }, 500);
+    }, [initialConfig, chartId, workspaceId, updateConfig]);
+
+    // Handle selection change
+    const handleLineSelectionChange = useCallback((indices: number[]) => {
+        const newSet = new Set(indices);
+        setSelectedLineIndices(newSet);
+        saveLineSelection(newSet);
+    }, [saveLineSelection]);
 
     // Sync prompts from config only on initial mount (handled by useState initializers)
     // and when chart ID changes (component remounts due to key={config.id})
@@ -451,12 +583,21 @@ export function ActivationPatchingControls({
             configId: initialConfig.id,
         });
 
-        // Update the config in the database
+        // Reset selected line indices to defaults after new computation
+        // The new data will have new tokens, so we reset to first two (source and target predictions)
+        const defaultIndices = new Set([0, 1]);
+        setSelectedLineIndices(defaultIndices);
+        previousDataRef.current = null; // Clear fingerprint so useEffect can detect new data
+
+        // Update the config in the database with reset line selection
         await updateConfig({
             configId: initialConfig.id,
             chartId,
             config: {
-                data: config,
+                data: {
+                    ...config,
+                    selectedLineIndices: [0, 1], // Reset to defaults
+                },
                 workspaceId,
                 type: "activation-patching",
             },
@@ -698,9 +839,22 @@ export function ActivationPatchingControls({
             </Button>
 
             {/* Auto-run hint */}
-            <p className="text-xs text-muted-foreground text-center">
+            {/* <p className="text-xs text-muted-foreground text-center">
                 Auto-runs when both tokens are selected or changed
-            </p>
+            </p> */}
+
+            {/* Token Line Selector - only show when we have chart data */}
+            {hasChartData && allLabels.length > 0 && (
+                <div className="pt-4">
+                    <TokenSelector
+                        allLabels={allLabels}
+                        selectedIndices={selectedLineIndices}
+                        onChange={handleLineSelectionChange}
+                        defaultIndices={defaultSelection}
+                        disabled={isExecuting}
+                    />
+                </div>
+            )}
         </div>
     );
 }
