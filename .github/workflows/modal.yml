@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - v2
 
 jobs:
   deploy:
@@ -32,7 +33,7 @@ jobs:
         run: |
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
             export MODAL_APP_NAME="interp-workbench-prod" ENVIRONMENT="prod" INFLUXDB_BUCKET="workbench"
-          elif [ "${{ github.ref }}" == "refs/heads/dev" ]; then
+          elif [ "${{ github.ref }}" == "refs/heads/v2" ]; then
             export MODAL_APP_NAME="interp-workbench-dev"
           fi
           modal deploy modal/image.py
