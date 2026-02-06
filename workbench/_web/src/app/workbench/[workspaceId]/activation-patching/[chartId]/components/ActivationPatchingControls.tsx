@@ -24,6 +24,7 @@ interface ActivationPatchingConfig {
 interface ActivationPatchingControlsProps {
     initialConfig: ActivationPatchingConfig;
     selectedModel: string;
+    hasExistingData?: boolean;
 }
 
 // Token styling constants
@@ -223,6 +224,7 @@ function PromptSection({
 export function ActivationPatchingControls({
     initialConfig,
     selectedModel,
+    hasExistingData = false,
 }: ActivationPatchingControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
@@ -253,11 +255,12 @@ export function ActivationPatchingControls({
     const isExecuting = isComputing || isUpdatingConfig;
 
     // Track if both tokens have been selected at least once (for auto-run logic)
-    const hasRunOnceRef = useRef(false);
-    const prevSrcPosRef = useRef<number | null>(null);
-    const prevTgtPosRef = useRef<number | null>(null);
+    // If existing data is present, we've already run once (from a previous session)
+    const hasRunOnceRef = useRef(hasExistingData);
+    const prevSrcPosRef = useRef<number | null>(hasExistingData ? (initialConfig.data?.srcPos ?? null) : null);
+    const prevTgtPosRef = useRef<number | null>(hasExistingData ? (initialConfig.data?.tgtPos ?? null) : null);
 
-    // Sync prompts from config
+    // Sync prompts from config (only when they actually change)
     useEffect(() => {
         const configSrcPrompt = initialConfig.data?.srcPrompt || "";
         if (configSrcPrompt && configSrcPrompt !== lastSyncedSrcPromptRef.current) {
@@ -269,13 +272,8 @@ export function ActivationPatchingControls({
             setTgtPrompt(configTgtPrompt);
             lastSyncedTgtPromptRef.current = configTgtPrompt;
         }
-        // Sync positions
-        if (initialConfig.data?.srcPos !== undefined) {
-            setSrcPos(initialConfig.data.srcPos);
-        }
-        if (initialConfig.data?.tgtPos !== undefined) {
-            setTgtPos(initialConfig.data.tgtPos);
-        }
+        // Note: Positions are initialized from initialConfig in useState, 
+        // no need to sync them here as that would trigger auto-run on reload
     }, [initialConfig.data]);
 
     // Tokenize prompts on initial load if they exist
