@@ -28,7 +28,7 @@ export default function ActivationPatchingArea() {
         enabled: !!chartId,
     });
 
-    const { data: chart } = useQuery({
+    const { data: chart, isLoading: isChartLoading } = useQuery({
         queryKey: queryKeys.charts.chart(chartId),
         queryFn: () => getChartById(chartId as string),
         enabled: !!chartId,
@@ -68,7 +68,8 @@ export default function ActivationPatchingArea() {
         return models[selectedModelIdx]?.name || models[0].name;
     }, [models, selectedModelIdx]);
 
-    if (!config || !selectedModel) {
+    // Wait for both config and chart to load to ensure hasExistingData is accurate
+    if (!config || !selectedModel || isChartLoading) {
         return (
             <div className="h-full flex flex-col min-w-64">
                 <div className="p-3 border-b flex items-center justify-between">
@@ -121,6 +122,7 @@ export default function ActivationPatchingArea() {
                 <ActivationPatchingControls
                     initialConfig={config as ActivationPatchingConfig}
                     selectedModel={selectedModel}
+                    hasExistingData={!!(chart as { data?: unknown })?.data}
                 />
             </div>
         </div>
