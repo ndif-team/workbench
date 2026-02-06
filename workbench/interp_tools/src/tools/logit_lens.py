@@ -27,11 +27,11 @@ def logit_lens(
                 hs = hs[0]
             # Project hidden states to vocabulary space
             logits = model.lm_head(model.model.ln_f(hs))
-            all_logits.append(logits)
+            all_logits.append(logits.cpu())
         
         # Add final layer logits
         final_logits = model.output.logits
-        all_logits.append(final_logits)
+        all_logits.append(final_logits.cpu())
         
         # Save for remote execution
         all_logits.save()
