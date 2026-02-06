@@ -21,6 +21,7 @@ export interface ActivationPatchingConfigData {
  */
 export interface ActivationPatchingData {
     lines: number[][];  // Each line is [prob_layer_0, prob_layer_1, ...] for a tracked token
+    ranks: number[][];  // Each line is [rank_layer_0, rank_layer_1, ...] for a tracked token
     tokenLabels?: string[];  // Optional labels for the lines (e.g., token text)
 }
 

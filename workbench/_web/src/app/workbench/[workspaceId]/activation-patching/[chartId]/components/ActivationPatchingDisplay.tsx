@@ -323,9 +323,12 @@ function TokenSelector({ allLabels, selectedIndices, onChange, defaultIndices }:
     );
 }
 
+type DisplayMode = "probability" | "rank";
+
 export function ActivationPatchingDisplay() {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
     const [selectedLineIndices, setSelectedLineIndices] = useState<Set<number>>(new Set([0, 1]));
+    const [displayMode, setDisplayMode] = useState<DisplayMode>("probability");
     const hasInitializedFromConfig = useRef(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const previousDataRef = useRef<string | null>(null);
@@ -461,15 +464,23 @@ export function ActivationPatchingDisplay() {
         if (!hasData || !patchingChart?.data) return null;
         
         const selectedIndicesArray = Array.from(selectedLineIndices).sort((a, b) => a - b);
+        
+        // Select either probabilities (lines) or ranks based on display mode
+        const sourceData = displayMode === "probability" 
+            ? patchingChart.data!.lines 
+            : patchingChart.data!.ranks;
+        
+        if (!sourceData) return null;
+        
         const lines = selectedIndicesArray
-            .filter(i => i < patchingChart.data!.lines.length)
-            .map(i => patchingChart.data!.lines[i]);
+            .filter(i => i < sourceData.length)
+            .map(i => sourceData[i]);
         const labels = selectedIndicesArray
             .filter(i => i < (patchingChart.data!.tokenLabels?.length || 0))
             .map(i => patchingChart.data!.tokenLabels![i]);
         
         return { lines, labels };
-    }, [hasData, patchingChart?.data, selectedLineIndices]);
+    }, [hasData, patchingChart?.data, selectedLineIndices, displayMode]);
 
     // Loading state
     if (isChartLoading || isConfigLoading) {
@@ -508,8 +519,38 @@ export function ActivationPatchingDisplay() {
 
     return (
         <div className="size-full overflow-auto flex flex-col">
-            {/* Token selector header */}
-            <div className="p-3">
+            {/* Token selector and mode toggle header */}
+            <div className="p-3 flex flex-col gap-3">
+                {/* Mode toggle */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Display:</span>
+                    <div className="inline-flex items-center rounded-md border border-input bg-background p-0.5">
+                        <button
+                            onClick={() => setDisplayMode("probability")}
+                            className={cn(
+                                "px-2.5 py-1 text-xs font-medium rounded transition-colors",
+                                displayMode === "probability"
+                                    ? "bg-violet-500 text-white"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                            )}
+                        >
+                            Probability
+                        </button>
+                        <button
+                            onClick={() => setDisplayMode("rank")}
+                            className={cn(
+                                "px-2.5 py-1 text-xs font-medium rounded transition-colors",
+                                displayMode === "rank"
+                                    ? "bg-violet-500 text-white"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                            )}
+                        >
+                            Rank
+                        </button>
+                    </div>
+                </div>
+
+                {/* Token selector */}
                 <TokenSelector
                     allLabels={allLabels}
                     selectedIndices={selectedLineIndices}
@@ -523,10 +564,17 @@ export function ActivationPatchingDisplay() {
                 {plotData && plotData.lines.length > 0 ? (
                     <LinePlotWidget
                         data={plotData}
-                        title="Activation Patching: Token Probability by Layer"
-                        yAxisLabel="Probability"
+                        title={displayMode === "probability" 
+                            ? "Activation Patching: Token Probability by Layer"
+                            : "Activation Patching: Token Rank by Layer"
+                        }
+                        yAxisLabel={displayMode === "probability" ? "Probability" : "Rank"}
                         xAxisLabel="Layer"
                         transparentBackground
+                        mode={displayMode}
+                        invertYAxis={displayMode === "rank"}
+                        minValue={displayMode === "probability" ? 0 : undefined}
+                        maxValue={displayMode === "probability" ? 1 : undefined}
                     />
                 ) : (
                     <div className="flex size-full items-center justify-center text-muted-foreground">
