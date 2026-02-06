@@ -73,8 +73,8 @@ def format_data(
         topk_values_per_layer.append(values)
         unique_indices.update(indices)
 
-    unique_indices.remove(src_pred)
-    unique_indices.remove(clean_pred)
+    unique_indices.discard(src_pred)
+    unique_indices.discard(clean_pred)
     unique_indices = list(unique_indices)
     unique_indices = [src_pred, clean_pred] + unique_indices
 
