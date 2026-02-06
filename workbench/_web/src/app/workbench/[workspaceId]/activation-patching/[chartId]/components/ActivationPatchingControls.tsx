@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,14 @@ import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+
+// Create a smooth bezier curve path between two points
+function createCurvePath(start: { x: number; y: number }, end: { x: number; y: number }): string {
+    const midY = (start.y + end.y) / 2;
+    const c1 = { x: start.x, y: midY };
+    const c2 = { x: end.x, y: midY };
+    return `M ${start.x} ${start.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${end.x} ${end.y}`;
+}
 
 interface ActivationPatchingConfig {
     id: string;
@@ -52,13 +60,19 @@ function SelectableTokenDisplay({
     loading,
     selectedPos,
     onTokenClick,
+    onTokenHover,
+    onTokenLeave,
     label,
+    side,
 }: {
     tokens: Token[];
     loading: boolean;
     selectedPos: number | null;
     onTokenClick: (pos: number) => void;
+    onTokenHover?: (pos: number) => void;
+    onTokenLeave?: () => void;
     label: string;
+    side: "source" | "target";
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
         // Stop propagation to prevent triggering edit mode on the container
@@ -82,7 +96,10 @@ function SelectableTokenDisplay({
                         <span key={`token-${idx}`}>
                             <span
                                 data-token-id={idx}
+                                data-token-side={side}
                                 onClick={(e) => handleTokenClick(e, idx)}
+                                onMouseEnter={() => onTokenHover?.(idx)}
+                                onMouseLeave={() => onTokenLeave?.()}
                                 className={cn(
                                     TOKEN_STYLES.base,
                                     // Show clickable styling when not selected
@@ -113,6 +130,8 @@ function PromptSection({
     tokens,
     selectedPos,
     onTokenClick,
+    onTokenHover,
+    onTokenLeave,
     isEditing,
     setIsEditing,
     onBlur,
@@ -121,6 +140,7 @@ function PromptSection({
     selectedModel,
     textareaRef,
     tokenContainerRef,
+    side,
 }: {
     label: string;
     prompt: string;
@@ -128,6 +148,8 @@ function PromptSection({
     tokens: Token[];
     selectedPos: number | null;
     onTokenClick: (pos: number) => void;
+    onTokenHover?: (pos: number) => void;
+    onTokenLeave?: () => void;
     isEditing: boolean;
     setIsEditing: (value: boolean) => void;
     onBlur: () => void;
@@ -136,6 +158,7 @@ function PromptSection({
     selectedModel: string;
     textareaRef: React.RefObject<HTMLTextAreaElement | null>;
     tokenContainerRef: React.RefObject<HTMLDivElement | null>;
+    side: "source" | "target";
 }) {
     const modelMismatch = tokenizedModel && tokenizedModel !== selectedModel && tokens.length > 0;
 
@@ -198,7 +221,10 @@ function PromptSection({
                                 // Don't switch to edit mode when clicking a token
                                 onTokenClick(pos);
                             }}
+                            onTokenHover={onTokenHover}
+                            onTokenLeave={onTokenLeave}
                             label={label}
+                            side={side}
                         />
                     </div>
                 )}
@@ -253,6 +279,16 @@ export function ActivationPatchingControls({
     const tgtTextareaRef = useRef<HTMLTextAreaElement>(null);
     const tgtTokenContainerRef = useRef<HTMLDivElement>(null);
     const lastSyncedTgtPromptRef = useRef<string>(initialTgtPrompt);
+
+    // Arrow connection state
+    const controlsContainerRef = useRef<HTMLDivElement>(null);
+    const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
+    const [hoverTgtIdx, setHoverTgtIdx] = useState<number | null>(null);
+
+    // Show arrow when source is selected (either connecting or connected)
+    const showArrow = srcPos !== null && !srcEditing && !tgtEditing;
+    // Arrow is "connecting" when source is selected but target is not yet
+    const isConnecting = srcPos !== null && tgtPos === null && !srcEditing && !tgtEditing;
 
     // Mutations
     const { mutateAsync: computePatching, isPending: isComputing } = useActivationPatching();
@@ -496,8 +532,120 @@ export function ActivationPatchingControls({
         }
     }, [srcPos, tgtPos, srcPrompt, tgtPrompt, srcTokens.length, tgtTokens.length, isExecuting, handleSubmit]);
 
+    // Mouse move handler for arrow following (only when connecting, not when connected)
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
+        if (!isConnecting) return;
+        const container = controlsContainerRef.current;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        setMousePos({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+        });
+    }, [isConnecting]);
+
+    // Get token center position relative to container
+    const getTokenCenter = useCallback((side: "source" | "target", index: number, at: "top" | "bottom") => {
+        const container = controlsContainerRef.current;
+        if (!container) return null;
+        const token = container.querySelector<HTMLElement>(
+            `[data-token-side="${side}"][data-token-id="${index}"]`,
+        );
+        if (!token) return null;
+        const tokenRect = token.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const x = tokenRect.left + tokenRect.width / 2 - containerRect.left;
+        const y = (at === "top" ? tokenRect.top : tokenRect.bottom) - containerRect.top;
+        return { x, y };
+    }, []);
+
+    // Render the connecting arrow
+    const renderArrow = useMemo(() => {
+        if (!showArrow || srcPos === null) return null;
+        
+        const start = getTokenCenter("source", srcPos, "bottom");
+        if (!start) return null;
+
+        let end: { x: number; y: number } | null = null;
+        let isConnected = false;
+
+        // If target is already selected, draw to it (persistent connection)
+        if (tgtPos !== null) {
+            end = getTokenCenter("target", tgtPos, "top");
+            isConnected = true;
+        } 
+        // Otherwise, draw to hover target or mouse position (connecting state)
+        else if (hoverTgtIdx !== null) {
+            end = getTokenCenter("target", hoverTgtIdx, "top");
+        } else if (mousePos) {
+            end = mousePos;
+        }
+
+        if (!end) return null;
+
+        return (
+            <svg className="pointer-events-none absolute inset-0 w-full h-full overflow-visible z-50">
+                <defs>
+                    <marker
+                        id="arrow-head"
+                        markerWidth="10"
+                        markerHeight="7"
+                        refX="9"
+                        refY="3.5"
+                        orient="auto"
+                    >
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6" />
+                    </marker>
+                    {/* Glow filter for the arrow */}
+                    <filter id="arrow-glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                        <feMerge>
+                            <feMergeNode in="coloredBlur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
+                {/* Glow effect */}
+                <path
+                    d={createCurvePath(start, end)}
+                    fill="none"
+                    stroke="#8b5cf6"
+                    strokeWidth={3}
+                    strokeOpacity={0.3}
+                    filter="url(#arrow-glow)"
+                />
+                {/* Main arrow - solid when connected or hovering, dashed when following mouse */}
+                <path
+                    d={createCurvePath(start, end)}
+                    fill="none"
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    strokeDasharray={isConnected || hoverTgtIdx !== null ? "none" : "6,4"}
+                    markerEnd="url(#arrow-head)"
+                    className="transition-all duration-75"
+                />
+            </svg>
+        );
+    }, [showArrow, srcPos, tgtPos, hoverTgtIdx, mousePos, getTokenCenter]);
+
+    // Clear mouse position when not connecting
+    useEffect(() => {
+        if (!isConnecting) {
+            setMousePos(null);
+            setHoverTgtIdx(null);
+        }
+    }, [isConnecting]);
+
     return (
-        <div className="flex flex-col gap-6">
+        <div 
+            ref={controlsContainerRef}
+            className="relative flex flex-col gap-6"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setMousePos(null)}
+        >
+            {/* Arrow SVG overlay */}
+            {renderArrow}
+
             {/* Source Prompt */}
             <PromptSection
                 label="Source Prompt"
@@ -514,6 +662,7 @@ export function ActivationPatchingControls({
                 selectedModel={selectedModel}
                 textareaRef={srcTextareaRef}
                 tokenContainerRef={srcTokenContainerRef}
+                side="source"
             />
 
             {/* Target Prompt */}
@@ -524,6 +673,8 @@ export function ActivationPatchingControls({
                 tokens={tgtTokens}
                 selectedPos={tgtPos}
                 onTokenClick={(pos) => setTgtPos(pos === tgtPos ? null : pos)}
+                onTokenHover={isConnecting ? setHoverTgtIdx : undefined}
+                onTokenLeave={isConnecting ? () => setHoverTgtIdx(null) : undefined}
                 isEditing={tgtEditing}
                 setIsEditing={setTgtEditing}
                 onBlur={handleTgtBlur}
@@ -532,6 +683,7 @@ export function ActivationPatchingControls({
                 selectedModel={selectedModel}
                 textareaRef={tgtTextareaRef}
                 tokenContainerRef={tgtTokenContainerRef}
+                side="target"
             />
 
             {/* Instructions */}
