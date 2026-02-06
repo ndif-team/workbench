@@ -51,5 +51,5 @@ async def collect_results(
 
     token_ids = list([src_pred, clean_pred])
 
-    data = format_data(logits, token_ids)
+    data = format_data(logits, token_ids, state[request.model_name].tokenizer)
     return {"data": data}

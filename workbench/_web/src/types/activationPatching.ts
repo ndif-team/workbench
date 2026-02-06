@@ -12,6 +12,7 @@ export interface ActivationPatchingConfigData {
     tgtPrompt: string;
     srcPos: number | null;  // Selected token position in source prompt
     tgtPos: number | null;  // Selected token position in target prompt
+    selectedLineIndices?: number[];  // Indices of lines to display in the chart
 }
 
 /**

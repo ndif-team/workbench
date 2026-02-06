@@ -228,25 +228,31 @@ export function ActivationPatchingControls({
 }: ActivationPatchingControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
+    // Get initial values from config with fallbacks
+    const initialSrcPrompt = initialConfig.data?.srcPrompt ?? "";
+    const initialTgtPrompt = initialConfig.data?.tgtPrompt ?? "";
+    const initialSrcPos = initialConfig.data?.srcPos ?? null;
+    const initialTgtPos = initialConfig.data?.tgtPos ?? null;
+
     // Source prompt state
-    const [srcPrompt, setSrcPrompt] = useState(initialConfig.data?.srcPrompt || "");
+    const [srcPrompt, setSrcPrompt] = useState(initialSrcPrompt);
     const [srcTokens, setSrcTokens] = useState<Token[]>([]);
-    const [srcPos, setSrcPos] = useState<number | null>(initialConfig.data?.srcPos ?? null);
-    const [srcEditing, setSrcEditing] = useState(true);
+    const [srcPos, setSrcPos] = useState<number | null>(initialSrcPos);
+    const [srcEditing, setSrcEditing] = useState(!initialSrcPrompt); // Start in view mode if prompt exists
     const [srcTokenizedModel, setSrcTokenizedModel] = useState<string | null>(null);
     const srcTextareaRef = useRef<HTMLTextAreaElement>(null);
     const srcTokenContainerRef = useRef<HTMLDivElement>(null);
-    const lastSyncedSrcPromptRef = useRef<string>(initialConfig.data?.srcPrompt || "");
+    const lastSyncedSrcPromptRef = useRef<string>(initialSrcPrompt);
 
     // Target prompt state
-    const [tgtPrompt, setTgtPrompt] = useState(initialConfig.data?.tgtPrompt || "");
+    const [tgtPrompt, setTgtPrompt] = useState(initialTgtPrompt);
     const [tgtTokens, setTgtTokens] = useState<Token[]>([]);
-    const [tgtPos, setTgtPos] = useState<number | null>(initialConfig.data?.tgtPos ?? null);
-    const [tgtEditing, setTgtEditing] = useState(true);
+    const [tgtPos, setTgtPos] = useState<number | null>(initialTgtPos);
+    const [tgtEditing, setTgtEditing] = useState(!initialTgtPrompt); // Start in view mode if prompt exists
     const [tgtTokenizedModel, setTgtTokenizedModel] = useState<string | null>(null);
     const tgtTextareaRef = useRef<HTMLTextAreaElement>(null);
     const tgtTokenContainerRef = useRef<HTMLDivElement>(null);
-    const lastSyncedTgtPromptRef = useRef<string>(initialConfig.data?.tgtPrompt || "");
+    const lastSyncedTgtPromptRef = useRef<string>(initialTgtPrompt);
 
     // Mutations
     const { mutateAsync: computePatching, isPending: isComputing } = useActivationPatching();
@@ -405,6 +411,7 @@ export function ActivationPatchingControls({
         setTgtTokenizedModel(selectedModel);
 
         const config: ActivationPatchingConfigData = {
+            ...initialConfig.data,  // Preserve existing fields like selectedLineIndices
             model: selectedModel,
             srcPrompt: trimmedSrcPrompt,
             tgtPrompt: trimmedTgtPrompt,
@@ -424,6 +431,7 @@ export function ActivationPatchingControls({
         // Update the config in the database
         await updateConfig({
             configId: initialConfig.id,
+            chartId,
             config: {
                 data: config,
                 workspaceId,
@@ -527,7 +535,7 @@ export function ActivationPatchingControls({
             />
 
             {/* Instructions */}
-            <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-md">
+            {/* <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-md">
                 <p className="font-medium mb-1">How to use:</p>
                 <ol className="list-decimal list-inside space-y-1">
                     <li>Enter a source and target prompt</li>
@@ -535,7 +543,7 @@ export function ActivationPatchingControls({
                     <li>Click on a token in each prompt to select the patching positions</li>
                     <li>Computation runs automatically when both tokens are selected</li>
                 </ol>
-            </div>
+            </div> */}
 
             {/* Run Button */}
             <Button onClick={handleSubmit} disabled={!canRun} className="w-full bg-violet-500 hover:bg-violet-600 text-white">
