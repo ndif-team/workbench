@@ -508,53 +508,56 @@ export function LinePlotWidget({
     }
 
     return (
-        <div ref={containerRef} className="relative w-full h-full min-h-[300px]">
-            <canvas 
-                ref={canvasRef} 
-                className="w-full h-full cursor-crosshair" 
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
-            />
-            
-            {/* Tooltip */}
-            {tooltip && (
-                <div
-                    className="absolute pointer-events-none z-50 animate-in fade-in-0 zoom-in-95 duration-100"
-                    style={{
-                        left: tooltip.x,
-                        top: tooltip.y,
-                        transform: `translate(${tooltip.x > (chartGeometryRef.current?.width || 0) / 2 ? 'calc(-100% - 12px)' : '12px'}, -50%)`,
-                    }}
-                >
-                    <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-lg px-3 py-2 min-w-[120px]">
-                        {/* Label with color indicator */}
-                        <div className="flex items-center gap-2 mb-1.5">
-                            <span
-                                className="w-2 h-2 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: tooltip.color }}
-                            />
-                            <span className="text-xs font-medium text-foreground truncate max-w-[100px]">
-                                {renderTokenText(tooltip.label)}
-                            </span>
-                        </div>
-                        
-                        {/* Values */}
-                        <div className="space-y-0.5 text-[11px]">
-                            <div className="flex justify-between gap-4">
-                                <span className="text-muted-foreground">Layer</span>
-                                <span className="font-medium text-foreground">{tooltip.layerIdx}</span>
+        <div className="flex w-full h-full min-h-[300px] gap-3">
+            {/* Chart area */}
+            <div ref={containerRef} className="relative flex-1 min-w-0">
+                <canvas 
+                    ref={canvasRef} 
+                    className="w-full h-full cursor-crosshair" 
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={handleMouseLeave}
+                />
+                
+                {/* Tooltip */}
+                {tooltip && (
+                    <div
+                        className="absolute pointer-events-none z-50 animate-in fade-in-0 zoom-in-95 duration-100"
+                        style={{
+                            left: tooltip.x,
+                            top: tooltip.y,
+                            transform: `translate(${tooltip.x > (chartGeometryRef.current?.width || 0) / 2 ? 'calc(-100% - 12px)' : '12px'}, -50%)`,
+                        }}
+                    >
+                        <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-lg px-3 py-2 min-w-[120px]">
+                            {/* Label with color indicator */}
+                            <div className="flex items-center gap-2 mb-1.5">
+                                <span
+                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: tooltip.color }}
+                                />
+                                <span className="text-xs font-medium text-foreground truncate max-w-[100px]">
+                                    {renderTokenText(tooltip.label)}
+                                </span>
                             </div>
-                            <div className="flex justify-between gap-4">
-                                <span className="text-muted-foreground">Value</span>
-                                <span className="font-medium text-foreground">{tooltip.value.toFixed(4)}</span>
+                            
+                            {/* Values */}
+                            <div className="space-y-0.5 text-[11px]">
+                                <div className="flex justify-between gap-4">
+                                    <span className="text-muted-foreground">Layer</span>
+                                    <span className="font-medium text-foreground">{tooltip.layerIdx}</span>
+                                </div>
+                                <div className="flex justify-between gap-4">
+                                    <span className="text-muted-foreground">Value</span>
+                                    <span className="font-medium text-foreground">{tooltip.value.toFixed(4)}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
             
-            {/* Refined Interactive Legend */}
-            <div className="absolute top-2 right-3 flex flex-col gap-0.5 py-1.5 px-1 rounded-md bg-background/70 backdrop-blur-md border border-border/40">
+            {/* Legend sidebar */}
+            <div className="flex-shrink-0 flex flex-col gap-0.5 py-1.5 px-1 rounded-md bg-background/70 backdrop-blur-md border border-border/40 self-start">
                 {labels.map((label, idx) => {
                     const color = LINE_COLORS[idx % LINE_COLORS.length];
                     const isHidden = hiddenLines.has(idx);
