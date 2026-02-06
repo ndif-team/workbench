@@ -268,7 +268,6 @@ export function ActivationPatchingControls({
     const [srcTokenizedModel, setSrcTokenizedModel] = useState<string | null>(null);
     const srcTextareaRef = useRef<HTMLTextAreaElement>(null);
     const srcTokenContainerRef = useRef<HTMLDivElement>(null);
-    const lastSyncedSrcPromptRef = useRef<string>(initialSrcPrompt);
 
     // Target prompt state
     const [tgtPrompt, setTgtPrompt] = useState(initialTgtPrompt);
@@ -278,7 +277,6 @@ export function ActivationPatchingControls({
     const [tgtTokenizedModel, setTgtTokenizedModel] = useState<string | null>(null);
     const tgtTextareaRef = useRef<HTMLTextAreaElement>(null);
     const tgtTokenContainerRef = useRef<HTMLDivElement>(null);
-    const lastSyncedTgtPromptRef = useRef<string>(initialTgtPrompt);
 
     // Arrow connection state
     const controlsContainerRef = useRef<HTMLDivElement>(null);
@@ -302,21 +300,10 @@ export function ActivationPatchingControls({
     const prevSrcPosRef = useRef<number | null>(hasExistingData ? (initialConfig.data?.srcPos ?? null) : null);
     const prevTgtPosRef = useRef<number | null>(hasExistingData ? (initialConfig.data?.tgtPos ?? null) : null);
 
-    // Sync prompts from config (only when they actually change)
-    useEffect(() => {
-        const configSrcPrompt = initialConfig.data?.srcPrompt || "";
-        if (configSrcPrompt && configSrcPrompt !== lastSyncedSrcPromptRef.current) {
-            setSrcPrompt(configSrcPrompt);
-            lastSyncedSrcPromptRef.current = configSrcPrompt;
-        }
-        const configTgtPrompt = initialConfig.data?.tgtPrompt || "";
-        if (configTgtPrompt && configTgtPrompt !== lastSyncedTgtPromptRef.current) {
-            setTgtPrompt(configTgtPrompt);
-            lastSyncedTgtPromptRef.current = configTgtPrompt;
-        }
-        // Note: Positions are initialized from initialConfig in useState, 
-        // no need to sync them here as that would trigger auto-run on reload
-    }, [initialConfig.data]);
+    // Sync prompts from config only on initial mount (handled by useState initializers)
+    // and when chart ID changes (component remounts due to key={config.id})
+    // We don't sync on initialConfig.data changes to avoid race conditions with mutations
+    // that could reset local unsaved edits
 
     // Tokenize prompts on initial load if they exist
     useEffect(() => {
@@ -475,8 +462,6 @@ export function ActivationPatchingControls({
             },
         });
 
-        lastSyncedSrcPromptRef.current = trimmedSrcPrompt;
-        lastSyncedTgtPromptRef.current = trimmedTgtPrompt;
         setSrcEditing(false);
         setTgtEditing(false);
     }, [
