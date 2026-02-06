@@ -52,8 +52,9 @@ def activation_patching(
 
 def format_data(
     patched_logits: List[torch.Tensor],
-    token_ids: List[int],
     tokenizer,
+    src_pred: int,
+    clean_pred: int,
 ):
 
     # let's figure out all the tokens we want to retun
@@ -72,8 +73,14 @@ def format_data(
         topk_values_per_layer.append(values)
         unique_indices.update(indices)
 
+    unique_indices.remove(src_pred)
+    unique_indices.remove(clean_pred)
+    unique_indices = list(unique_indices)
+    unique_indices = [src_pred, clean_pred] + unique_indices
+
     probabilities = list()
     ranks = list()
+
     for token_id in unique_indices:
         for layer_idx, logits in enumerate(patched_logits):
             if layer_idx == 0:

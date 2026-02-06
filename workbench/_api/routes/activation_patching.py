@@ -46,10 +46,8 @@ async def collect_results(
     backend = state.make_backend(job_id=job_id)
     results = backend()
     logits = results["patched_logits_per_layer"]
-    src_pred = results["src_pred"]
-    clean_pred = results["clean_pred"]
+    src_pred = results["src_pred"].item()
+    clean_pred = results["clean_pred"].item()
 
-    token_ids = list([src_pred, clean_pred])
-
-    data = format_data(logits, token_ids, state[request.model_name].tokenizer)
+    data = format_data(logits, state[request.model_name].tokenizer, src_pred, clean_pred)
     return {"data": data}

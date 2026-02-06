@@ -189,9 +189,10 @@ interface TokenSelectorProps {
     allLabels: string[];
     selectedIndices: Set<number>;
     onChange: (indices: number[]) => void;
+    defaultIndices: Set<number>;
 }
 
-function TokenSelector({ allLabels, selectedIndices, onChange }: TokenSelectorProps) {
+function TokenSelector({ allLabels, selectedIndices, onChange, defaultIndices }: TokenSelectorProps) {
     // Build options from all labels
     const options: TokenOption[] = useMemo(() => {
         return allLabels.map((label, index) => ({
@@ -216,18 +217,19 @@ function TokenSelector({ allLabels, selectedIndices, onChange }: TokenSelectorPr
         onChange(newIndices);
     };
 
-    // Reset to default (first two lines)
+    // Reset to default (first two tokens - source and target predictions)
     const handleReset = () => {
-        const defaultIndices: number[] = [];
-        if (allLabels.length > 0) defaultIndices.push(0);
-        if (allLabels.length > 1) defaultIndices.push(1);
-        onChange(defaultIndices);
+        onChange(Array.from(defaultIndices));
     };
 
     // Check if current selection differs from default
-    const isDefaultSelection = selectedIndices.size === Math.min(2, allLabels.length) &&
-        (allLabels.length === 0 || selectedIndices.has(0)) &&
-        (allLabels.length <= 1 || selectedIndices.has(1));
+    const isDefaultSelection = useMemo(() => {
+        if (selectedIndices.size !== defaultIndices.size) return false;
+        for (const idx of selectedIndices) {
+            if (!defaultIndices.has(idx)) return false;
+        }
+        return true;
+    }, [selectedIndices, defaultIndices]);
 
     return (
         <div className="flex flex-col gap-1.5 w-full">
@@ -278,6 +280,7 @@ export function ActivationPatchingDisplay() {
     const [selectedLineIndices, setSelectedLineIndices] = useState<Set<number>>(new Set([0, 1]));
     const hasInitializedFromConfig = useRef(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const previousDataRef = useRef<string | null>(null);
 
     const isPatchingRunning = useIsMutating({ mutationKey: ["activationPatching"] }) > 0;
 
@@ -299,24 +302,67 @@ export function ActivationPatchingDisplay() {
     const patchingConfig = config as ActivationPatchingConfig | undefined;
     const hasData = patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
 
-    // Initialize selection from config when it loads
+    // Create a fingerprint of the data to detect when new results arrive
+    const dataFingerprint = useMemo(() => {
+        if (!hasData || !patchingChart?.data?.tokenLabels) return null;
+        // Use the first few token labels as a fingerprint
+        return patchingChart.data.tokenLabels.slice(0, 3).join(",");
+    }, [hasData, patchingChart?.data?.tokenLabels]);
+
+    // Get default selection (first two tokens - source and target predictions)
+    const getDefaultSelection = useCallback((numLines: number) => {
+        const defaults = new Set<number>();
+        if (numLines > 0) defaults.add(0);
+        if (numLines > 1) defaults.add(1);
+        return defaults;
+    }, []);
+
+    // Reset to defaults when new data arrives (after a re-run)
+    useEffect(() => {
+        if (!hasData || !patchingChart?.data?.lines) return;
+        
+        const currentFingerprint = dataFingerprint;
+        if (currentFingerprint && previousDataRef.current !== null && previousDataRef.current !== currentFingerprint) {
+            // Data changed - reset to default selection (first two tokens)
+            const defaultIndices = getDefaultSelection(patchingChart.data.lines.length);
+            setSelectedLineIndices(defaultIndices);
+            
+            // Also save the default selection to config
+            if (patchingConfig?.id) {
+                updateConfig({
+                    configId: patchingConfig.id,
+                    chartId,
+                    config: {
+                        data: {
+                            ...patchingConfig.data,
+                            selectedLineIndices: Array.from(defaultIndices),
+                        },
+                        workspaceId,
+                        type: "activation-patching",
+                    },
+                });
+            }
+        }
+        previousDataRef.current = currentFingerprint;
+    }, [dataFingerprint, hasData, patchingChart?.data?.lines, getDefaultSelection, patchingConfig, chartId, workspaceId, updateConfig]);
+
+    // Initialize selection from config when it loads (first load only)
     useEffect(() => {
         if (patchingConfig?.data?.selectedLineIndices && !hasInitializedFromConfig.current) {
             setSelectedLineIndices(new Set(patchingConfig.data.selectedLineIndices));
             hasInitializedFromConfig.current = true;
         } else if (hasData && patchingChart?.data?.lines && !hasInitializedFromConfig.current) {
             // Default to first two lines if no saved selection
-            const defaultIndices = new Set<number>();
-            if (patchingChart.data.lines.length > 0) defaultIndices.add(0);
-            if (patchingChart.data.lines.length > 1) defaultIndices.add(1);
+            const defaultIndices = getDefaultSelection(patchingChart.data.lines.length);
             setSelectedLineIndices(defaultIndices);
             hasInitializedFromConfig.current = true;
         }
-    }, [patchingConfig?.data?.selectedLineIndices, hasData, patchingChart?.data?.lines]);
+    }, [patchingConfig?.data?.selectedLineIndices, hasData, patchingChart?.data?.lines, getDefaultSelection]);
 
     // Reset initialization flag when chart changes
     useEffect(() => {
         hasInitializedFromConfig.current = false;
+        previousDataRef.current = null;
     }, [chartId]);
 
     // Save selection to config (debounced)
@@ -348,6 +394,12 @@ export function ActivationPatchingDisplay() {
         if (!hasData || !patchingChart?.data?.tokenLabels) return [];
         return patchingChart.data.tokenLabels;
     }, [hasData, patchingChart?.data?.tokenLabels]);
+
+    // Default selection (first two tokens - source and target predictions)
+    const defaultSelection = useMemo(() => {
+        const numLines = patchingChart?.data?.lines?.length || 0;
+        return getDefaultSelection(numLines);
+    }, [patchingChart?.data?.lines?.length, getDefaultSelection]);
 
     // Handle selection change
     const handleSelectionChange = useCallback((indices: number[]) => {
@@ -414,6 +466,7 @@ export function ActivationPatchingDisplay() {
                     allLabels={allLabels}
                     selectedIndices={selectedLineIndices}
                     onChange={handleSelectionChange}
+                    defaultIndices={defaultSelection}
                 />
             </div>
 
