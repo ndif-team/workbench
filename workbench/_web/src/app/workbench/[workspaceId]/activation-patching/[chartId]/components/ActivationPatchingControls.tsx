@@ -29,7 +29,8 @@ interface ActivationPatchingControlsProps {
 // Token styling constants
 const TOKEN_STYLES = {
     base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
-    hover: "hover:bg-primary/20 hover:ring-1 hover:ring-primary/30 hover:ring-inset cursor-pointer",
+    clickable: "bg-muted/60 ring-1 ring-border/50 ring-inset",
+    hover: "hover:bg-primary/20 hover:ring-1 hover:ring-primary/40 hover:ring-inset cursor-pointer",
     selected: "bg-primary/40 ring-2 ring-primary ring-inset",
 } as const;
 
@@ -58,6 +59,14 @@ function SelectableTokenDisplay({
     onTokenClick: (pos: number) => void;
     label: string;
 }) {
+    const handleTokenClick = (e: React.MouseEvent, idx: number) => {
+        // Stop propagation to prevent triggering edit mode on the container
+        e.stopPropagation();
+        if (!loading) {
+            onTokenClick(idx);
+        }
+    };
+
     return (
         <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.length === 0 ? (
@@ -72,10 +81,11 @@ function SelectableTokenDisplay({
                         <span key={`token-${idx}`}>
                             <span
                                 data-token-id={idx}
-                                onClick={() => !loading && onTokenClick(idx)}
+                                onClick={(e) => handleTokenClick(e, idx)}
                                 className={cn(
                                     TOKEN_STYLES.base,
-                                    "bg-transparent",
+                                    // Show clickable styling when not selected
+                                    !isSelected && !loading && TOKEN_STYLES.clickable,
                                     !loading && TOKEN_STYLES.hover,
                                     isSelected && TOKEN_STYLES.selected,
                                     token.text === "\\n" ? "w-full" : "w-fit",
@@ -242,6 +252,11 @@ export function ActivationPatchingControls({
 
     const isExecuting = isComputing || isUpdatingConfig;
 
+    // Track if both tokens have been selected at least once (for auto-run logic)
+    const hasRunOnceRef = useRef(false);
+    const prevSrcPosRef = useRef<number | null>(null);
+    const prevTgtPosRef = useRef<number | null>(null);
+
     // Sync prompts from config
     useEffect(() => {
         const configSrcPrompt = initialConfig.data?.srcPrompt || "";
@@ -291,30 +306,44 @@ export function ActivationPatchingControls({
         if (!srcPrompt.trim()) return;
         const tokens = await encodeText(srcPrompt, selectedModel);
         if (tokens.length > 0) {
+            // Check if tokens actually changed (prompt was modified)
+            const tokensChanged = tokens.length !== srcTokens.length ||
+                tokens.some((t, i) => t.text !== srcTokens[i]?.text);
+            
             setSrcTokens(tokens);
             setSrcTokenizedModel(selectedModel);
             setSrcEditing(false);
-            // Reset position if tokens changed
-            if (srcPos !== null && srcPos >= tokens.length) {
+            
+            // Reset position if tokens changed (prompt was modified)
+            if (tokensChanged && srcPos !== null) {
                 setSrcPos(null);
+                // Also reset the previous position ref to avoid stale comparisons
+                prevSrcPosRef.current = null;
             }
         }
-    }, [srcPrompt, selectedModel, srcPos]);
+    }, [srcPrompt, selectedModel, srcPos, srcTokens]);
 
     // Handle tokenization for target prompt
     const handleTgtTokenize = useCallback(async () => {
         if (!tgtPrompt.trim()) return;
         const tokens = await encodeText(tgtPrompt, selectedModel);
         if (tokens.length > 0) {
+            // Check if tokens actually changed (prompt was modified)
+            const tokensChanged = tokens.length !== tgtTokens.length ||
+                tokens.some((t, i) => t.text !== tgtTokens[i]?.text);
+            
             setTgtTokens(tokens);
             setTgtTokenizedModel(selectedModel);
             setTgtEditing(false);
-            // Reset position if tokens changed
-            if (tgtPos !== null && tgtPos >= tokens.length) {
+            
+            // Reset position if tokens changed (prompt was modified)
+            if (tokensChanged && tgtPos !== null) {
                 setTgtPos(null);
+                // Also reset the previous position ref to avoid stale comparisons
+                prevTgtPosRef.current = null;
             }
         }
-    }, [tgtPrompt, selectedModel, tgtPos]);
+    }, [tgtPrompt, selectedModel, tgtPos, tgtTokens]);
 
     // Handle blur for source
     const handleSrcBlur = useCallback(() => {
@@ -429,6 +458,38 @@ export function ActivationPatchingControls({
         tgtPos !== null &&
         !isExecuting;
 
+    // Auto-run when both tokens are selected for the first time, or when selection changes
+    useEffect(() => {
+        // Skip if either position is null or if we're already executing
+        if (srcPos === null || tgtPos === null || isExecuting) {
+            return;
+        }
+
+        // Skip if prompts are empty or not tokenized
+        if (!srcPrompt.trim() || !tgtPrompt.trim() || srcTokens.length === 0 || tgtTokens.length === 0) {
+            return;
+        }
+
+        const srcPosChanged = prevSrcPosRef.current !== srcPos;
+        const tgtPosChanged = prevTgtPosRef.current !== tgtPos;
+
+        // First time both are selected
+        if (!hasRunOnceRef.current) {
+            hasRunOnceRef.current = true;
+            prevSrcPosRef.current = srcPos;
+            prevTgtPosRef.current = tgtPos;
+            handleSubmit();
+            return;
+        }
+
+        // Subsequent selection changes (only if one of the positions actually changed)
+        if (srcPosChanged || tgtPosChanged) {
+            prevSrcPosRef.current = srcPos;
+            prevTgtPosRef.current = tgtPos;
+            handleSubmit();
+        }
+    }, [srcPos, tgtPos, srcPrompt, tgtPrompt, srcTokens.length, tgtTokens.length, isExecuting, handleSubmit]);
+
     return (
         <div className="flex flex-col gap-6">
             {/* Source Prompt */}
@@ -474,7 +535,7 @@ export function ActivationPatchingControls({
                     <li>Enter a source and target prompt</li>
                     <li>Click away to tokenize each prompt</li>
                     <li>Click on a token in each prompt to select the patching positions</li>
-                    <li>Click &quot;Run Activation Patching&quot; to compute</li>
+                    <li>Computation runs automatically when both tokens are selected</li>
                 </ol>
             </div>
 
@@ -493,9 +554,9 @@ export function ActivationPatchingControls({
                 )}
             </Button>
 
-            {/* Keyboard shortcut hint */}
+            {/* Auto-run hint */}
             <p className="text-xs text-muted-foreground text-center">
-                Select tokens from both prompts to enable
+                Auto-runs when both tokens are selected or changed
             </p>
         </div>
     );
