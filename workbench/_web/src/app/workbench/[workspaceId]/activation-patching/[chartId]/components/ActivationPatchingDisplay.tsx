@@ -44,6 +44,44 @@ const LINE_COLORS = [
     "#84cc16",  // lime
 ];
 
+// Helper function to render token text with visual indicators for leading spaces and newlines
+const renderTokenText = (text: string | undefined): React.ReactNode => {
+    if (!text) return "";
+    const elements: React.ReactNode[] = [];
+    let index = 0;
+
+    // Represent a single leading space with a blue underscore for visibility
+    if (text.startsWith(" ")) {
+        elements.push(
+            <span className="text-blue-500" key="lead-space">
+                _
+            </span>,
+        );
+        index = 1;
+    }
+
+    let buffer = "";
+    for (; index < text.length; index++) {
+        const ch = text[index];
+        if (ch === "\n") {
+            if (buffer) {
+                elements.push(<span key={`txt-${index}`}>{buffer}</span>);
+                buffer = "";
+            }
+            elements.push(
+                <span className="text-blue-500" key={`nl-${index}`}>
+                    \n
+                </span>,
+            );
+        } else {
+            buffer += ch;
+        }
+    }
+    if (buffer) elements.push(<span key="tail">{buffer}</span>);
+
+    return elements.length ? <>{elements}</> : text;
+};
+
 // Theme-aware styles for react-select using shadcn/tailwind CSS variables
 const selectStyles: StylesConfig<TokenOption, true, GroupBase<TokenOption>> = {
     container: (base) => ({
@@ -150,7 +188,7 @@ const CustomMultiValue = (props: any) => {
                 style={{ backgroundColor: color }}
             /> */}
             <span className="text-muted-foreground group-hover:text-violet-600">
-                {props.data.label}
+                {renderTokenText(props.data.label)}
             </span>
             <button
                 onClick={(e) => {
@@ -179,7 +217,7 @@ const CustomOption = (props: any) => {
         <components.Option {...props}>
             <div className="flex items-center justify-between w-full gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                    <span className="truncate">{props.data.label}</span>
+                    <span className="truncate">{renderTokenText(props.data.label)}</span>
                     {badge && (
                         <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded bg-violet-500/15 text-violet-500 border border-violet-500/20">
                             {badge}

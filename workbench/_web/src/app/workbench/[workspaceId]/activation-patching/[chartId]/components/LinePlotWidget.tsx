@@ -41,6 +41,44 @@ const LINE_COLORS = [
     "#84cc16",  // lime
 ];
 
+// Helper function to render token text with visual indicators for leading spaces and newlines
+const renderTokenText = (text: string | undefined): React.ReactNode => {
+    if (!text) return "";
+    const elements: React.ReactNode[] = [];
+    let index = 0;
+
+    // Represent a single leading space with a blue underscore for visibility
+    if (text.startsWith(" ")) {
+        elements.push(
+            <span className="text-blue-500" key="lead-space">
+                _
+            </span>,
+        );
+        index = 1;
+    }
+
+    let buffer = "";
+    for (; index < text.length; index++) {
+        const ch = text[index];
+        if (ch === "\n") {
+            if (buffer) {
+                elements.push(<span key={`txt-${index}`}>{buffer}</span>);
+                buffer = "";
+            }
+            elements.push(
+                <span className="text-blue-500" key={`nl-${index}`}>
+                    \n
+                </span>,
+            );
+        } else {
+            buffer += ch;
+        }
+    }
+    if (buffer) elements.push(<span key="tail">{buffer}</span>);
+
+    return elements.length ? <>{elements}</> : text;
+};
+
 export function LinePlotWidget({
     data,
     title,
@@ -198,7 +236,7 @@ export function LinePlotWidget({
         const margin = { top: title ? 48 : 24, right: 24, bottom: 56, left: 64 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
-        
+
         // Store geometry for mouse calculations
         chartGeometryRef.current = { margin, chartWidth, chartHeight, width, height };
 
@@ -217,7 +255,7 @@ export function LinePlotWidget({
             ctx.clearRect(0, 0, width, height);
         } else {
             ctx.fillStyle = colors.background;
-            ctx.fillRect(0, 0, width, height);
+        ctx.fillRect(0, 0, width, height);
         }
 
         // Draw title (if provided)
@@ -259,7 +297,7 @@ export function LinePlotWidget({
         // Draw Y-axis labels
         ctx.fillStyle = colors.text;
         ctx.font = "400 11px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-        ctx.textAlign = "right";
+            ctx.textAlign = "right";
         ctx.textBaseline = "middle";
 
         yTicks.forEach(tick => {
@@ -450,7 +488,7 @@ export function LinePlotWidget({
                                 style={{ backgroundColor: tooltip.color }}
                             />
                             <span className="text-xs font-medium text-foreground truncate max-w-[100px]">
-                                {tooltip.label}
+                                {renderTokenText(tooltip.label)}
                             </span>
                         </div>
                         
@@ -506,7 +544,7 @@ export function LinePlotWidget({
                                 )}
                                 title={label}
                             >
-                                {label}
+                                {renderTokenText(label)}
                             </span>
                             
                             {/* Visibility indicator */}
