@@ -104,9 +104,8 @@ export const useActivationPatching = () => {
                 queryClient.invalidateQueries({
                     queryKey: ["chartsForSidebar", chart.workspaceId],
                 });
-                queryClient.invalidateQueries({
-                    queryKey: queryKeys.charts.configByChart(variables.request.chartId),
-                });
+                // Note: We do NOT invalidate the config query here to avoid race conditions.
+                // The config is invalidated by updateConfig after the new prompts are saved.
             }
         },
     });
