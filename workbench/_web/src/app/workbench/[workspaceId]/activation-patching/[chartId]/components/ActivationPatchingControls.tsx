@@ -31,8 +31,8 @@ interface ActivationPatchingControlsProps {
 const TOKEN_STYLES = {
     base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
     clickable: "bg-muted/60 ring-1 ring-border/50 ring-inset",
-    hover: "hover:bg-primary/20 hover:ring-1 hover:ring-primary/40 hover:ring-inset cursor-pointer",
-    selected: "bg-primary/40 ring-2 ring-primary ring-inset",
+    hover: "hover:bg-violet-500/20 hover:ring-1 hover:ring-violet-400/50 hover:ring-inset cursor-pointer",
+    selected: "bg-violet-500 ring-2 ring-violet-500 ring-inset text-white",
 } as const;
 
 // Helper to fix newlines for display
