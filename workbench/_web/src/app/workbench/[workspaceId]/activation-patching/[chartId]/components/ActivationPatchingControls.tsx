@@ -166,7 +166,7 @@ function PromptSection({
                 {selectedPos !== null && (
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <MousePointerClick className="w-3 h-3" />
-                        Token {selectedPos} selected
+                        Token Position {selectedPos}
                     </span>
                 )}
             </div>
@@ -538,7 +538,7 @@ export function ActivationPatchingControls({
             </div>
 
             {/* Run Button */}
-            <Button onClick={handleSubmit} disabled={!canRun} className="w-full">
+            <Button onClick={handleSubmit} disabled={!canRun} className="w-full bg-violet-500 hover:bg-violet-600 text-white">
                 {isExecuting ? (
                     <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -547,7 +547,7 @@ export function ActivationPatchingControls({
                 ) : (
                     <>
                         <Play className="mr-2 h-4 w-4" />
-                        Run Activation Patching
+                        Run
                     </>
                 )}
             </Button>
