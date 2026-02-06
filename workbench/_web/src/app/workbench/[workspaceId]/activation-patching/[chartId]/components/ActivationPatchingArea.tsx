@@ -120,6 +120,7 @@ export default function ActivationPatchingArea() {
 
             <div className="p-3 flex-1 overflow-auto">
                 <ActivationPatchingControls
+                    key={config.id}
                     initialConfig={config as ActivationPatchingConfig}
                     selectedModel={selectedModel}
                     hasExistingData={!!(chart as { data?: unknown })?.data}

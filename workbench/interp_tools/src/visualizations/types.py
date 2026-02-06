@@ -21,4 +21,5 @@ class LogitLensData(BaseModel):
 
 class ActivationPatchingData(BaseModel):
     # meta: ActivationsPatchingMeta
-    lines: list[list[float]]
+    lines: list[list[float]]  # Each inner list is probabilities for one token across all layers
+    tokenLabels: list[str]  # Token text labels for each line
