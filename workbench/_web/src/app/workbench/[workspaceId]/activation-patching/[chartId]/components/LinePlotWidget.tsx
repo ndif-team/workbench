@@ -45,19 +45,12 @@ export function LinePlotWidget({
         }
 
         const numLayers = data.lines[0]?.length || 0;
-        const allValues = data.lines.flat();
-        const minValue = Math.min(...allValues, 0);
-        const maxValue = Math.max(...allValues, 0.1);  // At least 0.1 to avoid empty chart
 
-        // Add some padding to the range
-        const range = maxValue - minValue;
-        const paddedMax = maxValue + range * 0.1;
-        const paddedMin = Math.max(0, minValue - range * 0.05);
-
+        // Fixed y-axis range from 0 to 1
         return {
             numLayers,
-            minValue: paddedMin,
-            maxValue: paddedMax,
+            minValue: 0,
+            maxValue: 1,
             numLines: data.lines.length,
         };
     }, [data]);
