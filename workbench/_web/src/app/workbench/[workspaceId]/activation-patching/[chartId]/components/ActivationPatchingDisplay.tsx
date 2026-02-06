@@ -209,7 +209,7 @@ export function ActivationPatchingDisplay() {
             </div>
 
             {/* Mode toggle header */}
-            <div className="px-3 pt-3 flex items-center gap-2">
+            <div className="px-3 pt-2 pb-1 flex items-center gap-2">
                 {/* <span className="text-xs text-muted-foreground">Display:</span> */}
                 <div className="inline-flex items-center rounded-md border border-input bg-background p-0.5">
                     <button
