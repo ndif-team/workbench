@@ -262,7 +262,7 @@ export function TokenSelector({ allLabels, selectedIndices, onChange, defaultInd
     return (
         <div className="flex flex-col gap-1.5 w-full">
             <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Tokens</span>
+                <span className="text-xs text-muted-foreground">Tokens ({allLabels.length})</span>
                 <div className="flex items-center gap-2">
                     {!isDefaultSelection && (
                         <button
