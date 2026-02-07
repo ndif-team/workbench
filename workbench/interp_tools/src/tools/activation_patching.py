@@ -31,24 +31,30 @@ def activation_patching(
 
             src_pred = model.lm_head.output[0, -1].argmax(dim=-1).save()
 
-        patched_logits_per_layer = list().save()
-        with model.trace() as tracer:
-
-            with tracer.invoke(tgt_prompt):
-                clean_logits = model.lm_head.output[0, -1].save()
-                clean_pred = model.lm_head.output[0, -1].argmax(dim=-1).save()
+        clean_logits_per_layer = list()
+        with model.trace(tgt_prompt):
+            # clean_logits = model.lm_head.output[0, -1].save()
 
             for l_idx in range(layers):
-                with tracer.invoke(tgt_prompt):
-                    hs = model.model.layers[l_idx].output
+                clean_logits_per_layer.append(model.model.layers[l_idx].output)
 
-                    if isinstance(hs, tuple):
-                        hs = hs[0]
+            clean_pred = model.lm_head.output[0, -1].argmax(dim=-1).save()
 
-                    for pos, src_act in zip(tgt_pos, src_acts[l_idx]):
-                        hs[0, pos][:] = src_act
+        patched_logits_per_layer = list().save()
+        for l_idx in range(layers):
+            with model.trace(tgt_prompt):
+                for layer_to_skip in range(l_idx+1):
+                    model.model.layers[layer_to_skip].skip(clean_logits_per_layer[layer_to_skip])
                     
-                    patched_logits_per_layer.append(torch.nn.functional.softmax(model.lm_head.output[0, -1], dim=-1).save())
+                hs = model.model.layers[l_idx].output
+
+                if isinstance(hs, tuple):
+                    hs = hs[0]
+
+                for pos, src_act in zip(tgt_pos, src_acts[l_idx]):
+                    hs[0, pos][:] = src_act
+                
+                patched_logits_per_layer.append(torch.nn.functional.softmax(model.lm_head.output[0, -1], dim=-1).save())
 
     if remote:
         return session.backend.job_id
