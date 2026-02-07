@@ -787,49 +787,39 @@ export function ActivationPatchingControls({
     }, [isConnecting]);
 
     // Toggle token selection for source (add/remove from array)
+    // When removing a source, also remove the corresponding target at the same index
     const handleSrcTokenClick = useCallback((pos: number) => {
-        setSrcPos(prev => {
-            const idx = prev.indexOf(pos);
-            if (idx !== -1) {
-                // Remove - also remove corresponding target if exists
-                const newSrcPos = [...prev];
-                newSrcPos.splice(idx, 1);
-                // Remove corresponding target position at same index
-                setTgtPos(prevTgt => {
-                    if (idx < prevTgt.length) {
-                        const newTgtPos = [...prevTgt];
-                        newTgtPos.splice(idx, 1);
-                        return newTgtPos;
-                    }
-                    return prevTgt;
-                });
-                return newSrcPos;
-            } else {
-                // Add
-                return [...prev, pos];
-            }
-        });
-    }, []);
+        const idx = srcPos.indexOf(pos);
+        if (idx !== -1) {
+            // Remove this source position and its paired target
+            const newSrcPos = srcPos.filter((_, i) => i !== idx);
+            const newTgtPos = tgtPos.filter((_, i) => i !== idx);
+            setSrcPos(newSrcPos);
+            setTgtPos(newTgtPos);
+        } else {
+            // Add new source position
+            setSrcPos([...srcPos, pos]);
+        }
+    }, [srcPos, tgtPos]);
 
     // Toggle token selection for target (add/remove from array)
+    // When removing a target, also remove the corresponding source at the same index
     const handleTgtTokenClick = useCallback((pos: number) => {
-        setTgtPos(prev => {
-            const idx = prev.indexOf(pos);
-            if (idx !== -1) {
-                // Remove - also remove corresponding source if that source has more than this target
-                const newTgtPos = [...prev];
-                newTgtPos.splice(idx, 1);
-                return newTgtPos;
-            } else {
-                // Only allow adding if we have more source positions than target
-                if (srcPos.length > prev.length) {
-                    return [...prev, pos];
-                }
-                // Otherwise, toggle (replace last if already full)
-                return prev;
+        const idx = tgtPos.indexOf(pos);
+        if (idx !== -1) {
+            // Remove this target position and its paired source
+            const newTgtPos = tgtPos.filter((_, i) => i !== idx);
+            const newSrcPos = srcPos.filter((_, i) => i !== idx);
+            setTgtPos(newTgtPos);
+            setSrcPos(newSrcPos);
+        } else {
+            // Only allow adding if we have more source positions than target (pairing mode)
+            if (srcPos.length > tgtPos.length) {
+                setTgtPos([...tgtPos, pos]);
             }
-        });
-    }, [srcPos.length]);
+            // If already balanced, don't add (must add a source first)
+        }
+    }, [srcPos, tgtPos]);
 
     return (
         <div 
@@ -922,9 +912,10 @@ export function ActivationPatchingControls({
                 ) : (
                     <>
                         <Play className="mr-2 h-4 w-4" />
-                        Run {srcPos.length > 0 && tgtPos.length > 0 && srcPos.length === tgtPos.length && (
+                        Run 
+                        {/* {srcPos.length > 0 && tgtPos.length > 0 && srcPos.length === tgtPos.length && (
                             <span className="ml-1 text-violet-200">({srcPos.length} patch{srcPos.length > 1 ? "es" : ""})</span>
-                        )}
+                        )} */}
                     </>
                 )}
             </Button>
