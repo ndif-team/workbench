@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Play, TriangleAlert, MousePointerClick } from "lucide-react";
+import { Loader2, Play, TriangleAlert, MousePointerClick, X } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ActivationPatchingConfigData, ActivationPatchingData } from "@/types/activationPatching";
@@ -39,12 +39,22 @@ interface ActivationPatchingControlsProps {
     hasExistingData?: boolean;
 }
 
+// Shared colors for patch arrows and token selection
+const PATCH_COLORS = [
+    { bg: "#8b5cf6", ring: "#8b5cf6", hover: "rgba(139, 92, 246, 0.2)", hoverRing: "rgba(139, 92, 246, 0.5)" }, // violet
+    { bg: "#06b6d4", ring: "#06b6d4", hover: "rgba(6, 182, 212, 0.2)", hoverRing: "rgba(6, 182, 212, 0.5)" },   // cyan
+    { bg: "#f59e0b", ring: "#f59e0b", hover: "rgba(245, 158, 11, 0.2)", hoverRing: "rgba(245, 158, 11, 0.5)" }, // amber
+    { bg: "#10b981", ring: "#10b981", hover: "rgba(16, 185, 129, 0.2)", hoverRing: "rgba(16, 185, 129, 0.5)" }, // emerald
+    { bg: "#ef4444", ring: "#ef4444", hover: "rgba(239, 68, 68, 0.2)", hoverRing: "rgba(239, 68, 68, 0.5)" },   // red
+    { bg: "#ec4899", ring: "#ec4899", hover: "rgba(236, 72, 153, 0.2)", hoverRing: "rgba(236, 72, 153, 0.5)" }, // pink
+];
+
 // Token styling constants
 const TOKEN_STYLES = {
     base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
     clickable: "bg-muted/60 ring-1 ring-border/50 ring-inset",
     hover: "hover:bg-violet-500/20 hover:ring-1 hover:ring-violet-400/50 hover:ring-inset cursor-pointer",
-    selected: "bg-violet-500 ring-2 ring-violet-500 ring-inset text-white",
+    selected: "ring-2 ring-inset text-white", // bg and ring colors applied via inline style
 } as const;
 
 // Helper to fix newlines for display
@@ -97,6 +107,8 @@ function SelectableTokenDisplay({
                     const { result, numNewlines } = fixTokenText(token.text);
                     const selectionIndex = selectedPositions.indexOf(idx);
                     const isSelected = selectionIndex !== -1;
+                    const patchColor = isSelected ? PATCH_COLORS[selectionIndex % PATCH_COLORS.length] : null;
+                    
                     return (
                         <span key={`token-${idx}`}>
                             <span
@@ -109,19 +121,28 @@ function SelectableTokenDisplay({
                                     TOKEN_STYLES.base,
                                     // Show clickable styling when not selected
                                     !isSelected && !loading && TOKEN_STYLES.clickable,
-                                    !loading && TOKEN_STYLES.hover,
+                                    !isSelected && !loading && TOKEN_STYLES.hover,
                                     isSelected && TOKEN_STYLES.selected,
                                     token.text === "\\n" ? "w-full" : "w-fit",
                                     loading ? "cursor-progress" : "cursor-pointer"
                                 )}
+                                style={isSelected && patchColor ? {
+                                    backgroundColor: patchColor.bg,
+                                    boxShadow: `inset 0 0 0 2px ${patchColor.ring}`,
+                                } : undefined}
                                 title={`${label} position ${idx}: "${token.text}"${isSelected ? ` (patch #${selectionIndex + 1})` : ""}`}
                             >
                                 {result}
-                                {isSelected && selectedPositions.length > 1 && (
-                                    <span className="absolute -top-1 -right-1 text-[10px] bg-violet-600 text-white rounded-full w-4 h-4 flex items-center justify-center font-medium">
+                                {/* Token number badge - commented out as it makes tokens hard to read
+                                {isSelected && selectedPositions.length > 1 && patchColor && (
+                                    <span 
+                                        className="absolute -top-1 -right-1 text-[10px] text-white rounded-full w-4 h-4 flex items-center justify-center font-medium"
+                                        style={{ backgroundColor: patchColor.bg }}
+                                    >
                                         {selectionIndex + 1}
                                     </span>
                                 )}
+                                */}
                             </span>
                             {numNewlines > 0 && "\n".repeat(numNewlines)}
                         </span>
@@ -196,6 +217,7 @@ function PromptSection({
         <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">{label}</Label>
+                {/* Position indicator - commented out for cleaner UI
                 {selectedPositions.length > 0 && (
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <MousePointerClick className="w-3 h-3" />
@@ -205,6 +227,7 @@ function PromptSection({
                         }
                     </span>
                 )}
+                */}
             </div>
             <div className="relative">
                 {isEditing ? (
@@ -678,9 +701,6 @@ export function ActivationPatchingControls({
     const renderArrows = useMemo(() => {
         if (!showArrows || srcPos.length === 0) return null;
         
-        // Generate colors for each connection
-        const colors = ["#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#ef4444", "#ec4899"];
-        
         const arrows: React.ReactNode[] = [];
         
         // Draw connected arrows (paired source -> target)
@@ -690,7 +710,7 @@ export function ActivationPatchingControls({
             const end = getTokenCenter("target", tgtPos[i], "top");
             if (!start || !end) continue;
             
-            const color = colors[i % colors.length];
+            const color = PATCH_COLORS[i % PATCH_COLORS.length].bg;
             arrows.push(
                 <g key={`arrow-${i}`}>
                     {/* Glow effect */}
@@ -708,7 +728,7 @@ export function ActivationPatchingControls({
                         fill="none"
                         stroke={color}
                         strokeWidth={2}
-                        markerEnd={`url(#arrow-head-${i % colors.length})`}
+                        markerEnd={`url(#arrow-head-${i % PATCH_COLORS.length})`}
                     />
                 </g>
             );
@@ -727,7 +747,8 @@ export function ActivationPatchingControls({
                 }
                 
                 if (end) {
-                    const color = colors[srcPos.length - 1 % colors.length];
+                    const colorIdx = (srcPos.length - 1) % PATCH_COLORS.length;
+                    const color = PATCH_COLORS[colorIdx].bg;
                     arrows.push(
                         <g key="arrow-connecting">
                             {/* Dashed arrow following cursor */}
@@ -737,7 +758,7 @@ export function ActivationPatchingControls({
                                 stroke={color}
                                 strokeWidth={2}
                                 strokeDasharray={hoverTgtIdx !== null ? "none" : "6,4"}
-                                markerEnd={`url(#arrow-head-${(srcPos.length - 1) % colors.length})`}
+                                markerEnd={`url(#arrow-head-${colorIdx})`}
                                 className="transition-all duration-75"
                             />
                         </g>
@@ -751,7 +772,7 @@ export function ActivationPatchingControls({
         return (
             <svg className="pointer-events-none absolute inset-0 w-full h-full overflow-visible z-50">
                 <defs>
-                    {colors.map((color, idx) => (
+                    {PATCH_COLORS.map((patchColor, idx) => (
                         <marker
                             key={`marker-${idx}`}
                             id={`arrow-head-${idx}`}
@@ -761,7 +782,7 @@ export function ActivationPatchingControls({
                             refY="3.5"
                             orient="auto"
                         >
-                            <polygon points="0 0, 10 3.5, 0 7" fill={color} />
+                            <polygon points="0 0, 10 3.5, 0 7" fill={patchColor.bg} />
                         </marker>
                     ))}
                     {/* Glow filter for the arrows */}
@@ -871,12 +892,13 @@ export function ActivationPatchingControls({
                 side="target"
             />
 
-            {/* Validation message */}
+            {/* Validation message - commented out for cleaner UI
             {validationMessage && (
                 <div className="text-xs text-amber-500 bg-amber-500/10 border border-amber-500/20 p-2 rounded-md text-center">
                     {validationMessage}
                 </div>
             )}
+            */}
 
             {/* Selection summary and clear button */}
             {(srcPos.length > 0 || tgtPos.length > 0) && (
@@ -890,14 +912,15 @@ export function ActivationPatchingControls({
                     <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="h-6 text-xs"
+                        className="h-6 text-xs px-2"
                         onClick={() => {
                             setSrcPos([]);
                             setTgtPos([]);
                         }}
                         disabled={isExecuting}
                     >
-                        Clear selections
+                        <X className="w-3 h-3 mr-1" />
+                        Clear
                     </Button>
                 </div>
             )}
