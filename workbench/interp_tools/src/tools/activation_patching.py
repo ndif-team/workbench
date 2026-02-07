@@ -62,65 +62,50 @@ def format_data(
     src_pred: int,
     clean_pred: int,
 ):
+    # [L, V]
+    logits_mat = torch.stack([t.detach() for t in patched_logits], dim=0)
+    L, V = logits_mat.shape
 
-    # let's figure out all the tokens we want to retun
-    # unique set of top 10 tokens in each layer
-    # INSERT_YOUR_CODE
-    # Find top 10 token indices (by value) for each layer's logits using torch
+    # ---- 1) Candidate token ids: src/clean + union of topk across layers ----
+    topk_idx = logits_mat.topk(k=10, dim=1).indices  # [L, 10]
+    cand = torch.unique(topk_idx.flatten())          # [K]
 
-    unique_indices = set()
-    topk_indices_per_layer = []
-    topk_values_per_layer = []
-    for logits in patched_logits:
-        topk = torch.topk(logits, 10)
-        indices = topk.indices.tolist()
-        values = topk.values.tolist()
-        topk_indices_per_layer.append(indices)
-        topk_values_per_layer.append(values)
-        unique_indices.update(indices)
+    # remove src/clean if present, then prepend them in order
+    cand = cand[(cand != src_pred) & (cand != clean_pred)]
+    token_ids = torch.cat(
+        [torch.tensor([src_pred, clean_pred], device=logits_mat.device, dtype=cand.dtype), cand],
+        dim=0
+    )  # [T]
 
-    unique_indices.discard(src_pred)
-    unique_indices.discard(clean_pred)
-    unique_indices = list(unique_indices)
-    unique_indices = [src_pred, clean_pred] + unique_indices
+    # ---- 2) Per-token per-layer "probs" (really logits, same as your code) ----
+    # probs: [L, T] -> later convert to list-of-lists per token
+    probs_mat = logits_mat.index_select(dim=1, index=token_ids)
 
-    # Calculate per-token, per-layer probabilities and ranks as before
-    token_stats = []
-    for token_id in unique_indices:
-        token_probs = []
-        token_ranks = []
-        for logits in patched_logits:
-            token_probs.append(logits[token_id].item())
-            # Rank of token_id: the index after sorting logits descending
-            rank = torch.argsort(logits, descending=True).tolist().index(token_id)
-            token_ranks.append(rank)
-        total_rank = sum(token_ranks)
-        token_stats.append({
-            "token_id": token_id,
-            "probs": token_probs,
-            "ranks": token_ranks,
-            "total_rank": total_rank,
-        })
+    # ---- 3) Exact ranks matching argsort().tolist().index(token_id) ----
+    # sort indices per layer (descending): [L, V]
+    sorted_idx = logits_mat.argsort(dim=1, descending=True)
 
-    # src_pred and clean_pred always at front, in that order (if present)
-    final_token_stats = []
-    for tid in [src_pred, clean_pred]:
-        item = next((d for d in token_stats if d["token_id"] == tid), None)
-        if item is not None:
-            final_token_stats.append(item)
-    # All remaining tokens sorted by smallest total_rank (ascending), excluding src_pred and clean_pred
-    remaining = [
-        d for d in token_stats
-        if d["token_id"] != src_pred and d["token_id"] != clean_pred
-    ]
-    remaining.sort(key=lambda d: d["total_rank"])
-    final_token_stats.extend(remaining)
+    # invert permutation to get rank lookup: inv_rank[layer, token] = rank
+    inv_rank = torch.empty_like(sorted_idx)
+    inv_rank.scatter_(dim=1, index=sorted_idx, src=torch.arange(V, device=logits_mat.device).expand(L, V))
 
-    probabilities = [d["probs"] for d in final_token_stats]
-    ranks = [d["ranks"] for d in final_token_stats]
-    
-    # Labels must match the order of final_token_stats (not unique_indices)
-    labels = [tokenizer.decode(d["token_id"]) for d in final_token_stats]
+    # ranks: [L, T]
+    ranks_mat = inv_rank.index_select(dim=1, index=token_ids)
+
+    # ---- 4) Sort tokens: keep src, clean first; rest by total_rank ----
+    total_rank = ranks_mat.sum(dim=0)  # [T]
+    # indices for remaining tokens (excluding first two)
+    rem_order = torch.argsort(total_rank[2:]) + 2
+    order = torch.cat([torch.tensor([0, 1], device=logits_mat.device), rem_order], dim=0)
+
+    token_ids = token_ids[order]
+    probs_mat = probs_mat[:, order]
+    ranks_mat = ranks_mat[:, order]
+
+    # ---- 5) Build return structure ----
+    probabilities = probs_mat.transpose(0, 1).tolist()  # [T, L]
+    ranks = ranks_mat.transpose(0, 1).tolist()          # [T, L]
+    labels = [tokenizer.decode(int(tid)) for tid in token_ids]
 
     return ActivationPatchingData(
         lines=probabilities,
