@@ -58,11 +58,11 @@ const fixTokenText = (text: string) => {
     return { result, numNewlines };
 };
 
-// Token display with click-to-select functionality
+// Token display with click-to-select functionality (supports multiple selections)
 function SelectableTokenDisplay({
     tokens,
     loading,
-    selectedPos,
+    selectedPositions,
     onTokenClick,
     onTokenHover,
     onTokenLeave,
@@ -71,7 +71,7 @@ function SelectableTokenDisplay({
 }: {
     tokens: Token[];
     loading: boolean;
-    selectedPos: number | null;
+    selectedPositions: number[];
     onTokenClick: (pos: number) => void;
     onTokenHover?: (pos: number) => void;
     onTokenLeave?: () => void;
@@ -95,7 +95,8 @@ function SelectableTokenDisplay({
             ) : (
                 tokens.map((token, idx) => {
                     const { result, numNewlines } = fixTokenText(token.text);
-                    const isSelected = selectedPos === idx;
+                    const selectionIndex = selectedPositions.indexOf(idx);
+                    const isSelected = selectionIndex !== -1;
                     return (
                         <span key={`token-${idx}`}>
                             <span
@@ -113,9 +114,14 @@ function SelectableTokenDisplay({
                                     token.text === "\\n" ? "w-full" : "w-fit",
                                     loading ? "cursor-progress" : "cursor-pointer"
                                 )}
-                                title={`${label} position ${idx}: "${token.text}"`}
+                                title={`${label} position ${idx}: "${token.text}"${isSelected ? ` (patch #${selectionIndex + 1})` : ""}`}
                             >
                                 {result}
+                                {isSelected && selectedPositions.length > 1 && (
+                                    <span className="absolute -top-1 -right-1 text-[10px] bg-violet-600 text-white rounded-full w-4 h-4 flex items-center justify-center font-medium">
+                                        {selectionIndex + 1}
+                                    </span>
+                                )}
                             </span>
                             {numNewlines > 0 && "\n".repeat(numNewlines)}
                         </span>
@@ -126,13 +132,13 @@ function SelectableTokenDisplay({
     );
 }
 
-// Prompt section component for reusability
+// Prompt section component for reusability (supports multiple selections)
 function PromptSection({
     label,
     prompt,
     setPrompt,
     tokens,
-    selectedPos,
+    selectedPositions,
     onTokenClick,
     onTokenHover,
     onTokenLeave,
@@ -150,7 +156,7 @@ function PromptSection({
     prompt: string;
     setPrompt: (value: string) => void;
     tokens: Token[];
-    selectedPos: number | null;
+    selectedPositions: number[];
     onTokenClick: (pos: number) => void;
     onTokenHover?: (pos: number) => void;
     onTokenLeave?: () => void;
@@ -190,10 +196,13 @@ function PromptSection({
         <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">{label}</Label>
-                {selectedPos !== null && (
+                {selectedPositions.length > 0 && (
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <MousePointerClick className="w-3 h-3" />
-                        Token Position {selectedPos}
+                        {selectedPositions.length === 1 
+                            ? `Position ${selectedPositions[0]}`
+                            : `${selectedPositions.length} positions: ${selectedPositions.join(", ")}`
+                        }
                     </span>
                 )}
             </div>
@@ -220,7 +229,7 @@ function PromptSection({
                         <SelectableTokenDisplay
                             tokens={tokens}
                             loading={isExecuting}
-                            selectedPos={selectedPos}
+                            selectedPositions={selectedPositions}
                             onTokenClick={(pos) => {
                                 // Don't switch to edit mode when clicking a token
                                 onTokenClick(pos);
@@ -261,13 +270,13 @@ export function ActivationPatchingControls({
     // Get initial values from config with fallbacks
     const initialSrcPrompt = initialConfig.data?.srcPrompt ?? "";
     const initialTgtPrompt = initialConfig.data?.tgtPrompt ?? "";
-    const initialSrcPos = initialConfig.data?.srcPos ?? null;
-    const initialTgtPos = initialConfig.data?.tgtPos ?? null;
+    const initialSrcPos = initialConfig.data?.srcPos ?? [];
+    const initialTgtPos = initialConfig.data?.tgtPos ?? [];
 
     // Source prompt state
     const [srcPrompt, setSrcPrompt] = useState(initialSrcPrompt);
     const [srcTokens, setSrcTokens] = useState<Token[]>([]);
-    const [srcPos, setSrcPos] = useState<number | null>(initialSrcPos);
+    const [srcPos, setSrcPos] = useState<number[]>(initialSrcPos);
     const [srcEditing, setSrcEditing] = useState(!initialSrcPrompt); // Start in view mode if prompt exists
     const [srcTokenizedModel, setSrcTokenizedModel] = useState<string | null>(null);
     const srcTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -276,7 +285,7 @@ export function ActivationPatchingControls({
     // Target prompt state
     const [tgtPrompt, setTgtPrompt] = useState(initialTgtPrompt);
     const [tgtTokens, setTgtTokens] = useState<Token[]>([]);
-    const [tgtPos, setTgtPos] = useState<number | null>(initialTgtPos);
+    const [tgtPos, setTgtPos] = useState<number[]>(initialTgtPos);
     const [tgtEditing, setTgtEditing] = useState(!initialTgtPrompt); // Start in view mode if prompt exists
     const [tgtTokenizedModel, setTgtTokenizedModel] = useState<string | null>(null);
     const tgtTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -287,10 +296,10 @@ export function ActivationPatchingControls({
     const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
     const [hoverTgtIdx, setHoverTgtIdx] = useState<number | null>(null);
 
-    // Show arrow when source is selected (either connecting or connected)
-    const showArrow = srcPos !== null && !srcEditing && !tgtEditing;
-    // Arrow is "connecting" when source is selected but target is not yet
-    const isConnecting = srcPos !== null && tgtPos === null && !srcEditing && !tgtEditing;
+    // Show arrows when we have source positions selected (either connecting or connected)
+    const showArrows = srcPos.length > 0 && !srcEditing && !tgtEditing;
+    // We're in "connecting" mode when source has more selections than target
+    const isConnecting = srcPos.length > tgtPos.length && !srcEditing && !tgtEditing;
 
     // Mutations
     const { mutateAsync: computePatching, isPending: isComputing } = useActivationPatching();
@@ -299,12 +308,6 @@ export function ActivationPatchingControls({
     // Only track actual computation for the Run button state
     // Config updates (like saving line selection) should not affect the Run button
     const isExecuting = isComputing;
-
-    // Track if both tokens have been selected at least once (for auto-run logic)
-    // If existing data is present, we've already run once (from a previous session)
-    const hasRunOnceRef = useRef(hasExistingData);
-    const prevSrcPosRef = useRef<number | null>(hasExistingData ? (initialConfig.data?.srcPos ?? null) : null);
-    const prevTgtPosRef = useRef<number | null>(hasExistingData ? (initialConfig.data?.tgtPos ?? null) : null);
 
     // Token line selector state
     const [selectedLineIndices, setSelectedLineIndices] = useState<Set<number>>(
@@ -473,11 +476,9 @@ export function ActivationPatchingControls({
             setSrcTokenizedModel(selectedModel);
             setSrcEditing(false);
             
-            // Reset position if tokens changed (prompt was modified)
-            if (tokensChanged && srcPos !== null) {
-                setSrcPos(null);
-                // Also reset the previous position ref to avoid stale comparisons
-                prevSrcPosRef.current = null;
+            // Reset positions if tokens changed (prompt was modified)
+            if (tokensChanged && srcPos.length > 0) {
+                setSrcPos([]);
             }
         }
     }, [srcPrompt, selectedModel, srcPos, srcTokens]);
@@ -495,11 +496,9 @@ export function ActivationPatchingControls({
             setTgtTokenizedModel(selectedModel);
             setTgtEditing(false);
             
-            // Reset position if tokens changed (prompt was modified)
-            if (tokensChanged && tgtPos !== null) {
-                setTgtPos(null);
-                // Also reset the previous position ref to avoid stale comparisons
-                prevTgtPosRef.current = null;
+            // Reset positions if tokens changed (prompt was modified)
+            if (tokensChanged && tgtPos.length > 0) {
+                setTgtPos([]);
             }
         }
     }, [tgtPrompt, selectedModel, tgtPos, tgtTokens]);
@@ -546,8 +545,13 @@ export function ActivationPatchingControls({
             return;
         }
 
-        if (srcPos === null || tgtPos === null) {
-            toast.error("Please select a token position in both prompts.");
+        if (srcPos.length === 0 || tgtPos.length === 0) {
+            toast.error("Please select at least one token position in both prompts.");
+            return;
+        }
+
+        if (srcPos.length !== tgtPos.length) {
+            toast.error("Source and target must have the same number of selected positions.");
             return;
         }
 
@@ -618,45 +622,30 @@ export function ActivationPatchingControls({
         updateConfig,
     ]);
 
-    // Check if ready to run
+    // Check if ready to run - requires equal number of source and target positions
     const canRun =
         srcPrompt.trim() &&
         tgtPrompt.trim() &&
-        srcPos !== null &&
-        tgtPos !== null &&
+        srcPos.length > 0 &&
+        tgtPos.length > 0 &&
+        srcPos.length === tgtPos.length &&
         !isExecuting;
 
-    // Auto-run when both tokens are selected for the first time, or when selection changes
-    useEffect(() => {
-        // Skip if either position is null or if we're already executing
-        if (srcPos === null || tgtPos === null || isExecuting) {
-            return;
+    // Validation message for unmatched selections
+    const validationMessage = useMemo(() => {
+        if (srcPos.length === 0 && tgtPos.length === 0) {
+            return null;
         }
-
-        // Skip if prompts are empty or not tokenized
-        if (!srcPrompt.trim() || !tgtPrompt.trim() || srcTokens.length === 0 || tgtTokens.length === 0) {
-            return;
+        if (srcPos.length > tgtPos.length) {
+            const diff = srcPos.length - tgtPos.length;
+            return `Select ${diff} more target position${diff > 1 ? "s" : ""} to match source`;
         }
-
-        const srcPosChanged = prevSrcPosRef.current !== srcPos;
-        const tgtPosChanged = prevTgtPosRef.current !== tgtPos;
-
-        // First time both are selected
-        if (!hasRunOnceRef.current) {
-            hasRunOnceRef.current = true;
-            prevSrcPosRef.current = srcPos;
-            prevTgtPosRef.current = tgtPos;
-            handleSubmit();
-            return;
+        if (tgtPos.length > srcPos.length) {
+            const diff = tgtPos.length - srcPos.length;
+            return `Select ${diff} more source position${diff > 1 ? "s" : ""} to match target`;
         }
-
-        // Subsequent selection changes (only if one of the positions actually changed)
-        if (srcPosChanged || tgtPosChanged) {
-            prevSrcPosRef.current = srcPos;
-            prevTgtPosRef.current = tgtPos;
-            handleSubmit();
-        }
-    }, [srcPos, tgtPos, srcPrompt, tgtPrompt, srcTokens.length, tgtTokens.length, isExecuting, handleSubmit]);
+        return null;
+    }, [srcPos.length, tgtPos.length]);
 
     // Mouse move handler for arrow following (only when connecting, not when connected)
     const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -685,44 +674,97 @@ export function ActivationPatchingControls({
         return { x, y };
     }, []);
 
-    // Render the connecting arrow
-    const renderArrow = useMemo(() => {
-        if (!showArrow || srcPos === null) return null;
+    // Render the connecting arrows (supports multiple connections)
+    const renderArrows = useMemo(() => {
+        if (!showArrows || srcPos.length === 0) return null;
         
-        const start = getTokenCenter("source", srcPos, "bottom");
-        if (!start) return null;
-
-        let end: { x: number; y: number } | null = null;
-        let isConnected = false;
-
-        // If target is already selected, draw to it (persistent connection)
-        if (tgtPos !== null) {
-            end = getTokenCenter("target", tgtPos, "top");
-            isConnected = true;
-        } 
-        // Otherwise, draw to hover target or mouse position (connecting state)
-        else if (hoverTgtIdx !== null) {
-            end = getTokenCenter("target", hoverTgtIdx, "top");
-        } else if (mousePos) {
-            end = mousePos;
+        // Generate colors for each connection
+        const colors = ["#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#ef4444", "#ec4899"];
+        
+        const arrows: React.ReactNode[] = [];
+        
+        // Draw connected arrows (paired source -> target)
+        const pairedCount = Math.min(srcPos.length, tgtPos.length);
+        for (let i = 0; i < pairedCount; i++) {
+            const start = getTokenCenter("source", srcPos[i], "bottom");
+            const end = getTokenCenter("target", tgtPos[i], "top");
+            if (!start || !end) continue;
+            
+            const color = colors[i % colors.length];
+            arrows.push(
+                <g key={`arrow-${i}`}>
+                    {/* Glow effect */}
+                    <path
+                        d={createCurvePath(start, end)}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={3}
+                        strokeOpacity={0.3}
+                        filter="url(#arrow-glow)"
+                    />
+                    {/* Main arrow - solid when connected */}
+                    <path
+                        d={createCurvePath(start, end)}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={2}
+                        markerEnd={`url(#arrow-head-${i % colors.length})`}
+                    />
+                </g>
+            );
+        }
+        
+        // Draw "connecting" arrow for the next unpaired source (following mouse/hover)
+        if (srcPos.length > tgtPos.length) {
+            const unparedSrcIdx = srcPos[srcPos.length - 1];
+            const start = getTokenCenter("source", unparedSrcIdx, "bottom");
+            if (start) {
+                let end: { x: number; y: number } | null = null;
+                if (hoverTgtIdx !== null) {
+                    end = getTokenCenter("target", hoverTgtIdx, "top");
+                } else if (mousePos) {
+                    end = mousePos;
+                }
+                
+                if (end) {
+                    const color = colors[srcPos.length - 1 % colors.length];
+                    arrows.push(
+                        <g key="arrow-connecting">
+                            {/* Dashed arrow following cursor */}
+                            <path
+                                d={createCurvePath(start, end)}
+                                fill="none"
+                                stroke={color}
+                                strokeWidth={2}
+                                strokeDasharray={hoverTgtIdx !== null ? "none" : "6,4"}
+                                markerEnd={`url(#arrow-head-${(srcPos.length - 1) % colors.length})`}
+                                className="transition-all duration-75"
+                            />
+                        </g>
+                    );
+                }
+            }
         }
 
-        if (!end) return null;
+        if (arrows.length === 0) return null;
 
         return (
             <svg className="pointer-events-none absolute inset-0 w-full h-full overflow-visible z-50">
                 <defs>
-                    <marker
-                        id="arrow-head"
-                        markerWidth="10"
-                        markerHeight="7"
-                        refX="9"
-                        refY="3.5"
-                        orient="auto"
-                    >
-                        <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6" />
-                    </marker>
-                    {/* Glow filter for the arrow */}
+                    {colors.map((color, idx) => (
+                        <marker
+                            key={`marker-${idx}`}
+                            id={`arrow-head-${idx}`}
+                            markerWidth="10"
+                            markerHeight="7"
+                            refX="9"
+                            refY="3.5"
+                            orient="auto"
+                        >
+                            <polygon points="0 0, 10 3.5, 0 7" fill={color} />
+                        </marker>
+                    ))}
+                    {/* Glow filter for the arrows */}
                     <filter id="arrow-glow" x="-50%" y="-50%" width="200%" height="200%">
                         <feGaussianBlur stdDeviation="3" result="coloredBlur" />
                         <feMerge>
@@ -731,28 +773,10 @@ export function ActivationPatchingControls({
                         </feMerge>
                     </filter>
                 </defs>
-                {/* Glow effect */}
-                <path
-                    d={createCurvePath(start, end)}
-                    fill="none"
-                    stroke="#8b5cf6"
-                    strokeWidth={3}
-                    strokeOpacity={0.3}
-                    filter="url(#arrow-glow)"
-                />
-                {/* Main arrow - solid when connected or hovering, dashed when following mouse */}
-                <path
-                    d={createCurvePath(start, end)}
-                    fill="none"
-                    stroke="#8b5cf6"
-                    strokeWidth={2}
-                    strokeDasharray={isConnected || hoverTgtIdx !== null ? "none" : "6,4"}
-                    markerEnd="url(#arrow-head)"
-                    className="transition-all duration-75"
-                />
+                {arrows}
             </svg>
         );
-    }, [showArrow, srcPos, tgtPos, hoverTgtIdx, mousePos, getTokenCenter]);
+    }, [showArrows, srcPos, tgtPos, hoverTgtIdx, mousePos, getTokenCenter]);
 
     // Clear mouse position when not connecting
     useEffect(() => {
@@ -762,6 +786,51 @@ export function ActivationPatchingControls({
         }
     }, [isConnecting]);
 
+    // Toggle token selection for source (add/remove from array)
+    const handleSrcTokenClick = useCallback((pos: number) => {
+        setSrcPos(prev => {
+            const idx = prev.indexOf(pos);
+            if (idx !== -1) {
+                // Remove - also remove corresponding target if exists
+                const newSrcPos = [...prev];
+                newSrcPos.splice(idx, 1);
+                // Remove corresponding target position at same index
+                setTgtPos(prevTgt => {
+                    if (idx < prevTgt.length) {
+                        const newTgtPos = [...prevTgt];
+                        newTgtPos.splice(idx, 1);
+                        return newTgtPos;
+                    }
+                    return prevTgt;
+                });
+                return newSrcPos;
+            } else {
+                // Add
+                return [...prev, pos];
+            }
+        });
+    }, []);
+
+    // Toggle token selection for target (add/remove from array)
+    const handleTgtTokenClick = useCallback((pos: number) => {
+        setTgtPos(prev => {
+            const idx = prev.indexOf(pos);
+            if (idx !== -1) {
+                // Remove - also remove corresponding source if that source has more than this target
+                const newTgtPos = [...prev];
+                newTgtPos.splice(idx, 1);
+                return newTgtPos;
+            } else {
+                // Only allow adding if we have more source positions than target
+                if (srcPos.length > prev.length) {
+                    return [...prev, pos];
+                }
+                // Otherwise, toggle (replace last if already full)
+                return prev;
+            }
+        });
+    }, [srcPos.length]);
+
     return (
         <div 
             ref={controlsContainerRef}
@@ -770,7 +839,7 @@ export function ActivationPatchingControls({
             onMouseLeave={() => setMousePos(null)}
         >
             {/* Arrow SVG overlay */}
-            {renderArrow}
+            {renderArrows}
 
             {/* Source Prompt */}
             <PromptSection
@@ -778,8 +847,8 @@ export function ActivationPatchingControls({
                 prompt={srcPrompt}
                 setPrompt={setSrcPrompt}
                 tokens={srcTokens}
-                selectedPos={srcPos}
-                onTokenClick={(pos) => setSrcPos(pos === srcPos ? null : pos)}
+                selectedPositions={srcPos}
+                onTokenClick={handleSrcTokenClick}
                 isEditing={srcEditing}
                 setIsEditing={setSrcEditing}
                 onBlur={handleSrcBlur}
@@ -797,8 +866,8 @@ export function ActivationPatchingControls({
                 prompt={tgtPrompt}
                 setPrompt={setTgtPrompt}
                 tokens={tgtTokens}
-                selectedPos={tgtPos}
-                onTokenClick={(pos) => setTgtPos(pos === tgtPos ? null : pos)}
+                selectedPositions={tgtPos}
+                onTokenClick={handleTgtTokenClick}
                 onTokenHover={isConnecting ? setHoverTgtIdx : undefined}
                 onTokenLeave={isConnecting ? () => setHoverTgtIdx(null) : undefined}
                 isEditing={tgtEditing}
@@ -812,16 +881,36 @@ export function ActivationPatchingControls({
                 side="target"
             />
 
-            {/* Instructions */}
-            {/* <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-md">
-                <p className="font-medium mb-1">How to use:</p>
-                <ol className="list-decimal list-inside space-y-1">
-                    <li>Enter a source and target prompt</li>
-                    <li>Click away to tokenize each prompt</li>
-                    <li>Click on a token in each prompt to select the patching positions</li>
-                    <li>Computation runs automatically when both tokens are selected</li>
-                </ol>
-            </div> */}
+            {/* Validation message */}
+            {validationMessage && (
+                <div className="text-xs text-amber-500 bg-amber-500/10 border border-amber-500/20 p-2 rounded-md text-center">
+                    {validationMessage}
+                </div>
+            )}
+
+            {/* Selection summary and clear button */}
+            {(srcPos.length > 0 || tgtPos.length > 0) && (
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>
+                        {srcPos.length === tgtPos.length && srcPos.length > 0
+                            ? `${srcPos.length} patch${srcPos.length > 1 ? "es" : ""} ready`
+                            : `Source: ${srcPos.length}, Target: ${tgtPos.length}`
+                        }
+                    </span>
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-xs"
+                        onClick={() => {
+                            setSrcPos([]);
+                            setTgtPos([]);
+                        }}
+                        disabled={isExecuting}
+                    >
+                        Clear selections
+                    </Button>
+                </div>
+            )}
 
             {/* Run Button */}
             <Button onClick={handleSubmit} disabled={!canRun} className="w-full bg-violet-500 hover:bg-violet-600 text-white">
@@ -833,15 +922,12 @@ export function ActivationPatchingControls({
                 ) : (
                     <>
                         <Play className="mr-2 h-4 w-4" />
-                        Run
+                        Run {srcPos.length > 0 && tgtPos.length > 0 && srcPos.length === tgtPos.length && (
+                            <span className="ml-1 text-violet-200">({srcPos.length} patch{srcPos.length > 1 ? "es" : ""})</span>
+                        )}
                     </>
                 )}
             </Button>
-
-            {/* Auto-run hint */}
-            {/* <p className="text-xs text-muted-foreground text-center">
-                Auto-runs when both tokens are selected or changed
-            </p> */}
 
             {/* Token Line Selector - only show when we have chart data */}
             {hasChartData && allLabels.length > 0 && (
