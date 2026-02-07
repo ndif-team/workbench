@@ -1,6 +1,5 @@
-from typing import List
+from typing import List, Union
 import torch
-
 
 from ..visualizations.types import ActivationPatchingData
 
@@ -8,10 +7,9 @@ def activation_patching(
     model, 
     src_prompt: str, 
     tgt_prompt: str,
-    src_pos: int, 
-    tgt_pos: int,
+    src_pos: List[int],
+    tgt_pos: List[int],
     backend,
-    token_ids: List[int] = None,
     remote: bool = True,
 ):
 
@@ -19,15 +17,19 @@ def activation_patching(
 
     with model.session(remote=remote, backend=backend) as session:
         with model.trace(src_prompt):
-            src_acts = list()
+            src_acts: List[List[torch.Tensor]] = list()
+
             for l_idx in range(layers):
+                src_acts.append(list())
                 hs = model.model.layers[l_idx].output
+
                 if isinstance(hs, tuple):
                     hs = hs[0]
-                src_acts.append(hs[0, src_pos])
+
+                for pos in src_pos:
+                    src_acts[-1].append(hs[0, pos])
 
             src_pred = model.lm_head.output[0, -1].argmax(dim=-1).save()
-            
 
         patched_logits_per_layer = list().save()
         with model.trace() as tracer:
@@ -39,9 +41,13 @@ def activation_patching(
             for l_idx in range(layers):
                 with tracer.invoke(tgt_prompt):
                     hs = model.model.layers[l_idx].output
+
                     if isinstance(hs, tuple):
                         hs = hs[0]
-                    hs[0, tgt_pos][:] = src_acts[l_idx][:]
+
+                    for pos, src_act in zip(tgt_pos, src_acts[l_idx]):
+                        hs[0, pos][:] = src_act
+                    
                     patched_logits_per_layer.append(torch.nn.functional.softmax(model.lm_head.output[0, -1], dim=-1).save())
 
     if remote:

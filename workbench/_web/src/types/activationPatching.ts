@@ -10,8 +10,8 @@ export interface ActivationPatchingConfigData {
     model: string;
     srcPrompt: string;
     tgtPrompt: string;
-    srcPos: number | null;  // Selected token position in source prompt
-    tgtPos: number | null;  // Selected token position in target prompt
+    srcPos: number[];  // Selected token positions in source prompt
+    tgtPos: number[];  // Selected token positions in target prompt (must match srcPos length)
     selectedLineIndices?: number[];  // Indices of lines to display in the chart
 }
 
@@ -32,7 +32,7 @@ export interface ActivationPatchingApiRequest {
     model_name: string;
     src_prompt: string;
     tgt_prompt: string;
-    src_pos: number;
-    tgt_pos: number;
+    src_pos: number[];  // List of source token positions
+    tgt_pos: number[];  // List of target token positions (must match src_pos length)
     token_ids: number[];  // Token IDs to track
 }

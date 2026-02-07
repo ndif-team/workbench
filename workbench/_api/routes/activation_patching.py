@@ -18,8 +18,8 @@ class ActivationPatchingRequest(BaseModel):
     model_name: str
     src_prompt: str
     tgt_prompt: str
-    src_pos: int
-    tgt_pos: int
+    src_pos: List[int]
+    tgt_pos: List[int]
     token_ids: List[int]
 
 class ActivationPatchingResponse(NDIFResponse):
