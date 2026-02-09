@@ -36,12 +36,11 @@ def activation_patching(
 
         clean_logits_per_layer = list()
         with model.trace(tgt_prompt):
-            # clean_logits = model.lm_head.output[0, -1].save()
-
             for l_idx in range(layers):
                 clean_logits_per_layer.append(model.model.layers[l_idx].output)
 
             clean_pred = model.lm_head.output[0, -1].argmax(dim=-1).save()
+            clean_logits = torch.nn.functional.softmax(model.lm_head.output[0, -1], dim=-1).save()
 
         patched_logits_per_layer = list().save()
         for l_idx in range(layers):
@@ -62,7 +61,7 @@ def activation_patching(
     if remote:
         return session.backend.job_id
 
-    return src_pred, clean_pred, patched_logits_per_layer
+    return src_pred, clean_pred, patched_logits_per_layer, clean_logits
 
 
 def format_data(
@@ -70,6 +69,7 @@ def format_data(
     tokenizer,
     src_pred: int,
     clean_pred: int,
+    clean_logits: torch.Tensor,
 ):
     # [L, V]
     logits_mat = torch.stack([t.detach() for t in patched_logits], dim=0)
@@ -87,7 +87,7 @@ def format_data(
     )  # [T]
 
     # ---- 2) Per-token per-layer "probs" (really logits, same as your code) ----
-    # probs: [L, T] -> later convert to list-of-lists per token
+    # probs_mat: [L, T] -> later convert to list-of-lists per token
     probs_mat = logits_mat.index_select(dim=1, index=token_ids)
 
     # ---- 3) Exact ranks matching argsort().tolist().index(token_id) ----
@@ -101,7 +101,14 @@ def format_data(
     # ranks: [L, T]
     ranks_mat = inv_rank.index_select(dim=1, index=token_ids)
 
-    # ---- 4) Sort tokens: keep src, clean first; rest by total_rank ----
+
+    # ---- 4) Compute probability difference between patched and clean ----
+    # clean_logits is [V], select the tokens we care about to get [T]
+    # probs_mat is [L, T], so we broadcast clean_probs_T across layers
+    clean_probs_T = clean_logits.index_select(dim=0, index=token_ids)  # [T]
+    prob_diff_mat = probs_mat - clean_probs_T.unsqueeze(0)  # [L, T] - [1, T] = [L, T]
+
+    # ---- 5) Sort tokens: keep src, clean first; rest by total_rank ----
     total_rank = ranks_mat.sum(dim=0)  # [T]
     # indices for remaining tokens (excluding first two)
     rem_order = torch.argsort(total_rank[2:]) + 2
@@ -110,14 +117,17 @@ def format_data(
     token_ids = token_ids[order]
     probs_mat = probs_mat[:, order]
     ranks_mat = ranks_mat[:, order]
+    prob_diff_mat = prob_diff_mat[:, order]
 
     # ---- 5) Build return structure ----
     probabilities = probs_mat.transpose(0, 1).tolist()  # [T, L]
     ranks = ranks_mat.transpose(0, 1).tolist()          # [T, L]
+    prob_diffs = prob_diff_mat.transpose(0, 1).tolist() # [T, L]
     labels = [tokenizer.decode(int(tid)) for tid in token_ids]
 
     return ActivationPatchingData(
         lines=probabilities,
         ranks=ranks,
+        prob_diffs=prob_diffs,
         tokenLabels=labels
     )

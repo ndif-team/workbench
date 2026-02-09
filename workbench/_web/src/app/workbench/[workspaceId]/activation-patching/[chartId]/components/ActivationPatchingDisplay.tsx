@@ -26,7 +26,7 @@ interface ActivationPatchingConfig {
     workspaceId: string;
 }
 
-type DisplayMode = "probability" | "rank";
+type DisplayMode = "probability" | "prob_diff" | "rank";
 
 export function ActivationPatchingDisplay() {
     const { chartId } = useParams<{ chartId: string }>();
@@ -120,10 +120,15 @@ export function ActivationPatchingDisplay() {
         
         const selectedIndicesArray = Array.from(selectedLineIndices).sort((a, b) => a - b);
         
-        // Select either probabilities (lines) or ranks based on display mode
-        const sourceData = displayMode === "probability" 
-            ? patchingChart.data!.lines 
-            : patchingChart.data!.ranks;
+        // Select data source based on display mode
+        let sourceData: number[][] | undefined;
+        if (displayMode === "probability") {
+            sourceData = patchingChart.data!.lines;
+        } else if (displayMode === "prob_diff") {
+            sourceData = patchingChart.data!.prob_diffs;
+        } else {
+            sourceData = patchingChart.data!.ranks;
+        }
         
         if (!sourceData) return null;
         
@@ -224,6 +229,17 @@ export function ActivationPatchingDisplay() {
                         Probability
                     </button>
                     <button
+                        onClick={() => setDisplayMode("prob_diff")}
+                        className={cn(
+                            "px-2.5 py-1 text-xs font-medium rounded transition-colors",
+                            displayMode === "prob_diff"
+                                ? "bg-violet-500 text-white"
+                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                        )}
+                    >
+                        Prob Δ
+                    </button>
+                    <button
                         onClick={() => setDisplayMode("rank")}
                         className={cn(
                             "px-2.5 py-1 text-xs font-medium rounded transition-colors",
@@ -242,17 +258,27 @@ export function ActivationPatchingDisplay() {
                 {plotData && plotData.lines.length > 0 ? (
                     <LinePlotWidget
                         data={plotData}
-                        title={displayMode === "probability" 
-                            ? "Activation Patching: Token Probability by Layer"
-                            : "Activation Patching: Token Rank by Layer"
+                        title={
+                            displayMode === "probability" 
+                                ? "Activation Patching: Token Probability by Layer"
+                                : displayMode === "prob_diff"
+                                    ? "Activation Patching: Probability Difference by Layer"
+                                    : "Activation Patching: Token Rank by Layer"
                         }
-                        yAxisLabel={displayMode === "probability" ? "Probability" : "Rank"}
+                        yAxisLabel={
+                            displayMode === "probability" 
+                                ? "Probability" 
+                                : displayMode === "prob_diff"
+                                    ? "Prob Δ (Patched - Clean)"
+                                    : "Rank"
+                        }
                         xAxisLabel="Layer"
                         transparentBackground
                         mode={displayMode}
                         invertYAxis={displayMode === "rank"}
                         minValue={displayMode === "probability" ? 0 : undefined}
                         maxValue={displayMode === "probability" ? 1 : undefined}
+                        centerYAxisAtZero={displayMode === "prob_diff"}
                     />
                 ) : (
                     <div className="flex size-full items-center justify-center text-muted-foreground">

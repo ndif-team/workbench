@@ -23,4 +23,5 @@ class ActivationPatchingData(BaseModel):
     # meta: ActivationsPatchingMeta
     lines: list[list[float]]  # Each inner list is probabilities for one token across all layers
     ranks: list[list[int]]  # Each inner list is ranks for one token across all layers
+    prob_diffs: list[list[float]]  # Each inner list is probability differences for one token across all layers
     tokenLabels: list[str]  # Token text labels for each line

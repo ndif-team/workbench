@@ -10,7 +10,7 @@ interface LinePlotData {
     labels?: string[];  // Optional labels for each line
 }
 
-type PlotMode = "probability" | "rank";
+type PlotMode = "probability" | "prob_diff" | "rank";
 
 interface LinePlotWidgetProps {
     data: LinePlotData;
@@ -22,6 +22,7 @@ interface LinePlotWidgetProps {
     minValue?: number;  // Custom min for y-axis
     maxValue?: number;  // Custom max for y-axis
     invertYAxis?: boolean;  // If true, lower values appear higher (useful for ranks)
+    centerYAxisAtZero?: boolean;  // If true, y-axis is centered at 0 with symmetric range
 }
 
 interface TooltipState {
@@ -95,6 +96,7 @@ export function LinePlotWidget({
     minValue: customMinValue,
     maxValue: customMaxValue,
     invertYAxis = false,
+    centerYAxisAtZero = false,
 }: LinePlotWidgetProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -154,11 +156,20 @@ export function LinePlotWidget({
             const dataMin = Math.min(...allValues);
             const dataMax = Math.max(...allValues);
             
-            if (minValue === undefined) {
-                minValue = mode === "probability" ? 0 : Math.floor(dataMin * 0.9);
-            }
-            if (maxValue === undefined) {
-                maxValue = mode === "probability" ? 1 : Math.ceil(dataMax * 1.1);
+            if (centerYAxisAtZero) {
+                // Center at zero: use symmetric range based on max absolute value
+                const absMax = Math.max(Math.abs(dataMin), Math.abs(dataMax));
+                // Add 10% padding
+                const paddedMax = absMax * 1.1;
+                minValue = -paddedMax;
+                maxValue = paddedMax;
+            } else {
+                if (minValue === undefined) {
+                    minValue = mode === "probability" ? 0 : Math.floor(dataMin * 0.9);
+                }
+                if (maxValue === undefined) {
+                    maxValue = mode === "probability" ? 1 : Math.ceil(dataMax * 1.1);
+                }
             }
         }
 
@@ -168,7 +179,7 @@ export function LinePlotWidget({
             maxValue,
             numLines: data.lines.length,
         };
-    }, [data, customMinValue, customMaxValue, mode]);
+    }, [data, customMinValue, customMaxValue, mode, centerYAxisAtZero]);
 
     // Handle mouse move for tooltip
     const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -259,7 +270,7 @@ export function LinePlotWidget({
         const height = rect.height;
 
         // Professional margins with breathing room
-        const margin = { top: title ? 48 : 24, right: 24, bottom: 56, left: 64 };
+        const margin = { top: title ? 48 : 24, right: 24, bottom: 56, left: 72 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
 
@@ -318,6 +329,13 @@ export function LinePlotWidget({
         if (mode === "probability") {
             // Fixed ticks for probability mode
             yTicks.push(0, 0.25, 0.5, 0.75, 1.0);
+        } else if (mode === "prob_diff") {
+            // Symmetric ticks around zero for probability difference
+            const numTicks = 5;
+            for (let i = 0; i < numTicks; i++) {
+                const value = chartConfig.minValue + (i / (numTicks - 1)) * range;
+                yTicks.push(value);
+            }
         } else {
             // Dynamic ticks for rank mode
             const numTicks = 5;
@@ -338,6 +356,18 @@ export function LinePlotWidget({
         // Reset line dash
         ctx.setLineDash([]);
 
+        // Draw prominent zero line when centered at zero
+        if (centerYAxisAtZero) {
+            const zeroY = yScale(0);
+            ctx.beginPath();
+            ctx.strokeStyle = isDarkMode ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.3)";
+            ctx.lineWidth = 1.5;
+            ctx.moveTo(margin.left, zeroY);
+            ctx.lineTo(margin.left + chartWidth, zeroY);
+            ctx.stroke();
+            ctx.lineWidth = 1;
+        }
+
         // Draw Y-axis labels
         ctx.fillStyle = colors.text;
         ctx.font = "400 11px 'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
@@ -346,9 +376,17 @@ export function LinePlotWidget({
 
         yTicks.forEach(tick => {
             const y = yScale(tick);
-            // Format based on mode: decimals for probability, integers for rank
-            const label = mode === "probability" ? tick.toFixed(2) : Math.round(tick).toString();
-            ctx.fillText(label, margin.left - 12, y);
+            // Format based on mode: decimals for probability/prob_diff, integers for rank
+            let label: string;
+            if (mode === "probability") {
+                label = tick.toFixed(2);
+            } else if (mode === "prob_diff") {
+                // Show sign for prob_diff, format with 2 decimals
+                label = tick >= 0 ? `+${tick.toFixed(2)}` : tick.toFixed(2);
+            } else {
+                label = Math.round(tick).toString();
+            }
+            ctx.fillText(label, margin.left - 16, y);
         });
 
         // Draw X-axis labels
@@ -386,7 +424,7 @@ export function LinePlotWidget({
 
         // Y-axis label (rotated)
         ctx.save();
-        ctx.translate(16, margin.top + chartHeight / 2);
+        ctx.translate(14, margin.top + chartHeight / 2);
         ctx.rotate(-Math.PI / 2);
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
@@ -483,7 +521,7 @@ export function LinePlotWidget({
                 ctx.fill();
             });
         });
-    }, [data, chartConfig, isDarkMode, title, xAxisLabel, yAxisLabel, transparentBackground, hiddenLines, tooltip, resizeCounter, mode, invertYAxis]);
+    }, [data, chartConfig, isDarkMode, title, xAxisLabel, yAxisLabel, transparentBackground, hiddenLines, tooltip, resizeCounter, mode, invertYAxis, centerYAxisAtZero]);
 
     // Handle resize - increment counter to trigger redraw
     useEffect(() => {
