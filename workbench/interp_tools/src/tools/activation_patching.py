@@ -120,9 +120,9 @@ def format_data(
     prob_diff_mat = prob_diff_mat[:, order]
 
     # ---- 5) Build return structure ----
-    probabilities = probs_mat.transpose(0, 1).tolist()  # [T, L]
+    probabilities = [[round(prob, 4) for prob in layer] for layer in probs_mat.transpose(0, 1).tolist()]  # [T, L]
     ranks = ranks_mat.transpose(0, 1).tolist()          # [T, L]
-    prob_diffs = prob_diff_mat.transpose(0, 1).tolist() # [T, L]
+    prob_diffs = [[round(diff, 4) for diff in layer] for layer in prob_diff_mat.transpose(0, 1).tolist()] # [T, L]
     labels = [tokenizer.decode(int(tid)) for tid in token_ids]
 
     return ActivationPatchingData(
