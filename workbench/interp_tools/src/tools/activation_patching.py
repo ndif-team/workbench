@@ -7,7 +7,7 @@ def activation_patching(
     model, 
     src_prompt: str, 
     tgt_prompt: str,
-    src_pos: List[int],
+    src_pos: List[Union[int, List[int]]],
     tgt_pos: List[int],
     backend,
     remote: bool = True,
@@ -27,7 +27,10 @@ def activation_patching(
                     hs = hs[0]
 
                 for pos in src_pos:
-                    src_acts[-1].append(hs[0, pos])
+                    if isinstance(pos, list):
+                        src_acts[-1].append(hs[0, pos[0]:pos[1]].mean(dim=0))
+                    else:
+                        src_acts[-1].append(hs[0, pos])
 
             src_pred = model.lm_head.output[0, -1].argmax(dim=-1).save()
 

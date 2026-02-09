@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Play, TriangleAlert, MousePointerClick, X } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
-import { ActivationPatchingConfigData, ActivationPatchingData } from "@/types/activationPatching";
+import { ActivationPatchingConfigData, ActivationPatchingData, SourcePosition } from "@/types/activationPatching";
 import { encodeText } from "@/actions/tok";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
@@ -48,6 +48,33 @@ const PATCH_COLORS = [
     { bg: "#ef4444", ring: "#ef4444", hover: "rgba(239, 68, 68, 0.2)", hoverRing: "rgba(239, 68, 68, 0.5)" },   // red
     { bg: "#ec4899", ring: "#ec4899", hover: "rgba(236, 72, 153, 0.2)", hoverRing: "rgba(236, 72, 153, 0.5)" }, // pink
 ];
+
+// Helper to check if a token index is part of a source position (single or range)
+function isTokenInSourcePosition(tokenIdx: number, pos: SourcePosition): boolean {
+    if (typeof pos === "number") {
+        return tokenIdx === pos;
+    }
+    // Range: [start, end] - inclusive of start, exclusive of end (like Python slice)
+    return tokenIdx >= pos[0] && tokenIdx < pos[1];
+}
+
+// Helper to find which source position (and its index) a token belongs to
+function findSourcePositionForToken(tokenIdx: number, positions: SourcePosition[]): { pos: SourcePosition; index: number } | null {
+    for (let i = 0; i < positions.length; i++) {
+        if (isTokenInSourcePosition(tokenIdx, positions[i])) {
+            return { pos: positions[i], index: i };
+        }
+    }
+    return null;
+}
+
+// Helper to get display text for a source position
+function getSourcePositionLabel(pos: SourcePosition): string {
+    if (typeof pos === "number") {
+        return `${pos}`;
+    }
+    return `${pos[0]}-${pos[1] - 1}`;
+}
 
 // Token styling constants
 const TOKEN_STYLES = {
@@ -143,6 +170,99 @@ function SelectableTokenDisplay({
                                     </span>
                                 )}
                                 */}
+                            </span>
+                            {numNewlines > 0 && "\n".repeat(numNewlines)}
+                        </span>
+                    );
+                })
+            )}
+        </div>
+    );
+}
+
+// Source token display with range selection support (shift+click)
+function SourceTokenDisplay({
+    tokens,
+    loading,
+    selectedPositions,
+    pendingRangeStart,
+    onTokenClick,
+    label,
+}: {
+    tokens: Token[];
+    loading: boolean;
+    selectedPositions: SourcePosition[];
+    pendingRangeStart: number | null;
+    onTokenClick: (pos: number, shiftKey: boolean) => void;
+    label: string;
+}) {
+    const handleTokenClick = (e: React.MouseEvent, idx: number) => {
+        e.stopPropagation();
+        if (!loading) {
+            onTokenClick(idx, e.shiftKey);
+        }
+    };
+
+    return (
+        <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
+            {tokens.length === 0 ? (
+                <span className="text-muted-foreground text-sm italic">
+                    Enter text and click away to tokenize
+                </span>
+            ) : (
+                tokens.map((token, idx) => {
+                    const { result, numNewlines } = fixTokenText(token.text);
+                    
+                    // Check if this token is part of any selected source position
+                    const selection = findSourcePositionForToken(idx, selectedPositions);
+                    const isSelected = selection !== null;
+                    const selectionIndex = selection?.index ?? -1;
+                    const patchColor = isSelected ? PATCH_COLORS[selectionIndex % PATCH_COLORS.length] : null;
+                    
+                    // Check if this is the pending range start
+                    const isPendingStart = pendingRangeStart === idx;
+                    
+                    // For range selections, determine if this is the first or last token in the range
+                    const isRangeStart = selection && typeof selection.pos !== "number" && idx === selection.pos[0];
+                    const isRangeEnd = selection && typeof selection.pos !== "number" && idx === selection.pos[1] - 1;
+                    const isInRange = selection && typeof selection.pos !== "number";
+                    
+                    return (
+                        <span key={`token-${idx}`}>
+                            <span
+                                data-token-id={idx}
+                                data-token-side="source"
+                                onClick={(e) => handleTokenClick(e, idx)}
+                                className={cn(
+                                    TOKEN_STYLES.base,
+                                    !isSelected && !isPendingStart && !loading && TOKEN_STYLES.clickable,
+                                    !isSelected && !isPendingStart && !loading && TOKEN_STYLES.hover,
+                                    (isSelected || isPendingStart) && TOKEN_STYLES.selected,
+                                    token.text === "\\n" ? "w-full" : "w-fit",
+                                    loading ? "cursor-progress" : "cursor-pointer",
+                                    // Range visual styling - connected tokens
+                                    isInRange && !isRangeStart && "rounded-l-none ml-0",
+                                    isInRange && !isRangeEnd && "rounded-r-none mr-0"
+                                )}
+                                style={(isSelected || isPendingStart) ? {
+                                    backgroundColor: isPendingStart && !isSelected 
+                                        ? PATCH_COLORS[selectedPositions.length % PATCH_COLORS.length].bg
+                                        : patchColor?.bg,
+                                    boxShadow: `inset 0 0 0 2px ${
+                                        isPendingStart && !isSelected 
+                                            ? PATCH_COLORS[selectedPositions.length % PATCH_COLORS.length].ring
+                                            : patchColor?.ring
+                                    }`,
+                                    // Dashed border for pending start to indicate "waiting for shift+click"
+                                    ...(isPendingStart && !isSelected ? { 
+                                        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0.1) 4px)' 
+                                    } : {})
+                                } : undefined}
+                                title={`${label} position ${idx}: "${token.text}"${
+                                    isSelected ? ` (patch #${selectionIndex + 1}${isInRange ? " - range" : ""})` : ""
+                                }${isPendingStart && !isSelected ? " (Shift+click another token to complete range)" : ""}`}
+                            >
+                                {result}
                             </span>
                             {numNewlines > 0 && "\n".repeat(numNewlines)}
                         </span>
@@ -283,6 +403,121 @@ function PromptSection({
     );
 }
 
+// Source prompt section with range selection support
+function SourcePromptSection({
+    label,
+    prompt,
+    setPrompt,
+    tokens,
+    selectedPositions,
+    pendingRangeStart,
+    onTokenClick,
+    isEditing,
+    setIsEditing,
+    onBlur,
+    isExecuting,
+    tokenizedModel,
+    selectedModel,
+    textareaRef,
+    tokenContainerRef,
+}: {
+    label: string;
+    prompt: string;
+    setPrompt: (value: string) => void;
+    tokens: Token[];
+    selectedPositions: SourcePosition[];
+    pendingRangeStart: number | null;
+    onTokenClick: (pos: number, shiftKey: boolean) => void;
+    isEditing: boolean;
+    setIsEditing: (value: boolean) => void;
+    onBlur: () => void;
+    isExecuting: boolean;
+    tokenizedModel: string | null;
+    selectedModel: string;
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+    tokenContainerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+    const modelMismatch = tokenizedModel && tokenizedModel !== selectedModel && tokens.length > 0;
+
+    const handleEditClick = useCallback(() => {
+        if (isExecuting) return;
+        setIsEditing(true);
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+                const length = textareaRef.current.value.length;
+                textareaRef.current.setSelectionRange(length, length);
+            }
+        }, 0);
+    }, [isExecuting, setIsEditing, textareaRef]);
+
+    // Auto-resize textarea
+    useEffect(() => {
+        if (isEditing && textareaRef.current) {
+            textareaRef.current.style.height = "auto";
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+        }
+    }, [prompt, isEditing, textareaRef]);
+
+    return (
+        <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">{label}</Label>
+                {pendingRangeStart !== null && (
+                    <span className="text-xs text-amber-500 flex items-center gap-1 animate-pulse">
+                        Shift+click another token to complete range
+                    </span>
+                )}
+            </div>
+            <div className="relative">
+                {isEditing ? (
+                    <Textarea
+                        ref={textareaRef as React.RefObject<HTMLTextAreaElement>}
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        onBlur={onBlur}
+                        className="w-full !text-sm bg-input/30 min-h-24 !leading-5"
+                        placeholder={`Enter ${label.toLowerCase()} here...`}
+                        disabled={isExecuting}
+                    />
+                ) : (
+                    <div
+                        ref={tokenContainerRef}
+                        className={cn(
+                            "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
+                            isExecuting ? "cursor-progress" : "cursor-text"
+                        )}
+                        onClick={handleEditClick}
+                    >
+                        <SourceTokenDisplay
+                            tokens={tokens}
+                            loading={isExecuting}
+                            selectedPositions={selectedPositions}
+                            pendingRangeStart={pendingRangeStart}
+                            onTokenClick={onTokenClick}
+                            label={label}
+                        />
+                    </div>
+                )}
+
+                {/* Model mismatch warning */}
+                {modelMismatch && !isExecuting && !isEditing && (
+                    <Tooltip>
+                        <TooltipTrigger className="absolute bottom-2 right-2">
+                            <TriangleAlert className="w-4 h-4 text-destructive/70" />
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                            <p className="w-36 text-wrap text-center">
+                                Tokenization does not match the selected model. Please retokenize.
+                            </p>
+                        </TooltipContent>
+                    </Tooltip>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export function ActivationPatchingControls({
     initialConfig,
     selectedModel,
@@ -299,11 +534,14 @@ export function ActivationPatchingControls({
     // Source prompt state
     const [srcPrompt, setSrcPrompt] = useState(initialSrcPrompt);
     const [srcTokens, setSrcTokens] = useState<Token[]>([]);
-    const [srcPos, setSrcPos] = useState<number[]>(initialSrcPos);
+    const [srcPos, setSrcPos] = useState<SourcePosition[]>(initialSrcPos);
     const [srcEditing, setSrcEditing] = useState(!initialSrcPrompt); // Start in view mode if prompt exists
     const [srcTokenizedModel, setSrcTokenizedModel] = useState<string | null>(null);
     const srcTextareaRef = useRef<HTMLTextAreaElement>(null);
     const srcTokenContainerRef = useRef<HTMLDivElement>(null);
+    
+    // Range selection state for source (shift+click to select range)
+    const [pendingRangeStart, setPendingRangeStart] = useState<number | null>(null);
 
     // Target prompt state
     const [tgtPrompt, setTgtPrompt] = useState(initialTgtPrompt);
@@ -502,6 +740,7 @@ export function ActivationPatchingControls({
             // Reset positions if tokens changed (prompt was modified)
             if (tokensChanged && srcPos.length > 0) {
                 setSrcPos([]);
+                setPendingRangeStart(null);
             }
         }
     }, [srcPrompt, selectedModel, srcPos, srcTokens]);
@@ -683,6 +922,7 @@ export function ActivationPatchingControls({
     }, [isConnecting]);
 
     // Get token center position relative to container
+    // Uses getClientRects() to handle tokens that wrap across multiple lines
     const getTokenCenter = useCallback((side: "source" | "target", index: number, at: "top" | "bottom") => {
         const container = controlsContainerRef.current;
         if (!container) return null;
@@ -690,14 +930,35 @@ export function ActivationPatchingControls({
             `[data-token-side="${side}"][data-token-id="${index}"]`,
         );
         if (!token) return null;
-        const tokenRect = token.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
-        const x = tokenRect.left + tokenRect.width / 2 - containerRect.left;
-        const y = (at === "top" ? tokenRect.top : tokenRect.bottom) - containerRect.top;
+        
+        // Get all line rects for wrapped elements
+        const rects = token.getClientRects();
+        if (rects.length === 0) return null;
+        
+        // For "bottom", use the last rect (last line of wrapped token)
+        // For "top", use the first rect
+        const targetRect = at === "bottom" ? rects[rects.length - 1] : rects[0];
+        
+        const x = targetRect.left + targetRect.width / 2 - containerRect.left;
+        const y = (at === "top" ? targetRect.top : targetRect.bottom) - containerRect.top;
         return { x, y };
     }, []);
 
-    // Render the connecting arrows (supports multiple connections)
+    // Get the center position for a source position (handles both single and range)
+    const getSourceCenter = useCallback((pos: SourcePosition, at: "top" | "bottom") => {
+        if (typeof pos === "number") {
+            return getTokenCenter("source", pos, at);
+        }
+        // For ranges, use the middle token in the range
+        // This works better when the range spans multiple lines
+        const startIdx = pos[0];
+        const endIdx = pos[1] - 1; // end is exclusive, so -1 for last token
+        const middleIdx = Math.floor((startIdx + endIdx) / 2);
+        return getTokenCenter("source", middleIdx, at);
+    }, [getTokenCenter]);
+
+    // Render the connecting arrows (supports multiple connections and ranges)
     const renderArrows = useMemo(() => {
         if (!showArrows || srcPos.length === 0) return null;
         
@@ -706,7 +967,8 @@ export function ActivationPatchingControls({
         // Draw connected arrows (paired source -> target)
         const pairedCount = Math.min(srcPos.length, tgtPos.length);
         for (let i = 0; i < pairedCount; i++) {
-            const start = getTokenCenter("source", srcPos[i], "bottom");
+            const srcPosition = srcPos[i];
+            const start = getSourceCenter(srcPosition, "bottom");
             const end = getTokenCenter("target", tgtPos[i], "top");
             if (!start || !end) continue;
             
@@ -736,8 +998,8 @@ export function ActivationPatchingControls({
         
         // Draw "connecting" arrow for the next unpaired source (following mouse/hover)
         if (srcPos.length > tgtPos.length) {
-            const unparedSrcIdx = srcPos[srcPos.length - 1];
-            const start = getTokenCenter("source", unparedSrcIdx, "bottom");
+            const unparedSrcPos = srcPos[srcPos.length - 1];
+            const start = getSourceCenter(unparedSrcPos, "bottom");
             if (start) {
                 let end: { x: number; y: number } | null = null;
                 if (hoverTgtIdx !== null) {
@@ -797,7 +1059,7 @@ export function ActivationPatchingControls({
                 {arrows}
             </svg>
         );
-    }, [showArrows, srcPos, tgtPos, hoverTgtIdx, mousePos, getTokenCenter]);
+    }, [showArrows, srcPos, tgtPos, hoverTgtIdx, mousePos, getTokenCenter, getSourceCenter]);
 
     // Clear mouse position when not connecting
     useEffect(() => {
@@ -807,21 +1069,43 @@ export function ActivationPatchingControls({
         }
     }, [isConnecting]);
 
-    // Toggle token selection for source (add/remove from array)
-    // When removing a source, also remove the corresponding target at the same index
-    const handleSrcTokenClick = useCallback((pos: number) => {
-        const idx = srcPos.indexOf(pos);
-        if (idx !== -1) {
-            // Remove this source position and its paired target
-            const newSrcPos = srcPos.filter((_, i) => i !== idx);
-            const newTgtPos = tgtPos.filter((_, i) => i !== idx);
+    // Toggle token selection for source with range support (shift+click)
+    // Regular click = add/remove single token
+    // Shift+click = start or complete a range selection
+    const handleSrcTokenClick = useCallback((pos: number, shiftKey: boolean) => {
+        // Check if this token is already part of a selection
+        const existingSelection = findSourcePositionForToken(pos, srcPos);
+        
+        if (existingSelection !== null) {
+            // Token is already selected - remove the entire position (single or range)
+            const newSrcPos = srcPos.filter((_, i) => i !== existingSelection.index);
+            const newTgtPos = tgtPos.filter((_, i) => i !== existingSelection.index);
             setSrcPos(newSrcPos);
             setTgtPos(newTgtPos);
+            setPendingRangeStart(null);
+            return;
+        }
+        
+        // Token is not selected
+        if (shiftKey) {
+            // Shift is held - range selection mode
+            if (pendingRangeStart !== null) {
+                // Complete the range
+                const start = Math.min(pendingRangeStart, pos);
+                const end = Math.max(pendingRangeStart, pos) + 1; // +1 because end is exclusive
+                setSrcPos([...srcPos, [start, end] as [number, number]]);
+                setPendingRangeStart(null);
+            } else {
+                // Start a new range
+                setPendingRangeStart(pos);
+            }
         } else {
-            // Add new source position
+            // Regular click - add as single position immediately
+            // Also cancel any pending range
+            setPendingRangeStart(null);
             setSrcPos([...srcPos, pos]);
         }
-    }, [srcPos, tgtPos]);
+    }, [srcPos, tgtPos, pendingRangeStart]);
 
     // Toggle token selection for target (add/remove from array)
     // When removing a target, also remove the corresponding source at the same index
@@ -852,13 +1136,14 @@ export function ActivationPatchingControls({
             {/* Arrow SVG overlay */}
             {renderArrows}
 
-            {/* Source Prompt */}
-            <PromptSection
+            {/* Source Prompt - with range selection support */}
+            <SourcePromptSection
                 label="Source Prompt"
                 prompt={srcPrompt}
                 setPrompt={setSrcPrompt}
                 tokens={srcTokens}
                 selectedPositions={srcPos}
+                pendingRangeStart={pendingRangeStart}
                 onTokenClick={handleSrcTokenClick}
                 isEditing={srcEditing}
                 setIsEditing={setSrcEditing}
@@ -868,7 +1153,6 @@ export function ActivationPatchingControls({
                 selectedModel={selectedModel}
                 textareaRef={srcTextareaRef}
                 tokenContainerRef={srcTokenContainerRef}
-                side="source"
             />
 
             {/* Target Prompt */}
@@ -916,6 +1200,7 @@ export function ActivationPatchingControls({
                         onClick={() => {
                             setSrcPos([]);
                             setTgtPos([]);
+                            setPendingRangeStart(null);
                         }}
                         disabled={isExecuting}
                     >
