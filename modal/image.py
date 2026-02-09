@@ -18,7 +18,7 @@ image = (
     secrets=[modal.Secret.from_name("ndif"), 
     modal.Secret.from_name("hf"),
     modal.Secret.from_name("influxdb")],
-    scaledown_window=180
+    #scaledown_window=180
 )
 @modal.concurrent(max_inputs=50)
 @modal.asgi_app()
