@@ -4,11 +4,11 @@ import { ModeToggle } from "@/components/ui/mode-toggle";
 import type React from "react";
 import { UserDropdown } from "@/components/UserDropdown";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, HelpCircle } from "lucide-react";
 import { WorkbenchStatus } from "@/components/WorkbenchStatus";
 import { CaptureProvider } from "@/components/providers/CaptureProvider";
 import { Button } from "@/components/ui/button";
-import { HelpCircle } from "lucide-react";
+import { WorkspaceNameEditor } from "@/components/WorkspaceNameEditor";
 
 export default function WorkbenchLayout({
     children,
@@ -17,15 +17,24 @@ export default function WorkbenchLayout({
 }>) {
     return (
         <div className="flex flex-col h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
-            <header className="p-3 pl-5 flex items-center justify-between">
-                <Link href="/workbench">
-                    <Button variant="ghost" className="bg-transparent hover:!white/10 border-1">
-                        <ArrowLeft className="w-4 h-4" />
-                        <h3>workspaces</h3>
-                    </Button>
-                </Link>
+            <header className="p-3 px-5 flex items-center justify-between relative">
+                {/* Left: Back button */}
+                <div className="flex items-center z-10">
+                    <Link href="/workbench">
+                        <Button variant="ghost" className="bg-transparent hover:!white/10 border-1">
+                            <ArrowLeft className="w-4 h-4" />
+                            <span className="text-sm">workspaces</span>
+                        </Button>
+                    </Link>
+                </div>
 
-                <nav className="flex gap-3 items-center">
+                {/* Center: Workspace name */}
+                <div className="absolute left-1/2 -translate-x-1/2">
+                    <WorkspaceNameEditor />
+                </div>
+
+                {/* Right: Nav items */}
+                <nav className="flex gap-3 items-center z-10">
                     <WorkbenchStatus />
                     <Link href="https://forms.gle/WsxmZikeLNw34LBV9" target="_blank">
                         <Button variant="ghost" className="bg-transparent hover:!white/10 border-0">
