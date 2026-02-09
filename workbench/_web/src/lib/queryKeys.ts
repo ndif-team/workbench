@@ -1,14 +1,8 @@
 export const queryKeys = {
-    // models: {
-    //     all: ["models"] as const,
-    // },
-    // users: {
-    //     all: ["users"] as const,
-    //     lists: () => ["users", "list"] as const,
-    //     list: (filters: unknown) => ["users", "list", filters] as const,
-    //     details: () => ["users", "detail"] as const,
-    //     detail: (id: string | number) => ["users", "detail", id] as const,
-    // },
+    workspaces: {
+        all: ["workspaces"] as const,
+        workspace: (workspaceId: string) => ["workspace", workspaceId] as const,
+    },
     charts: {
         all: ["lensCharts"] as const,
         chart: (chartId: string) => ["chart", chartId] as const,
