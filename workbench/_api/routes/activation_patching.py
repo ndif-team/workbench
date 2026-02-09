@@ -48,6 +48,7 @@ async def collect_results(
     logits = results["patched_logits_per_layer"]
     src_pred = results["src_pred"].item()
     clean_pred = results["clean_pred"].item()
-
-    data = format_data(logits, state[request.model_name].tokenizer, src_pred, clean_pred)
+    clean_logits = results["clean_logits"]
+    
+    data = format_data(logits, state[request.model_name].tokenizer, src_pred, clean_pred, clean_logits)
     return {"data": data}
