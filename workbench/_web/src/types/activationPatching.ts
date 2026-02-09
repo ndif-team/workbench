@@ -4,13 +4,20 @@
  */
 
 /**
+ * A source position can be either:
+ * - A single token index (number)
+ * - A range of tokens [startIndex, endIndex] (tuple) - activations are averaged
+ */
+export type SourcePosition = number | [number, number];
+
+/**
  * Configuration data for activation patching
  */
 export interface ActivationPatchingConfigData {
     model: string;
     srcPrompt: string;
     tgtPrompt: string;
-    srcPos: number[];  // Selected token positions in source prompt
+    srcPos: SourcePosition[];  // Selected token positions in source prompt (can include ranges)
     tgtPos: number[];  // Selected token positions in target prompt (must match srcPos length)
     selectedLineIndices?: number[];  // Indices of lines to display in the chart
 }
@@ -32,7 +39,7 @@ export interface ActivationPatchingApiRequest {
     model_name: string;
     src_prompt: string;
     tgt_prompt: string;
-    src_pos: number[];  // List of source token positions
+    src_pos: SourcePosition[];  // List of source token positions (can include ranges)
     tgt_pos: number[];  // List of target token positions (must match src_pos length)
     token_ids: number[];  // Token IDs to track
 }

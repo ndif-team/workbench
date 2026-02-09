@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Depends
-from typing import List
+from typing import List, Union
 from pydantic import BaseModel
 
 from ..data_models import NDIFResponse
@@ -18,7 +18,7 @@ class ActivationPatchingRequest(BaseModel):
     model_name: str
     src_prompt: str
     tgt_prompt: str
-    src_pos: List[int]
+    src_pos: List[Union[int, List[int]]]
     tgt_pos: List[int]
     token_ids: List[int]
 
