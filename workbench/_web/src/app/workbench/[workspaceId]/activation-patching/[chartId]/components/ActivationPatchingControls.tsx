@@ -554,8 +554,9 @@ export function ActivationPatchingControls({
 
     // Arrow connection state
     const controlsContainerRef = useRef<HTMLDivElement>(null);
-    const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
+    const connectingArrowRef = useRef<SVGPathElement>(null);
     const [hoverTgtIdx, setHoverTgtIdx] = useState<number | null>(null);
+    const rafRef = useRef<number | null>(null);
 
     // Show arrows when we have source positions selected (either connecting or connected)
     const showArrows = srcPos.length > 0 && !srcEditing && !tgtEditing;
@@ -909,17 +910,14 @@ export function ActivationPatchingControls({
         return null;
     }, [srcPos.length, tgtPos.length]);
 
-    // Mouse move handler for arrow following (only when connecting, not when connected)
-    const handleMouseMove = useCallback((e: React.MouseEvent) => {
-        if (!isConnecting) return;
-        const container = controlsContainerRef.current;
-        if (!container) return;
-        const rect = container.getBoundingClientRect();
-        setMousePos({
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
-        });
-    }, [isConnecting]);
+    // Cleanup RAF on unmount
+    useEffect(() => {
+        return () => {
+            if (rafRef.current !== null) {
+                cancelAnimationFrame(rafRef.current);
+            }
+        };
+    }, []);
 
     // Get token center position relative to container
     // Uses getClientRects() to handle tokens that wrap across multiple lines
@@ -958,7 +956,66 @@ export function ActivationPatchingControls({
         return getTokenCenter("source", middleIdx, at);
     }, [getTokenCenter]);
 
+    // Get the start position for the connecting arrow (cached to avoid recalc on every move)
+    const getConnectingArrowStart = useCallback(() => {
+        if (srcPos.length <= tgtPos.length) return null;
+        const unparedSrcPos = srcPos[srcPos.length - 1];
+        if (typeof unparedSrcPos === "number") {
+            return getTokenCenter("source", unparedSrcPos, "bottom");
+        }
+        // For ranges, use the middle token
+        const startIdx = unparedSrcPos[0];
+        const endIdx = unparedSrcPos[1] - 1;
+        const middleIdx = Math.floor((startIdx + endIdx) / 2);
+        return getTokenCenter("source", middleIdx, "bottom");
+    }, [srcPos, tgtPos, getTokenCenter]);
+
+    // Mouse move handler - directly updates SVG path without React re-render
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
+        if (!isConnecting) return;
+        const container = controlsContainerRef.current;
+        const pathEl = connectingArrowRef.current;
+        if (!container || !pathEl) return;
+        
+        // Only schedule a new frame if one isn't already pending
+        if (rafRef.current !== null) return;
+        
+        const clientX = e.clientX;
+        const clientY = e.clientY;
+        
+        rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = null;
+            const rect = container.getBoundingClientRect();
+            const mousePos = {
+                x: clientX - rect.left,
+                y: clientY - rect.top,
+            };
+            
+            const start = getConnectingArrowStart();
+            if (!start) {
+                pathEl.setAttribute("d", "");
+                return;
+            }
+            
+            const path = createCurvePath(start, mousePos);
+            pathEl.setAttribute("d", path);
+        });
+    }, [isConnecting, getConnectingArrowStart]);
+    
+    // Hide connecting arrow when mouse leaves
+    const handleMouseLeave = useCallback(() => {
+        if (rafRef.current !== null) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = null;
+        }
+        const pathEl = connectingArrowRef.current;
+        if (pathEl) {
+            pathEl.setAttribute("d", "");
+        }
+    }, []);
+
     // Render the connecting arrows (supports multiple connections and ranges)
+    // The mouse-following arrow uses a ref and is updated via DOM manipulation for performance
     const renderArrows = useMemo(() => {
         if (!showArrows || srcPos.length === 0) return null;
         
@@ -996,40 +1053,33 @@ export function ActivationPatchingControls({
             );
         }
         
-        // Draw "connecting" arrow for the next unpaired source (following mouse/hover)
-        if (srcPos.length > tgtPos.length) {
+        // Draw hover arrow (when hovering over a target token)
+        if (srcPos.length > tgtPos.length && hoverTgtIdx !== null) {
             const unparedSrcPos = srcPos[srcPos.length - 1];
             const start = getSourceCenter(unparedSrcPos, "bottom");
-            if (start) {
-                let end: { x: number; y: number } | null = null;
-                if (hoverTgtIdx !== null) {
-                    end = getTokenCenter("target", hoverTgtIdx, "top");
-                } else if (mousePos) {
-                    end = mousePos;
-                }
-                
-                if (end) {
-                    const colorIdx = (srcPos.length - 1) % PATCH_COLORS.length;
-                    const color = PATCH_COLORS[colorIdx].bg;
-                    arrows.push(
-                        <g key="arrow-connecting">
-                            {/* Dashed arrow following cursor */}
-                            <path
-                                d={createCurvePath(start, end)}
-                                fill="none"
-                                stroke={color}
-                                strokeWidth={2}
-                                strokeDasharray={hoverTgtIdx !== null ? "none" : "6,4"}
-                                markerEnd={`url(#arrow-head-${colorIdx})`}
-                                className="transition-all duration-75"
-                            />
-                        </g>
-                    );
-                }
+            const end = getTokenCenter("target", hoverTgtIdx, "top");
+            if (start && end) {
+                const colorIdx = (srcPos.length - 1) % PATCH_COLORS.length;
+                const color = PATCH_COLORS[colorIdx].bg;
+                arrows.push(
+                    <g key="arrow-hover">
+                        <path
+                            d={createCurvePath(start, end)}
+                            fill="none"
+                            stroke={color}
+                            strokeWidth={2}
+                            markerEnd={`url(#arrow-head-${colorIdx})`}
+                        />
+                    </g>
+                );
             }
         }
-
-        if (arrows.length === 0) return null;
+        
+        // Determine the color for the connecting arrow
+        const connectingColorIdx = srcPos.length > tgtPos.length 
+            ? (srcPos.length - 1) % PATCH_COLORS.length 
+            : 0;
+        const connectingColor = PATCH_COLORS[connectingColorIdx].bg;
 
         return (
             <svg className="pointer-events-none absolute inset-0 w-full h-full overflow-visible z-50">
@@ -1057,14 +1107,28 @@ export function ActivationPatchingControls({
                     </filter>
                 </defs>
                 {arrows}
+                {/* Mouse-following arrow - updated via DOM for smooth performance */}
+                {isConnecting && hoverTgtIdx === null && (
+                    <path
+                        ref={connectingArrowRef}
+                        fill="none"
+                        stroke={connectingColor}
+                        strokeWidth={2}
+                        strokeDasharray="6,4"
+                        markerEnd={`url(#arrow-head-${connectingColorIdx})`}
+                    />
+                )}
             </svg>
         );
-    }, [showArrows, srcPos, tgtPos, hoverTgtIdx, mousePos, getTokenCenter, getSourceCenter]);
+    }, [showArrows, srcPos, tgtPos, hoverTgtIdx, isConnecting, getTokenCenter, getSourceCenter]);
 
-    // Clear mouse position when not connecting
+    // Clear connecting arrow when not connecting
     useEffect(() => {
         if (!isConnecting) {
-            setMousePos(null);
+            const pathEl = connectingArrowRef.current;
+            if (pathEl) {
+                pathEl.setAttribute("d", "");
+            }
             setHoverTgtIdx(null);
         }
     }, [isConnecting]);
@@ -1131,7 +1195,7 @@ export function ActivationPatchingControls({
             ref={controlsContainerRef}
             className="relative flex flex-col gap-6"
             onMouseMove={handleMouseMove}
-            onMouseLeave={() => setMousePos(null)}
+            onMouseLeave={handleMouseLeave}
         >
             {/* Arrow SVG overlay */}
             {renderArrows}
