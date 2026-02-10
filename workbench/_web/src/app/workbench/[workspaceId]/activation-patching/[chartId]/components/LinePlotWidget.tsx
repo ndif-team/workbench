@@ -329,22 +329,19 @@ export function LinePlotWidget({
         // Generate y-axis ticks based on mode
         const yTicks: number[] = [];
         const range = chartConfig.maxValue - chartConfig.minValue;
-        if (mode === "probability") {
-            // Fixed ticks for probability mode
-            yTicks.push(0, 0.25, 0.5, 0.75, 1.0);
-        } else if (mode === "prob_diff") {
-            // Symmetric ticks around zero for probability difference
-            const numTicks = 5;
-            for (let i = 0; i < numTicks; i++) {
-                const value = chartConfig.minValue + (i / (numTicks - 1)) * range;
-                yTicks.push(value);
-            }
-        } else {
-            // Dynamic ticks for rank mode
-            const numTicks = 5;
+        const numTicks = 5;
+        
+        if (mode === "rank") {
+            // Integer ticks for rank mode
             for (let i = 0; i < numTicks; i++) {
                 const value = chartConfig.minValue + (i / (numTicks - 1)) * range;
                 yTicks.push(Math.round(value));
+            }
+        } else {
+            // Dynamic ticks for probability and prob_diff modes
+            for (let i = 0; i < numTicks; i++) {
+                const value = chartConfig.minValue + (i / (numTicks - 1)) * range;
+                yTicks.push(value);
             }
         }
 
