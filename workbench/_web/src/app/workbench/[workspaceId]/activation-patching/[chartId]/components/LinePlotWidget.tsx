@@ -170,8 +170,14 @@ export function LinePlotWidget({
                     minValue = mode === "probability" ? 0 : Math.floor(dataMin * 0.9);
                 }
                 if (maxValue === undefined) {
-                    // Use data-driven max with 10% padding for all modes
-                    maxValue = mode === "rank" ? Math.ceil(dataMax * 1.1) : dataMax * 1.1;
+                    // Use data-driven max with 10% padding, but cap probability at 1.0
+                    if (mode === "rank") {
+                        maxValue = Math.ceil(dataMax * 1.1);
+                    } else if (mode === "probability") {
+                        maxValue = Math.min(dataMax * 1.1, 1.0);
+                    } else {
+                        maxValue = dataMax * 1.1;
+                    }
                 }
             }
         }
