@@ -165,10 +165,13 @@ export function LinePlotWidget({
                 maxValue = paddedMax;
             } else {
                 if (minValue === undefined) {
+                    // For probability, start at 0 but don't force max to 1
+                    // For rank, use floor of 90% of min
                     minValue = mode === "probability" ? 0 : Math.floor(dataMin * 0.9);
                 }
                 if (maxValue === undefined) {
-                    maxValue = mode === "probability" ? 1 : Math.ceil(dataMax * 1.1);
+                    // Use data-driven max with 10% padding for all modes
+                    maxValue = mode === "rank" ? Math.ceil(dataMax * 1.1) : dataMax * 1.1;
                 }
             }
         }

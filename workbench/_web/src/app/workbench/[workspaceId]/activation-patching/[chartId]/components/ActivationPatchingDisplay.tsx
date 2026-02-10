@@ -276,8 +276,6 @@ export function ActivationPatchingDisplay() {
                         transparentBackground
                         mode={displayMode}
                         invertYAxis={displayMode === "rank"}
-                        minValue={displayMode === "probability" ? 0 : undefined}
-                        maxValue={displayMode === "probability" ? 1 : undefined}
                         centerYAxisAtZero={displayMode === "prob_diff"}
                     />
                 ) : (
