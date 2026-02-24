@@ -145,8 +145,10 @@ function SelectableTokenDisplay({
                     let tokenStyle: React.CSSProperties | undefined;
                     if (isFrozen) {
                         tokenStyle = {
-                            backgroundColor: FREEZE_COLOR.bg,
-                            boxShadow: `inset 0 0 0 2px ${FREEZE_COLOR.ring}`,
+                            backgroundColor: "rgba(6, 182, 212, 0.25)",
+                            backgroundImage: "repeating-linear-gradient(135deg, transparent, transparent 2px, rgba(6, 182, 212, 0.15) 2px, rgba(6, 182, 212, 0.15) 4px)",
+                            border: "1.5px dashed #06b6d4",
+                            boxShadow: "none",
                         };
                     } else if (isSelected && patchColor) {
                         tokenStyle = {
@@ -158,7 +160,7 @@ function SelectableTokenDisplay({
                     // Build title text
                     let titleText = `${label} position ${idx}: "${token.text}"`;
                     if (isFrozen) {
-                        titleText += " (frozen - Ctrl+click to unfreeze)";
+                        titleText += " (frozen - click to unfreeze)";
                     } else if (isSelected) {
                         titleText += ` (patch #${selectionIndex + 1})`;
                     } else if (side === "target") {
@@ -175,6 +177,7 @@ function SelectableTokenDisplay({
                                 onMouseLeave={() => onTokenLeave?.()}
                                 className={cn(
                                     TOKEN_STYLES.base,
+                                    "group",
                                     // Show clickable styling when not selected or frozen
                                     !isSelected && !isFrozen && !loading && TOKEN_STYLES.clickable,
                                     !isSelected && !isFrozen && !loading && TOKEN_STYLES.hover,
@@ -186,6 +189,12 @@ function SelectableTokenDisplay({
                                 title={titleText}
                             >
                                 {result}
+                                {/* Snowflake badge for frozen tokens - only visible on hover */}
+                                {isFrozen && (
+                                    <span className="absolute -top-1.5 -right-1.5 z-10 bg-cyan-500 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                        <Snowflake className="w-2 h-2 text-white" />
+                                    </span>
+                                )}
                             </span>
                             {numNewlines > 0 && "\n".repeat(numNewlines)}
                         </span>
@@ -1196,13 +1205,16 @@ export function ActivationPatchingControls({
     }, [srcPos, tgtPos, pendingRangeStart]);
 
     // Toggle token selection for target (add/remove from array)
-    // Regular click: patch position pairing (when source has more selections)
+    // Regular click: patch position pairing (when source has more selections), or unfreeze if frozen
     // Ctrl+click: freeze position (independent of patching)
     const handleTgtTokenClick = useCallback((pos: number, ctrlKey: boolean) => {
+        // Check if token is frozen
+        const freezeIdx = tgtFreeze.indexOf(pos);
+        const isFrozen = freezeIdx !== -1;
+        
         if (ctrlKey) {
             // Ctrl+click: toggle freeze
-            const freezeIdx = tgtFreeze.indexOf(pos);
-            if (freezeIdx !== -1) {
+            if (isFrozen) {
                 // Remove from freeze
                 setTgtFreeze(tgtFreeze.filter((_, i) => i !== freezeIdx));
             } else {
@@ -1212,12 +1224,14 @@ export function ActivationPatchingControls({
                 }
             }
         } else {
-            // Regular click: patch position
-            // First check if it's frozen - can't patch a frozen position
-            if (tgtFreeze.includes(pos)) {
+            // Regular click
+            // If frozen, unfreeze it
+            if (isFrozen) {
+                setTgtFreeze(tgtFreeze.filter((_, i) => i !== freezeIdx));
                 return;
             }
             
+            // Otherwise handle as patch position
             const idx = tgtPos.indexOf(pos);
             if (idx !== -1) {
                 // Remove this target position and its paired source
