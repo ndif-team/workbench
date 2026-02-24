@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Play, TriangleAlert, MousePointerClick, X } from "lucide-react";
+import { Loader2, Play, TriangleAlert, MousePointerClick, X, Snowflake } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ActivationPatchingConfigData, ActivationPatchingData, SourcePosition } from "@/types/activationPatching";
@@ -42,12 +42,14 @@ interface ActivationPatchingControlsProps {
 // Shared colors for patch arrows and token selection
 const PATCH_COLORS = [
     { bg: "#8b5cf6", ring: "#8b5cf6", hover: "rgba(139, 92, 246, 0.2)", hoverRing: "rgba(139, 92, 246, 0.5)" }, // violet
-    { bg: "#06b6d4", ring: "#06b6d4", hover: "rgba(6, 182, 212, 0.2)", hoverRing: "rgba(6, 182, 212, 0.5)" },   // cyan
     { bg: "#f59e0b", ring: "#f59e0b", hover: "rgba(245, 158, 11, 0.2)", hoverRing: "rgba(245, 158, 11, 0.5)" }, // amber
     { bg: "#10b981", ring: "#10b981", hover: "rgba(16, 185, 129, 0.2)", hoverRing: "rgba(16, 185, 129, 0.5)" }, // emerald
     { bg: "#ef4444", ring: "#ef4444", hover: "rgba(239, 68, 68, 0.2)", hoverRing: "rgba(239, 68, 68, 0.5)" },   // red
     { bg: "#ec4899", ring: "#ec4899", hover: "rgba(236, 72, 153, 0.2)", hoverRing: "rgba(236, 72, 153, 0.5)" }, // pink
 ];
+
+// Freeze color (cyan) for frozen tokens
+const FREEZE_COLOR = { bg: "#06b6d4", ring: "#06b6d4" };
 
 // Helper to check if a token index is part of a source position (single or range)
 function isTokenInSourcePosition(tokenIdx: number, pos: SourcePosition): boolean {
@@ -95,11 +97,12 @@ const fixTokenText = (text: string) => {
     return { result, numNewlines };
 };
 
-// Token display with click-to-select functionality (supports multiple selections)
+// Token display with click-to-select functionality (supports multiple selections and freeze)
 function SelectableTokenDisplay({
     tokens,
     loading,
     selectedPositions,
+    frozenPositions = [],
     onTokenClick,
     onTokenHover,
     onTokenLeave,
@@ -109,7 +112,8 @@ function SelectableTokenDisplay({
     tokens: Token[];
     loading: boolean;
     selectedPositions: number[];
-    onTokenClick: (pos: number) => void;
+    frozenPositions?: number[];
+    onTokenClick: (pos: number, ctrlKey: boolean) => void;
     onTokenHover?: (pos: number) => void;
     onTokenLeave?: () => void;
     label: string;
@@ -119,7 +123,7 @@ function SelectableTokenDisplay({
         // Stop propagation to prevent triggering edit mode on the container
         e.stopPropagation();
         if (!loading) {
-            onTokenClick(idx);
+            onTokenClick(idx, e.ctrlKey || e.metaKey);
         }
     };
 
@@ -134,7 +138,32 @@ function SelectableTokenDisplay({
                     const { result, numNewlines } = fixTokenText(token.text);
                     const selectionIndex = selectedPositions.indexOf(idx);
                     const isSelected = selectionIndex !== -1;
+                    const isFrozen = frozenPositions.includes(idx);
                     const patchColor = isSelected ? PATCH_COLORS[selectionIndex % PATCH_COLORS.length] : null;
+                    
+                    // Determine styling based on selection state
+                    let tokenStyle: React.CSSProperties | undefined;
+                    if (isFrozen) {
+                        tokenStyle = {
+                            backgroundColor: FREEZE_COLOR.bg,
+                            boxShadow: `inset 0 0 0 2px ${FREEZE_COLOR.ring}`,
+                        };
+                    } else if (isSelected && patchColor) {
+                        tokenStyle = {
+                            backgroundColor: patchColor.bg,
+                            boxShadow: `inset 0 0 0 2px ${patchColor.ring}`,
+                        };
+                    }
+                    
+                    // Build title text
+                    let titleText = `${label} position ${idx}: "${token.text}"`;
+                    if (isFrozen) {
+                        titleText += " (frozen - Ctrl+click to unfreeze)";
+                    } else if (isSelected) {
+                        titleText += ` (patch #${selectionIndex + 1})`;
+                    } else if (side === "target") {
+                        titleText += " (Ctrl+click to freeze)";
+                    }
                     
                     return (
                         <span key={`token-${idx}`}>
@@ -146,30 +175,17 @@ function SelectableTokenDisplay({
                                 onMouseLeave={() => onTokenLeave?.()}
                                 className={cn(
                                     TOKEN_STYLES.base,
-                                    // Show clickable styling when not selected
-                                    !isSelected && !loading && TOKEN_STYLES.clickable,
-                                    !isSelected && !loading && TOKEN_STYLES.hover,
-                                    isSelected && TOKEN_STYLES.selected,
+                                    // Show clickable styling when not selected or frozen
+                                    !isSelected && !isFrozen && !loading && TOKEN_STYLES.clickable,
+                                    !isSelected && !isFrozen && !loading && TOKEN_STYLES.hover,
+                                    (isSelected || isFrozen) && TOKEN_STYLES.selected,
                                     token.text === "\\n" ? "w-full" : "w-fit",
                                     loading ? "cursor-progress" : "cursor-pointer"
                                 )}
-                                style={isSelected && patchColor ? {
-                                    backgroundColor: patchColor.bg,
-                                    boxShadow: `inset 0 0 0 2px ${patchColor.ring}`,
-                                } : undefined}
-                                title={`${label} position ${idx}: "${token.text}"${isSelected ? ` (patch #${selectionIndex + 1})` : ""}`}
+                                style={tokenStyle}
+                                title={titleText}
                             >
                                 {result}
-                                {/* Token number badge - commented out as it makes tokens hard to read
-                                {isSelected && selectedPositions.length > 1 && patchColor && (
-                                    <span 
-                                        className="absolute -top-1 -right-1 text-[10px] text-white rounded-full w-4 h-4 flex items-center justify-center font-medium"
-                                        style={{ backgroundColor: patchColor.bg }}
-                                    >
-                                        {selectionIndex + 1}
-                                    </span>
-                                )}
-                                */}
                             </span>
                             {numNewlines > 0 && "\n".repeat(numNewlines)}
                         </span>
@@ -273,13 +289,14 @@ function SourceTokenDisplay({
     );
 }
 
-// Prompt section component for reusability (supports multiple selections)
+// Prompt section component for reusability (supports multiple selections and freeze)
 function PromptSection({
     label,
     prompt,
     setPrompt,
     tokens,
     selectedPositions,
+    frozenPositions = [],
     onTokenClick,
     onTokenHover,
     onTokenLeave,
@@ -298,7 +315,8 @@ function PromptSection({
     setPrompt: (value: string) => void;
     tokens: Token[];
     selectedPositions: number[];
-    onTokenClick: (pos: number) => void;
+    frozenPositions?: number[];
+    onTokenClick: (pos: number, ctrlKey: boolean) => void;
     onTokenHover?: (pos: number) => void;
     onTokenLeave?: () => void;
     isEditing: boolean;
@@ -373,9 +391,10 @@ function PromptSection({
                             tokens={tokens}
                             loading={isExecuting}
                             selectedPositions={selectedPositions}
-                            onTokenClick={(pos) => {
+                            frozenPositions={frozenPositions}
+                            onTokenClick={(pos, ctrlKey) => {
                                 // Don't switch to edit mode when clicking a token
-                                onTokenClick(pos);
+                                onTokenClick(pos, ctrlKey);
                             }}
                             onTokenHover={onTokenHover}
                             onTokenLeave={onTokenLeave}
@@ -530,6 +549,7 @@ export function ActivationPatchingControls({
     const initialTgtPrompt = initialConfig.data?.tgtPrompt ?? "";
     const initialSrcPos = initialConfig.data?.srcPos ?? [];
     const initialTgtPos = initialConfig.data?.tgtPos ?? [];
+    const initialTgtFreeze = initialConfig.data?.tgtFreeze ?? [];
 
     // Source prompt state
     const [srcPrompt, setSrcPrompt] = useState(initialSrcPrompt);
@@ -547,6 +567,7 @@ export function ActivationPatchingControls({
     const [tgtPrompt, setTgtPrompt] = useState(initialTgtPrompt);
     const [tgtTokens, setTgtTokens] = useState<Token[]>([]);
     const [tgtPos, setTgtPos] = useState<number[]>(initialTgtPos);
+    const [tgtFreeze, setTgtFreeze] = useState<number[]>(initialTgtFreeze);
     const [tgtEditing, setTgtEditing] = useState(!initialTgtPrompt); // Start in view mode if prompt exists
     const [tgtTokenizedModel, setTgtTokenizedModel] = useState<string | null>(null);
     const tgtTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -760,11 +781,12 @@ export function ActivationPatchingControls({
             setTgtEditing(false);
             
             // Reset positions if tokens changed (prompt was modified)
-            if (tokensChanged && tgtPos.length > 0) {
-                setTgtPos([]);
+            if (tokensChanged) {
+                if (tgtPos.length > 0) setTgtPos([]);
+                if (tgtFreeze.length > 0) setTgtFreeze([]);
             }
         }
-    }, [tgtPrompt, selectedModel, tgtPos, tgtTokens]);
+    }, [tgtPrompt, selectedModel, tgtPos, tgtFreeze, tgtTokens]);
 
     // Handle blur for source
     const handleSrcBlur = useCallback(() => {
@@ -839,6 +861,7 @@ export function ActivationPatchingControls({
             tgtPrompt: trimmedTgtPrompt,
             srcPos,
             tgtPos,
+            tgtFreeze,
         };
 
         // Compute the activation patching visualization
@@ -877,6 +900,7 @@ export function ActivationPatchingControls({
         tgtPrompt,
         srcPos,
         tgtPos,
+        tgtFreeze,
         selectedModel,
         chartId,
         initialConfig.id,
@@ -1172,23 +1196,44 @@ export function ActivationPatchingControls({
     }, [srcPos, tgtPos, pendingRangeStart]);
 
     // Toggle token selection for target (add/remove from array)
-    // When removing a target, also remove the corresponding source at the same index
-    const handleTgtTokenClick = useCallback((pos: number) => {
-        const idx = tgtPos.indexOf(pos);
-        if (idx !== -1) {
-            // Remove this target position and its paired source
-            const newTgtPos = tgtPos.filter((_, i) => i !== idx);
-            const newSrcPos = srcPos.filter((_, i) => i !== idx);
-            setTgtPos(newTgtPos);
-            setSrcPos(newSrcPos);
-        } else {
-            // Only allow adding if we have more source positions than target (pairing mode)
-            if (srcPos.length > tgtPos.length) {
-                setTgtPos([...tgtPos, pos]);
+    // Regular click: patch position pairing (when source has more selections)
+    // Ctrl+click: freeze position (independent of patching)
+    const handleTgtTokenClick = useCallback((pos: number, ctrlKey: boolean) => {
+        if (ctrlKey) {
+            // Ctrl+click: toggle freeze
+            const freezeIdx = tgtFreeze.indexOf(pos);
+            if (freezeIdx !== -1) {
+                // Remove from freeze
+                setTgtFreeze(tgtFreeze.filter((_, i) => i !== freezeIdx));
+            } else {
+                // Add to freeze (don't allow freezing a patch position)
+                if (!tgtPos.includes(pos)) {
+                    setTgtFreeze([...tgtFreeze, pos]);
+                }
             }
-            // If already balanced, don't add (must add a source first)
+        } else {
+            // Regular click: patch position
+            // First check if it's frozen - can't patch a frozen position
+            if (tgtFreeze.includes(pos)) {
+                return;
+            }
+            
+            const idx = tgtPos.indexOf(pos);
+            if (idx !== -1) {
+                // Remove this target position and its paired source
+                const newTgtPos = tgtPos.filter((_, i) => i !== idx);
+                const newSrcPos = srcPos.filter((_, i) => i !== idx);
+                setTgtPos(newTgtPos);
+                setSrcPos(newSrcPos);
+            } else {
+                // Only allow adding if we have more source positions than target (pairing mode)
+                if (srcPos.length > tgtPos.length) {
+                    setTgtPos([...tgtPos, pos]);
+                }
+                // If already balanced, don't add (must add a source first)
+            }
         }
-    }, [srcPos, tgtPos]);
+    }, [srcPos, tgtPos, tgtFreeze]);
 
     return (
         <div 
@@ -1226,6 +1271,7 @@ export function ActivationPatchingControls({
                 setPrompt={setTgtPrompt}
                 tokens={tgtTokens}
                 selectedPositions={tgtPos}
+                frozenPositions={tgtFreeze}
                 onTokenClick={handleTgtTokenClick}
                 onTokenHover={isConnecting ? setHoverTgtIdx : undefined}
                 onTokenLeave={isConnecting ? () => setHoverTgtIdx(null) : undefined}
@@ -1249,13 +1295,19 @@ export function ActivationPatchingControls({
             */}
 
             {/* Selection summary and clear button */}
-            {(srcPos.length > 0 || tgtPos.length > 0) && (
+            {(srcPos.length > 0 || tgtPos.length > 0 || tgtFreeze.length > 0) && (
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>
+                    <span className="flex items-center gap-2">
                         {srcPos.length === tgtPos.length && srcPos.length > 0
                             ? `${srcPos.length} patch${srcPos.length > 1 ? "es" : ""} ready`
                             : `Source: ${srcPos.length}, Target: ${tgtPos.length}`
                         }
+                        {tgtFreeze.length > 0 && (
+                            <span className="flex items-center gap-1 text-cyan-500">
+                                <Snowflake className="w-3 h-3" />
+                                {tgtFreeze.length} frozen
+                            </span>
+                        )}
                     </span>
                     <Button 
                         variant="ghost" 
@@ -1264,6 +1316,7 @@ export function ActivationPatchingControls({
                         onClick={() => {
                             setSrcPos([]);
                             setTgtPos([]);
+                            setTgtFreeze([]);
                             setPendingRangeStart(null);
                         }}
                         disabled={isExecuting}

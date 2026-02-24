@@ -9,10 +9,10 @@ def activation_patching(
     tgt_prompt: str,
     src_pos: List[Union[int, List[int]]],
     tgt_pos: List[int],
+    tgt_freeze: List[int],
     backend,
     remote: bool = True,
 ):
-
     layers = len(model.model.layers)
 
     with model.session(remote=remote, backend=backend) as session:
@@ -34,10 +34,10 @@ def activation_patching(
 
             src_pred = model.lm_head.output[0, -1].argmax(dim=-1).save()
 
-        clean_logits_per_layer = list()
+        clean_hs = list()
         with model.trace(tgt_prompt):
             for l_idx in range(layers):
-                clean_logits_per_layer.append(model.model.layers[l_idx].output)
+                clean_hs.append(model.model.layers[l_idx].output)
 
             clean_pred = model.lm_head.output[0, -1].argmax(dim=-1).save()
             clean_logits = torch.nn.functional.softmax(model.lm_head.output[0, -1], dim=-1).save()
@@ -46,15 +46,20 @@ def activation_patching(
         for l_idx in range(layers):
             with model.trace(tgt_prompt):
                 for layer_to_skip in range(l_idx+1):
-                    model.model.layers[layer_to_skip].skip(clean_logits_per_layer[layer_to_skip])
-                    
-                hs = model.model.layers[l_idx].output
+                    model.model.layers[layer_to_skip].skip(clean_hs[layer_to_skip])
 
-                if isinstance(hs, tuple):
-                    hs = hs[0]
+                for sub_l_idx in range(l_idx, layers):
+                    hs = model.model.layers[sub_l_idx].output
 
-                for pos, src_act in zip(tgt_pos, src_acts[l_idx]):
-                    hs[0, pos][:] = src_act
+                    if isinstance(hs, tuple):
+                            hs = hs[0]
+
+                    if sub_l_idx == l_idx:
+                        for pos, src_act in zip(tgt_pos, src_acts[l_idx]): # apply patch
+                            hs[0, pos][:] = src_act
+                    else:
+                        for pos_to_freeze in tgt_freeze: # freeze activations
+                            hs[0, pos_to_freeze][:] = clean_hs[sub_l_idx][0, pos_to_freeze]
                 
                 patched_logits_per_layer.append(torch.nn.functional.softmax(model.lm_head.output[0, -1], dim=-1).save())
 

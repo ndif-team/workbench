@@ -20,6 +20,7 @@ class ActivationPatchingRequest(BaseModel):
     tgt_prompt: str
     src_pos: List[Union[int, List[int]]]
     tgt_pos: List[int]
+    tgt_freeze: List[int] = []
     token_ids: List[int]
 
 class ActivationPatchingResponse(NDIFResponse):
@@ -33,7 +34,7 @@ async def start_activation_patching(
     user_email: str = Depends(require_user_email),
 ):
     model = state[request.model_name]
-    job_id = activation_patching(model, request.src_prompt, request.tgt_prompt, request.src_pos, request.tgt_pos, state.make_backend(model=model), state.remote)
+    job_id = activation_patching(model, request.src_prompt, request.tgt_prompt, request.src_pos, request.tgt_pos, request.tgt_freeze, state.make_backend(model=model), state.remote)
     return {"job_id": job_id}
 
 @router.post("/results/{job_id}", response_model=ActivationPatchingResponse)
