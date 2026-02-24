@@ -288,6 +288,7 @@ export function TokenSelector({ allLabels, selectedIndices, onChange, defaultInd
                     hideSelectedOptions={false}
                     isClearable={false}
                     isDisabled={disabled}
+                    menuPlacement="auto"
                     components={{
                         IndicatorSeparator: () => null,
                         DropdownIndicator: () => null,

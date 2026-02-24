@@ -59,7 +59,12 @@ def activation_patching(
                             hs[0, pos][:] = src_act
                     else:
                         for pos_to_freeze in tgt_freeze: # freeze activations
-                            hs[0, pos_to_freeze][:] = clean_hs[sub_l_idx][0, pos_to_freeze]
+                            hs_freeze = clean_hs[sub_l_idx]
+
+                            if isinstance(hs_freeze, tuple):
+                                hs_freeze = hs_freeze[0]
+
+                            hs[0, pos_to_freeze][:] = hs_freeze[0, pos_to_freeze]
                 
                 patched_logits_per_layer.append(torch.nn.functional.softmax(model.lm_head.output[0, -1], dim=-1).save())
 
