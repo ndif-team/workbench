@@ -38,6 +38,7 @@ const getActivationPatching = async (
         tgt_prompt: request.completion.tgtPrompt,
         src_pos: request.completion.srcPos ?? [],
         tgt_pos: request.completion.tgtPos ?? [],
+        tgt_freeze: request.completion.tgtFreeze ?? [],
         token_ids: [],  // Backend will use src_pred and clean_pred from results
     };
 

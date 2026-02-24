@@ -19,6 +19,7 @@ export interface ActivationPatchingConfigData {
     tgtPrompt: string;
     srcPos: SourcePosition[];  // Selected token positions in source prompt (can include ranges)
     tgtPos: number[];  // Selected token positions in target prompt (must match srcPos length)
+    tgtFreeze: number[];  // Token positions in target prompt to freeze (keep clean activations)
     selectedLineIndices?: number[];  // Indices of lines to display in the chart
 }
 
@@ -42,5 +43,6 @@ export interface ActivationPatchingApiRequest {
     tgt_prompt: string;
     src_pos: SourcePosition[];  // List of source token positions (can include ranges)
     tgt_pos: number[];  // List of target token positions (must match src_pos length)
+    tgt_freeze: number[];  // Token positions in target prompt to freeze
     token_ids: number[];  // Token IDs to track
 }
