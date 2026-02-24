@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Play, TriangleAlert, MousePointerClick, X, Snowflake } from "lucide-react";
+import { Loader2, Play, TriangleAlert, MousePointerClick, X, Snowflake, ChevronDown, ArrowRight } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ActivationPatchingConfigData, ActivationPatchingData, SourcePosition } from "@/types/activationPatching";
@@ -431,6 +431,140 @@ function PromptSection({
     );
 }
 
+// Collapsible patch configuration table component
+function PatchConfigTable({
+    srcPos,
+    tgtPos,
+    tgtFreeze,
+    expanded,
+    onToggleExpanded,
+    onClear,
+    disabled,
+}: {
+    srcPos: SourcePosition[];
+    tgtPos: number[];
+    tgtFreeze: number[];
+    expanded: boolean;
+    onToggleExpanded: () => void;
+    onClear: () => void;
+    disabled: boolean;
+}) {
+    if (srcPos.length === 0 && tgtFreeze.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="border border-border/30 rounded overflow-hidden">
+            {/* Header / Toggle */}
+            <div className="flex items-center justify-between px-2 py-1 bg-muted/20">
+                <button
+                    onClick={onToggleExpanded}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors text-xs text-muted-foreground"
+                >
+                    <span>Config</span>
+                    <ChevronDown 
+                        className={cn(
+                            "w-3 h-3 transition-transform duration-200",
+                            expanded && "rotate-180"
+                        )}
+                    />
+                </button>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onClear();
+                    }}
+                    disabled={disabled}
+                    className="p-0.5 rounded hover:bg-muted/50 text-muted-foreground/60 hover:text-muted-foreground transition-colors disabled:opacity-50"
+                    title="Clear all"
+                >
+                    <X className="w-3 h-3" />
+                </button>
+            </div>
+            
+            {/* Table Content */}
+            {expanded && (
+                <div className="px-2 py-1.5 space-y-1">
+                    {/* Patch rows - sorted by earliest source position */}
+                    {srcPos
+                        .map((srcPosition, idx) => ({
+                            srcPosition,
+                            idx,
+                            sortKey: typeof srcPosition === "number" ? srcPosition : srcPosition[0],
+                        }))
+                        .sort((a, b) => a.sortKey - b.sortKey)
+                        .map(({ srcPosition, idx }) => {
+                            const patchColor = PATCH_COLORS[idx % PATCH_COLORS.length];
+                            const hasPairedTarget = idx < tgtPos.length;
+                            const srcPosLabel = typeof srcPosition === "number" 
+                                ? `${srcPosition}`
+                                : `${srcPosition[0]}–${srcPosition[1] - 1}`;
+                            const tgtPosLabel = hasPairedTarget ? `${tgtPos[idx]}` : "?";
+                            
+                            return (
+                                <div 
+                                    key={`patch-${idx}`}
+                                    className="flex items-center gap-1.5 text-[10px]"
+                                >
+                                    {/* Source position */}
+                                    <span className="font-mono text-muted-foreground min-w-[24px] text-right">
+                                        {srcPosLabel}
+                                    </span>
+                                    {/* Arrow - compact */}
+                                    <span 
+                                        className="flex items-center flex-shrink-0"
+                                        style={{ color: patchColor.bg }}
+                                    >
+                                        <span 
+                                            className="w-4 h-px"
+                                            style={{ backgroundColor: patchColor.bg }}
+                                        />
+                                        <span 
+                                            className="w-0 h-0 border-t-[3px] border-b-[3px] border-l-[4px] border-t-transparent border-b-transparent -ml-px"
+                                            style={{ borderLeftColor: patchColor.bg }}
+                                        />
+                                    </span>
+                                    {/* Target position */}
+                                    <span 
+                                        className={cn(
+                                            "font-mono min-w-[24px]",
+                                            hasPairedTarget 
+                                                ? "text-muted-foreground" 
+                                                : "text-muted-foreground/40 italic"
+                                        )}
+                                    >
+                                        {tgtPosLabel}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    
+                    {/* Frozen positions section */}
+                    {tgtFreeze.length > 0 && (
+                        <>
+                            {srcPos.length > 0 && <div className="border-t border-border/20 my-1" />}
+                            <div className="flex items-center gap-1 flex-wrap">
+                                {tgtFreeze
+                                    .slice()
+                                    .sort((a, b) => a - b)
+                                    .map((pos) => (
+                                        <span 
+                                            key={`frozen-${pos}`}
+                                            className="inline-flex items-center gap-0.5 px-1 py-px rounded text-[10px] font-mono text-cyan-600 dark:text-cyan-400"
+                                        >
+                                            <Snowflake className="w-2 h-2" />
+                                            {pos}
+                                        </span>
+                                    ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // Source prompt section with range selection support
 function SourcePromptSection({
     label,
@@ -587,6 +721,9 @@ export function ActivationPatchingControls({
     const connectingArrowRef = useRef<SVGPathElement>(null);
     const [hoverTgtIdx, setHoverTgtIdx] = useState<number | null>(null);
     const rafRef = useRef<number | null>(null);
+    
+    // Patch summary table collapsed state
+    const [patchTableExpanded, setPatchTableExpanded] = useState(true);
 
     // Show arrows when we have source positions selected (either connecting or connected)
     const showArrows = srcPos.length > 0 && !srcEditing && !tgtEditing;
@@ -881,6 +1018,9 @@ export function ActivationPatchingControls({
             },
             configId: initialConfig.id,
         });
+
+        // Collapse the config table after successful computation
+        setPatchTableExpanded(false);
 
         // Reset selected line indices to defaults after new computation
         // The new data will have new tokens, so we reset to first two (source and target predictions)
@@ -1232,27 +1372,27 @@ export function ActivationPatchingControls({
             }
             
             // Otherwise handle as patch position
-            const idx = tgtPos.indexOf(pos);
-            if (idx !== -1) {
-                // Remove this target position and its paired source
-                const newTgtPos = tgtPos.filter((_, i) => i !== idx);
-                const newSrcPos = srcPos.filter((_, i) => i !== idx);
-                setTgtPos(newTgtPos);
-                setSrcPos(newSrcPos);
-            } else {
-                // Only allow adding if we have more source positions than target (pairing mode)
-                if (srcPos.length > tgtPos.length) {
-                    setTgtPos([...tgtPos, pos]);
-                }
-                // If already balanced, don't add (must add a source first)
+        const idx = tgtPos.indexOf(pos);
+        if (idx !== -1) {
+            // Remove this target position and its paired source
+            const newTgtPos = tgtPos.filter((_, i) => i !== idx);
+            const newSrcPos = srcPos.filter((_, i) => i !== idx);
+            setTgtPos(newTgtPos);
+            setSrcPos(newSrcPos);
+        } else {
+            // Only allow adding if we have more source positions than target (pairing mode)
+            if (srcPos.length > tgtPos.length) {
+                setTgtPos([...tgtPos, pos]);
             }
+            // If already balanced, don't add (must add a source first)
+        }
         }
     }, [srcPos, tgtPos, tgtFreeze]);
 
     return (
         <div 
             ref={controlsContainerRef}
-            className="relative flex flex-col gap-6"
+            className="relative flex flex-col gap-4"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
@@ -1260,6 +1400,7 @@ export function ActivationPatchingControls({
             {renderArrows}
 
             {/* Source Prompt - with range selection support */}
+            <div className="flex flex-col gap-1">
             <SourcePromptSection
                 label="Source Prompt"
                 prompt={srcPrompt}
@@ -1277,15 +1418,22 @@ export function ActivationPatchingControls({
                 textareaRef={srcTextareaRef}
                 tokenContainerRef={srcTokenContainerRef}
             />
+                {!srcEditing && srcTokens.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground/70">
+                        <span className="font-medium">Shift+click</span> to select a range of tokens
+                    </p>
+                )}
+            </div>
 
             {/* Target Prompt */}
+            <div className="flex flex-col gap-1">
             <PromptSection
                 label="Target Prompt"
                 prompt={tgtPrompt}
                 setPrompt={setTgtPrompt}
                 tokens={tgtTokens}
                 selectedPositions={tgtPos}
-                frozenPositions={tgtFreeze}
+                    frozenPositions={tgtFreeze}
                 onTokenClick={handleTgtTokenClick}
                 onTokenHover={isConnecting ? setHoverTgtIdx : undefined}
                 onTokenLeave={isConnecting ? () => setHoverTgtIdx(null) : undefined}
@@ -1299,47 +1447,29 @@ export function ActivationPatchingControls({
                 tokenContainerRef={tgtTokenContainerRef}
                 side="target"
             />
+                {!tgtEditing && tgtTokens.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground/70">
+                        <span className="font-medium">⌘/Ctrl+click</span> to freeze tokens
+                    </p>
+                )}
+            </div>
 
-            {/* Validation message - commented out for cleaner UI
-            {validationMessage && (
-                <div className="text-xs text-amber-500 bg-amber-500/10 border border-amber-500/20 p-2 rounded-md text-center">
-                    {validationMessage}
-                </div>
-            )}
-            */}
+            {/* Collapsible Patch Summary Table */}
+            <PatchConfigTable
+                srcPos={srcPos}
+                tgtPos={tgtPos}
+                tgtFreeze={tgtFreeze}
+                expanded={patchTableExpanded}
+                onToggleExpanded={() => setPatchTableExpanded(!patchTableExpanded)}
+                onClear={() => {
+                    setSrcPos([]);
+                    setTgtPos([]);
+                    setTgtFreeze([]);
+                    setPendingRangeStart(null);
+                }}
+                disabled={isExecuting}
+            />
 
-            {/* Selection summary and clear button */}
-            {(srcPos.length > 0 || tgtPos.length > 0 || tgtFreeze.length > 0) && (
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-2">
-                        {srcPos.length === tgtPos.length && srcPos.length > 0
-                            ? `${srcPos.length} patch${srcPos.length > 1 ? "es" : ""} ready`
-                            : `Source: ${srcPos.length}, Target: ${tgtPos.length}`
-                        }
-                        {tgtFreeze.length > 0 && (
-                            <span className="flex items-center gap-1 text-cyan-500">
-                                <Snowflake className="w-3 h-3" />
-                                {tgtFreeze.length} frozen
-                            </span>
-                        )}
-                    </span>
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 text-xs px-2"
-                        onClick={() => {
-                            setSrcPos([]);
-                            setTgtPos([]);
-                            setTgtFreeze([]);
-                            setPendingRangeStart(null);
-                        }}
-                        disabled={isExecuting}
-                    >
-                        <X className="w-3 h-3 mr-1" />
-                        Clear
-                    </Button>
-                </div>
-            )}
 
             {/* Run Button */}
             <Button onClick={handleSubmit} disabled={!canRun} className="w-full bg-violet-500 hover:bg-violet-600 text-white">
@@ -1361,7 +1491,7 @@ export function ActivationPatchingControls({
 
             {/* Token Line Selector - only show when we have chart data */}
             {hasChartData && allLabels.length > 0 && (
-                <div className="pt-4">
+                <div className="pt-2 pb-4">
                     <TokenSelector
                         allLabels={allLabels}
                         selectedIndices={selectedLineIndices}
