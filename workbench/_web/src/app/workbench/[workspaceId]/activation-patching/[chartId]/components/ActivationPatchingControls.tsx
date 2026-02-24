@@ -108,6 +108,7 @@ function SelectableTokenDisplay({
     onTokenLeave,
     label,
     side,
+    predictionToken,
 }: {
     tokens: Token[];
     loading: boolean;
@@ -118,6 +119,7 @@ function SelectableTokenDisplay({
     onTokenLeave?: () => void;
     label: string;
     side: "source" | "target";
+    predictionToken?: string | null;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
         // Stop propagation to prevent triggering edit mode on the container
@@ -201,6 +203,18 @@ function SelectableTokenDisplay({
                     );
                 })
             )}
+            {/* Prediction token - shown after the last token */}
+            {predictionToken && tokens.length > 0 && (
+                <span
+                    className={cn(
+                        TOKEN_STYLES.base,
+                        "cursor-default italic text-zinc-500 dark:text-zinc-400"
+                    )}
+                    title={`Predicted next token: "${predictionToken}"`}
+                >
+                    {fixTokenText(predictionToken).result}
+                </span>
+            )}
         </div>
     );
 }
@@ -213,6 +227,7 @@ function SourceTokenDisplay({
     pendingRangeStart,
     onTokenClick,
     label,
+    predictionToken,
 }: {
     tokens: Token[];
     loading: boolean;
@@ -220,6 +235,7 @@ function SourceTokenDisplay({
     pendingRangeStart: number | null;
     onTokenClick: (pos: number, shiftKey: boolean) => void;
     label: string;
+    predictionToken?: string | null;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
         e.stopPropagation();
@@ -294,6 +310,18 @@ function SourceTokenDisplay({
                     );
                 })
             )}
+            {/* Prediction token - shown after the last token */}
+            {predictionToken && tokens.length > 0 && (
+                <span
+                    className={cn(
+                        TOKEN_STYLES.base,
+                        "cursor-default italic text-zinc-500 dark:text-zinc-400"
+                    )}
+                    title={`Predicted next token: "${predictionToken}"`}
+                >
+                    {fixTokenText(predictionToken).result}
+                </span>
+            )}
         </div>
     );
 }
@@ -318,6 +346,7 @@ function PromptSection({
     textareaRef,
     tokenContainerRef,
     side,
+    predictionToken,
 }: {
     label: string;
     prompt: string;
@@ -337,6 +366,7 @@ function PromptSection({
     textareaRef: React.RefObject<HTMLTextAreaElement | null>;
     tokenContainerRef: React.RefObject<HTMLDivElement | null>;
     side: "source" | "target";
+    predictionToken?: string | null;
 }) {
     const modelMismatch = tokenizedModel && tokenizedModel !== selectedModel && tokens.length > 0;
 
@@ -409,6 +439,7 @@ function PromptSection({
                             onTokenLeave={onTokenLeave}
                             label={label}
                             side={side}
+                            predictionToken={predictionToken}
                         />
                     </div>
                 )}
@@ -582,6 +613,7 @@ function SourcePromptSection({
     selectedModel,
     textareaRef,
     tokenContainerRef,
+    predictionToken,
 }: {
     label: string;
     prompt: string;
@@ -598,6 +630,7 @@ function SourcePromptSection({
     selectedModel: string;
     textareaRef: React.RefObject<HTMLTextAreaElement | null>;
     tokenContainerRef: React.RefObject<HTMLDivElement | null>;
+    predictionToken?: string | null;
 }) {
     const modelMismatch = tokenizedModel && tokenizedModel !== selectedModel && tokens.length > 0;
 
@@ -658,6 +691,7 @@ function SourcePromptSection({
                             pendingRangeStart={pendingRangeStart}
                             onTokenClick={onTokenClick}
                             label={label}
+                            predictionToken={predictionToken}
                         />
                     </div>
                 )}
@@ -724,6 +758,10 @@ export function ActivationPatchingControls({
     
     // Patch summary table collapsed state
     const [patchTableExpanded, setPatchTableExpanded] = useState(true);
+    
+    // Track the prompts from the last successful run (to show predictions)
+    const [lastRunSrcPrompt, setLastRunSrcPrompt] = useState<string | null>(initialSrcPrompt || null);
+    const [lastRunTgtPrompt, setLastRunTgtPrompt] = useState<string | null>(initialTgtPrompt || null);
 
     // Show arrows when we have source positions selected (either connecting or connected)
     const showArrows = srcPos.length > 0 && !srcEditing && !tgtEditing;
@@ -767,6 +805,22 @@ export function ActivationPatchingControls({
         if (!hasChartData || !patchingChart?.data?.tokenLabels) return [];
         return patchingChart.data.tokenLabels;
     }, [hasChartData, patchingChart?.data?.tokenLabels]);
+
+    // Compute prediction tokens (first two labels are source and target predictions)
+    // Only show predictions when the current prompt matches the last run prompt
+    const srcPrediction = useMemo(() => {
+        if (!allLabels.length || allLabels.length < 1) return null;
+        // Only show if current prompt matches last run prompt
+        if (srcPrompt.trim() !== lastRunSrcPrompt) return null;
+        return allLabels[0]; // Source prediction is first label
+    }, [allLabels, srcPrompt, lastRunSrcPrompt]);
+    
+    const tgtPrediction = useMemo(() => {
+        if (!allLabels.length || allLabels.length < 2) return null;
+        // Only show if current prompt matches last run prompt
+        if (tgtPrompt.trim() !== lastRunTgtPrompt) return null;
+        return allLabels[1]; // Target prediction is second label
+    }, [allLabels, tgtPrompt, lastRunTgtPrompt]);
 
     // Get default selection (first two tokens - source and target predictions)
     const getDefaultSelection = useCallback((numLines: number) => {
@@ -1021,6 +1075,10 @@ export function ActivationPatchingControls({
 
         // Collapse the config table after successful computation
         setPatchTableExpanded(false);
+        
+        // Track the prompts from this run (to show predictions)
+        setLastRunSrcPrompt(trimmedSrcPrompt);
+        setLastRunTgtPrompt(trimmedTgtPrompt);
 
         // Reset selected line indices to defaults after new computation
         // The new data will have new tokens, so we reset to first two (source and target predictions)
@@ -1417,6 +1475,7 @@ export function ActivationPatchingControls({
                 selectedModel={selectedModel}
                 textareaRef={srcTextareaRef}
                 tokenContainerRef={srcTokenContainerRef}
+                predictionToken={srcPrediction}
             />
                 {!srcEditing && srcTokens.length > 0 && (
                     <p className="text-[11px] text-muted-foreground/70">
@@ -1446,6 +1505,7 @@ export function ActivationPatchingControls({
                 textareaRef={tgtTextareaRef}
                 tokenContainerRef={tgtTokenContainerRef}
                 side="target"
+                predictionToken={tgtPrediction}
             />
                 {!tgtEditing && tgtTokens.length > 0 && (
                     <p className="text-[11px] text-muted-foreground/70">
