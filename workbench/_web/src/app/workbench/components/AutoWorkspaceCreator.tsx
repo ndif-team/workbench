@@ -4,9 +4,10 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 import { pushTutorialChart } from "@/lib/queries/tutorialChart";
-import { createLensChartPair } from "@/lib/queries/chartQueries";
+import { createLensChartPair, createActivationPatchingChartPair } from "@/lib/queries/chartQueries";
 import type { LensConfigData } from "@/types/lens";
 import { Metrics } from "@/types/lens";
+import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 
 interface AutoWorkspaceCreatorProps {
     userId: string;
@@ -14,6 +15,12 @@ interface AutoWorkspaceCreatorProps {
     initialModel?: string;
     seedWithExamples?: boolean; // New prop to control seeding
     workspaceName?: string; // Custom workspace name
+    tool?: string; // Tool type: "Logit Lens" or "Activation Patching"
+    srcPrompt?: string; // Activation patching source prompt
+    tgtPrompt?: string; // Activation patching target prompt
+    srcPos?: string; // JSON-encoded source positions
+    tgtPos?: string; // JSON-encoded target positions
+    tgtFreeze?: string; // JSON-encoded frozen positions
 }
 
 export function AutoWorkspaceCreator({
@@ -22,6 +29,12 @@ export function AutoWorkspaceCreator({
     initialModel,
     seedWithExamples = true, // Default to true for new users
     workspaceName = "Default Workspace", // Default name
+    tool = "Logit Lens",
+    srcPrompt,
+    tgtPrompt,
+    srcPos,
+    tgtPos,
+    tgtFreeze,
 }: AutoWorkspaceCreatorProps) {
     const [error, setError] = useState<string | null>(null);
     const hasStartedRef = useRef(false);
@@ -48,7 +61,30 @@ export function AutoWorkspaceCreator({
 
                 // If user submitted a prompt from landing page, create a chart for it
                 let userChartId: string | null = null;
-                if (initialPrompt && initialPrompt.trim() && initialModel) {
+                let chartType: string = "lens";
+                
+                if (tool === "Activation Patching" && srcPrompt && tgtPrompt && srcPos && tgtPos) {
+                    // Create activation patching chart
+                    console.log("Creating activation patching chart");
+                    // srcPos is already SourcePosition[] - can contain numbers or [start, end] tuples
+                    const parsedSrcPos: SourcePosition[] = JSON.parse(srcPos);
+                    const parsedTgtPos: number[] = JSON.parse(tgtPos);
+                    const parsedTgtFreeze: number[] = tgtFreeze ? JSON.parse(tgtFreeze) : [];
+                    
+                    const apConfig: ActivationPatchingConfigData = {
+                        model: initialModel || "openai-community/gpt2",
+                        srcPrompt: srcPrompt,
+                        tgtPrompt: tgtPrompt,
+                        srcPos: parsedSrcPos,
+                        tgtPos: parsedTgtPos,
+                        tgtFreeze: parsedTgtFreeze,
+                    };
+
+                    const { chart } = await createActivationPatchingChartPair(newWorkspace.id, apConfig);
+                    userChartId = chart.id;
+                    chartType = "activation-patching";
+                    console.log("Created activation patching chart:", userChartId);
+                } else if (initialPrompt && initialPrompt.trim() && initialModel) {
                     console.log("Creating chart for user prompt:", initialPrompt);
                     const userChartConfig: LensConfigData = {
                         prompt: initialPrompt,
@@ -65,9 +101,13 @@ export function AutoWorkspaceCreator({
                 // Small delay to ensure the workspace is fully created
                 setTimeout(() => {
                     // If we created a user chart, redirect directly to it
-                    // The chart page will handle tokenization and running the lens
+                    // The chart page will handle tokenization and running the tool
                     if (userChartId) {
-                        router.push(`/workbench/${newWorkspace.id}/${userChartId}`);
+                        if (chartType === "activation-patching") {
+                            router.push(`/workbench/${newWorkspace.id}/activation-patching/${userChartId}`);
+                        } else {
+                            router.push(`/workbench/${newWorkspace.id}/${userChartId}`);
+                        }
                     } else {
                         // Otherwise just go to the workspace
                         router.push(`/workbench/${newWorkspace.id}`);
@@ -81,7 +121,7 @@ export function AutoWorkspaceCreator({
         };
 
         createAndRedirect();
-    }, [userId, router, initialPrompt, initialModel, seedWithExamples, workspaceName]);
+    }, [userId, router, initialPrompt, initialModel, seedWithExamples, workspaceName, tool, srcPrompt, tgtPrompt, srcPos, tgtPos, tgtFreeze]);
 
     if (error) {
         return (

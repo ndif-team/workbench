@@ -4,28 +4,24 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Loader2, Play, TriangleAlert, MousePointerClick, X, Snowflake, ChevronDown, ArrowRight } from "lucide-react";
+import { Loader2, Play, X, Snowflake, ChevronDown } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ActivationPatchingConfigData, ActivationPatchingData, SourcePosition } from "@/types/activationPatching";
 import { encodeText } from "@/actions/tok";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { getChartById } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { TokenSelector } from "./TokenSelector";
-
-// Create a smooth bezier curve path between two points
-function createCurvePath(start: { x: number; y: number }, end: { x: number; y: number }): string {
-    const midY = (start.y + end.y) / 2;
-    const c1 = { x: start.x, y: midY };
-    const c2 = { x: end.x, y: midY };
-    return `M ${start.x} ${start.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${end.x} ${end.y}`;
-}
+import {
+    PATCH_COLORS,
+    useActivationPatchingState,
+    PatchPromptSection,
+    EnhancedPatchArrows,
+    useMouseFollowingArrow,
+} from "@/components/activation-patching/toolkit";
 
 interface ActivationPatchingConfig {
     id: string;
@@ -37,429 +33,6 @@ interface ActivationPatchingControlsProps {
     initialConfig: ActivationPatchingConfig;
     selectedModel: string;
     hasExistingData?: boolean;
-}
-
-// Shared colors for patch arrows and token selection
-const PATCH_COLORS = [
-    { bg: "#8b5cf6", ring: "#8b5cf6", hover: "rgba(139, 92, 246, 0.2)", hoverRing: "rgba(139, 92, 246, 0.5)" }, // violet
-    { bg: "#f59e0b", ring: "#f59e0b", hover: "rgba(245, 158, 11, 0.2)", hoverRing: "rgba(245, 158, 11, 0.5)" }, // amber
-    { bg: "#10b981", ring: "#10b981", hover: "rgba(16, 185, 129, 0.2)", hoverRing: "rgba(16, 185, 129, 0.5)" }, // emerald
-    { bg: "#ef4444", ring: "#ef4444", hover: "rgba(239, 68, 68, 0.2)", hoverRing: "rgba(239, 68, 68, 0.5)" },   // red
-    { bg: "#ec4899", ring: "#ec4899", hover: "rgba(236, 72, 153, 0.2)", hoverRing: "rgba(236, 72, 153, 0.5)" }, // pink
-];
-
-// Freeze color (cyan) for frozen tokens
-const FREEZE_COLOR = { bg: "#06b6d4", ring: "#06b6d4" };
-
-// Helper to check if a token index is part of a source position (single or range)
-function isTokenInSourcePosition(tokenIdx: number, pos: SourcePosition): boolean {
-    if (typeof pos === "number") {
-        return tokenIdx === pos;
-    }
-    // Range: [start, end] - inclusive of start, exclusive of end (like Python slice)
-    return tokenIdx >= pos[0] && tokenIdx < pos[1];
-}
-
-// Helper to find which source position (and its index) a token belongs to
-function findSourcePositionForToken(tokenIdx: number, positions: SourcePosition[]): { pos: SourcePosition; index: number } | null {
-    for (let i = 0; i < positions.length; i++) {
-        if (isTokenInSourcePosition(tokenIdx, positions[i])) {
-            return { pos: positions[i], index: i };
-        }
-    }
-    return null;
-}
-
-// Helper to get display text for a source position
-function getSourcePositionLabel(pos: SourcePosition): string {
-    if (typeof pos === "number") {
-        return `${pos}`;
-    }
-    return `${pos[0]}-${pos[1] - 1}`;
-}
-
-// Token styling constants
-const TOKEN_STYLES = {
-    base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
-    clickable: "bg-muted/60 ring-1 ring-border/50 ring-inset",
-    hover: "hover:bg-violet-500/20 hover:ring-1 hover:ring-violet-400/50 hover:ring-inset cursor-pointer",
-    selected: "ring-2 ring-inset text-white", // bg and ring colors applied via inline style
-} as const;
-
-// Helper to fix newlines for display
-const fixTokenText = (text: string) => {
-    const numNewlines = (text.match(/\n/g) || []).length;
-    const result = text
-        .replace(/\r\n/g, "\\r\\n")
-        .replace(/\n/g, "\\n")
-        .replace(/\r/g, "\\r")
-        .replace(/\t/g, "\\t");
-    return { result, numNewlines };
-};
-
-// Token display with click-to-select functionality (supports multiple selections and freeze)
-function SelectableTokenDisplay({
-    tokens,
-    loading,
-    selectedPositions,
-    frozenPositions = [],
-    onTokenClick,
-    onTokenHover,
-    onTokenLeave,
-    label,
-    side,
-    predictionToken,
-}: {
-    tokens: Token[];
-    loading: boolean;
-    selectedPositions: number[];
-    frozenPositions?: number[];
-    onTokenClick: (pos: number, ctrlKey: boolean) => void;
-    onTokenHover?: (pos: number) => void;
-    onTokenLeave?: () => void;
-    label: string;
-    side: "source" | "target";
-    predictionToken?: string | null;
-}) {
-    const handleTokenClick = (e: React.MouseEvent, idx: number) => {
-        // Stop propagation to prevent triggering edit mode on the container
-        e.stopPropagation();
-        if (!loading) {
-            onTokenClick(idx, e.ctrlKey || e.metaKey);
-        }
-    };
-
-    return (
-        <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
-            {tokens.length === 0 ? (
-                <span className="text-muted-foreground text-sm italic">
-                    Enter text and click away to tokenize
-                </span>
-            ) : (
-                tokens.map((token, idx) => {
-                    const { result, numNewlines } = fixTokenText(token.text);
-                    const selectionIndex = selectedPositions.indexOf(idx);
-                    const isSelected = selectionIndex !== -1;
-                    const isFrozen = frozenPositions.includes(idx);
-                    const patchColor = isSelected ? PATCH_COLORS[selectionIndex % PATCH_COLORS.length] : null;
-                    
-                    // Determine styling based on selection state
-                    let tokenStyle: React.CSSProperties | undefined;
-                    if (isFrozen) {
-                        tokenStyle = {
-                            backgroundColor: "rgba(6, 182, 212, 0.25)",
-                            backgroundImage: "repeating-linear-gradient(135deg, transparent, transparent 2px, rgba(6, 182, 212, 0.15) 2px, rgba(6, 182, 212, 0.15) 4px)",
-                            border: "1.5px dashed #06b6d4",
-                            boxShadow: "none",
-                        };
-                    } else if (isSelected && patchColor) {
-                        tokenStyle = {
-                            backgroundColor: patchColor.bg,
-                            boxShadow: `inset 0 0 0 2px ${patchColor.ring}`,
-                        };
-                    }
-                    
-                    // Build title text
-                    let titleText = `${label} position ${idx}: "${token.text}"`;
-                    if (isFrozen) {
-                        titleText += " (frozen - click to unfreeze)";
-                    } else if (isSelected) {
-                        titleText += ` (patch #${selectionIndex + 1})`;
-                    } else if (side === "target") {
-                        titleText += " (Ctrl+click to freeze)";
-                    }
-                    
-                    return (
-                        <span key={`token-${idx}`}>
-                            <span
-                                data-token-id={idx}
-                                data-token-side={side}
-                                onClick={(e) => handleTokenClick(e, idx)}
-                                onMouseEnter={() => onTokenHover?.(idx)}
-                                onMouseLeave={() => onTokenLeave?.()}
-                                className={cn(
-                                    TOKEN_STYLES.base,
-                                    "group",
-                                    // Show clickable styling when not selected or frozen
-                                    !isSelected && !isFrozen && !loading && TOKEN_STYLES.clickable,
-                                    !isSelected && !isFrozen && !loading && TOKEN_STYLES.hover,
-                                    (isSelected || isFrozen) && TOKEN_STYLES.selected,
-                                    token.text === "\\n" ? "w-full" : "w-fit",
-                                    loading ? "cursor-progress" : "cursor-pointer"
-                                )}
-                                style={tokenStyle}
-                                title={titleText}
-                            >
-                                {result}
-                                {/* Snowflake badge for frozen tokens - only visible on hover */}
-                                {isFrozen && (
-                                    <span className="absolute -top-1.5 -right-1.5 z-10 bg-cyan-500 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                                        <Snowflake className="w-2 h-2 text-white" />
-                                    </span>
-                                )}
-                            </span>
-                            {numNewlines > 0 && "\n".repeat(numNewlines)}
-                        </span>
-                    );
-                })
-            )}
-            {/* Prediction token - shown after the last token */}
-            {predictionToken && tokens.length > 0 && (
-                <span
-                    className={cn(
-                        TOKEN_STYLES.base,
-                        "cursor-default italic text-zinc-500 dark:text-zinc-400"
-                    )}
-                    title={`Predicted next token: "${predictionToken}"`}
-                >
-                    {fixTokenText(predictionToken).result}
-                </span>
-            )}
-        </div>
-    );
-}
-
-// Source token display with range selection support (shift+click)
-function SourceTokenDisplay({
-    tokens,
-    loading,
-    selectedPositions,
-    pendingRangeStart,
-    onTokenClick,
-    label,
-    predictionToken,
-}: {
-    tokens: Token[];
-    loading: boolean;
-    selectedPositions: SourcePosition[];
-    pendingRangeStart: number | null;
-    onTokenClick: (pos: number, shiftKey: boolean) => void;
-    label: string;
-    predictionToken?: string | null;
-}) {
-    const handleTokenClick = (e: React.MouseEvent, idx: number) => {
-        e.stopPropagation();
-        if (!loading) {
-            onTokenClick(idx, e.shiftKey);
-        }
-    };
-
-    return (
-        <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
-            {tokens.length === 0 ? (
-                <span className="text-muted-foreground text-sm italic">
-                    Enter text and click away to tokenize
-                </span>
-            ) : (
-                tokens.map((token, idx) => {
-                    const { result, numNewlines } = fixTokenText(token.text);
-                    
-                    // Check if this token is part of any selected source position
-                    const selection = findSourcePositionForToken(idx, selectedPositions);
-                    const isSelected = selection !== null;
-                    const selectionIndex = selection?.index ?? -1;
-                    const patchColor = isSelected ? PATCH_COLORS[selectionIndex % PATCH_COLORS.length] : null;
-                    
-                    // Check if this is the pending range start
-                    const isPendingStart = pendingRangeStart === idx;
-                    
-                    // For range selections, determine if this is the first or last token in the range
-                    const isRangeStart = selection && typeof selection.pos !== "number" && idx === selection.pos[0];
-                    const isRangeEnd = selection && typeof selection.pos !== "number" && idx === selection.pos[1] - 1;
-                    const isInRange = selection && typeof selection.pos !== "number";
-                    
-                    return (
-                        <span key={`token-${idx}`}>
-                            <span
-                                data-token-id={idx}
-                                data-token-side="source"
-                                onClick={(e) => handleTokenClick(e, idx)}
-                                className={cn(
-                                    TOKEN_STYLES.base,
-                                    !isSelected && !isPendingStart && !loading && TOKEN_STYLES.clickable,
-                                    !isSelected && !isPendingStart && !loading && TOKEN_STYLES.hover,
-                                    (isSelected || isPendingStart) && TOKEN_STYLES.selected,
-                                    token.text === "\\n" ? "w-full" : "w-fit",
-                                    loading ? "cursor-progress" : "cursor-pointer",
-                                    // Range visual styling - connected tokens
-                                    isInRange && !isRangeStart && "rounded-l-none ml-0",
-                                    isInRange && !isRangeEnd && "rounded-r-none mr-0"
-                                )}
-                                style={(isSelected || isPendingStart) ? {
-                                    backgroundColor: isPendingStart && !isSelected 
-                                        ? PATCH_COLORS[selectedPositions.length % PATCH_COLORS.length].bg
-                                        : patchColor?.bg,
-                                    boxShadow: `inset 0 0 0 2px ${
-                                        isPendingStart && !isSelected 
-                                            ? PATCH_COLORS[selectedPositions.length % PATCH_COLORS.length].ring
-                                            : patchColor?.ring
-                                    }`,
-                                    // Dashed border for pending start to indicate "waiting for shift+click"
-                                    ...(isPendingStart && !isSelected ? { 
-                                        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0.1) 4px)' 
-                                    } : {})
-                                } : undefined}
-                                title={`${label} position ${idx}: "${token.text}"${
-                                    isSelected ? ` (patch #${selectionIndex + 1}${isInRange ? " - range" : ""})` : ""
-                                }${isPendingStart && !isSelected ? " (Shift+click another token to complete range)" : ""}`}
-                            >
-                                {result}
-                            </span>
-                            {numNewlines > 0 && "\n".repeat(numNewlines)}
-                        </span>
-                    );
-                })
-            )}
-            {/* Prediction token - shown after the last token */}
-            {predictionToken && tokens.length > 0 && (
-                <span
-                    className={cn(
-                        TOKEN_STYLES.base,
-                        "cursor-default italic text-zinc-500 dark:text-zinc-400"
-                    )}
-                    title={`Predicted next token: "${predictionToken}"`}
-                >
-                    {fixTokenText(predictionToken).result}
-                </span>
-            )}
-        </div>
-    );
-}
-
-// Prompt section component for reusability (supports multiple selections and freeze)
-function PromptSection({
-    label,
-    prompt,
-    setPrompt,
-    tokens,
-    selectedPositions,
-    frozenPositions = [],
-    onTokenClick,
-    onTokenHover,
-    onTokenLeave,
-    isEditing,
-    setIsEditing,
-    onBlur,
-    isExecuting,
-    tokenizedModel,
-    selectedModel,
-    textareaRef,
-    tokenContainerRef,
-    side,
-    predictionToken,
-}: {
-    label: string;
-    prompt: string;
-    setPrompt: (value: string) => void;
-    tokens: Token[];
-    selectedPositions: number[];
-    frozenPositions?: number[];
-    onTokenClick: (pos: number, ctrlKey: boolean) => void;
-    onTokenHover?: (pos: number) => void;
-    onTokenLeave?: () => void;
-    isEditing: boolean;
-    setIsEditing: (value: boolean) => void;
-    onBlur: () => void;
-    isExecuting: boolean;
-    tokenizedModel: string | null;
-    selectedModel: string;
-    textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-    tokenContainerRef: React.RefObject<HTMLDivElement | null>;
-    side: "source" | "target";
-    predictionToken?: string | null;
-}) {
-    const modelMismatch = tokenizedModel && tokenizedModel !== selectedModel && tokens.length > 0;
-
-    const handleEditClick = useCallback(() => {
-        if (isExecuting) return;
-        setIsEditing(true);
-        setTimeout(() => {
-            if (textareaRef.current) {
-                textareaRef.current.focus();
-                const length = textareaRef.current.value.length;
-                textareaRef.current.setSelectionRange(length, length);
-            }
-        }, 0);
-    }, [isExecuting, setIsEditing, textareaRef]);
-
-    // Auto-resize textarea
-    useEffect(() => {
-        if (isEditing && textareaRef.current) {
-            textareaRef.current.style.height = "auto";
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-        }
-    }, [prompt, isEditing, textareaRef]);
-
-    return (
-        <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">{label}</Label>
-                {/* Position indicator - commented out for cleaner UI
-                {selectedPositions.length > 0 && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MousePointerClick className="w-3 h-3" />
-                        {selectedPositions.length === 1 
-                            ? `Position ${selectedPositions[0]}`
-                            : `${selectedPositions.length} positions: ${selectedPositions.join(", ")}`
-                        }
-                    </span>
-                )}
-                */}
-            </div>
-            <div className="relative">
-                {isEditing ? (
-                    <Textarea
-                        ref={textareaRef as React.RefObject<HTMLTextAreaElement>}
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        onBlur={onBlur}
-                        className="w-full !text-sm bg-input/30 min-h-24 !leading-5"
-                        placeholder={`Enter ${label.toLowerCase()} here...`}
-                        disabled={isExecuting}
-                    />
-                ) : (
-                    <div
-                        ref={tokenContainerRef}
-                        className={cn(
-                            "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
-                            isExecuting ? "cursor-progress" : "cursor-text"
-                        )}
-                        onClick={handleEditClick}
-                    >
-                        <SelectableTokenDisplay
-                            tokens={tokens}
-                            loading={isExecuting}
-                            selectedPositions={selectedPositions}
-                            frozenPositions={frozenPositions}
-                            onTokenClick={(pos, ctrlKey) => {
-                                // Don't switch to edit mode when clicking a token
-                                onTokenClick(pos, ctrlKey);
-                            }}
-                            onTokenHover={onTokenHover}
-                            onTokenLeave={onTokenLeave}
-                            label={label}
-                            side={side}
-                            predictionToken={predictionToken}
-                        />
-                    </div>
-                )}
-
-                {/* Model mismatch warning */}
-                {modelMismatch && !isExecuting && !isEditing && (
-                    <Tooltip>
-                        <TooltipTrigger className="absolute bottom-2 right-2">
-                            <TriangleAlert className="w-4 h-4 text-destructive/70" />
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">
-                            <p className="w-36 text-wrap text-center">
-                                Tokenization does not match the selected model. Please retokenize.
-                            </p>
-                        </TooltipContent>
-                    </Tooltip>
-                )}
-            </div>
-        </div>
-    );
 }
 
 // Collapsible patch configuration table component
@@ -493,7 +66,7 @@ function PatchConfigTable({
                     className="flex items-center gap-1 hover:text-foreground transition-colors text-xs text-muted-foreground"
                 >
                     <span>Config</span>
-                    <ChevronDown 
+                    <ChevronDown
                         className={cn(
                             "w-3 h-3 transition-transform duration-200",
                             expanded && "rotate-180"
@@ -512,7 +85,7 @@ function PatchConfigTable({
                     <X className="w-3 h-3" />
                 </button>
             </div>
-            
+
             {/* Table Content */}
             {expanded && (
                 <div className="px-2 py-1.5 space-y-1">
@@ -527,13 +100,13 @@ function PatchConfigTable({
                         .map(({ srcPosition, idx }) => {
                             const patchColor = PATCH_COLORS[idx % PATCH_COLORS.length];
                             const hasPairedTarget = idx < tgtPos.length;
-                            const srcPosLabel = typeof srcPosition === "number" 
+                            const srcPosLabel = typeof srcPosition === "number"
                                 ? `${srcPosition}`
                                 : `${srcPosition[0]}–${srcPosition[1] - 1}`;
                             const tgtPosLabel = hasPairedTarget ? `${tgtPos[idx]}` : "?";
-                            
+
                             return (
-                                <div 
+                                <div
                                     key={`patch-${idx}`}
                                     className="flex items-center gap-1.5 text-[10px]"
                                 >
@@ -542,25 +115,25 @@ function PatchConfigTable({
                                         {srcPosLabel}
                                     </span>
                                     {/* Arrow - compact */}
-                                    <span 
+                                    <span
                                         className="flex items-center flex-shrink-0"
                                         style={{ color: patchColor.bg }}
                                     >
-                                        <span 
+                                        <span
                                             className="w-4 h-px"
                                             style={{ backgroundColor: patchColor.bg }}
                                         />
-                                        <span 
+                                        <span
                                             className="w-0 h-0 border-t-[3px] border-b-[3px] border-l-[4px] border-t-transparent border-b-transparent -ml-px"
                                             style={{ borderLeftColor: patchColor.bg }}
                                         />
                                     </span>
                                     {/* Target position */}
-                                    <span 
+                                    <span
                                         className={cn(
                                             "font-mono min-w-[24px]",
-                                            hasPairedTarget 
-                                                ? "text-muted-foreground" 
+                                            hasPairedTarget
+                                                ? "text-muted-foreground"
                                                 : "text-muted-foreground/40 italic"
                                         )}
                                     >
@@ -569,7 +142,7 @@ function PatchConfigTable({
                                 </div>
                             );
                         })}
-                    
+
                     {/* Frozen positions section */}
                     {tgtFreeze.length > 0 && (
                         <>
@@ -579,7 +152,7 @@ function PatchConfigTable({
                                     .slice()
                                     .sort((a, b) => a - b)
                                     .map((pos) => (
-                                        <span 
+                                        <span
                                             key={`frozen-${pos}`}
                                             className="inline-flex items-center gap-0.5 px-1 py-px rounded text-[10px] font-mono text-cyan-600 dark:text-cyan-400"
                                         >
@@ -592,124 +165,6 @@ function PatchConfigTable({
                     )}
                 </div>
             )}
-        </div>
-    );
-}
-
-// Source prompt section with range selection support
-function SourcePromptSection({
-    label,
-    prompt,
-    setPrompt,
-    tokens,
-    selectedPositions,
-    pendingRangeStart,
-    onTokenClick,
-    isEditing,
-    setIsEditing,
-    onBlur,
-    isExecuting,
-    tokenizedModel,
-    selectedModel,
-    textareaRef,
-    tokenContainerRef,
-    predictionToken,
-}: {
-    label: string;
-    prompt: string;
-    setPrompt: (value: string) => void;
-    tokens: Token[];
-    selectedPositions: SourcePosition[];
-    pendingRangeStart: number | null;
-    onTokenClick: (pos: number, shiftKey: boolean) => void;
-    isEditing: boolean;
-    setIsEditing: (value: boolean) => void;
-    onBlur: () => void;
-    isExecuting: boolean;
-    tokenizedModel: string | null;
-    selectedModel: string;
-    textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-    tokenContainerRef: React.RefObject<HTMLDivElement | null>;
-    predictionToken?: string | null;
-}) {
-    const modelMismatch = tokenizedModel && tokenizedModel !== selectedModel && tokens.length > 0;
-
-    const handleEditClick = useCallback(() => {
-        if (isExecuting) return;
-        setIsEditing(true);
-        setTimeout(() => {
-            if (textareaRef.current) {
-                textareaRef.current.focus();
-                const length = textareaRef.current.value.length;
-                textareaRef.current.setSelectionRange(length, length);
-            }
-        }, 0);
-    }, [isExecuting, setIsEditing, textareaRef]);
-
-    // Auto-resize textarea
-    useEffect(() => {
-        if (isEditing && textareaRef.current) {
-            textareaRef.current.style.height = "auto";
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-        }
-    }, [prompt, isEditing, textareaRef]);
-
-    return (
-        <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">{label}</Label>
-                {pendingRangeStart !== null && (
-                    <span className="text-xs text-amber-500 flex items-center gap-1 animate-pulse">
-                        Shift+click another token to complete range
-                    </span>
-                )}
-            </div>
-            <div className="relative">
-                {isEditing ? (
-                    <Textarea
-                        ref={textareaRef as React.RefObject<HTMLTextAreaElement>}
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        onBlur={onBlur}
-                        className="w-full !text-sm bg-input/30 min-h-24 !leading-5"
-                        placeholder={`Enter ${label.toLowerCase()} here...`}
-                        disabled={isExecuting}
-                    />
-                ) : (
-                    <div
-                        ref={tokenContainerRef}
-                        className={cn(
-                            "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
-                            isExecuting ? "cursor-progress" : "cursor-text"
-                        )}
-                        onClick={handleEditClick}
-                    >
-                        <SourceTokenDisplay
-                            tokens={tokens}
-                            loading={isExecuting}
-                            selectedPositions={selectedPositions}
-                            pendingRangeStart={pendingRangeStart}
-                            onTokenClick={onTokenClick}
-                            label={label}
-                            predictionToken={predictionToken}
-                        />
-                    </div>
-                )}
-
-                {/* Model mismatch warning */}
-                {modelMismatch && !isExecuting && !isEditing && (
-                    <Tooltip>
-                        <TooltipTrigger className="absolute bottom-2 right-2">
-                            <TriangleAlert className="w-4 h-4 text-destructive/70" />
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">
-                            <p className="w-36 text-wrap text-center">
-                                Tokenization does not match the selected model. Please retokenize.
-                            </p>
-                        </TooltipContent>
-                    </Tooltip>
-                )}
-            </div>
         </div>
     );
 }
@@ -736,9 +191,6 @@ export function ActivationPatchingControls({
     const [srcTokenizedModel, setSrcTokenizedModel] = useState<string | null>(null);
     const srcTextareaRef = useRef<HTMLTextAreaElement>(null);
     const srcTokenContainerRef = useRef<HTMLDivElement>(null);
-    
-    // Range selection state for source (shift+click to select range)
-    const [pendingRangeStart, setPendingRangeStart] = useState<number | null>(null);
 
     // Target prompt state
     const [tgtPrompt, setTgtPrompt] = useState(initialTgtPrompt);
@@ -754,19 +206,61 @@ export function ActivationPatchingControls({
     const controlsContainerRef = useRef<HTMLDivElement>(null);
     const connectingArrowRef = useRef<SVGPathElement>(null);
     const [hoverTgtIdx, setHoverTgtIdx] = useState<number | null>(null);
-    const rafRef = useRef<number | null>(null);
-    
+
     // Patch summary table collapsed state
     const [patchTableExpanded, setPatchTableExpanded] = useState(true);
-    
+
     // Track the prompts from the last successful run (to show predictions)
     const [lastRunSrcPrompt, setLastRunSrcPrompt] = useState<string | null>(initialSrcPrompt || null);
     const [lastRunTgtPrompt, setLastRunTgtPrompt] = useState<string | null>(initialTgtPrompt || null);
 
+    // Auto-run flags - check if we should auto-run on mount (coming from landing page)
+    // Only auto-run if all required data is pre-filled and there's no existing chart data
+    const shouldAutoRunRef = useRef(
+        initialSrcPrompt.length > 0 &&
+        initialTgtPrompt.length > 0 &&
+        initialSrcPos.length > 0 &&
+        initialTgtPos.length > 0 &&
+        initialSrcPos.length === initialTgtPos.length &&
+        !hasExistingData
+    );
+    const hasAutoRunRef = useRef(false);
+
+    // Use shared hook for state management
+    const {
+        pendingRangeStart,
+        setPendingRangeStart,
+        handleSrcTokenClick,
+        handleTgtTokenClick,
+        isConnecting,
+        clearAll,
+    } = useActivationPatchingState({
+        srcPos,
+        setSrcPos,
+        tgtPos,
+        setTgtPos,
+        tgtFreeze,
+        setTgtFreeze,
+    });
+
+    // Clear stale hover when source selections change (e.g. new source added after pairing)
+    // Without this, adding a second source would snap an arrow to the previously hovered target
+    useEffect(() => {
+        setHoverTgtIdx(null);
+    }, [srcPos.length]);
+
     // Show arrows when we have source positions selected (either connecting or connected)
     const showArrows = srcPos.length > 0 && !srcEditing && !tgtEditing;
-    // We're in "connecting" mode when source has more selections than target
-    const isConnecting = srcPos.length > tgtPos.length && !srcEditing && !tgtEditing;
+
+    // Use shared hook for mouse-following arrow
+    const { handleMouseMove, handleMouseLeave } = useMouseFollowingArrow({
+        containerRef: controlsContainerRef,
+        connectingArrowRef,
+        isConnecting: isConnecting && !srcEditing && !tgtEditing,
+        srcPos,
+        tgtPos,
+        enabled: true,
+    });
 
     // Mutations
     const { mutateAsync: computePatching, isPending: isComputing } = useActivationPatching();
@@ -790,7 +284,7 @@ export function ActivationPatchingControls({
         data: ActivationPatchingData | null;
         type: string;
     }
-    
+
     const { data: chart } = useQuery({
         queryKey: queryKeys.charts.chart(chartId),
         queryFn: () => getChartById(chartId as string),
@@ -814,7 +308,7 @@ export function ActivationPatchingControls({
         if (srcPrompt.trim() !== lastRunSrcPrompt) return null;
         return allLabels[0]; // Source prediction is first label
     }, [allLabels, srcPrompt, lastRunSrcPrompt]);
-    
+
     const tgtPrediction = useMemo(() => {
         if (!allLabels.length || allLabels.length < 2) return null;
         // Only show if current prompt matches last run prompt
@@ -844,13 +338,13 @@ export function ActivationPatchingControls({
     // Reset to defaults when new data arrives (after a re-run)
     useEffect(() => {
         if (!hasChartData || !patchingChart?.data?.lines) return;
-        
+
         const currentFingerprint = dataFingerprint;
         if (currentFingerprint && previousDataRef.current !== null && previousDataRef.current !== currentFingerprint) {
             // Data changed - reset to default selection (first two tokens)
             const defaultIndices = getDefaultSelection(patchingChart.data.lines.length);
             setSelectedLineIndices(defaultIndices);
-            
+
             // Also save the default selection to config
             updateConfig({
                 configId: initialConfig.id,
@@ -890,7 +384,7 @@ export function ActivationPatchingControls({
     // Save selection to config (debounced)
     const saveLineSelection = useCallback((indices: Set<number>) => {
         if (!initialConfig?.id) return;
-        
+
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
         }
@@ -917,11 +411,6 @@ export function ActivationPatchingControls({
         setSelectedLineIndices(newSet);
         saveLineSelection(newSet);
     }, [saveLineSelection]);
-
-    // Sync prompts from config only on initial mount (handled by useState initializers)
-    // and when chart ID changes (component remounts due to key={config.id})
-    // We don't sync on initialConfig.data changes to avoid race conditions with mutations
-    // that could reset local unsaved edits
 
     // Tokenize prompts on initial load if they exist
     useEffect(() => {
@@ -954,18 +443,18 @@ export function ActivationPatchingControls({
             // Check if tokens actually changed (prompt was modified)
             const tokensChanged = tokens.length !== srcTokens.length ||
                 tokens.some((t, i) => t.text !== srcTokens[i]?.text);
-            
+
             setSrcTokens(tokens);
             setSrcTokenizedModel(selectedModel);
             setSrcEditing(false);
-            
+
             // Reset positions if tokens changed (prompt was modified)
             if (tokensChanged && srcPos.length > 0) {
                 setSrcPos([]);
                 setPendingRangeStart(null);
             }
         }
-    }, [srcPrompt, selectedModel, srcPos, srcTokens]);
+    }, [srcPrompt, selectedModel, srcPos, srcTokens, setPendingRangeStart]);
 
     // Handle tokenization for target prompt
     const handleTgtTokenize = useCallback(async () => {
@@ -975,11 +464,11 @@ export function ActivationPatchingControls({
             // Check if tokens actually changed (prompt was modified)
             const tokensChanged = tokens.length !== tgtTokens.length ||
                 tokens.some((t, i) => t.text !== tgtTokens[i]?.text);
-            
+
             setTgtTokens(tokens);
             setTgtTokenizedModel(selectedModel);
             setTgtEditing(false);
-            
+
             // Reset positions if tokens changed (prompt was modified)
             if (tokensChanged) {
                 if (tgtPos.length > 0) setTgtPos([]);
@@ -1075,7 +564,7 @@ export function ActivationPatchingControls({
 
         // Collapse the config table after successful computation
         setPatchTableExpanded(false);
-        
+
         // Track the prompts from this run (to show predictions)
         setLastRunSrcPrompt(trimmedSrcPrompt);
         setLastRunTgtPrompt(trimmedTgtPrompt);
@@ -1111,9 +600,101 @@ export function ActivationPatchingControls({
         selectedModel,
         chartId,
         initialConfig.id,
+        initialConfig.data,
         workspaceId,
         computePatching,
         updateConfig,
+    ]);
+
+    // Auto-run effect for when coming from landing page
+    useEffect(() => {
+        const autoRunPatching = async () => {
+            // Only auto-run if:
+            // 1. shouldAutoRunRef is true (all required data pre-filled)
+            // 2. We haven't auto-run before
+            // 3. A model is available
+            // 4. Not currently executing
+            if (
+                shouldAutoRunRef.current &&
+                !hasAutoRunRef.current &&
+                selectedModel &&
+                selectedModel.length > 0 &&
+                !isExecuting
+            ) {
+                hasAutoRunRef.current = true;
+                shouldAutoRunRef.current = false; // Disable future auto-runs immediately
+                console.log(
+                    "Auto-running activation patching for pre-filled config:",
+                    { srcPrompt: initialSrcPrompt, tgtPrompt: initialTgtPrompt, srcPos: initialSrcPos, tgtPos: initialTgtPos }
+                );
+                console.log("Using model:", selectedModel);
+
+                try {
+                    // First tokenize both prompts
+                    const srcToks = await encodeText(initialSrcPrompt, selectedModel);
+                    const tgtToks = await encodeText(initialTgtPrompt, selectedModel);
+
+                    if (srcToks.length <= 1 || tgtToks.length <= 1) {
+                        console.error("Auto-run failed: prompts too short");
+                        return;
+                    }
+
+                    setSrcTokens(srcToks);
+                    setTgtTokens(tgtToks);
+                    setSrcTokenizedModel(selectedModel);
+                    setTgtTokenizedModel(selectedModel);
+                    setSrcEditing(false);
+                    setTgtEditing(false);
+
+                    const config: ActivationPatchingConfigData = {
+                        ...initialConfig.data,
+                        model: selectedModel,
+                        srcPrompt: initialSrcPrompt,
+                        tgtPrompt: initialTgtPrompt,
+                        srcPos: initialSrcPos,
+                        tgtPos: initialTgtPos,
+                        tgtFreeze: initialTgtFreeze,
+                    };
+
+                    // Compute the activation patching visualization
+                    await computePatching({
+                        request: {
+                            completion: config,
+                            chartId,
+                        },
+                        configId: initialConfig.id,
+                    });
+
+                    // Collapse the config table after successful computation
+                    setPatchTableExpanded(false);
+
+                    // Track the prompts from this run
+                    setLastRunSrcPrompt(initialSrcPrompt);
+                    setLastRunTgtPrompt(initialTgtPrompt);
+
+                    console.log("Auto-run completed successfully");
+                } catch (error) {
+                    console.error("Auto-run failed:", error);
+                    // Don't reset flags - we only try once
+                }
+            }
+        };
+
+        // Small delay to ensure all dependencies are ready
+        const timer = setTimeout(autoRunPatching, 800);
+        return () => clearTimeout(timer);
+    }, [
+        selectedModel,
+        isExecuting,
+        initialSrcPrompt,
+        initialTgtPrompt,
+        initialSrcPos,
+        initialTgtPos,
+        initialTgtFreeze,
+        chartId,
+        initialConfig.id,
+        initialConfig.data,
+        computePatching,
     ]);
 
     // Check if ready to run - requires equal number of source and target positions
@@ -1125,358 +706,51 @@ export function ActivationPatchingControls({
         srcPos.length === tgtPos.length &&
         !isExecuting;
 
-    // Validation message for unmatched selections
-    const validationMessage = useMemo(() => {
-        if (srcPos.length === 0 && tgtPos.length === 0) {
-            return null;
-        }
-        if (srcPos.length > tgtPos.length) {
-            const diff = srcPos.length - tgtPos.length;
-            return `Select ${diff} more target position${diff > 1 ? "s" : ""} to match source`;
-        }
-        if (tgtPos.length > srcPos.length) {
-            const diff = tgtPos.length - srcPos.length;
-            return `Select ${diff} more source position${diff > 1 ? "s" : ""} to match target`;
-        }
-        return null;
-    }, [srcPos.length, tgtPos.length]);
-
-    // Cleanup RAF on unmount
-    useEffect(() => {
-        return () => {
-            if (rafRef.current !== null) {
-                cancelAnimationFrame(rafRef.current);
-            }
-        };
-    }, []);
-
-    // Get token center position relative to container
-    // Uses getClientRects() to handle tokens that wrap across multiple lines
-    const getTokenCenter = useCallback((side: "source" | "target", index: number, at: "top" | "bottom") => {
-        const container = controlsContainerRef.current;
-        if (!container) return null;
-        const token = container.querySelector<HTMLElement>(
-            `[data-token-side="${side}"][data-token-id="${index}"]`,
-        );
-        if (!token) return null;
-        const containerRect = container.getBoundingClientRect();
-        
-        // Get all line rects for wrapped elements
-        const rects = token.getClientRects();
-        if (rects.length === 0) return null;
-        
-        // For "bottom", use the last rect (last line of wrapped token)
-        // For "top", use the first rect
-        const targetRect = at === "bottom" ? rects[rects.length - 1] : rects[0];
-        
-        const x = targetRect.left + targetRect.width / 2 - containerRect.left;
-        const y = (at === "top" ? targetRect.top : targetRect.bottom) - containerRect.top;
-        return { x, y };
-    }, []);
-
-    // Get the center position for a source position (handles both single and range)
-    const getSourceCenter = useCallback((pos: SourcePosition, at: "top" | "bottom") => {
-        if (typeof pos === "number") {
-            return getTokenCenter("source", pos, at);
-        }
-        // For ranges, use the middle token in the range
-        // This works better when the range spans multiple lines
-        const startIdx = pos[0];
-        const endIdx = pos[1] - 1; // end is exclusive, so -1 for last token
-        const middleIdx = Math.floor((startIdx + endIdx) / 2);
-        return getTokenCenter("source", middleIdx, at);
-    }, [getTokenCenter]);
-
-    // Get the start position for the connecting arrow (cached to avoid recalc on every move)
-    const getConnectingArrowStart = useCallback(() => {
-        if (srcPos.length <= tgtPos.length) return null;
-        const unparedSrcPos = srcPos[srcPos.length - 1];
-        if (typeof unparedSrcPos === "number") {
-            return getTokenCenter("source", unparedSrcPos, "bottom");
-        }
-        // For ranges, use the middle token
-        const startIdx = unparedSrcPos[0];
-        const endIdx = unparedSrcPos[1] - 1;
-        const middleIdx = Math.floor((startIdx + endIdx) / 2);
-        return getTokenCenter("source", middleIdx, "bottom");
-    }, [srcPos, tgtPos, getTokenCenter]);
-
-    // Mouse move handler - directly updates SVG path without React re-render
-    const handleMouseMove = useCallback((e: React.MouseEvent) => {
-        if (!isConnecting) return;
-        const container = controlsContainerRef.current;
-        const pathEl = connectingArrowRef.current;
-        if (!container || !pathEl) return;
-        
-        // Only schedule a new frame if one isn't already pending
-        if (rafRef.current !== null) return;
-        
-        const clientX = e.clientX;
-        const clientY = e.clientY;
-        
-        rafRef.current = requestAnimationFrame(() => {
-            rafRef.current = null;
-            const rect = container.getBoundingClientRect();
-            const mousePos = {
-                x: clientX - rect.left,
-                y: clientY - rect.top,
-            };
-            
-            const start = getConnectingArrowStart();
-            if (!start) {
-                pathEl.setAttribute("d", "");
-                return;
-            }
-            
-            const path = createCurvePath(start, mousePos);
-            pathEl.setAttribute("d", path);
-        });
-    }, [isConnecting, getConnectingArrowStart]);
-    
-    // Hide connecting arrow when mouse leaves
-    const handleMouseLeave = useCallback(() => {
-        if (rafRef.current !== null) {
-            cancelAnimationFrame(rafRef.current);
-            rafRef.current = null;
-        }
-        const pathEl = connectingArrowRef.current;
-        if (pathEl) {
-            pathEl.setAttribute("d", "");
-        }
-    }, []);
-
-    // Render the connecting arrows (supports multiple connections and ranges)
-    // The mouse-following arrow uses a ref and is updated via DOM manipulation for performance
-    const renderArrows = useMemo(() => {
-        if (!showArrows || srcPos.length === 0) return null;
-        
-        const arrows: React.ReactNode[] = [];
-        
-        // Draw connected arrows (paired source -> target)
-        const pairedCount = Math.min(srcPos.length, tgtPos.length);
-        for (let i = 0; i < pairedCount; i++) {
-            const srcPosition = srcPos[i];
-            const start = getSourceCenter(srcPosition, "bottom");
-            const end = getTokenCenter("target", tgtPos[i], "top");
-            if (!start || !end) continue;
-            
-            const color = PATCH_COLORS[i % PATCH_COLORS.length].bg;
-            arrows.push(
-                <g key={`arrow-${i}`}>
-                    {/* Glow effect */}
-                    <path
-                        d={createCurvePath(start, end)}
-                        fill="none"
-                        stroke={color}
-                        strokeWidth={3}
-                        strokeOpacity={0.3}
-                        filter="url(#arrow-glow)"
-                    />
-                    {/* Main arrow - solid when connected */}
-                    <path
-                        d={createCurvePath(start, end)}
-                        fill="none"
-                        stroke={color}
-                        strokeWidth={2}
-                        markerEnd={`url(#arrow-head-${i % PATCH_COLORS.length})`}
-                    />
-                </g>
-            );
-        }
-        
-        // Draw hover arrow (when hovering over a target token)
-        if (srcPos.length > tgtPos.length && hoverTgtIdx !== null) {
-            const unparedSrcPos = srcPos[srcPos.length - 1];
-            const start = getSourceCenter(unparedSrcPos, "bottom");
-            const end = getTokenCenter("target", hoverTgtIdx, "top");
-            if (start && end) {
-                const colorIdx = (srcPos.length - 1) % PATCH_COLORS.length;
-                const color = PATCH_COLORS[colorIdx].bg;
-                arrows.push(
-                    <g key="arrow-hover">
-                        <path
-                            d={createCurvePath(start, end)}
-                            fill="none"
-                            stroke={color}
-                            strokeWidth={2}
-                            markerEnd={`url(#arrow-head-${colorIdx})`}
-                        />
-                    </g>
-                );
-            }
-        }
-        
-        // Determine the color for the connecting arrow
-        const connectingColorIdx = srcPos.length > tgtPos.length 
-            ? (srcPos.length - 1) % PATCH_COLORS.length 
-            : 0;
-        const connectingColor = PATCH_COLORS[connectingColorIdx].bg;
-
-        return (
-            <svg className="pointer-events-none absolute inset-0 w-full h-full overflow-visible z-50">
-                <defs>
-                    {PATCH_COLORS.map((patchColor, idx) => (
-                        <marker
-                            key={`marker-${idx}`}
-                            id={`arrow-head-${idx}`}
-                            markerWidth="10"
-                            markerHeight="7"
-                            refX="9"
-                            refY="3.5"
-                            orient="auto"
-                        >
-                            <polygon points="0 0, 10 3.5, 0 7" fill={patchColor.bg} />
-                        </marker>
-                    ))}
-                    {/* Glow filter for the arrows */}
-                    <filter id="arrow-glow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                        <feMerge>
-                            <feMergeNode in="coloredBlur" />
-                            <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                    </filter>
-                </defs>
-                {arrows}
-                {/* Mouse-following arrow - updated via DOM for smooth performance */}
-                {isConnecting && hoverTgtIdx === null && (
-                    <path
-                        ref={connectingArrowRef}
-                        fill="none"
-                        stroke={connectingColor}
-                        strokeWidth={2}
-                        strokeDasharray="6,4"
-                        markerEnd={`url(#arrow-head-${connectingColorIdx})`}
-                    />
-                )}
-            </svg>
-        );
-    }, [showArrows, srcPos, tgtPos, hoverTgtIdx, isConnecting, getTokenCenter, getSourceCenter]);
-
-    // Clear connecting arrow when not connecting
-    useEffect(() => {
-        if (!isConnecting) {
-            const pathEl = connectingArrowRef.current;
-            if (pathEl) {
-                pathEl.setAttribute("d", "");
-            }
-            setHoverTgtIdx(null);
-        }
-    }, [isConnecting]);
-
-    // Toggle token selection for source with range support (shift+click)
-    // Regular click = add/remove single token
-    // Shift+click = start or complete a range selection
-    const handleSrcTokenClick = useCallback((pos: number, shiftKey: boolean) => {
-        // Check if this token is already part of a selection
-        const existingSelection = findSourcePositionForToken(pos, srcPos);
-        
-        if (existingSelection !== null) {
-            // Token is already selected - remove the entire position (single or range)
-            const newSrcPos = srcPos.filter((_, i) => i !== existingSelection.index);
-            const newTgtPos = tgtPos.filter((_, i) => i !== existingSelection.index);
-            setSrcPos(newSrcPos);
-            setTgtPos(newTgtPos);
-            setPendingRangeStart(null);
-            return;
-        }
-        
-        // Token is not selected
-        if (shiftKey) {
-            // Shift is held - range selection mode
-            if (pendingRangeStart !== null) {
-                // Complete the range
-                const start = Math.min(pendingRangeStart, pos);
-                const end = Math.max(pendingRangeStart, pos) + 1; // +1 because end is exclusive
-                setSrcPos([...srcPos, [start, end] as [number, number]]);
-                setPendingRangeStart(null);
-            } else {
-                // Start a new range
-                setPendingRangeStart(pos);
-            }
-        } else {
-            // Regular click - add as single position immediately
-            // Also cancel any pending range
-            setPendingRangeStart(null);
-            setSrcPos([...srcPos, pos]);
-        }
-    }, [srcPos, tgtPos, pendingRangeStart]);
-
-    // Toggle token selection for target (add/remove from array)
-    // Regular click: patch position pairing (when source has more selections), or unfreeze if frozen
-    // Ctrl+click: freeze position (independent of patching)
-    const handleTgtTokenClick = useCallback((pos: number, ctrlKey: boolean) => {
-        // Check if token is frozen
-        const freezeIdx = tgtFreeze.indexOf(pos);
-        const isFrozen = freezeIdx !== -1;
-        
-        if (ctrlKey) {
-            // Ctrl+click: toggle freeze
-            if (isFrozen) {
-                // Remove from freeze
-                setTgtFreeze(tgtFreeze.filter((_, i) => i !== freezeIdx));
-            } else {
-                // Add to freeze (don't allow freezing a patch position)
-                if (!tgtPos.includes(pos)) {
-                    setTgtFreeze([...tgtFreeze, pos]);
-                }
-            }
-        } else {
-            // Regular click
-            // If frozen, unfreeze it
-            if (isFrozen) {
-                setTgtFreeze(tgtFreeze.filter((_, i) => i !== freezeIdx));
-                return;
-            }
-            
-            // Otherwise handle as patch position
-        const idx = tgtPos.indexOf(pos);
-        if (idx !== -1) {
-            // Remove this target position and its paired source
-            const newTgtPos = tgtPos.filter((_, i) => i !== idx);
-            const newSrcPos = srcPos.filter((_, i) => i !== idx);
-            setTgtPos(newTgtPos);
-            setSrcPos(newSrcPos);
-        } else {
-            // Only allow adding if we have more source positions than target (pairing mode)
-            if (srcPos.length > tgtPos.length) {
-                setTgtPos([...tgtPos, pos]);
-            }
-            // If already balanced, don't add (must add a source first)
-        }
-        }
-    }, [srcPos, tgtPos, tgtFreeze]);
-
     return (
-        <div 
+        <div
             ref={controlsContainerRef}
             className="relative flex flex-col gap-4"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
             {/* Arrow SVG overlay */}
-            {renderArrows}
+            {showArrows && (
+                <EnhancedPatchArrows
+                    containerRef={controlsContainerRef}
+                    srcPos={srcPos}
+                    tgtPos={tgtPos}
+                    srcEditing={srcEditing}
+                    tgtEditing={tgtEditing}
+                    hoverTgtIdx={hoverTgtIdx}
+                    isConnecting={isConnecting && !srcEditing && !tgtEditing}
+                    enableGlow={true}
+                    enableMouseFollowing={true}
+                    connectingArrowRef={connectingArrowRef}
+                />
+            )}
 
             {/* Source Prompt - with range selection support */}
             <div className="flex flex-col gap-1">
-            <SourcePromptSection
-                label="Source Prompt"
-                prompt={srcPrompt}
-                setPrompt={setSrcPrompt}
-                tokens={srcTokens}
-                selectedPositions={srcPos}
-                pendingRangeStart={pendingRangeStart}
-                onTokenClick={handleSrcTokenClick}
-                isEditing={srcEditing}
-                setIsEditing={setSrcEditing}
-                onBlur={handleSrcBlur}
-                isExecuting={isExecuting}
-                tokenizedModel={srcTokenizedModel}
-                selectedModel={selectedModel}
-                textareaRef={srcTextareaRef}
-                tokenContainerRef={srcTokenContainerRef}
-                predictionToken={srcPrediction}
-            />
+                <PatchPromptSection
+                    variant="source"
+                    mode="full"
+                    label="Source Prompt"
+                    prompt={srcPrompt}
+                    setPrompt={setSrcPrompt}
+                    tokens={srcTokens}
+                    selectedModel={selectedModel}
+                    isEditing={srcEditing}
+                    setIsEditing={setSrcEditing}
+                    isExecuting={isExecuting}
+                    tokenizedModel={srcTokenizedModel}
+                    textareaRef={srcTextareaRef}
+                    tokenContainerRef={srcTokenContainerRef}
+                    onBlur={handleSrcBlur}
+                    selectedPositions={srcPos}
+                    pendingRangeStart={pendingRangeStart}
+                    onSrcTokenClick={handleSrcTokenClick}
+                    predictionToken={srcPrediction}
+                />
                 {!srcEditing && srcTokens.length > 0 && (
                     <p className="text-[11px] text-muted-foreground/70">
                         <span className="font-medium">Shift+click</span> to select a range of tokens
@@ -1486,27 +760,28 @@ export function ActivationPatchingControls({
 
             {/* Target Prompt */}
             <div className="flex flex-col gap-1">
-            <PromptSection
-                label="Target Prompt"
-                prompt={tgtPrompt}
-                setPrompt={setTgtPrompt}
-                tokens={tgtTokens}
-                selectedPositions={tgtPos}
+                <PatchPromptSection
+                    variant="target"
+                    mode="full"
+                    label="Target Prompt"
+                    prompt={tgtPrompt}
+                    setPrompt={setTgtPrompt}
+                    tokens={tgtTokens}
+                    selectedModel={selectedModel}
+                    isEditing={tgtEditing}
+                    setIsEditing={setTgtEditing}
+                    isExecuting={isExecuting}
+                    tokenizedModel={tgtTokenizedModel}
+                    textareaRef={tgtTextareaRef}
+                    tokenContainerRef={tgtTokenContainerRef}
+                    onBlur={handleTgtBlur}
+                    tgtSelectedPositions={tgtPos}
                     frozenPositions={tgtFreeze}
-                onTokenClick={handleTgtTokenClick}
-                onTokenHover={isConnecting ? setHoverTgtIdx : undefined}
-                onTokenLeave={isConnecting ? () => setHoverTgtIdx(null) : undefined}
-                isEditing={tgtEditing}
-                setIsEditing={setTgtEditing}
-                onBlur={handleTgtBlur}
-                isExecuting={isExecuting}
-                tokenizedModel={tgtTokenizedModel}
-                selectedModel={selectedModel}
-                textareaRef={tgtTextareaRef}
-                tokenContainerRef={tgtTokenContainerRef}
-                side="target"
-                predictionToken={tgtPrediction}
-            />
+                    onTgtTokenClick={handleTgtTokenClick}
+                    onTokenHover={isConnecting && !srcEditing && !tgtEditing ? setHoverTgtIdx : undefined}
+                    onTokenLeave={isConnecting && !srcEditing && !tgtEditing ? () => setHoverTgtIdx(null) : undefined}
+                    predictionToken={tgtPrediction}
+                />
                 {!tgtEditing && tgtTokens.length > 0 && (
                     <p className="text-[11px] text-muted-foreground/70">
                         <span className="font-medium">⌘/Ctrl+click</span> to freeze tokens
@@ -1521,12 +796,7 @@ export function ActivationPatchingControls({
                 tgtFreeze={tgtFreeze}
                 expanded={patchTableExpanded}
                 onToggleExpanded={() => setPatchTableExpanded(!patchTableExpanded)}
-                onClear={() => {
-                    setSrcPos([]);
-                    setTgtPos([]);
-                    setTgtFreeze([]);
-                    setPendingRangeStart(null);
-                }}
+                onClear={clearAll}
                 disabled={isExecuting}
             />
 
@@ -1541,10 +811,7 @@ export function ActivationPatchingControls({
                 ) : (
                     <>
                         <Play className="mr-2 h-4 w-4" />
-                        Run 
-                        {/* {srcPos.length > 0 && tgtPos.length > 0 && srcPos.length === tgtPos.length && (
-                            <span className="ml-1 text-violet-200">({srcPos.length} patch{srcPos.length > 1 ? "es" : ""})</span>
-                        )} */}
+                        Run
                     </>
                 )}
             </Button>
