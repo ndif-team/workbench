@@ -18,7 +18,17 @@ export const dynamic = "force-dynamic";
 export default async function WorkbenchPage({
     searchParams,
 }: {
-    searchParams: Promise<{ prompt?: string; model?: string; createNew?: string }>;
+    searchParams: Promise<{ 
+        prompt?: string; 
+        model?: string; 
+        createNew?: string;
+        tool?: string;
+        srcPrompt?: string;
+        tgtPrompt?: string;
+        srcPos?: string;
+        tgtPos?: string;
+        tgtFreeze?: string;
+    }>;
 }) {
     const supabase = await createClient();
 
@@ -35,6 +45,12 @@ export default async function WorkbenchPage({
     const prompt = params?.prompt;
     const model = params?.model;
     const createNew = params?.createNew === "true";
+    const tool = params?.tool || "Logit Lens";
+    const srcPrompt = params?.srcPrompt;
+    const tgtPrompt = params?.tgtPrompt;
+    const srcPos = params?.srcPos;
+    const tgtPos = params?.tgtPos;
+    const tgtFreeze = params?.tgtFreeze;
 
     // If no workspaces exist OR createNew flag is set, create a new workspace
     let shouldCreateWorkspace = !workspaces || workspaces.length === 0 || createNew;
@@ -107,6 +123,12 @@ export default async function WorkbenchPage({
                             initialModel={model}
                             workspaceName={createNew ? "Untitled" : "Default Workspace"}
                             seedWithExamples={!createNew} // Don't seed with examples when creating from prompt
+                            tool={tool}
+                            srcPrompt={srcPrompt}
+                            tgtPrompt={tgtPrompt}
+                            srcPos={srcPos}
+                            tgtPos={tgtPos}
+                            tgtFreeze={tgtFreeze}
                         />
                     ) : (
                         <WorkspaceList userId={user.id} />

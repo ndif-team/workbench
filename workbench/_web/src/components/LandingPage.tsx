@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, type ElementRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ModeToggle } from "@/components/ui/mode-toggle";
-import { ArrowRight, Sparkles, Brain, Zap, ChevronDown, Layers } from "lucide-react";
+import { ArrowRight, Sparkles, Layers } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { UserDropdown } from "@/components/UserDropdown";
@@ -24,7 +24,9 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import PromptVisualization from "@/components/PromptVisualization";
-import type { Model } from "@/types/models";
+import type { Model, Token } from "@/types/models";
+import type { SourcePosition } from "@/types/activationPatching";
+import { ActivationPatchingLandingInput } from "@/components/ActivationPatchingLandingInput";
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
 
@@ -37,6 +39,15 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const captchaRef = useRef<ElementRef<typeof HCaptcha> | null>(null);
     const router = useRouter();
+
+    // Activation patching state
+    const [srcPrompt, setSrcPrompt] = useState("");
+    const [tgtPrompt, setTgtPrompt] = useState("");
+    const [srcTokens, setSrcTokens] = useState<Token[]>([]);
+    const [tgtTokens, setTgtTokens] = useState<Token[]>([]);
+    const [srcPos, setSrcPos] = useState<SourcePosition[]>([]);
+    const [tgtPos, setTgtPos] = useState<number[]>([]);
+    const [tgtFreeze, setTgtFreeze] = useState<number[]>([]);
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -86,9 +97,22 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
             } else {
                 // Redirect to workbench with the prompt and model as query parameters
                 const params = new URLSearchParams({
-                    prompt: prompt,
                     model: selectedModel,
+                    tool: selectedTool,
                 });
+                
+                if (selectedTool === "Activation Patching") {
+                    params.set("srcPrompt", srcPrompt);
+                    params.set("tgtPrompt", tgtPrompt);
+                    params.set("srcPos", JSON.stringify(srcPos));
+                    params.set("tgtPos", JSON.stringify(tgtPos));
+                    if (tgtFreeze.length > 0) {
+                        params.set("tgtFreeze", JSON.stringify(tgtFreeze));
+                    }
+                } else {
+                    params.set("prompt", prompt);
+                }
+                
                 window.location.href = `/workbench?${params.toString()}`;
             }
         } catch (err) {
@@ -107,13 +131,21 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!prompt.trim()) return;
+        
+        // Validate based on tool type
+        if (selectedTool === "Activation Patching") {
+            if (!srcPrompt.trim() || !tgtPrompt.trim() || srcPos.length === 0 || srcPos.length !== tgtPos.length) {
+                return;
+            }
+        } else {
+            if (!prompt.trim()) return;
+        }
 
         // Check if user is trying to use a gated model without being logged in
         if (isSelectedModelGated() && (!loggedIn || !currentUser || currentUser.is_anonymous)) {
             // Redirect to login with the prompt/model info
             const params = new URLSearchParams({
-                prompt: prompt,
+                prompt: selectedTool === "Activation Patching" ? srcPrompt : prompt,
                 model: selectedModel,
                 gatedModel: "true",
             });
@@ -121,13 +153,27 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
             return;
         }
 
+        // Build params based on tool type
+        const params = new URLSearchParams({
+            model: selectedModel,
+            createNew: "true", // Flag to always create new workspace
+            tool: selectedTool,
+        });
+
+        if (selectedTool === "Activation Patching") {
+            params.set("srcPrompt", srcPrompt);
+            params.set("tgtPrompt", tgtPrompt);
+            params.set("srcPos", JSON.stringify(srcPos));
+            params.set("tgtPos", JSON.stringify(tgtPos));
+            if (tgtFreeze.length > 0) {
+                params.set("tgtFreeze", JSON.stringify(tgtFreeze));
+            }
+        } else {
+            params.set("prompt", prompt);
+        }
+
         // If user is logged in (not anonymous), redirect directly to workbench with prompt
         if (loggedIn && currentUser && !currentUser.is_anonymous) {
-            const params = new URLSearchParams({
-                prompt: prompt,
-                model: selectedModel,
-                createNew: "true", // Flag to always create new workspace
-            });
             router.push(`/workbench?${params.toString()}`);
         } else {
             // Show captcha for anonymous/non-logged-in users
@@ -243,10 +289,10 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                         transition={{ duration: 0.6, delay: 0.2 }}
                         className="text-center space-y-4 mb-16"
                     >
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary">
+                        {/* <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary">
                             <Sparkles className="w-4 h-4" />
                             <span>AI Interpretability Research Platform</span>
-                        </div>
+                        </div> */}
 
                         <h1 className="text-5xl lg:text-7xl font-bold tracking-tight pt-2">
                             {/* <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/80 bg-clip-text text-transparent">
@@ -289,15 +335,17 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
 
                             <div className="relative p-6 space-y-4">
                                 <form onSubmit={handleSubmit} className="space-y-4">
-                                    <div className="relative">
-                                        <Textarea
-                                            value={prompt}
-                                            onChange={(e) => setPrompt(e.target.value)}
-                                            onKeyDown={handleKeyDown}
-                                            placeholder="Enter a prompt to analyze..."
-                                            className="min-h-[120px] text-lg resize-none bg-background/50 border-border/50 focus:border-primary/50 transition-colors pb-12"
-                                            disabled={showCaptcha || isSubmitting}
-                                        />
+                                    {selectedTool === "Logit Lens" ? (
+                                        /* Logit Lens - Single prompt input */
+                                        <div className="relative">
+                                            <Textarea
+                                                value={prompt}
+                                                onChange={(e) => setPrompt(e.target.value)}
+                                                onKeyDown={handleKeyDown}
+                                                placeholder="Enter a prompt to analyze..."
+                                                className="min-h-[120px] text-lg resize-none bg-background/50 border-border/50 focus:border-primary/50 transition-colors pb-12"
+                                                disabled={showCaptcha || isSubmitting}
+                                            />
 
                                         {/* Model Selector - Bottom Left */}
                                         <div className="absolute bottom-3 left-[var(--textarea-padding-x,0.75rem)] flex items-center gap-2">
@@ -317,11 +365,15 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                             value="Logit Lens"
                                                             className="text-xs"
                                                         >
-                                                            {selectedTool}
+                                                            Logit Lens
                                                         </SelectItem>
-                                                        <SelectLabel className="italic">
-                                                            More tools coming soon...
-                                                        </SelectLabel>
+                                                        <SelectItem
+                                                            key="Activation Patching"
+                                                            value="Activation Patching"
+                                                            className="text-xs"
+                                                        >
+                                                            Activation Patching
+                                                        </SelectItem>
                                                     </SelectGroup>
                                                 </SelectContent>
                                             </Select>
@@ -389,13 +441,93 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                             </div>
                                         )}
                                     </div>
+                                    ) : (
+                                        /* Activation Patching - Dual prompt inputs with token selection */
+                                        <div className="space-y-3">
+                                            <ActivationPatchingLandingInput
+                                                srcPrompt={srcPrompt}
+                                                setSrcPrompt={setSrcPrompt}
+                                                tgtPrompt={tgtPrompt}
+                                                setTgtPrompt={setTgtPrompt}
+                                                srcTokens={srcTokens}
+                                                setSrcTokens={setSrcTokens}
+                                                tgtTokens={tgtTokens}
+                                                setTgtTokens={setTgtTokens}
+                                                srcPos={srcPos}
+                                                setSrcPos={setSrcPos}
+                                                tgtPos={tgtPos}
+                                                setTgtPos={setTgtPos}
+                                                tgtFreeze={tgtFreeze}
+                                                setTgtFreeze={setTgtFreeze}
+                                                selectedModel={selectedModel}
+                                                disabled={showCaptcha || isSubmitting}
+                                            />
+
+                                            {/* Tool and Model Selectors */}
+                                            <div className="flex items-center gap-2 pt-1">
+                                                <Select
+                                                    value={selectedTool}
+                                                    onValueChange={setSelectedTool}
+                                                    disabled={showCaptcha || isSubmitting}
+                                                >
+                                                    <SelectTrigger className="h-7 w-fit text-xs bg-gradient-to-r from-primary/10 to-purple-500/10 backdrop-blur-sm border border-primary/20 hover:from-primary/20 hover:to-purple-500/20 hover:border-primary/30 transition-all gap-1.5 rounded-full focus:ring-0 focus:ring-offset-0 shadow-sm">
+                                                        <SelectValue placeholder="Select Tool..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="rounded-xl">
+                                                        <SelectGroup>
+                                                            <SelectLabel>Tools</SelectLabel>
+                                                            <SelectItem key="Logit Lens" value="Logit Lens" className="text-xs">
+                                                                Logit Lens
+                                                            </SelectItem>
+                                                            <SelectItem key="Activation Patching" value="Activation Patching" className="text-xs">
+                                                                Activation Patching
+                                                            </SelectItem>
+                                                        </SelectGroup>
+                                                    </SelectContent>
+                                                </Select>
+                                                <Select
+                                                    value={selectedModel}
+                                                    onValueChange={setSelectedModel}
+                                                    disabled={showCaptcha || isSubmitting}
+                                                >
+                                                    <SelectTrigger className="h-7 w-fit text-xs bg-gradient-to-r from-primary/10 to-purple-500/10 backdrop-blur-sm border border-primary/20 hover:from-primary/20 hover:to-purple-500/20 hover:border-primary/30 transition-all gap-1.5 rounded-full focus:ring-0 focus:ring-offset-0 shadow-sm">
+                                                        {modelsLoading ? (
+                                                            <span className="text-xs">Loading models...</span>
+                                                        ) : (
+                                                            <SelectValue placeholder="Select model..." />
+                                                        )}
+                                                    </SelectTrigger>
+                                                    <SelectContent className="rounded-xl">
+                                                        <SelectGroup>
+                                                            <SelectLabel>Models</SelectLabel>
+                                                            {modelsLoading ? (
+                                                                <SelectItem value="loading" disabled className="text-xs">
+                                                                    Loading models...
+                                                                </SelectItem>
+                                                            ) : (
+                                                                modelsToSelect?.map((model) => (
+                                                                    <SelectItem key={model.name} value={model.name} className="text-xs">
+                                                                        {model.name}
+                                                                    </SelectItem>
+                                                                ))
+                                                            )}
+                                                        </SelectGroup>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {!showCaptcha ? (
                                         <Button
                                             type="submit"
                                             size="lg"
                                             className="w-full text-base h-12 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-lg shadow-primary/25"
-                                            disabled={!prompt.trim() || isSubmitting}
+                                            disabled={
+                                                isSubmitting || 
+                                                (selectedTool === "Logit Lens" ? !prompt.trim() : 
+                                                    !srcPrompt.trim() || !tgtPrompt.trim() || srcPos.length === 0 || srcPos.length !== tgtPos.length)
+                                            }
                                         >
                                             <span>Run</span>
                                             <ArrowRight className="w-5 h-5" />
