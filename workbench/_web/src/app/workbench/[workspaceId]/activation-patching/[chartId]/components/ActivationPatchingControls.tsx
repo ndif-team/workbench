@@ -305,14 +305,14 @@ export function ActivationPatchingControls({
     const srcPrediction = useMemo(() => {
         if (!allLabels.length || allLabels.length < 1) return null;
         // Only show if current prompt matches last run prompt
-        if (srcPrompt.trim() !== lastRunSrcPrompt) return null;
+        if (srcPrompt !== lastRunSrcPrompt) return null;
         return allLabels[0]; // Source prediction is first label
     }, [allLabels, srcPrompt, lastRunSrcPrompt]);
 
     const tgtPrediction = useMemo(() => {
         if (!allLabels.length || allLabels.length < 2) return null;
         // Only show if current prompt matches last run prompt
-        if (tgtPrompt.trim() !== lastRunTgtPrompt) return null;
+        if (tgtPrompt !== lastRunTgtPrompt) return null;
         return allLabels[1]; // Target prediction is second label
     }, [allLabels, tgtPrompt, lastRunTgtPrompt]);
 
@@ -437,7 +437,7 @@ export function ActivationPatchingControls({
 
     // Handle tokenization for source prompt
     const handleSrcTokenize = useCallback(async () => {
-        if (!srcPrompt.trim()) return;
+        if (!srcPrompt) return;
         const tokens = await encodeText(srcPrompt, selectedModel);
         if (tokens.length > 0) {
             // Check if tokens actually changed (prompt was modified)
@@ -458,7 +458,7 @@ export function ActivationPatchingControls({
 
     // Handle tokenization for target prompt
     const handleTgtTokenize = useCallback(async () => {
-        if (!tgtPrompt.trim()) return;
+        if (!tgtPrompt) return;
         const tokens = await encodeText(tgtPrompt, selectedModel);
         if (tokens.length > 0) {
             // Check if tokens actually changed (prompt was modified)
@@ -487,7 +487,7 @@ export function ActivationPatchingControls({
 
             if (withinTextarea || withinToken || popoverOpen) return;
 
-            if (srcPrompt.trim()) {
+            if (srcPrompt) {
                 handleSrcTokenize();
             }
         }, 100);
@@ -503,7 +503,7 @@ export function ActivationPatchingControls({
 
             if (withinTextarea || withinToken || popoverOpen) return;
 
-            if (tgtPrompt.trim()) {
+            if (tgtPrompt) {
                 handleTgtTokenize();
             }
         }, 100);
@@ -511,10 +511,7 @@ export function ActivationPatchingControls({
 
     // Handle form submission
     const handleSubmit = useCallback(async () => {
-        const trimmedSrcPrompt = srcPrompt.trim();
-        const trimmedTgtPrompt = tgtPrompt.trim();
-
-        if (!trimmedSrcPrompt || !trimmedTgtPrompt) {
+        if (!srcPrompt || !tgtPrompt) {
             toast.error("Please enter both source and target prompts.");
             return;
         }
@@ -530,8 +527,8 @@ export function ActivationPatchingControls({
         }
 
         // Tokenize both prompts to ensure they're in sync
-        const srcToks = await encodeText(trimmedSrcPrompt, selectedModel);
-        const tgtToks = await encodeText(trimmedTgtPrompt, selectedModel);
+        const srcToks = await encodeText(srcPrompt, selectedModel);
+        const tgtToks = await encodeText(tgtPrompt, selectedModel);
 
         if (srcToks.length <= 1 || tgtToks.length <= 1) {
             toast.error("Please enter longer prompts.");
@@ -546,8 +543,8 @@ export function ActivationPatchingControls({
         const config: ActivationPatchingConfigData = {
             ...initialConfig.data,  // Preserve existing fields like selectedLineIndices
             model: selectedModel,
-            srcPrompt: trimmedSrcPrompt,
-            tgtPrompt: trimmedTgtPrompt,
+            srcPrompt,
+            tgtPrompt,
             srcPos,
             tgtPos,
             tgtFreeze,
@@ -566,8 +563,8 @@ export function ActivationPatchingControls({
         setPatchTableExpanded(false);
 
         // Track the prompts from this run (to show predictions)
-        setLastRunSrcPrompt(trimmedSrcPrompt);
-        setLastRunTgtPrompt(trimmedTgtPrompt);
+        setLastRunSrcPrompt(srcPrompt);
+        setLastRunTgtPrompt(tgtPrompt);
 
         // Reset selected line indices to defaults after new computation
         // The new data will have new tokens, so we reset to first two (source and target predictions)
@@ -699,8 +696,8 @@ export function ActivationPatchingControls({
 
     // Check if ready to run - requires equal number of source and target positions
     const canRun =
-        srcPrompt.trim() &&
-        tgtPrompt.trim() &&
+        srcPrompt &&
+        tgtPrompt &&
         srcPos.length > 0 &&
         tgtPos.length > 0 &&
         srcPos.length === tgtPos.length &&
