@@ -6,7 +6,7 @@ app = modal.App(name=os.environ.get("MODAL_APP_NAME", "interp-workbench"))
 image = (
     modal.Image.debian_slim()
     .uv_sync()
-    .env({"ENVIRONMENT" : os.environ.get("ENVIRONMENT", "dev"), 
+    .env({"CONFIG" : os.environ.get("CONFIG", "dev"), 
           "INFLUXDB_BUCKET" : os.environ.get("INFLUXDB_BUCKET", "workbench-dev")
          }) # Configures which models are loaded
     .add_local_dir("./workbench/_api", remote_path="/root/workbench/_api", ignore=["__pycache__"])

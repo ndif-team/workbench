@@ -7,7 +7,7 @@ volume = modal.Volume.from_name("hf", create_if_missing=True)
 image = (
     modal.Image.debian_slim()
     .uv_sync()
-    .env({"ENVIRONMENT" : "dev",
+    .env({"CONFIG" : "dev",
           "HF_HOME": "/root/hf"}) # Configures which models are loaded
     .add_local_dir("./workbench/_api", remote_path="/root/workbench/_api", ignore=["__pycache__"])
 )

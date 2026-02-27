@@ -20,12 +20,12 @@ ALLOWED_ORIGINS = [
     "https://workbench.ndif.us"
 ]
 
-if os.environ.get('ENVIRONMENT') != "prod":
+if os.environ.get('CONFIG') != "prod":
     ALLOWED_ORIGINS.append("http://localhost:3000")
 
 ALLOWED_ORIGIN_REGEX = (
     r"^https://workbench-[a-z0-9\-]*-ndif\.vercel\.app$"  # dev/staging previews
-    if os.environ.get('ENVIRONMENT') != "prod"
+    if os.environ.get('CONFIG') != "prod"
     else None  # in prod, rely on the fixed list above
 )
 

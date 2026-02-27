@@ -91,25 +91,21 @@ class AppState:
         remote = os.environ.get("REMOTE", "true").lower() == "true"
         logger.info(f"Using Local Deployment? {not remote}")
         if remote:
-            ndif_backend = os.environ.get("NDIF_API_HOST")
+            ndif_backend = os.environ.get("NDIF_API_HOST", "api.ndif.us")
             if ndif_backend is not None:
                 CONFIG.API.HOST = ndif_backend
-                CONFIG.API.SSL = False
-            else:
-                CONFIG.API.HOST = "api.ndif.us"
-                CONFIG.API.SSL = True
 
         CONFIG.set_default_api_key(os.environ.get("NDIF_API_KEY"))
 
-        self.ndif_backend_url = f"http{'s' if CONFIG.API.SSL else ''}://{CONFIG.API.HOST}"
+        self.ndif_backend_url = CONFIG.API.HOST
         logger.info(f"Backend URL: {self.ndif_backend_url}")
-        self.telemetry_url = f"http://{CONFIG.API.HOST.split(':')[0]}:{os.environ.get('INFLUXDB_PORT', '8086')}"
+        self.telemetry_url = f"{CONFIG.API.HOST}:{os.environ.get('INFLUXDB_PORT', '8086')}"
         logger.info(f"Telemetry URL: {self.telemetry_url}")
 
         return remote
 
     def _load(self):
-        env = os.environ.get("ENVIRONMENT", "dev")
+        env = os.environ.get("CONFIG", "dev")
         logger.info(f'Loading "{env}" config')
         
         current_path = os.path.dirname(os.path.abspath(__file__))
