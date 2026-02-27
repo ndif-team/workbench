@@ -15,6 +15,7 @@ interface AutoWorkspaceCreatorProps {
     initialModel?: string;
     seedWithExamples?: boolean; // New prop to control seeding
     workspaceName?: string; // Custom workspace name
+    existingWorkspaceId?: string; // Use existing workspace instead of creating new
     tool?: string; // Tool type: "Logit Lens" or "Activation Patching"
     srcPrompt?: string; // Activation patching source prompt
     tgtPrompt?: string; // Activation patching target prompt
@@ -29,6 +30,7 @@ export function AutoWorkspaceCreator({
     initialModel,
     seedWithExamples = true, // Default to true for new users
     workspaceName = "Default Workspace", // Default name
+    existingWorkspaceId,
     tool = "Logit Lens",
     srcPrompt,
     tgtPrompt,
@@ -48,29 +50,37 @@ export function AutoWorkspaceCreator({
             setError(null);
 
             try {
-                console.log("Creating workspace for user:", userId, "with name:", workspaceName);
-                const newWorkspace = await createWorkspace(userId, workspaceName);
-                console.log("Created workspace:", newWorkspace);
+                let targetWorkspaceId: string;
 
-                // Seed with example charts if enabled
-                if (seedWithExamples) {
-                    console.log("Seeding workspace with example charts...");
-                    await pushTutorialChart(newWorkspace.id);
-                    console.log("Successfully seeded workspace with examples");
+                if (existingWorkspaceId) {
+                    // Use existing workspace — skip creation and seeding
+                    console.log("Using existing workspace:", existingWorkspaceId);
+                    targetWorkspaceId = existingWorkspaceId;
+                } else {
+                    console.log("Creating workspace for user:", userId, "with name:", workspaceName);
+                    const newWorkspace = await createWorkspace(userId, workspaceName);
+                    console.log("Created workspace:", newWorkspace);
+                    targetWorkspaceId = newWorkspace.id;
+
+                    // Seed with example charts if enabled
+                    if (seedWithExamples) {
+                        console.log("Seeding workspace with example charts...");
+                        await pushTutorialChart(targetWorkspaceId);
+                        console.log("Successfully seeded workspace with examples");
+                    }
                 }
 
                 // If user submitted a prompt from landing page, create a chart for it
                 let userChartId: string | null = null;
                 let chartType: string = "lens";
-                
+
                 if (tool === "Activation Patching" && srcPrompt && tgtPrompt && srcPos && tgtPos) {
                     // Create activation patching chart
                     console.log("Creating activation patching chart");
-                    // srcPos is already SourcePosition[] - can contain numbers or [start, end] tuples
                     const parsedSrcPos: SourcePosition[] = JSON.parse(srcPos);
                     const parsedTgtPos: number[] = JSON.parse(tgtPos);
                     const parsedTgtFreeze: number[] = tgtFreeze ? JSON.parse(tgtFreeze) : [];
-                    
+
                     const apConfig: ActivationPatchingConfigData = {
                         model: initialModel || "openai-community/gpt2",
                         srcPrompt: srcPrompt,
@@ -80,7 +90,7 @@ export function AutoWorkspaceCreator({
                         tgtFreeze: parsedTgtFreeze,
                     };
 
-                    const { chart } = await createActivationPatchingChartPair(newWorkspace.id, apConfig);
+                    const { chart } = await createActivationPatchingChartPair(targetWorkspaceId, apConfig);
                     userChartId = chart.id;
                     chartType = "activation-patching";
                     console.log("Created activation patching chart:", userChartId);
@@ -93,24 +103,21 @@ export function AutoWorkspaceCreator({
                         token: { idx: 0, id: 0, text: "", targetIds: [] },
                     };
 
-                    const { chart } = await createLensChartPair(newWorkspace.id, userChartConfig);
+                    const { chart } = await createLensChartPair(targetWorkspaceId, userChartConfig);
                     userChartId = chart.id;
                     console.log("Created user chart:", userChartId);
                 }
 
                 // Small delay to ensure the workspace is fully created
                 setTimeout(() => {
-                    // If we created a user chart, redirect directly to it
-                    // The chart page will handle tokenization and running the tool
                     if (userChartId) {
                         if (chartType === "activation-patching") {
-                            router.push(`/workbench/${newWorkspace.id}/activation-patching/${userChartId}`);
+                            router.push(`/workbench/${targetWorkspaceId}/activation-patching/${userChartId}`);
                         } else {
-                            router.push(`/workbench/${newWorkspace.id}/${userChartId}`);
+                            router.push(`/workbench/${targetWorkspaceId}/${userChartId}`);
                         }
                     } else {
-                        // Otherwise just go to the workspace
-                        router.push(`/workbench/${newWorkspace.id}`);
+                        router.push(`/workbench/${targetWorkspaceId}`);
                     }
                 }, 500);
             } catch (err) {
@@ -121,7 +128,7 @@ export function AutoWorkspaceCreator({
         };
 
         createAndRedirect();
-    }, [userId, router, initialPrompt, initialModel, seedWithExamples, workspaceName, tool, srcPrompt, tgtPrompt, srcPos, tgtPos, tgtFreeze]);
+    }, [userId, router, initialPrompt, initialModel, seedWithExamples, workspaceName, existingWorkspaceId, tool, srcPrompt, tgtPrompt, srcPos, tgtPos, tgtFreeze]);
 
     if (error) {
         return (
@@ -145,12 +152,16 @@ export function AutoWorkspaceCreator({
         );
     }
 
+    const statusMessage = existingWorkspaceId
+        ? "Adding new chart to your workspace..."
+        : `Creating ${workspaceName === "Untitled" ? "new" : "default"} workspace...`;
+
     return (
         <div className="p-4 border rounded bg-blue-50 border-blue-200">
             <h2 className="text-lg font-semibold mb-2">Setting up your workspace...</h2>
             <div className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                <p className="text-gray-600">Creating your default workspace and redirecting...</p>
+                <p className="text-gray-600">{statusMessage}</p>
             </div>
         </div>
     );

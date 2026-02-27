@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, type ElementRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ModeToggle } from "@/components/ui/mode-toggle";
-import { ArrowRight, Sparkles, Layers } from "lucide-react";
+import { ArrowRight, Sparkles, Layers, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { UserDropdown } from "@/components/UserDropdown";
@@ -14,6 +14,9 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getModels } from "@/lib/api/modelsApi";
+import { getWorkspaces } from "@/lib/queries/workspaceQueries";
+
+type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number];
 import {
     Select,
     SelectContent,
@@ -22,6 +25,7 @@ import {
     SelectLabel,
     SelectTrigger,
     SelectValue,
+    SelectSeparator,
 } from "@/components/ui/select";
 import PromptVisualization from "@/components/PromptVisualization";
 import type { Model, Token } from "@/types/models";
@@ -48,6 +52,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     const [srcPos, setSrcPos] = useState<SourcePosition[]>([]);
     const [tgtPos, setTgtPos] = useState<number[]>([]);
     const [tgtFreeze, setTgtFreeze] = useState<number[]>([]);
+    const [selectedWorkspace, setSelectedWorkspace] = useState<string>("");
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -62,6 +67,14 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
 
         fetchUser();
     }, [loggedIn]);
+
+    const isSignedInUser = loggedIn && currentUser && !currentUser.is_anonymous;
+
+    const { data: workspacesList } = useQuery({
+        queryKey: ["workspaces", currentUser?.id],
+        queryFn: () => getWorkspaces(currentUser!.id),
+        enabled: !!isSignedInUser,
+    });
 
     const { data: models, isLoading: modelsLoading } = useQuery({
         queryKey: ["models"],
@@ -107,7 +120,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                     model: selectedModel,
                     tool: selectedTool,
                 });
-                
+
                 if (selectedTool === "Activation Patching") {
                     params.set("srcPrompt", srcPrompt);
                     params.set("tgtPrompt", tgtPrompt);
@@ -119,7 +132,11 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                 } else {
                     params.set("prompt", prompt);
                 }
-                
+
+                if (selectedWorkspace && selectedWorkspace !== "new") {
+                    params.set("workspaceId", selectedWorkspace);
+                }
+
                 window.location.href = `/workbench?${params.toString()}`;
             }
         } catch (err) {
@@ -163,9 +180,14 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
         // Build params based on tool type
         const params = new URLSearchParams({
             model: selectedModel,
-            createNew: "true", // Flag to always create new workspace
             tool: selectedTool,
         });
+
+        if (selectedWorkspace && selectedWorkspace !== "new") {
+            params.set("workspaceId", selectedWorkspace);
+        } else {
+            params.set("createNew", "true");
+        }
 
         if (selectedTool === "Activation Patching") {
             params.set("srcPrompt", srcPrompt);
@@ -355,13 +377,51 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                             />
 
                                         {/* Model Selector - Bottom Left */}
-                                        <div className="absolute bottom-3 left-[var(--textarea-padding-x,0.75rem)] flex items-center gap-2">
+                                        <div className="absolute bottom-3 left-[var(--textarea-padding-x,0.75rem)] flex items-center gap-1.5">
+                                            {isSignedInUser && workspacesList && workspacesList.length > 0 && (
+                                                <Select
+                                                    value={selectedWorkspace}
+                                                    onValueChange={setSelectedWorkspace}
+                                                    disabled={showCaptcha || isSubmitting}
+                                                >
+                                                    <SelectTrigger className="h-5 w-fit max-w-[180px] text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <Layers className="w-3.5 h-3.5 shrink-0 text-current" />
+                                                            {selectedWorkspace === "new" && (
+                                                                <span className="truncate">New Workspace</span>
+                                                            )}
+                                                            {selectedWorkspace && selectedWorkspace !== "new" && (
+                                                                <span className="truncate">
+                                                                    {workspacesList.find((ws: WorkspaceListItem) => ws.id === selectedWorkspace)?.name}
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    </SelectTrigger>
+                                                    <SelectContent className="rounded-xl max-h-60 overflow-y-auto max-w-[220px]">
+                                                        <SelectItem value="new" className="text-xs font-medium text-primary">
+                                                            <span className="flex items-center gap-1.5">
+                                                                <Plus className="w-3 h-3" />
+                                                                New Workspace
+                                                            </span>
+                                                        </SelectItem>
+                                                        <SelectSeparator />
+                                                        <SelectGroup>
+                                                            <SelectLabel>Workspaces</SelectLabel>
+                                                            {workspacesList.map((ws: WorkspaceListItem) => (
+                                                                <SelectItem key={ws.id} value={ws.id} className="text-xs">
+                                                                    <span className="truncate">{ws.name}</span>
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectGroup>
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
                                             <Select
                                                 value={selectedTool}
                                                 onValueChange={setSelectedTool}
                                                 disabled={showCaptcha || isSubmitting}
                                             >
-                                                <SelectTrigger className="h-7 w-fit text-xs bg-gradient-to-r from-primary/10 to-purple-500/10 backdrop-blur-sm border border-primary/20 hover:from-primary/20 hover:to-purple-500/20 hover:border-primary/30 transition-all gap-1.5 rounded-full focus:ring-0 focus:ring-offset-0 shadow-sm">
+                                                <SelectTrigger className="h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
                                                     <SelectValue placeholder="Select Tool..." />
                                                 </SelectTrigger>
                                                 <SelectContent className="rounded-xl">
@@ -389,7 +449,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                 onValueChange={setSelectedModel}
                                                 disabled={showCaptcha || isSubmitting}
                                             >
-                                                <SelectTrigger className="h-7 w-fit text-xs bg-gradient-to-r from-primary/10 to-purple-500/10 backdrop-blur-sm border border-primary/20 hover:from-primary/20 hover:to-purple-500/20 hover:border-primary/30 transition-all gap-1.5 rounded-full focus:ring-0 focus:ring-offset-0 shadow-sm">
+                                                <SelectTrigger className="h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
                                                     {modelsLoading ? (
                                                         <span className="text-xs">
                                                             Loading models...
@@ -471,13 +531,51 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                             />
 
                                             {/* Tool and Model Selectors */}
-                                            <div className="flex items-center gap-2 pt-1">
+                                            <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                                                {isSignedInUser && workspacesList && workspacesList.length > 0 && (
+                                                    <Select
+                                                        value={selectedWorkspace}
+                                                        onValueChange={setSelectedWorkspace}
+                                                        disabled={showCaptcha || isSubmitting}
+                                                    >
+                                                        <SelectTrigger className="h-5 w-fit max-w-[180px] text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
+                                                            <span className="flex items-center gap-1.5">
+                                                            <Layers className="w-3.5 h-3.5 shrink-0 text-current" />
+                                                            {selectedWorkspace === "new" && (
+                                                                <span className="truncate">New Workspace</span>
+                                                            )}
+                                                            {selectedWorkspace && selectedWorkspace !== "new" && (
+                                                                <span className="truncate">
+                                                                    {workspacesList.find((ws: WorkspaceListItem) => ws.id === selectedWorkspace)?.name}
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                        </SelectTrigger>
+                                                        <SelectContent className="rounded-xl max-h-60 overflow-y-auto max-w-[220px]">
+                                                            <SelectItem value="new" className="text-xs font-medium text-primary">
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <Plus className="w-3 h-3" />
+                                                                    New Workspace
+                                                                </span>
+                                                            </SelectItem>
+                                                            <SelectSeparator />
+                                                            <SelectGroup>
+                                                                <SelectLabel>Workspaces</SelectLabel>
+                                                                {workspacesList.map((ws: WorkspaceListItem) => (
+                                                                    <SelectItem key={ws.id} value={ws.id} className="text-xs">
+                                                                        <span className="truncate">{ws.name}</span>
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectGroup>
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
                                                 <Select
                                                     value={selectedTool}
                                                     onValueChange={setSelectedTool}
                                                     disabled={showCaptcha || isSubmitting}
                                                 >
-                                                    <SelectTrigger className="h-7 w-fit text-xs bg-gradient-to-r from-primary/10 to-purple-500/10 backdrop-blur-sm border border-primary/20 hover:from-primary/20 hover:to-purple-500/20 hover:border-primary/30 transition-all gap-1.5 rounded-full focus:ring-0 focus:ring-offset-0 shadow-sm">
+                                                    <SelectTrigger className="h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
                                                         <SelectValue placeholder="Select Tool..." />
                                                     </SelectTrigger>
                                                     <SelectContent className="rounded-xl">
@@ -497,7 +595,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                     onValueChange={setSelectedModel}
                                                     disabled={showCaptcha || isSubmitting}
                                                 >
-                                                    <SelectTrigger className="h-7 w-fit text-xs bg-gradient-to-r from-primary/10 to-purple-500/10 backdrop-blur-sm border border-primary/20 hover:from-primary/20 hover:to-purple-500/20 hover:border-primary/30 transition-all gap-1.5 rounded-full focus:ring-0 focus:ring-offset-0 shadow-sm">
+                                                    <SelectTrigger className="h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
                                                         {modelsLoading ? (
                                                             <span className="text-xs">Loading models...</span>
                                                         ) : (
