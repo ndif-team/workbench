@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
+import anyio
 
 from .routes import lens, lens2, patch, models, logit_lens, activation_patching
 from .state import AppState
