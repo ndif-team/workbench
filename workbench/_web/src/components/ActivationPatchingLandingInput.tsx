@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import type { Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
@@ -80,33 +80,37 @@ export function ActivationPatchingLandingInput({
         enabled: true,
     });
 
-    // Clear positions when tokens change
+    // Track previous tokens to detect tokenization changes
+    const prevSrcTokensRef = useRef<Token[]>(srcTokens);
+    const prevTgtTokensRef = useRef<Token[]>(tgtTokens);
+
+    const tokensEqual = useCallback((a: Token[], b: Token[]) => {
+        if (a.length !== b.length) return false;
+        return a.every((t, i) => t.id === b[i].id);
+    }, []);
+
+    // Clear patch configurations when tokenization actually changes
     useEffect(() => {
-        // Filter out positions that are no longer valid
-        const validSrcPos = srcPos.filter(pos => {
-            if (typeof pos === "number") {
-                return pos < srcTokens.length;
-            }
-            return pos[0] < srcTokens.length && pos[1] <= srcTokens.length;
-        });
-        if (validSrcPos.length !== srcPos.length) {
-            setSrcPos(validSrcPos);
-            setPendingRangeStart(null);
-        }
+        const prev = prevSrcTokensRef.current;
+        prevSrcTokensRef.current = srcTokens;
+        if (tokensEqual(prev, srcTokens)) return;
+
+        setSrcPos([]);
+        setPendingRangeStart(null);
+        // Also clear target pairings since they depend on source positions
+        setTgtPos([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [srcTokens.length]);
+    }, [srcTokens]);
 
     useEffect(() => {
-        const validTgtPos = tgtPos.filter(p => p < tgtTokens.length);
-        const validTgtFreeze = tgtFreeze.filter(p => p < tgtTokens.length);
-        if (validTgtPos.length !== tgtPos.length) {
-            setTgtPos(validTgtPos);
-        }
-        if (validTgtFreeze.length !== tgtFreeze.length) {
-            setTgtFreeze(validTgtFreeze);
-        }
+        const prev = prevTgtTokensRef.current;
+        prevTgtTokensRef.current = tgtTokens;
+        if (tokensEqual(prev, tgtTokens)) return;
+
+        setTgtPos([]);
+        setTgtFreeze([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tgtTokens.length]);
+    }, [tgtTokens]);
 
     // Clear stale hover when source selections change (e.g. new source added after pairing)
     // Without this, adding a second source would snap an arrow to the previously hovered target
