@@ -91,7 +91,7 @@ class AppState:
         remote = os.environ.get("REMOTE", "true").lower() == "true"
         logger.info(f"Using Local Deployment? {not remote}")
         if remote:
-            ndif_backend = os.environ.get("NDIF_API_HOST", "api.ndif.us")
+            ndif_backend = os.environ.get("NDIF_API_HOST")
             if ndif_backend is not None:
                 CONFIG.API.HOST = ndif_backend
 
