@@ -1008,7 +1008,7 @@ export function CompactPromptInput({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const handleBlur = useCallback(async () => {
-        if (!prompt.trim()) {
+        if (!prompt) {
             setTokens([]);
             setIsEditing(false);
             return;
@@ -1017,7 +1017,7 @@ export function CompactPromptInput({
         setIsTokenizing(true);
         setIsEditing(false);
         try {
-            const newTokens = await encodeText(prompt.trim(), selectedModel);
+            const newTokens = await encodeText(prompt, selectedModel);
             setTokens(newTokens);
         } catch (error) {
             console.error("Tokenization error:", error);
@@ -1039,7 +1039,7 @@ export function CompactPromptInput({
     }, [disabled, isTokenizing, setIsEditing]);
 
     useEffect(() => {
-        if (tokens.length > 0 && prompt.trim() && !isEditing) {
+        if (tokens.length > 0 && prompt && !isEditing) {
             handleBlur();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1191,7 +1191,7 @@ export function PatchPromptSection({
 
     // Internal blur handler for compact mode (auto-tokenize)
     const handleCompactBlur = useCallback(async () => {
-        if (!prompt.trim()) {
+        if (!prompt) {
             setTokens?.([]);
             setIsEditing(false);
             return;
@@ -1200,7 +1200,7 @@ export function PatchPromptSection({
         setIsTokenizing(true);
         setIsEditing(false);
         try {
-            const newTokens = await encodeText(prompt.trim(), selectedModel);
+            const newTokens = await encodeText(prompt, selectedModel);
             setTokens?.(newTokens);
         } catch (error) {
             console.error("Tokenization error:", error);
@@ -1227,7 +1227,7 @@ export function PatchPromptSection({
 
     // Re-tokenize on model change for compact mode
     useEffect(() => {
-        if (isCompact && tokens.length > 0 && prompt.trim() && !isEditing) {
+        if (isCompact && tokens.length > 0 && prompt && !isEditing) {
             handleCompactBlur();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
