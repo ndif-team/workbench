@@ -696,6 +696,18 @@ export function EnhancedPatchArrows({
     // Use external ref if provided, otherwise use internal
     const connectingArrowRef = externalConnectingArrowRef ?? internalConnectingArrowRef;
 
+    // Force re-render on container resize so arrows reposition
+    const [, setResizeTick] = useState(0);
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+        const observer = new ResizeObserver(() => {
+            setResizeTick((t) => t + 1);
+        });
+        observer.observe(container);
+        return () => observer.disconnect();
+    }, [containerRef]);
+
     // Don't show arrows while editing
     const showArrows = srcPos.length > 0 && !srcEditing && !tgtEditing;
 
