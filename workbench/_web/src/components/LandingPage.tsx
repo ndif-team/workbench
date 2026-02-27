@@ -79,6 +79,13 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
         },
     ];
 
+    // Default to first model if selected model isn't in the list
+    useEffect(() => {
+        if (modelsToSelect.length > 0 && !modelsToSelect.some((m) => m.name === selectedModel)) {
+            setSelectedModel(modelsToSelect[0].name);
+        }
+    }, [models]);
+
     const handleCaptchaVerify = async (token: string) => {
         const supabase = createClient();
         setIsSubmitting(true);
