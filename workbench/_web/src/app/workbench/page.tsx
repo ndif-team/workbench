@@ -18,10 +18,11 @@ export const dynamic = "force-dynamic";
 export default async function WorkbenchPage({
     searchParams,
 }: {
-    searchParams: Promise<{ 
-        prompt?: string; 
-        model?: string; 
+    searchParams: Promise<{
+        prompt?: string;
+        model?: string;
         createNew?: string;
+        workspaceId?: string;
         tool?: string;
         srcPrompt?: string;
         tgtPrompt?: string;
@@ -45,6 +46,7 @@ export default async function WorkbenchPage({
     const prompt = params?.prompt;
     const model = params?.model;
     const createNew = params?.createNew === "true";
+    const workspaceId = params?.workspaceId;
     const tool = params?.tool || "Logit Lens";
     const srcPrompt = params?.srcPrompt;
     const tgtPrompt = params?.tgtPrompt;
@@ -54,6 +56,9 @@ export default async function WorkbenchPage({
 
     // If no workspaces exist OR createNew flag is set, create a new workspace
     let shouldCreateWorkspace = !workspaces || workspaces.length === 0 || createNew;
+
+    // If workspaceId is provided, use the existing workspace instead of creating new
+    const useExistingWorkspace = workspaceId && !shouldCreateWorkspace;
 
     return (
         <>
@@ -116,13 +121,26 @@ export default async function WorkbenchPage({
                 <main>
                     <ModelsDisplay />
 
-                    {shouldCreateWorkspace ? (
+                    {useExistingWorkspace ? (
+                        <AutoWorkspaceCreator
+                            userId={user.id}
+                            initialPrompt={prompt}
+                            initialModel={model}
+                            existingWorkspaceId={workspaceId}
+                            tool={tool}
+                            srcPrompt={srcPrompt}
+                            tgtPrompt={tgtPrompt}
+                            srcPos={srcPos}
+                            tgtPos={tgtPos}
+                            tgtFreeze={tgtFreeze}
+                        />
+                    ) : shouldCreateWorkspace ? (
                         <AutoWorkspaceCreator
                             userId={user.id}
                             initialPrompt={prompt}
                             initialModel={model}
                             workspaceName={createNew ? "Untitled" : "Default Workspace"}
-                            seedWithExamples={!createNew} // Don't seed with examples when creating from prompt
+                            seedWithExamples={!createNew}
                             tool={tool}
                             srcPrompt={srcPrompt}
                             tgtPrompt={tgtPrompt}
