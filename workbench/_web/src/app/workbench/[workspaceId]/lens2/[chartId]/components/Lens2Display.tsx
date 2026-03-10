@@ -7,7 +7,8 @@ import { queryKeys } from "@/lib/queryKeys";
 import { Lens2Data } from "@/types/lens2";
 import { useTheme } from "next-themes";
 import { Loader2 } from "lucide-react";
-import { LogitLensWidgetWrapper } from "./LogitLensWidgetWrapper";
+import { LogitLensWidget } from "nnsightful";
+import type { LogitLensData } from "nnsightful";
 
 interface Lens2Chart {
     id: string;
@@ -64,9 +65,10 @@ export function Lens2Display() {
 
     return (
         <div className="size-full overflow-auto p-4">
-            <LogitLensWidgetWrapper
-                data={lens2Chart.data!}
+            <LogitLensWidget
+                data={lens2Chart.data! as LogitLensData}
                 darkMode={isDarkMode}
+                className="w-full min-h-[400px]"
             />
         </div>
     );

@@ -5,8 +5,8 @@ from ..auth import require_user_email
 
 from ..data_models import NDIFResponse
 
-from workbench.interp_tools.src.visualizations.types import LogitLensData
-from workbench.interp_tools.src.tools.logit_lens import logit_lens, format_data
+from nnsightful.types import LogitLensData
+from nnsightful.tools.logit_lens import logit_lens, format_data
 
 router = APIRouter()
 

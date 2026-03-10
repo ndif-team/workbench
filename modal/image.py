@@ -10,7 +10,6 @@ image = (
           "INFLUXDB_BUCKET" : os.environ.get("INFLUXDB_BUCKET", "workbench-dev")
          }) # Configures which models are loaded
     .add_local_dir("./workbench/_api", remote_path="/root/workbench/_api", ignore=["__pycache__"])
-    .add_local_dir("./workbench/interp_tools", remote_path="/root/workbench/interp_tools", ignore=["__pycache__"])
 )
 
 @app.function(
