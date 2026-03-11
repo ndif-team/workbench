@@ -5,6 +5,7 @@ app = modal.App(name=os.environ.get("MODAL_APP_NAME", "interp-workbench"))
 
 image = (
     modal.Image.debian_slim()
+    .apt_install("git")
     .uv_sync()
     .env({"CONFIG" : os.environ.get("CONFIG", "dev"), 
           "INFLUXDB_BUCKET" : os.environ.get("INFLUXDB_BUCKET", "workbench-dev")
