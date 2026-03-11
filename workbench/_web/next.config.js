@@ -12,7 +12,7 @@ const nextConfig = {
     turbopack: {
         // Expand root so Turbopack can resolve the symlinked nnsightful package
         // which lives at ../../nnsightful (outside the default _web/ root)
-        root: path.join(__dirname, "..", ".."),
+        root: path.join(__dirname, "..", "..", ".."),
     },
     images: {
         unoptimized: true,
