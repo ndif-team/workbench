@@ -9,8 +9,8 @@ from ..state import AppState
 from ..auth import require_user_email
 from ..state import get_state
 
-from workbench.interp_tools.src.visualizations.types import ActivationPatchingData
-from workbench.interp_tools.src.tools.activation_patching import activation_patching, format_data
+from nnsightful.types import ActivationPatchingData
+from nnsightful.tools.activation_patching import activation_patching, format_data
 
 router = APIRouter()
 
@@ -51,5 +51,5 @@ async def collect_results(
     clean_pred = results["clean_pred"].item()
     clean_logits = results["clean_logits"]
     
-    data = format_data(logits, state[request.model_name].tokenizer, src_pred, clean_pred, clean_logits)
+    data = format_data(state[request.model_name].tokenizer, src_pred, clean_pred, logits, clean_logits)
     return {"data": data}

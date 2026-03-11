@@ -7,7 +7,8 @@ import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { ActivationPatchingData, ActivationPatchingConfigData } from "@/types/activationPatching";
 import { Loader2 } from "lucide-react";
-import { LinePlotWidget } from "./LinePlotWidget";
+import { LinePlotWidget } from "nnsightful";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 
@@ -30,6 +31,8 @@ type DisplayMode = "probability" | "prob_diff" | "rank";
 
 export function ActivationPatchingDisplay() {
     const { chartId } = useParams<{ chartId: string }>();
+    const { resolvedTheme } = useTheme();
+    const isDarkMode = resolvedTheme === "dark";
     const [displayMode, setDisplayMode] = useState<DisplayMode>("probability");
     const [localTitle, setLocalTitle] = useState<string | null>(null); // null means use chart name
     const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -259,15 +262,15 @@ export function ActivationPatchingDisplay() {
                     <LinePlotWidget
                         data={plotData}
                         title={
-                            displayMode === "probability" 
+                            displayMode === "probability"
                                 ? "Activation Patching: Token Probability by Layer"
                                 : displayMode === "prob_diff"
                                     ? "Activation Patching: Probability Difference by Layer"
                                     : "Activation Patching: Token Rank by Layer"
                         }
                         yAxisLabel={
-                            displayMode === "probability" 
-                                ? "Probability" 
+                            displayMode === "probability"
+                                ? "Probability"
                                 : displayMode === "prob_diff"
                                     ? "Prob Δ (Patched - Clean)"
                                     : "Rank"
@@ -277,6 +280,7 @@ export function ActivationPatchingDisplay() {
                         mode={displayMode}
                         invertYAxis={displayMode === "rank"}
                         centerYAxisAtZero={displayMode === "prob_diff"}
+                        darkMode={isDarkMode}
                     />
                 ) : (
                     <div className="flex size-full items-center justify-center text-muted-foreground">

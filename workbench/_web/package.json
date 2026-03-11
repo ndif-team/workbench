@@ -13,9 +13,11 @@
     "format:check": "prettier . --check",
     "knip": "knip",
     "test": "bun test",
-    "test:watch": "bun test --watch"
+    "test:watch": "bun test --watch",
+    "postinstall": "[ -d ../../../../nnsightful ] && rm -rf node_modules/nnsightful && ln -s ../../../../nnsightful node_modules/nnsightful || true"
   },
   "dependencies": {
+    "nnsightful": "github:AdamBelfki3/nnsightful",
     "@codemirror/lang-python": "^6.2.1",
     "@hcaptcha/react-hcaptcha": "^1.12.1",
     "@huggingface/transformers": "^3.7.2",
@@ -83,5 +85,6 @@
     "prettier": "^3.6.2",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.2"
-  }
+  },
+  "trustedDependencies": ["nnsightful"]
 }

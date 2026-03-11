@@ -1,9 +1,19 @@
 /** @type {import('next').NextConfig} */
 
+import path from "path";
+import { fileURLToPath } from "url";
 import { withPostHogConfig } from "@posthog/nextjs-config";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig = {
     reactStrictMode: true,
+    transpilePackages: ["nnsightful"],
+    turbopack: {
+        // Expand root so Turbopack can resolve the symlinked nnsightful package
+        // which lives at ../../nnsightful (outside the default _web/ root)
+        root: path.join(__dirname, "..", "..", ".."),
+    },
     images: {
         unoptimized: true,
         remotePatterns: [
