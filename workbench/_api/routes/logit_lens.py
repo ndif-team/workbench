@@ -46,12 +46,10 @@ async def collect_lens2(
     
     backend = state.make_backend(job_id=job_id)
 
-    results = backend()["all_logits"]
-    
-    model = state[req.model]
-    tokenizer = model.tokenizer
-    input_tokens = tokenizer.batch_decode(tokenizer.encode(req.prompt))
+    tokenizer = state[req.model].tokenizer
 
-    results = format_data(results, input_tokens, req.topk, req.include_entropy, req.model, tokenizer)
+    results = backend()
+
+    results = format_data(results["input_tokens"], results["all_logits"], tokenizer, req.topk, req.include_entropy, req.model)
 
     return {"data": results}
