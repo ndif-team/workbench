@@ -56,7 +56,7 @@ class AppState:
 
         self.config = self._load()
 
-        TelemetryClient.init(self)
+        # TelemetryClient.init(self)
 
     def add_model(self, model_name: str) -> ModelConfig | None:
         if model_name in [model.name for model in self.config.models.values()] and model_name not in self.models:
