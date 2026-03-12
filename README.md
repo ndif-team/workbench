@@ -25,6 +25,7 @@ AI Interpretability Research Platform
 ## Setup
 
 ### Requirements
+1. [Node.js](https://nodejs.org/) >= 18.18.0
 1. [Install uv](https://docs.astral.sh/uv/)
 1. [Install bun](https://bun.sh/)
 
