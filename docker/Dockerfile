@@ -3,7 +3,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Install base utilities
 RUN apt-get update -y \
-    && apt-get install -y build-essential \
+    && apt-get install -y build-essential git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
