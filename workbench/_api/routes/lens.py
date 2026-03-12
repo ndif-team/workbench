@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from ..auth import require_user_email, user_has_model_access
 from ..data_models import NDIFResponse, Token
 from ..state import AppState, get_state
-from ..telemetry import RequestStatus, Stage, TelemetryClient
 
 ############ LINE ############
 
@@ -106,14 +105,9 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
 def get_remote_line(user_email: str, job_id: str, state: AppState):
     backend = state.make_backend(job_id=job_id)
     
-    with TelemetryClient.log_latency(
-        user_email=user_email,
-        job_id=job_id,
-        method="LENS",
-        type="LINE",
-        stage=Stage.DOWNLOAD
-    ):
-        results = backend()
+    
+    results = backend()
+
     return results["results"]
 
 
@@ -153,45 +147,14 @@ async def start_line(
     if state.remote:
         if not user_has_model_access(user_email, req.model, state):
             message = f"User does not have access to {req.model}"
-            TelemetryClient.log_request(
-                RequestStatus.ERROR, 
-                user_email,
-                method="LENS",
-                type="LINE",
-                msg=message,
-            )
             raise HTTPException(status_code=403, detail=message)
-
-    TelemetryClient.log_request(
-        RequestStatus.STARTED, 
-        user_email,
-        method="LENS",
-        type="LINE",
-        metric=req.stat.value
-    )
 
     try:
         result = line(req, state)
     except Exception as e:
-        TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email, 
-            method="LENS",
-            type="LINE",
-            metric=req.stat.value,
-            msg=str(e),
-        )
         raise e
 
     if state.remote:
-        TelemetryClient.log_request(
-            RequestStatus.READY, 
-            user_email,
-            method="LENS",
-            type="LINE",
-            metric=req.stat.value,
-            job_id=result
-        )
         return {"job_id": result}
 
     return {"data": process_line_results(result, req, state)}
@@ -208,26 +171,7 @@ async def collect_line(
     try:
         results = get_remote_line(user_email, job_id, state)
     except Exception as e:
-        TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email, 
-            job_id=job_id, 
-            method="LENS",
-            type="LINE",
-            metric=req.stat.value,
-            msg=str(e)
-        )
-        # TODO: Add logging here
         raise e
-
-    TelemetryClient.log_request(
-        RequestStatus.COMPLETE, 
-        user_email, 
-        job_id=job_id, 
-        method="LENS",
-        type="LINE",
-        metric=req.stat.value
-    )
 
     return {"data": process_line_results(results, req, state)}
 
@@ -363,15 +307,8 @@ def get_remote_heatmap(
     state: AppState
 ) -> tuple[list[t.Tensor], list[t.Tensor]]:
     backend = state.make_backend(job_id=job_id)
-
-    with TelemetryClient.log_latency(
-        user_email=user_email,
-        job_id=job_id,
-        method="LENS",
-        type="GRID",
-        stage=Stage.DOWNLOAD
-    ):
-        results = backend()
+        
+    results = backend()
     
     return results["stats"], results["pred_ids"]
 
@@ -436,45 +373,15 @@ async def get_grid(
     if state.remote:
         if not user_has_model_access(user_email, req.model, state):
             message = f"User does not have access to {req.model}"
-            TelemetryClient.log_request(
-                RequestStatus.ERROR, 
-                user_email,
-                method="LENS",
-                type="GRID",
-                msg=message,
-            )
-            raise HTTPException(status_code=403, detail=message)
 
-    TelemetryClient.log_request(
-        RequestStatus.STARTED, 
-        user_email,
-        method="LENS",
-        type="GRID",
-        metric=req.stat.value
-    )
+            raise HTTPException(status_code=403, detail=message)
     
     try:
         result = heatmap(req, state)
     except Exception as e:
-        TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email, 
-            method="LENS",
-            type="GRID",
-            metric=req.stat.value,
-            msg=str(e),
-        )
         raise e
 
     if state.remote:
-        TelemetryClient.log_request(
-            RequestStatus.READY, 
-            user_email,
-            method="LENS",
-            type="GRID",
-            metric=req.stat.value,
-            job_id=result
-        )
         return {"job_id": result}
 
     probs, pred_ids = result
@@ -491,23 +398,6 @@ async def collect_grid(
     try:
         probs, pred_ids = get_remote_heatmap(user_email, job_id, state)
     except Exception as e:
-        TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email, 
-            job_id=job_id, 
-            method="LENS",
-            type="GRID",
-            metric=lens_request.stat.value,
-            msg=str(e)
-        )
         raise e
-    
-    TelemetryClient.log_request(
-        RequestStatus.COMPLETE, 
-        user_email,
-        job_id=job_id,
-        method="LENS",
-        type="GRID",
-        metric=lens_request.stat.value
-    )
+
     return {"data": process_grid_results(probs, pred_ids, lens_request, state)}
