@@ -13,8 +13,7 @@
     "format:check": "prettier . --check",
     "knip": "knip",
     "test": "bun test",
-    "test:watch": "bun test --watch",
-    "postinstall": "[ -d ../../../../nnsightful ] && rm -rf node_modules/nnsightful && ln -s ../../../../nnsightful node_modules/nnsightful || true"
+    "test:watch": "bun test --watch"
   },
   "dependencies": {
     "nnsightful": "github:AdamBelfki3/nnsightful",
