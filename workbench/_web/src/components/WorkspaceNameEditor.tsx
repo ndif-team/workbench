@@ -42,6 +42,15 @@ export function WorkspaceNameEditor() {
         setIsEditing(false);
     }, [workspaceId]);
 
+    // Cleanup debounce timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, []);
+
     // The display name: use localName while editing, otherwise use workspace name
     const displayName = localName !== null ? localName : (workspace?.name || "");
 
@@ -101,7 +110,7 @@ export function WorkspaceNameEditor() {
         return null;
     }
 
-    const titleClass = "text-xl font-medium text-foreground";
+    const titleClass = "text-base md:text-xl font-medium text-foreground";
 
     if (isEditing) {
         return (

@@ -309,14 +309,14 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
             </header>
 
             {/* Main Content */}
-            <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 overflow-y-auto">
+            <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-3 md:px-6 overflow-y-auto">
                 <div className="max-w-4xl mx-auto w-full space-y-0 pb-8">
                     {/* Hero Section */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
-                        className="text-center space-y-4 mb-16"
+                        className="text-center space-y-4 mb-8 md:mb-16"
                     >
                         {/* <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary">
                             <Sparkles className="w-4 h-4" />
@@ -333,7 +333,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                             </span>
                         </h1>
 
-                        <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed pt-0">
+                        <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed pt-0">
                             Explore LLM internals and build your experiments interactively.
                         </p>
 

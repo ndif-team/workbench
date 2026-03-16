@@ -7,7 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useDeleteWorkspace } from "@/lib/api/workspaceApi";
 import { Button } from "@/components/ui/button";
 import { Trash2, BarChart3, FileText } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useIsDark } from "@/hooks/useIsDark";
 
 interface WorkspaceListProps {
     userId: string;
@@ -29,25 +30,7 @@ function WorkspaceCard({
     onDelete: (e: React.MouseEvent, workspaceId: string) => void;
 }) {
     const [isHovered, setIsHovered] = useState(false);
-    const [isDark, setIsDark] = useState(false);
-
-    console.log(workspace);
-
-    useEffect(() => {
-        const checkDark = () => {
-            setIsDark(document.documentElement.classList.contains("dark"));
-        };
-
-        checkDark();
-
-        const observer = new MutationObserver(checkDark);
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ["class"],
-        });
-
-        return () => observer.disconnect();
-    }, []);
+    const isDark = useIsDark();
 
     return (
         <Link
@@ -197,7 +180,7 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     {workspaces.map((workspace) => (
                         <WorkspaceCard
                             key={workspace.id}

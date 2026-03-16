@@ -17,27 +17,29 @@ export default function WorkbenchLayout({
 }>) {
     return (
         <div className="flex flex-col h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
-            <header className="p-3 px-5 flex items-center justify-between relative">
+            <header className="p-2 px-3 md:p-3 md:px-5 flex items-center justify-between relative">
                 {/* Left: Back button */}
                 <div className="flex items-center z-10">
                     <Link href="/workbench">
                         <Button variant="ghost" className="bg-transparent hover:!white/10 border-1">
                             <ArrowLeft className="w-4 h-4" />
-                            <span className="text-sm">workspaces</span>
+                            <span className="text-sm hidden md:inline">workspaces</span>
                         </Button>
                     </Link>
                 </div>
 
                 {/* Center: Workspace name */}
-                <div className="absolute left-1/2 -translate-x-1/2">
+                <div className="absolute left-1/2 -translate-x-1/2 max-w-[40vw] md:max-w-none truncate">
                     <WorkspaceNameEditor />
                 </div>
 
                 {/* Right: Nav items */}
-                <nav className="flex gap-3 items-center z-10">
-                    <WorkbenchStatus />
+                <nav className="flex gap-1 md:gap-3 items-center z-10">
+                    <div className="hidden md:block">
+                        <WorkbenchStatus />
+                    </div>
                     <Link href="https://forms.gle/WsxmZikeLNw34LBV9" target="_blank">
-                        <Button variant="ghost" className="bg-transparent hover:!white/10 border-0">
+                        <Button variant="ghost" className="hidden md:flex bg-transparent hover:!white/10 border-0">
                             <svg
                                 width="15"
                                 height="15"
@@ -58,7 +60,7 @@ export default function WorkbenchLayout({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="bg-transparent hover:!white/10"
+                        className="hidden md:flex bg-transparent hover:!white/10"
                         asChild
                     >
                         <Link

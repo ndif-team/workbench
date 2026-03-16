@@ -3,8 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { getModels } from "@/lib/api/modelsApi";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Layers, Grip } from "lucide-react";
+import { useIsDark } from "@/hooks/useIsDark";
 
 function BaseModelCard({
     model,
@@ -12,24 +13,7 @@ function BaseModelCard({
     model: { name: string; allowed: boolean; n_layers: number; params: string };
 }) {
     const [isHovered, setIsHovered] = useState(false);
-    const [isDark, setIsDark] = useState(false);
-
-    useEffect(() => {
-        const checkDark = () => {
-            const isDarkMode = document.documentElement.classList.contains("dark");
-            setIsDark(isDarkMode);
-        };
-
-        checkDark();
-
-        const observer = new MutationObserver(checkDark);
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ["class"],
-        });
-
-        return () => observer.disconnect();
-    }, []);
+    const isDark = useIsDark();
 
     const lightGradient = "linear-gradient(to bottom right, #dbeafe, #eff6ff, #ffffff)"; // blue-100, blue-50, white
     const darkGradient =
@@ -44,15 +28,15 @@ function BaseModelCard({
             onMouseLeave={() => setIsHovered(false)}
         >
             <div
-                className="h-full px-3 py-3 rounded-lg border transition-all hover:shadow-md hover:shadow-blue-500/20 hover:-translate-y-0.5 cursor-pointer"
+                className="h-full px-2 py-2 md:px-3 md:py-3 rounded-lg border transition-all hover:shadow-md hover:shadow-blue-500/20 hover:-translate-y-0.5 cursor-pointer"
                 style={{
                     borderColor: isDark ? "rgba(96, 165, 250, 0.6)" : "rgba(59, 130, 246, 0.6)", // blue-400 dark, blue-500 light (darker)
                     backgroundImage: isDark ? darkGradient : lightGradient,
                 }}
             >
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1 md:gap-1.5">
                     <div
-                        className="text-sm font-medium break-words line-clamp-2 transition-colors leading-tight"
+                        className="text-xs md:text-sm font-medium break-words line-clamp-1 md:line-clamp-2 transition-colors leading-tight"
                         style={{ color: isHovered ? (isDark ? "#bfdbfe" : "#2563eb") : "inherit" }}
                     >
                         {model.name}
@@ -90,27 +74,7 @@ function ChatModelCard({
     model: { name: string; allowed: boolean; n_layers: number; params: string };
 }) {
     const [isHovered, setIsHovered] = useState(false);
-    const [isDark, setIsDark] = useState(false);
-
-    useEffect(() => {
-        // Initial check
-        const checkDark = () => {
-            const isDarkMode = document.documentElement.classList.contains("dark");
-            console.log("Dark mode:", isDarkMode); // Debug log
-            setIsDark(isDarkMode);
-        };
-
-        checkDark();
-
-        // Watch for class changes
-        const observer = new MutationObserver(checkDark);
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ["class"],
-        });
-
-        return () => observer.disconnect();
-    }, []);
+    const isDark = useIsDark();
 
     const lightGradient = "linear-gradient(to bottom right, #f3e8ff, #faf5ff, #ffffff)";
     const darkGradient =
@@ -125,15 +89,15 @@ function ChatModelCard({
             onMouseLeave={() => setIsHovered(false)}
         >
             <div
-                className="h-full px-3 py-3 rounded-lg border transition-all hover:shadow-md hover:shadow-purple-500/20 hover:-translate-y-0.5 cursor-pointer"
+                className="h-full px-2 py-2 md:px-3 md:py-3 rounded-lg border transition-all hover:shadow-md hover:shadow-purple-500/20 hover:-translate-y-0.5 cursor-pointer"
                 style={{
                     borderColor: isDark ? "rgba(192, 132, 252, 0.6)" : "rgba(147, 51, 234, 0.6)", // purple-400 dark, purple-600 light (darker)
                     backgroundImage: isDark ? darkGradient : lightGradient,
                 }}
             >
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1 md:gap-1.5">
                     <div
-                        className="text-sm font-medium break-words line-clamp-2 transition-colors leading-tight"
+                        className="text-xs md:text-sm font-medium break-words line-clamp-1 md:line-clamp-2 transition-colors leading-tight"
                         style={{ color: isHovered ? (isDark ? "#e9d5ff" : "#9333ea") : "inherit" }}
                     >
                         {model.name}
@@ -167,23 +131,7 @@ function ChatModelCard({
 
 export function ModelsDisplay() {
     const [isExpanded, setIsExpanded] = useState(true);
-    const [isDark, setIsDark] = useState(false);
-
-    useEffect(() => {
-        const checkDark = () => {
-            setIsDark(document.documentElement.classList.contains("dark"));
-        };
-
-        checkDark();
-
-        const observer = new MutationObserver(checkDark);
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ["class"],
-        });
-
-        return () => observer.disconnect();
-    }, []);
+    const isDark = useIsDark();
 
     const {
         data: models = [],
@@ -200,9 +148,9 @@ export function ModelsDisplay() {
 
     if (isLoading) {
         return (
-            <div className="mb-6 p-4 border rounded bg-gray-50">
+            <div className="mb-6 p-4 border rounded bg-muted">
                 <h2 className="text-lg mb-3">Models</h2>
-                <div className="text-sm text-gray-500">Loading models...</div>
+                <div className="text-sm text-muted-foreground">Loading models...</div>
             </div>
         );
     }
@@ -300,18 +248,18 @@ export function ModelsDisplay() {
             </button>
 
             {isExpanded && (
-                <div className="px-6 pb-6">
+                <div className="px-3 pb-3 md:px-6 md:pb-6">
                     {/* Base Models */}
                     {baseModels.length > 0 && (
-                        <div className="mb-6">
+                        <div className="mb-3 md:mb-6">
                             {/* <h3 className="font-medium mb-3 text-sm" style={{ color: '#2563eb' }}>Base</h3> */}
-                            <div className="grid grid-cols-4 gap-2">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                 {baseModels.map((model) =>
                                     !model.allowed ? (
                                         <Tooltip key={model.name}>
                                             <TooltipTrigger asChild>
                                                 <div
-                                                    className="group relative px-3 py-3 rounded-lg border-2 border-dashed transition-all cursor-not-allowed opacity-60"
+                                                    className="group relative px-2 py-2 md:px-3 md:py-3 rounded-lg border-2 border-dashed transition-all cursor-not-allowed opacity-60"
                                                     style={{
                                                         borderColor: "#93c5fd",
                                                         backgroundImage:
@@ -321,7 +269,7 @@ export function ModelsDisplay() {
                                                     <div className="flex flex-col gap-1.5">
                                                         <div className="flex items-start justify-between gap-2">
                                                             <div
-                                                                className="text-sm font-medium break-words line-clamp-2 leading-tight"
+                                                                className="text-xs md:text-sm font-medium break-words line-clamp-1 md:line-clamp-2 leading-tight"
                                                                 style={{ color: "#60a5fa" }}
                                                             >
                                                                 {model.name}
@@ -376,13 +324,13 @@ export function ModelsDisplay() {
                     {chatModels.length > 0 && (
                         <div>
                             {/* <h3 className="font-medium mb-3 text-sm" style={{ color: '#9333ea' }}>Chat</h3> */}
-                            <div className="grid grid-cols-4 gap-2">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                 {chatModels.map((model) =>
                                     !model.allowed ? (
                                         <Tooltip key={model.name}>
                                             <TooltipTrigger asChild>
                                                 <div
-                                                    className="group relative px-3 py-3 rounded-lg border-2 border-dashed transition-all cursor-not-allowed opacity-60"
+                                                    className="group relative px-2 py-2 md:px-3 md:py-3 rounded-lg border-2 border-dashed transition-all cursor-not-allowed opacity-60"
                                                     style={{
                                                         borderColor: "#d8b4fe",
                                                         backgroundImage:
@@ -392,7 +340,7 @@ export function ModelsDisplay() {
                                                     <div className="flex flex-col gap-1.5">
                                                         <div className="flex items-start justify-between gap-2">
                                                             <div
-                                                                className="text-sm font-medium break-words line-clamp-2 leading-tight"
+                                                                className="text-xs md:text-sm font-medium break-words line-clamp-1 md:line-clamp-2 leading-tight"
                                                                 style={{ color: "#c084fc" }}
                                                             >
                                                                 {model.name}

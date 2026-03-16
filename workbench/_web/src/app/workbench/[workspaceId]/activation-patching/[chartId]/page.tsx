@@ -4,8 +4,32 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import ChartCardsSidebar from "../../components/ChartCardsSidebar";
 import ActivationPatchingArea from "./components/ActivationPatchingArea";
 import { ActivationPatchingDisplay } from "./components/ActivationPatchingDisplay";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { MobileSidebarDrawer } from "../../components/MobileSidebarDrawer";
+import { MobileCollapsibleControls } from "../../components/MobileCollapsibleControls";
+import { GitBranch } from "lucide-react";
+import { useIsMutating } from "@tanstack/react-query";
 
 export default function ActivationPatchingPage() {
+    const isMobile = useIsMobile();
+    const isRunning = useIsMutating({ mutationKey: ["activationPatching"] }) > 0;
+
+    if (isMobile === undefined) return null;
+
+    if (isMobile) {
+        return (
+            <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pb-20 gap-2">
+                <MobileCollapsibleControls label="Activation Patching" icon={GitBranch} isRunning={isRunning}>
+                    <ActivationPatchingArea />
+                </MobileCollapsibleControls>
+                <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
+                    <ActivationPatchingDisplay />
+                </div>
+                <MobileSidebarDrawer />
+            </div>
+        );
+    }
+
     return (
         <div className="size-full flex min-h-0">
             <ChartCardsSidebar />

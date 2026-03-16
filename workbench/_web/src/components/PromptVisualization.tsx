@@ -46,7 +46,7 @@ export default function PromptVisualization() {
     };
 
     return (
-        <div className="flex items-start justify-center text-2xl font-mono rounded-2xl px-8 py-6 backdrop-blur-sm whitespace-nowrap">
+        <div className="flex items-start justify-center text-sm sm:text-lg md:text-2xl font-mono rounded-2xl px-2 sm:px-4 md:px-8 py-4 md:py-6 backdrop-blur-sm flex-wrap">
             {tokens.map((token, i) => (
                 <motion.span
                     key={i}
@@ -58,7 +58,7 @@ export default function PromptVisualization() {
                 </motion.span>
             ))}
 
-            <div className="relative inline-flex w-[140px] align-top">
+            <div className="relative inline-flex w-[80px] sm:w-[110px] md:w-[140px] align-top">
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={current.text}

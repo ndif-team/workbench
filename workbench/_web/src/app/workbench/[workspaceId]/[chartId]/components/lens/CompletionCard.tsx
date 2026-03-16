@@ -466,7 +466,7 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
                                 : "pointer-events-auto",
                         )}
                     >
-                        <div className="flex w-full justify-between items-center gap-2 flex-nowrap min-w-60">
+                        <div className="flex w-full justify-between items-center gap-2 flex-nowrap md:min-w-60">
                             <div className="flex items-center p-1 h-8 bg-background rounded flex-shrink-0">
                                 <button
                                     onClick={() => handleCreateHeatmap(config)}

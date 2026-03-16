@@ -25,7 +25,7 @@ import { useEffect, useRef, useState } from "react";
 
 const SIDEBAR_COLLAPSED_KEY = "workbench_sidebar_collapsed";
 
-export default function ChartCardsSidebar() {
+export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: boolean }) {
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const router = useRouter();
 
@@ -187,7 +187,7 @@ export default function ChartCardsSidebar() {
 
     const isCreatingAny = isCreatingLens || isCreatingLens2 || isCreatingPatch || isCreatingActivationPatching || isCreatingDocument;
 
-    const ActionButtons = () => (
+    const actionButtons = (
         <div className="flex flex-col w-full gap-2 text-sm">
             <div className="flex flex-row w-full gap-2">
                 <Button
@@ -250,7 +250,7 @@ export default function ChartCardsSidebar() {
     );
 
     // Collapsed view - just a thin strip with expand button at top
-    if (isCollapsed) {
+    if (isCollapsed && !fillWidth) {
         return (
             <div className="flex h-full flex-col w-10 p-2 pt-0 items-center transition-all duration-300 ease-in-out">
                 {/* Expand button - top */}
@@ -334,17 +334,19 @@ export default function ChartCardsSidebar() {
     }
 
     return (
-        <div className="relative flex h-full flex-col w-[20vw] p-3 pt-3 transition-all duration-300 ease-in-out">
+        <div className={`relative flex h-full flex-col ${fillWidth ? "w-full" : "w-[20vw]"} p-3 pt-3 transition-all duration-300 ease-in-out`}>
             {/* Collapse button - centered vertically on the right edge */}
-            <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleCollapse}
-                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-6 w-6 rounded-full bg-background/60 hover:bg-background/90 border border-border/50 opacity-40 hover:opacity-100 transition-opacity z-10"
-                title="Collapse sidebar"
-            >
-                <PanelLeftClose className="h-3 w-3" />
-            </Button>
+            {!fillWidth && (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleCollapse}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-6 w-6 rounded-full bg-background/60 hover:bg-background/90 border border-border/50 opacity-40 hover:opacity-100 transition-opacity z-10"
+                    title="Collapse sidebar"
+                >
+                    <PanelLeftClose className="h-3 w-3" />
+                </Button>
+            )}
             <div ref={listRef} className="flex-1 scrollbar-hide overflow-auto">
                 <div ref={cardsRef} className="space-y-3">
                     {(isChartsLoading || isReportsLoading) && (
@@ -368,17 +370,9 @@ export default function ChartCardsSidebar() {
                             ...charts.map((c) => ({ type: "chart" as const, item: c })),
                             ...reports.map((r) => ({ type: "report" as const, item: r })),
                         ]
-                            .sort((a, b) => {
-                                const aTime =
-                                    a.type === "chart"
-                                        ? new Date(a.item.createdAt).getTime()
-                                        : new Date(a.item.createdAt).getTime();
-                                const bTime =
-                                    b.type === "chart"
-                                        ? new Date(b.item.createdAt).getTime()
-                                        : new Date(b.item.createdAt).getTime();
-                                return bTime - aTime; // newest first
-                            })
+                            .sort((a, b) =>
+                                new Date(b.item.createdAt).getTime() - new Date(a.item.createdAt).getTime()
+                            )
                             .map((entry) => {
                                 if (entry.type === "chart") {
                                     const chart = entry.item as ChartMetadata;
@@ -405,18 +399,18 @@ export default function ChartCardsSidebar() {
                 </div>
                 {canInlineButtons && (
                     <div className="pt-3">
-                        <ActionButtons />
+                        {actionButtons}
                     </div>
                 )}
             </div>
             {!canInlineButtons && (
                 <div className="pt-3 shrink-0">
-                    <ActionButtons />
+                    {actionButtons}
                 </div>
             )}
             {/* Hidden measure for buttons height to avoid layout feedback */}
             <div className="absolute opacity-0 -z-10 pointer-events-none" ref={buttonsMeasureRef}>
-                <ActionButtons />
+                {actionButtons}
             </div>
         </div>
     );
