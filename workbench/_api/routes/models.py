@@ -45,6 +45,9 @@ def get_remot_models(state: AppState, is_user_signed_in: bool):
         data = stats_resp.json()
 
         for deployment_state in data["deployments"].values():
+            if deployment_state == {'application_state': 'UNHEALTHY'}:
+                continue
+
             if deployment_state['deployment_level'] == "HOT" and deployment_state['application_state'] == "RUNNING":
                 state.add_model(deployment_state['repo_id'])
             else:
