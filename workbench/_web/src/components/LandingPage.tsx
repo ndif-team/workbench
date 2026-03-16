@@ -34,11 +34,85 @@ import { ActivationPatchingLandingInput } from "@/components/ActivationPatchingL
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
 
+function ModelPillOrSelect({
+    modelsLoading,
+    modelsError,
+    hasModels,
+    modelsToSelect,
+    selectedModel,
+    onModelChange,
+    disabled,
+}: {
+    modelsLoading: boolean;
+    modelsError: boolean;
+    hasModels: boolean;
+    modelsToSelect: Model[];
+    selectedModel: string;
+    onModelChange: (value: string) => void;
+    disabled: boolean;
+}) {
+    const triggerClass = "h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2";
+
+    if (modelsLoading) {
+        return (
+            <div className="spinning-border-wrap">
+                <div className="spinning-border-ring">
+                    <div className="spinning-border-gradient" />
+                </div>
+                <div className="spinning-border-content" style={{ background: "linear-gradient(to right, hsl(var(--primary) / 0.05), rgb(168 85 247 / 0.05)), hsl(var(--card))" }}>
+                    <Select disabled>
+                        <SelectTrigger className={`${triggerClass} !border-0 !shadow-none [&_svg]:hidden`}>
+                            <span>Fetching Models...</span>
+                        </SelectTrigger>
+                    </Select>
+                </div>
+            </div>
+        );
+    }
+
+    if (modelsError || !hasModels) {
+        return (
+            <Select disabled>
+                <SelectTrigger className={`${triggerClass} !from-red-500/10 !to-red-400/15 !border-red-500/25 text-destructive [&_svg]:hidden`}>
+                    <span>Models Unavailable</span>
+                </SelectTrigger>
+            </Select>
+        );
+    }
+
+    return (
+        <Select value={selectedModel} onValueChange={onModelChange} disabled={disabled}>
+            <SelectTrigger className={triggerClass}>
+                <SelectValue placeholder="Select model..." />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+                <SelectGroup>
+                    <SelectLabel>Models</SelectLabel>
+                    {modelsToSelect.map((model) =>
+                        model.gated && !model.allowed ? (
+                            <SelectItem key={model.name} value={model.name} className="text-xs">
+                                <div className="flex items-center gap-2">
+                                    {model.name}
+                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500" title="Requires sign-in" />
+                                </div>
+                            </SelectItem>
+                        ) : (
+                            <SelectItem key={model.name} value={model.name} className="text-xs">
+                                {model.name}
+                            </SelectItem>
+                        ),
+                    )}
+                </SelectGroup>
+            </SelectContent>
+        </Select>
+    );
+}
+
 export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     const [prompt, setPrompt] = useState("");
     const [showCaptcha, setShowCaptcha] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedModel, setSelectedModel] = useState<string>("openai-community/gpt2");
+    const [selectedModel, setSelectedModel] = useState<string>("");
     const [selectedTool, setSelectedTool] = useState<string>("Logit Lens");
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const captchaRef = useRef<ElementRef<typeof HCaptcha> | null>(null);
@@ -76,28 +150,20 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
         enabled: !!isSignedInUser,
     });
 
-    const { data: models, isLoading: modelsLoading } = useQuery({
+    const { data: models, isLoading: modelsLoading, isError: modelsError } = useQuery({
         queryKey: ["models"],
         queryFn: getModels,
         refetchInterval: 120000,
     });
-    const modelsToSelect: Model[] = models || [
-        {
-            name: "openai-community/gpt2",
-            type: "base",
-            n_layers: 12,
-            params: "124M",
-            gated: false,
-            allowed: true,
-        },
-    ];
+    const modelsToSelect: Model[] = models && models.length > 0 ? models : [];
+    const hasModels = modelsToSelect.length > 0;
 
-    // Default to first model if selected model isn't in the list
+    // Default to first model when models load
     useEffect(() => {
-        if (modelsToSelect.length > 0 && !modelsToSelect.some((m) => m.name === selectedModel)) {
-            setSelectedModel(modelsToSelect[0].name);
+        if (models && models.length > 0 && (!selectedModel || !models.some((m) => m.name === selectedModel))) {
+            setSelectedModel(models[0].name);
         }
-    }, [models]);
+    }, [models, selectedModel]);
 
     const handleCaptchaVerify = async (token: string) => {
         const supabase = createClient();
@@ -444,61 +510,15 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                     </SelectGroup>
                                                 </SelectContent>
                                             </Select>
-                                            <Select
-                                                value={selectedModel}
-                                                onValueChange={setSelectedModel}
+                                            <ModelPillOrSelect
+                                                modelsLoading={modelsLoading}
+                                                modelsError={modelsError}
+                                                hasModels={hasModels}
+                                                modelsToSelect={modelsToSelect}
+                                                selectedModel={selectedModel}
+                                                onModelChange={setSelectedModel}
                                                 disabled={showCaptcha || isSubmitting}
-                                            >
-                                                <SelectTrigger className="h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
-                                                    {modelsLoading ? (
-                                                        <span className="text-xs">
-                                                            Loading models...
-                                                        </span>
-                                                    ) : (
-                                                        <SelectValue placeholder="Select model..." />
-                                                    )}
-                                                </SelectTrigger>
-                                                <SelectContent className="rounded-xl">
-                                                    <SelectGroup>
-                                                        <SelectLabel>Models</SelectLabel>
-                                                        {modelsLoading ? (
-                                                            <SelectItem
-                                                                value="loading"
-                                                                disabled
-                                                                className="text-xs"
-                                                            >
-                                                                Loading models...
-                                                            </SelectItem>
-                                                        ) : (
-                                                            modelsToSelect?.map((model) =>
-                                                                model.gated && !model.allowed ? (
-                                                                    <SelectItem
-                                                                        key={model.name}
-                                                                        value={model.name}
-                                                                        className="text-xs"
-                                                                    >
-                                                                        <div className="flex items-center gap-2">
-                                                                            {model.name}
-                                                                            <div
-                                                                                className="w-1.5 h-1.5 rounded-full bg-purple-500"
-                                                                                title="Requires sign-in"
-                                                                            />
-                                                                        </div>
-                                                                    </SelectItem>
-                                                                ) : (
-                                                                    <SelectItem
-                                                                        key={model.name}
-                                                                        value={model.name}
-                                                                        className="text-xs"
-                                                                    >
-                                                                        {model.name}
-                                                                    </SelectItem>
-                                                                ),
-                                                            )
-                                                        )}
-                                                    </SelectGroup>
-                                                </SelectContent>
-                                            </Select>
+                                            />
                                         </div>
 
                                         {/* Press Enter hint - Bottom Right */}
@@ -590,35 +610,15 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                         </SelectGroup>
                                                     </SelectContent>
                                                 </Select>
-                                                <Select
-                                                    value={selectedModel}
-                                                    onValueChange={setSelectedModel}
+                                                <ModelPillOrSelect
+                                                    modelsLoading={modelsLoading}
+                                                    modelsError={modelsError}
+                                                    hasModels={hasModels}
+                                                    modelsToSelect={modelsToSelect}
+                                                    selectedModel={selectedModel}
+                                                    onModelChange={setSelectedModel}
                                                     disabled={showCaptcha || isSubmitting}
-                                                >
-                                                    <SelectTrigger className="h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
-                                                        {modelsLoading ? (
-                                                            <span className="text-xs">Loading models...</span>
-                                                        ) : (
-                                                            <SelectValue placeholder="Select model..." />
-                                                        )}
-                                                    </SelectTrigger>
-                                                    <SelectContent className="rounded-xl">
-                                                        <SelectGroup>
-                                                            <SelectLabel>Models</SelectLabel>
-                                                            {modelsLoading ? (
-                                                                <SelectItem value="loading" disabled className="text-xs">
-                                                                    Loading models...
-                                                                </SelectItem>
-                                                            ) : (
-                                                                modelsToSelect?.map((model) => (
-                                                                    <SelectItem key={model.name} value={model.name} className="text-xs">
-                                                                        {model.name}
-                                                                    </SelectItem>
-                                                                ))
-                                                            )}
-                                                        </SelectGroup>
-                                                    </SelectContent>
-                                                </Select>
+                                                />
                                             </div>
                                         </div>
                                     )}
@@ -629,8 +629,8 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                             size="lg"
                                             className="w-full text-base h-12 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-lg shadow-primary/25"
                                             disabled={
-                                                isSubmitting || 
-                                                (selectedTool === "Logit Lens" ? !prompt.trim() : 
+                                                isSubmitting || !hasModels ||
+                                                (selectedTool === "Logit Lens" ? !prompt.trim() :
                                                     !srcPrompt.trim() || !tgtPrompt.trim() || srcPos.length === 0 || srcPos.length !== tgtPos.length)
                                             }
                                         >

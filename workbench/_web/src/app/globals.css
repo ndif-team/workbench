@@ -140,3 +140,49 @@
 .scrollbar-hide::-webkit-scrollbar {
     display: none; /* Chrome, Safari and Opera */
 }
+
+/* Spinning gradient border for loading pills */
+.spinning-border-wrap {
+    position: relative;
+    border-radius: 9999px;
+}
+
+.spinning-border-ring {
+    position: absolute;
+    inset: -1px;
+    border-radius: 9999px;
+    overflow: hidden;
+    z-index: 0;
+}
+
+.spinning-border-ring > .spinning-border-gradient {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 400%;
+    height: 400%;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: conic-gradient(
+        hsl(var(--primary)) 0%,
+        hsl(260 85% 55%) 20%,
+        hsl(300 75% 50%) 40%,
+        hsl(330 70% 55%) 55%,
+        hsl(300 75% 50%) 70%,
+        hsl(260 85% 55%) 85%,
+        hsl(var(--primary)) 100%
+    );
+    animation: spin-border 1.5s linear infinite;
+}
+
+.spinning-border-content {
+    position: relative;
+    border-radius: 9999px;
+    z-index: 1;
+}
+
+@keyframes spin-border {
+    to {
+        transform: rotate(360deg);
+    }
+}
