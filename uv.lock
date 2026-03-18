@@ -555,7 +555,7 @@ requires-dist = [
     { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.6.1" },
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.6.16" },
     { name = "modal", specifier = ">=0.65.66" },
-    { name = "nnsight", specifier = ">=0.6.1" },
+    { name = "nnsight", specifier = ">=0.6.2" },
     { name = "nnsightful", git = "https://github.com/AdamBelfki3/nnsightful.git" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "toml", specifier = ">=0.10.2" },
