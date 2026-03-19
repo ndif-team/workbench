@@ -8,13 +8,15 @@ import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { eq, desc } from "drizzle-orm";
+import { touchWorkspace } from "@/lib/queries/workspaceQueries";
 
 export const setChartData = async (
     chartId: string,
     chartData: ChartData,
     chartType: ChartType,
 ) => {
-    await db.update(charts).set({ data: chartData, type: chartType }).where(eq(charts.id, chartId));
+    const [chart] = await db.update(charts).set({ data: chartData, type: chartType }).where(eq(charts.id, chartId)).returning();
+    if (chart) await touchWorkspace(chart.workspaceId);
 };
 
 export const updateChartName = async (chartId: string, name: string) => {
@@ -67,6 +69,7 @@ export const createLensChartPair = async (
         configId: newConfig.id,
     });
 
+    await touchWorkspace(workspaceId);
     return { chart: newChart as Chart, config: newConfig as LensConfig };
 };
 
@@ -87,6 +90,7 @@ export const createLens2ChartPair = async (
         configId: newConfig.id,
     });
 
+    await touchWorkspace(workspaceId);
     return { chart: newChart as Chart, config: newConfig as Config };
 };
 
@@ -107,6 +111,7 @@ export const createPatchChartPair = async (
         configId: newConfig.id,
     });
 
+    await touchWorkspace(workspaceId);
     return { chart: newChart as Chart, config: newConfig as Config };
 };
 
@@ -127,6 +132,7 @@ export const createActivationPatchingChartPair = async (
         configId: newConfig.id,
     });
 
+    await touchWorkspace(workspaceId);
     return { chart: newChart as Chart, config: newConfig as Config };
 };
 

@@ -371,7 +371,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                             ...reports.map((r) => ({ type: "report" as const, item: r })),
                         ]
                             .sort((a, b) =>
-                                new Date(b.item.createdAt).getTime() - new Date(a.item.createdAt).getTime()
+                                new Date(b.item.updatedAt).getTime() - new Date(a.item.updatedAt).getTime()
                             )
                             .map((entry) => {
                                 if (entry.type === "chart") {

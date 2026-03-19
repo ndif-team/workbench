@@ -7,6 +7,10 @@ export const workspaces = pgTable("workspaces", {
     userId: varchar("user_id", { length: 256 }).notNull(),
     name: varchar("name", { length: 256 }).notNull(),
     public: boolean("public").default(false).notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+        .defaultNow()
+        .notNull()
+        .$onUpdate(() => new Date()),
 });
 
 export const chartTypes = ["line", "heatmap"] as const;

@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { documents, Document } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { SerializedEditorState } from "lexical";
+import { touchWorkspace } from "@/lib/queries/workspaceQueries";
 
 export const getDocumentById = async (documentId: string): Promise<Document | null> => {
     const [document] = await db.select().from(documents).where(eq(documents.id, documentId));
@@ -30,6 +31,7 @@ export const updateDocument = async (
         .set({ content })
         .where(eq(documents.id, documentId))
         .returning();
+    await touchWorkspace(updated.workspaceId);
     return updated;
 };
 
@@ -235,6 +237,7 @@ export const createDocument = async (workspaceId: string): Promise<Document> => 
         })
         .returning();
 
+    await touchWorkspace(workspaceId);
     return document;
 };
 

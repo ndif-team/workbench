@@ -15,6 +15,10 @@ export const workspaces = sqliteTable("workspaces", {
     userId: text("user_id").notNull(),
     name: text("name").notNull(),
     public: integer("public", { mode: "boolean" }).default(false).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+        .$defaultFn(() => new Date())
+        .notNull()
+        .$onUpdate(() => new Date()),
 });
 
 export const chartTypes = ["line", "heatmap"] as const;
