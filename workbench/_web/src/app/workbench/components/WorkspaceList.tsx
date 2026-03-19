@@ -145,6 +145,7 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
     const { data: workspaces, isLoading } = useQuery<Workspace[]>({
         queryKey: ["workspaces"],
         queryFn: () => getWorkspaces(userId),
+        staleTime: 0,
     });
 
     const handleDeleteWorkspace = (e: React.MouseEvent, workspaceId: string) => {
