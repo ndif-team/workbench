@@ -35,7 +35,7 @@ const nextConfig = {
     },
     serverExternalPackages: ["sharp", "onnxruntime-node"],
     outputFileTracingIncludes: {
-        "/actions/notebook": [
+        "/workbench/**": [
             "./src/notebook-templates/**/*.ipynb",
             "./node_modules/nnsightful/src/nnsightful/viz/charts.js",
         ],

@@ -1,20 +1,22 @@
 "use server";
 
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
-
-const require = createRequire(import.meta.url);
 
 // ── Charts.js singleton ──────────────────────────────────────────────
 
 let _chartsJs: string | null = null;
 
-function getChartsJs(): string {
+async function getChartsJs(): Promise<string> {
     if (!_chartsJs) {
-        const chartsPath = require.resolve("nnsightful/standalone");
-        _chartsJs = readFileSync(chartsPath, "utf-8");
+        // process.cwd() is the project root in both local dev and Vercel.
+        // The file is included in Vercel builds via outputFileTracingIncludes.
+        const chartsPath = join(
+            process.cwd(),
+            "node_modules/nnsightful/src/nnsightful/viz/charts.js"
+        );
+        _chartsJs = await readFile(chartsPath, "utf-8");
     }
     return _chartsJs;
 }
@@ -44,17 +46,16 @@ function normalizeSource(source: string | string[]): string {
 // Template cache — templates are static files, safe to read once.
 const _templates = new Map<string, NotebookJson>();
 
-function readTemplate(name: string): NotebookJson {
+async function readTemplate(name: string): Promise<NotebookJson> {
     if (!_templates.has(name)) {
         // process.cwd() is the project root in both local dev and Vercel.
-        // Templates are included in Vercel builds via outputFileTracingIncludes
-        // in next.config.js.
+        // Templates are included in Vercel builds via outputFileTracingIncludes.
         const templatePath = join(
             process.cwd(),
             "src/notebook-templates",
             `${name}.ipynb`
         );
-        const raw = readFileSync(templatePath, "utf-8");
+        const raw = await readFile(templatePath, "utf-8");
         _templates.set(name, JSON.parse(raw) as NotebookJson);
     }
     return _templates.get(name)!;
@@ -69,8 +70,8 @@ interface VisualizationPayload {
     options: Record<string, unknown>;
 }
 
-function buildVisualizationHtml(payload: VisualizationPayload): string {
-    const js = getChartsJs();
+async function buildVisualizationHtml(payload: VisualizationPayload): Promise<string> {
+    const js = await getChartsJs();
     const dataJson = JSON.stringify(payload.data);
     const optionsJson = JSON.stringify(payload.options);
     const containerId = `lp_${randomUUID().replace(/-/g, "")}`;
@@ -231,7 +232,7 @@ export async function generateNotebook(
         );
     }
 
-    const template = readTemplate(handler.templateName);
+    const template = await readTemplate(handler.templateName);
 
     // Build parameter source
     const parameterSource = `# Parameters\n${handler.buildParameterSource(configData)}`;
@@ -250,7 +251,7 @@ export async function generateNotebook(
             displayMode
         );
         if (payload) {
-            vizHtml = buildVisualizationHtml(payload);
+            vizHtml = await buildVisualizationHtml(payload);
         }
     }
 
