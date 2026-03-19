@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
@@ -8,9 +8,8 @@ import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { ActivationPatchingData, ActivationPatchingConfigData } from "@/types/activationPatching";
 import { Loader2 } from "lucide-react";
-import { LinePlotWidget } from "nnsightful";
+import { ActivationPatchingWidget } from "nnsightful";
 import { useTheme } from "next-themes";
-import { cn } from "@/lib/utils";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { NotebookExporter } from "@/components/NotebookExporter";
 
@@ -29,13 +28,10 @@ interface ActivationPatchingConfig {
     workspaceId: string;
 }
 
-type DisplayMode = "probability" | "prob_diff" | "rank";
-
 export function ActivationPatchingDisplay() {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
     const { resolvedTheme } = useTheme();
     const isDarkMode = resolvedTheme === "dark";
-    const [displayMode, setDisplayMode] = useState<DisplayMode>("probability");
     const [localTitle, setLocalTitle] = useState<string | null>(null); // null means use chart name
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const titleInputRef = useRef<HTMLInputElement>(null);
@@ -125,33 +121,25 @@ export function ActivationPatchingDisplay() {
         return new Set([0, 1]);
     }, [patchingConfig?.data?.selectedLineIndices]);
 
-    // Prepare filtered data for the line plot
-    const plotData = useMemo(() => {
+    // Prepare filtered activation patching data (all metrics, filtered by selected tokens)
+    const filteredData = useMemo(() => {
         if (!hasData || !patchingChart?.data) return null;
-        
-        const selectedIndicesArray = Array.from(selectedLineIndices).sort((a, b) => a - b);
-        
-        // Select data source based on display mode
-        let sourceData: number[][] | undefined;
-        if (displayMode === "probability") {
-            sourceData = patchingChart.data!.lines;
-        } else if (displayMode === "prob_diff") {
-            sourceData = patchingChart.data!.prob_diffs;
-        } else {
-            sourceData = patchingChart.data!.ranks;
-        }
-        
-        if (!sourceData) return null;
-        
-        const lines = selectedIndicesArray
-            .filter(i => i < sourceData.length)
-            .map(i => sourceData[i]);
-        const labels = selectedIndicesArray
-            .filter(i => i < (patchingChart.data!.tokenLabels?.length || 0))
-            .map(i => patchingChart.data!.tokenLabels![i]);
-        
-        return { lines, labels };
-    }, [hasData, patchingChart?.data, selectedLineIndices, displayMode]);
+
+        const indices = Array.from(selectedLineIndices).sort((a, b) => a - b);
+        const d = patchingChart.data!;
+
+        const filterByIndices = (arr: number[][]) =>
+            indices.filter(i => i < arr.length).map(i => arr[i]);
+
+        return {
+            lines: filterByIndices(d.lines),
+            ranks: d.ranks ? filterByIndices(d.ranks) : [],
+            prob_diffs: d.prob_diffs ? filterByIndices(d.prob_diffs) : [],
+            tokenLabels: d.tokenLabels
+                ? indices.filter(i => i < d.tokenLabels!.length).map(i => d.tokenLabels![i])
+                : [],
+        };
+    }, [hasData, patchingChart?.data, selectedLineIndices]);
 
     // Loading state
     if (isChartLoading || isConfigLoading) {
@@ -230,74 +218,16 @@ export function ActivationPatchingDisplay() {
                     chartData={(patchingChart?.data ?? null) as Record<string, unknown> | null}
                     chartName={patchingChart?.name ?? undefined}
                     workspaceName={workspace?.name ?? undefined}
-                    displayMode={displayMode}
                 />
-            </div>
-
-            {/* Mode toggle header */}
-            <div className="px-3 pt-2 pb-1 flex items-center gap-2">
-                <div className="inline-flex items-center rounded-md border border-input bg-background p-0.5">
-                    <button
-                        onClick={() => setDisplayMode("probability")}
-                        className={cn(
-                            "px-2.5 py-1 text-xs font-medium rounded transition-colors",
-                            displayMode === "probability"
-                                ? "bg-violet-500 text-white"
-                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                        )}
-                    >
-                        Probability
-                    </button>
-                    <button
-                        onClick={() => setDisplayMode("prob_diff")}
-                        className={cn(
-                            "px-2.5 py-1 text-xs font-medium rounded transition-colors",
-                            displayMode === "prob_diff"
-                                ? "bg-violet-500 text-white"
-                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                        )}
-                    >
-                        Prob Δ
-                    </button>
-                    <button
-                        onClick={() => setDisplayMode("rank")}
-                        className={cn(
-                            "px-2.5 py-1 text-xs font-medium rounded transition-colors",
-                            displayMode === "rank"
-                                ? "bg-violet-500 text-white"
-                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                        )}
-                    >
-                        Rank
-                    </button>
-                </div>
             </div>
 
             {/* Chart area */}
             <div className="flex-1 p-4 min-h-0">
-                {plotData && plotData.lines.length > 0 ? (
-                    <LinePlotWidget
-                        data={plotData}
-                        title={
-                            displayMode === "probability"
-                                ? "Activation Patching: Token Probability by Layer"
-                                : displayMode === "prob_diff"
-                                    ? "Activation Patching: Probability Difference by Layer"
-                                    : "Activation Patching: Token Rank by Layer"
-                        }
-                        yAxisLabel={
-                            displayMode === "probability"
-                                ? "Probability"
-                                : displayMode === "prob_diff"
-                                    ? "Prob Δ (Patched - Clean)"
-                                    : "Rank"
-                        }
-                        xAxisLabel="Layer"
-                        transparentBackground
-                        mode={displayMode}
-                        invertYAxis={displayMode === "rank"}
-                        centerYAxisAtZero={displayMode === "prob_diff"}
+                {filteredData && filteredData.lines.length > 0 ? (
+                    <ActivationPatchingWidget
+                        data={filteredData}
                         darkMode={isDarkMode}
+                        transparentBackground
                     />
                 ) : (
                     <div className="flex size-full items-center justify-center text-muted-foreground">

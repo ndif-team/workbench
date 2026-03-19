@@ -909,7 +909,7 @@ wheels = [
 [[package]]
 name = "nnsightful"
 version = "0.1.0"
-source = { git = "https://github.com/AdamBelfki3/nnsightful.git#f5fea055bc54dc837e3826c6c49a1fb8688847bd" }
+source = { git = "https://github.com/AdamBelfki3/nnsightful.git#bd2413ff998a269e6f2b3524ba9a2d64af7e8be3" }
 dependencies = [
     { name = "ipython" },
     { name = "nnsight" },
