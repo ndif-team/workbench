@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
+import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { ActivationPatchingData, ActivationPatchingConfigData } from "@/types/activationPatching";
 import { Loader2 } from "lucide-react";
@@ -11,6 +12,7 @@ import { LinePlotWidget } from "nnsightful";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { useUpdateChartName } from "@/lib/api/chartApi";
+import { NotebookExporter } from "@/components/NotebookExporter";
 
 interface ActivationPatchingChart {
     id: string;
@@ -30,7 +32,7 @@ interface ActivationPatchingConfig {
 type DisplayMode = "probability" | "prob_diff" | "rank";
 
 export function ActivationPatchingDisplay() {
-    const { chartId } = useParams<{ chartId: string }>();
+    const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
     const { resolvedTheme } = useTheme();
     const isDarkMode = resolvedTheme === "dark";
     const [displayMode, setDisplayMode] = useState<DisplayMode>("probability");
@@ -51,6 +53,12 @@ export function ActivationPatchingDisplay() {
         queryKey: queryKeys.charts.configByChart(chartId),
         queryFn: () => getConfigForChart(chartId),
         enabled: !!chartId,
+    });
+
+    const { data: workspace } = useQuery({
+        queryKey: queryKeys.workspaces.workspace(workspaceId),
+        queryFn: () => getWorkspaceById(workspaceId),
+        enabled: !!workspaceId,
     });
 
     const { mutate: updateChartName } = useUpdateChartName();
@@ -182,43 +190,52 @@ export function ActivationPatchingDisplay() {
 
     return (
         <div className="size-full overflow-auto flex flex-col">
-            {/* Title input */}
-            <div className="px-4 pt-4 pb-2">
-                {isEditingTitle ? (
-                    <input
-                        ref={titleInputRef}
-                        type="text"
-                        value={displayTitle}
-                        onChange={handleTitleChange}
-                        onBlur={handleTitleBlur}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                                e.currentTarget.blur();
-                            }
-                        }}
-                        placeholder="Untitled Chart"
-                        className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
-                    />
-                ) : hasTitle ? (
-                    <h2
-                        onClick={handleTitleClick}
-                        className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold"
-                    >
-                        {displayTitle}
-                    </h2>
-                ) : (
-                    <h2
-                        onClick={handleTitleClick}
-                        className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
-                    >
-                        Untitled Chart
-                    </h2>
-                )}
+            {/* Title + export */}
+            <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                    {isEditingTitle ? (
+                        <input
+                            ref={titleInputRef}
+                            type="text"
+                            value={displayTitle}
+                            onChange={handleTitleChange}
+                            onBlur={handleTitleBlur}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.currentTarget.blur();
+                                }
+                            }}
+                            placeholder="Untitled Chart"
+                            className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
+                        />
+                    ) : hasTitle ? (
+                        <h2
+                            onClick={handleTitleClick}
+                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold truncate"
+                        >
+                            {displayTitle}
+                        </h2>
+                    ) : (
+                        <h2
+                            onClick={handleTitleClick}
+                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
+                        >
+                            Untitled Chart
+                        </h2>
+                    )}
+                </div>
+                <NotebookExporter
+                    configType="activation-patching"
+                    configData={(patchingConfig?.data ?? {}) as Record<string, unknown>}
+                    chartData={(patchingChart?.data ?? null) as Record<string, unknown> | null}
+                    chartName={patchingChart?.name ?? undefined}
+                    workspaceName={workspace?.name ?? undefined}
+                    displayMode={displayMode}
+                />
             </div>
 
             {/* Mode toggle header */}
             <div className="px-3 pt-2 pb-1 flex items-center gap-2">
-                {/* <span className="text-xs text-muted-foreground">Display:</span> */}
                 <div className="inline-flex items-center rounded-md border border-input bg-background p-0.5">
                     <button
                         onClick={() => setDisplayMode("probability")}
