@@ -12,6 +12,7 @@ import { Lens2ConfigData } from "@/types/lens2";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { encodeText } from "@/actions/tok";
+import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -157,7 +158,17 @@ export function Lens2Controls({ initialConfig, selectedModel }: Lens2ControlsPro
             return;
         }
 
-        const tokens = await encodeText(prompt, selectedModel);
+        let tokens: Token[];
+        try {
+            tokens = await encodeText(prompt, selectedModel);
+        } catch (error) {
+            if (error instanceof TokenizerLoadError) {
+                toast.error(`Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`);
+            } else {
+                toast.error("Failed to tokenize prompt.");
+            }
+            return;
+        }
         if (tokens.length <= 1) {
             toast.error("Please enter a longer prompt.");
             return;
@@ -174,7 +185,17 @@ export function Lens2Controls({ initialConfig, selectedModel }: Lens2ControlsPro
         if (!trimmedPrompt) return;
 
         // Always tokenize with the current prompt to ensure tokens are in sync
-        const tokens = await encodeText(trimmedPrompt, selectedModel);
+        let tokens: Token[];
+        try {
+            tokens = await encodeText(trimmedPrompt, selectedModel);
+        } catch (error) {
+            if (error instanceof TokenizerLoadError) {
+                toast.error(`Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`);
+            } else {
+                toast.error("Failed to tokenize prompt.");
+            }
+            return;
+        }
         if (tokens.length <= 1) {
             toast.error("Please enter a longer prompt.");
             return;

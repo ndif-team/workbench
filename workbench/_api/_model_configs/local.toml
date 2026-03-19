@@ -1,4 +1,4 @@
-remote = true
+remote = false
 
 [models]
 
@@ -6,11 +6,6 @@ remote = true
 name = "openai-community/gpt2"
 chat = false
 gated = false
-
-[models.one.rename]
-transformer = "model"
-h = "layers"
-c_proj = "o_proj"
 
 [models.one.config]
 n_heads = 12

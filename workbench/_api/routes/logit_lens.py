@@ -6,7 +6,7 @@ from ..auth import require_user_email
 from ..data_models import NDIFResponse
 
 from nnsightful.types import LogitLensData
-from nnsightful.tools.logit_lens import logit_lens, format_data
+from nnsightful.tools.logit_lens import logit_lens
 
 router = APIRouter()
 
@@ -22,34 +22,51 @@ class LogitLensResponse(NDIFResponse):
 
 
 @router.post("/start", response_model=LogitLensResponse)
-async def start_lens2(
+async def start_logit_lens(
     req: LogitLensRequest,
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email),
 ):
-
     model = state[req.model]
     backend = state.make_backend(model=model)
 
-    job_id = logit_lens(req.prompt, model, backend, state.remote)
+    raw = logit_lens._run(model, req.prompt, remote=state.remote, backend=backend)
 
-    return {"job_id": job_id}
+    if "job_id" in raw:
+        return {"job_id": raw["job_id"]}
+
+    data = logit_lens._format(
+        raw,
+        top_k=req.topk,
+        include_entropy=req.include_entropy,
+    )
+    return {"data": data}
 
 
 @router.post("/results/{job_id}", response_model=LogitLensResponse)
-async def collect_lens2(
+async def collect_logit_lens(
     job_id: str,
     req: LogitLensRequest,
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email),
 ):
-    
     backend = state.make_backend(job_id=job_id)
-
-    tokenizer = state[req.model].tokenizer
-
     results = backend()
 
-    results = format_data(results["input_tokens"], results["all_logits"], tokenizer, req.topk, req.include_entropy, req.model)
+    print("logit_lens collect keys:", list(results.keys()) if isinstance(results, dict) else type(results))
 
-    return {"data": results}
+    tokenizer = state[req.model].tokenizer
+    results["tokenizer"] = tokenizer
+    results["model_name"] = req.model
+    results["input_tokens"] = [
+        str(tokenizer.decode(token))
+        for token in tokenizer.encode(req.prompt)
+    ]
+
+    data = logit_lens._format(
+        results,
+        top_k=req.topk,
+        include_entropy=req.include_entropy,
+    )
+
+    return {"data": data}

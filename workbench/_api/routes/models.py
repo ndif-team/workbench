@@ -97,7 +97,7 @@ def prediction(
         remote=state.remote,
         backend=state.make_backend(model=model),
     ) as tracer:
-        logits_BLV = model.lm_head.output
+        logits_BLV = model.logits
 
         # Get logits for the correct index
         logits_LV = logits_BLV[0, [idx], :].softmax(dim=-1)
@@ -270,7 +270,7 @@ def generate(req: Completion, state: AppState):
     ) as tracer:
 
         with tracer.iter[last_iter]:
-            logits = model.lm_head.output
+            logits = model.logits
 
         probs_V = logits[0, -1, :].softmax(dim=-1)
         values_V_indices_V = t.sort(probs_V, dim=-1, descending=True)

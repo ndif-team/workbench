@@ -9,6 +9,7 @@ import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ActivationPatchingConfigData, ActivationPatchingData, SourcePosition } from "@/types/activationPatching";
 import { encodeText } from "@/actions/tok";
+import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -527,8 +528,19 @@ export function ActivationPatchingControls({
         }
 
         // Tokenize both prompts to ensure they're in sync
-        const srcToks = await encodeText(srcPrompt, selectedModel);
-        const tgtToks = await encodeText(tgtPrompt, selectedModel);
+        let srcToks: Token[];
+        let tgtToks: Token[];
+        try {
+            srcToks = await encodeText(srcPrompt, selectedModel);
+            tgtToks = await encodeText(tgtPrompt, selectedModel);
+        } catch (error) {
+            if (error instanceof TokenizerLoadError) {
+                toast.error(`Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`);
+            } else {
+                toast.error("Failed to tokenize prompts.");
+            }
+            return;
+        }
 
         if (srcToks.length <= 1 || tgtToks.length <= 1) {
             toast.error("Please enter longer prompts.");

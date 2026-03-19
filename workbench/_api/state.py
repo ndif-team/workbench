@@ -4,7 +4,8 @@ import torch
 import toml
 from fastapi import Request
 
-from nnsight import LanguageModel, CONFIG
+from nnsight import CONFIG
+from nnterp import StandardizedTransformer
 from nnsight.intervention.backends.remote import RemoteBackend
 from pydantic import BaseModel
 
@@ -19,7 +20,6 @@ class ModelConfig(BaseModel):
     name: str
     chat: bool
     gated: bool
-    rename: dict[str, str]
     config: dict[str, int | str]
 
 
@@ -36,7 +36,7 @@ class ModelsConfig(BaseModel):
     """Root configuration containing all models."""
 
     remote: bool
-    
+
     models: dict[str, ModelConfig]
 
     def get_model_list(self) -> list[dict[str, str]]:
@@ -48,11 +48,11 @@ class ModelsConfig(BaseModel):
 
 class AppState:
     def __init__(self):
-        
+
         self.remote = self._load_backend_config()
 
         # Defaults
-        self.models: dict[str, LanguageModel] = {}
+        self.models: dict[str, StandardizedTransformer] = {}
 
         self.config = self._load()
 
@@ -66,7 +66,7 @@ class AppState:
         if model_name in self.models:
             del self.models[model_name]
 
-    def get_model(self, model_name: str) -> LanguageModel:
+    def get_model(self, model_name: str) -> StandardizedTransformer:
         return self.models[model_name]
 
     def get_config(self) -> ModelsConfig:
@@ -74,15 +74,15 @@ class AppState:
 
     def get_model_configs(self) -> list[ModelConfig]:
         return [config for config in self.config.get_model_list() if config['name'] in self.models]
-    
-    def make_backend(self, model: LanguageModel | None = None, job_id: str | None = None):
+
+    def make_backend(self, model: StandardizedTransformer | None = None, job_id: str | None = None):
         if self.remote:
             return RemoteBackend(
                 job_id=job_id, blocking=False, model_key=model.to_model_key() if model is not None else None
             )
         else:
             return None
-    
+
     def __getitem__(self, model_name: str):
         return self.get_model(model_name)
 
@@ -107,7 +107,7 @@ class AppState:
     def _load(self):
         env = os.environ.get("CONFIG", "dev")
         logger.info(f'Loading "{env}" config')
-        
+
         current_path = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.join(current_path, f"_model_configs/{env}.toml")
 
@@ -116,15 +116,12 @@ class AppState:
 
         if not self.remote:
             for cfg in config.models.values():
-                model = LanguageModel(
+                model = StandardizedTransformer(
                     cfg.name,
-                    rename=cfg.rename,
                     device_map="auto",
                     torch_dtype=torch.bfloat16,
                     dispatch=not self.remote,
                 )
-
-                model.config.update(cfg.config)
                 self.models[cfg.name] = model
         return config
 
@@ -132,14 +129,12 @@ class AppState:
         logger.info(f"Loading model: {model_name}")
 
         config = {model.name: model for model in self.config.models.values()}[model_name]
-        model = LanguageModel(
+        model = StandardizedTransformer(
             config.name,
-            rename=config.rename,
             device_map="auto",
             torch_dtype=torch.bfloat16,
             dispatch=not self.remote,
         )
-        model.config.update(config.config)
         self.models[model_name] = model
 
         return config
