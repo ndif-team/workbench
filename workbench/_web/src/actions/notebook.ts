@@ -1,13 +1,11 @@
 "use server";
 
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
 
 const require = createRequire(import.meta.url);
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── Charts.js singleton ──────────────────────────────────────────────
 
@@ -48,9 +46,12 @@ const _templates = new Map<string, NotebookJson>();
 
 function readTemplate(name: string): NotebookJson {
     if (!_templates.has(name)) {
+        // process.cwd() is the project root in both local dev and Vercel.
+        // Templates are included in Vercel builds via outputFileTracingIncludes
+        // in next.config.js.
         const templatePath = join(
-            __dirname,
-            "../notebook-templates",
+            process.cwd(),
+            "src/notebook-templates",
             `${name}.ipynb`
         );
         const raw = readFileSync(templatePath, "utf-8");
