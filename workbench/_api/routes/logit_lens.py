@@ -31,7 +31,7 @@ async def start_lens2(
     model = state[req.model]
     backend = state.make_backend(model=model)
 
-    job_id = logit_lens(req.prompt, model, state.remote, backend)
+    job_id = logit_lens(req.prompt, model, backend, state.remote)
 
     return {"job_id": job_id}
 
