@@ -215,7 +215,9 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
             tokens = await encodeText(config.prompt, modelToUse);
         } catch (error) {
             if (error instanceof TokenizerLoadError) {
-                toast.error(`Could not load tokenizer for ${modelToUse}. The model may be gated and require authentication.`);
+                toast.error(
+                    `Could not load tokenizer for ${modelToUse}. The model may be gated and require authentication.`,
+                );
             } else {
                 toast.error("Failed to tokenize prompt.");
             }

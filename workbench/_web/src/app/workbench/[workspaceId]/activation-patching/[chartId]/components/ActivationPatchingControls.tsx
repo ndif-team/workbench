@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Play, X, Snowflake, ChevronDown } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
-import { ActivationPatchingConfigData, ActivationPatchingData, SourcePosition } from "@/types/activationPatching";
+import {
+    ActivationPatchingConfigData,
+    ActivationPatchingData,
+    SourcePosition,
+} from "@/types/activationPatching";
 import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
@@ -70,7 +74,7 @@ function PatchConfigTable({
                     <ChevronDown
                         className={cn(
                             "w-3 h-3 transition-transform duration-200",
-                            expanded && "rotate-180"
+                            expanded && "rotate-180",
                         )}
                     />
                 </button>
@@ -101,9 +105,10 @@ function PatchConfigTable({
                         .map(({ srcPosition, idx }) => {
                             const patchColor = PATCH_COLORS[idx % PATCH_COLORS.length];
                             const hasPairedTarget = idx < tgtPos.length;
-                            const srcPosLabel = typeof srcPosition === "number"
-                                ? `${srcPosition}`
-                                : `${srcPosition[0]}–${srcPosition[1] - 1}`;
+                            const srcPosLabel =
+                                typeof srcPosition === "number"
+                                    ? `${srcPosition}`
+                                    : `${srcPosition[0]}–${srcPosition[1] - 1}`;
                             const tgtPosLabel = hasPairedTarget ? `${tgtPos[idx]}` : "?";
 
                             return (
@@ -135,7 +140,7 @@ function PatchConfigTable({
                                             "font-mono min-w-[24px]",
                                             hasPairedTarget
                                                 ? "text-muted-foreground"
-                                                : "text-muted-foreground/40 italic"
+                                                : "text-muted-foreground/40 italic",
                                         )}
                                     >
                                         {tgtPosLabel}
@@ -147,7 +152,9 @@ function PatchConfigTable({
                     {/* Frozen positions section */}
                     {tgtFreeze.length > 0 && (
                         <>
-                            {srcPos.length > 0 && <div className="border-t border-border/20 my-1" />}
+                            {srcPos.length > 0 && (
+                                <div className="border-t border-border/20 my-1" />
+                            )}
                             <div className="flex items-center gap-1 flex-wrap">
                                 {tgtFreeze
                                     .slice()
@@ -212,18 +219,22 @@ export function ActivationPatchingControls({
     const [patchTableExpanded, setPatchTableExpanded] = useState(true);
 
     // Track the prompts from the last successful run (to show predictions)
-    const [lastRunSrcPrompt, setLastRunSrcPrompt] = useState<string | null>(initialSrcPrompt || null);
-    const [lastRunTgtPrompt, setLastRunTgtPrompt] = useState<string | null>(initialTgtPrompt || null);
+    const [lastRunSrcPrompt, setLastRunSrcPrompt] = useState<string | null>(
+        initialSrcPrompt || null,
+    );
+    const [lastRunTgtPrompt, setLastRunTgtPrompt] = useState<string | null>(
+        initialTgtPrompt || null,
+    );
 
     // Auto-run flags - check if we should auto-run on mount (coming from landing page)
     // Only auto-run if all required data is pre-filled and there's no existing chart data
     const shouldAutoRunRef = useRef(
         initialSrcPrompt.length > 0 &&
-        initialTgtPrompt.length > 0 &&
-        initialSrcPos.length > 0 &&
-        initialTgtPos.length > 0 &&
-        initialSrcPos.length === initialTgtPos.length &&
-        !hasExistingData
+            initialTgtPrompt.length > 0 &&
+            initialSrcPos.length > 0 &&
+            initialTgtPos.length > 0 &&
+            initialSrcPos.length === initialTgtPos.length &&
+            !hasExistingData,
     );
     const hasAutoRunRef = useRef(false);
 
@@ -273,7 +284,7 @@ export function ActivationPatchingControls({
 
     // Token line selector state
     const [selectedLineIndices, setSelectedLineIndices] = useState<Set<number>>(
-        new Set(initialConfig.data?.selectedLineIndices ?? [0, 1])
+        new Set(initialConfig.data?.selectedLineIndices ?? [0, 1]),
     );
     const hasInitializedLinesRef = useRef(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -293,7 +304,8 @@ export function ActivationPatchingControls({
     });
 
     const patchingChart = chart as ActivationPatchingChart | undefined;
-    const hasChartData = patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
+    const hasChartData =
+        patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
 
     // Get token labels from chart data
     const allLabels = useMemo(() => {
@@ -341,7 +353,11 @@ export function ActivationPatchingControls({
         if (!hasChartData || !patchingChart?.data?.lines) return;
 
         const currentFingerprint = dataFingerprint;
-        if (currentFingerprint && previousDataRef.current !== null && previousDataRef.current !== currentFingerprint) {
+        if (
+            currentFingerprint &&
+            previousDataRef.current !== null &&
+            previousDataRef.current !== currentFingerprint
+        ) {
             // Data changed - reset to default selection (first two tokens)
             const defaultIndices = getDefaultSelection(patchingChart.data.lines.length);
             setSelectedLineIndices(defaultIndices);
@@ -361,7 +377,16 @@ export function ActivationPatchingControls({
             });
         }
         previousDataRef.current = currentFingerprint;
-    }, [dataFingerprint, hasChartData, patchingChart?.data?.lines, getDefaultSelection, initialConfig, chartId, workspaceId, updateConfig]);
+    }, [
+        dataFingerprint,
+        hasChartData,
+        patchingChart?.data?.lines,
+        getDefaultSelection,
+        initialConfig,
+        chartId,
+        workspaceId,
+        updateConfig,
+    ]);
 
     // Initialize selection from config when it loads (first load only)
     useEffect(() => {
@@ -374,7 +399,12 @@ export function ActivationPatchingControls({
             setSelectedLineIndices(defaultIndices);
             hasInitializedLinesRef.current = true;
         }
-    }, [initialConfig.data?.selectedLineIndices, hasChartData, patchingChart?.data?.lines, getDefaultSelection]);
+    }, [
+        initialConfig.data?.selectedLineIndices,
+        hasChartData,
+        patchingChart?.data?.lines,
+        getDefaultSelection,
+    ]);
 
     // Reset initialization flag when chart changes
     useEffect(() => {
@@ -383,35 +413,41 @@ export function ActivationPatchingControls({
     }, [chartId]);
 
     // Save selection to config (debounced)
-    const saveLineSelection = useCallback((indices: Set<number>) => {
-        if (!initialConfig?.id) return;
+    const saveLineSelection = useCallback(
+        (indices: Set<number>) => {
+            if (!initialConfig?.id) return;
 
-        if (saveTimeoutRef.current) {
-            clearTimeout(saveTimeoutRef.current);
-        }
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
 
-        saveTimeoutRef.current = setTimeout(() => {
-            updateConfig({
-                configId: initialConfig.id,
-                chartId,
-                config: {
-                    data: {
-                        ...initialConfig.data,
-                        selectedLineIndices: Array.from(indices),
+            saveTimeoutRef.current = setTimeout(() => {
+                updateConfig({
+                    configId: initialConfig.id,
+                    chartId,
+                    config: {
+                        data: {
+                            ...initialConfig.data,
+                            selectedLineIndices: Array.from(indices),
+                        },
+                        workspaceId,
+                        type: "activation-patching",
                     },
-                    workspaceId,
-                    type: "activation-patching",
-                },
-            });
-        }, 500);
-    }, [initialConfig, chartId, workspaceId, updateConfig]);
+                });
+            }, 500);
+        },
+        [initialConfig, chartId, workspaceId, updateConfig],
+    );
 
     // Handle selection change
-    const handleLineSelectionChange = useCallback((indices: number[]) => {
-        const newSet = new Set(indices);
-        setSelectedLineIndices(newSet);
-        saveLineSelection(newSet);
-    }, [saveLineSelection]);
+    const handleLineSelectionChange = useCallback(
+        (indices: number[]) => {
+            const newSet = new Set(indices);
+            setSelectedLineIndices(newSet);
+            saveLineSelection(newSet);
+        },
+        [saveLineSelection],
+    );
 
     // Tokenize prompts on initial load if they exist
     useEffect(() => {
@@ -442,7 +478,8 @@ export function ActivationPatchingControls({
         const tokens = await encodeText(srcPrompt, selectedModel);
         if (tokens.length > 0) {
             // Check if tokens actually changed (prompt was modified)
-            const tokensChanged = tokens.length !== srcTokens.length ||
+            const tokensChanged =
+                tokens.length !== srcTokens.length ||
                 tokens.some((t, i) => t.text !== srcTokens[i]?.text);
 
             setSrcTokens(tokens);
@@ -463,7 +500,8 @@ export function ActivationPatchingControls({
         const tokens = await encodeText(tgtPrompt, selectedModel);
         if (tokens.length > 0) {
             // Check if tokens actually changed (prompt was modified)
-            const tokensChanged = tokens.length !== tgtTokens.length ||
+            const tokensChanged =
+                tokens.length !== tgtTokens.length ||
                 tokens.some((t, i) => t.text !== tgtTokens[i]?.text);
 
             setTgtTokens(tokens);
@@ -483,7 +521,8 @@ export function ActivationPatchingControls({
         setTimeout(() => {
             const activeElement = document.activeElement;
             const withinTextarea = activeElement && srcTextareaRef.current?.contains(activeElement);
-            const withinToken = activeElement && srcTokenContainerRef.current?.contains(activeElement);
+            const withinToken =
+                activeElement && srcTokenContainerRef.current?.contains(activeElement);
             const popoverOpen = document.querySelector("[data-radix-popper-content-wrapper]");
 
             if (withinTextarea || withinToken || popoverOpen) return;
@@ -499,7 +538,8 @@ export function ActivationPatchingControls({
         setTimeout(() => {
             const activeElement = document.activeElement;
             const withinTextarea = activeElement && tgtTextareaRef.current?.contains(activeElement);
-            const withinToken = activeElement && tgtTokenContainerRef.current?.contains(activeElement);
+            const withinToken =
+                activeElement && tgtTokenContainerRef.current?.contains(activeElement);
             const popoverOpen = document.querySelector("[data-radix-popper-content-wrapper]");
 
             if (withinTextarea || withinToken || popoverOpen) return;
@@ -535,7 +575,9 @@ export function ActivationPatchingControls({
             tgtToks = await encodeText(tgtPrompt, selectedModel);
         } catch (error) {
             if (error instanceof TokenizerLoadError) {
-                toast.error(`Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`);
+                toast.error(
+                    `Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`,
+                );
             } else {
                 toast.error("Failed to tokenize prompts.");
             }
@@ -553,7 +595,7 @@ export function ActivationPatchingControls({
         setTgtTokenizedModel(selectedModel);
 
         const config: ActivationPatchingConfigData = {
-            ...initialConfig.data,  // Preserve existing fields like selectedLineIndices
+            ...initialConfig.data, // Preserve existing fields like selectedLineIndices
             model: selectedModel,
             srcPrompt,
             tgtPrompt,
@@ -632,10 +674,12 @@ export function ActivationPatchingControls({
             ) {
                 hasAutoRunRef.current = true;
                 shouldAutoRunRef.current = false; // Disable future auto-runs immediately
-                console.log(
-                    "Auto-running activation patching for pre-filled config:",
-                    { srcPrompt: initialSrcPrompt, tgtPrompt: initialTgtPrompt, srcPos: initialSrcPos, tgtPos: initialTgtPos }
-                );
+                console.log("Auto-running activation patching for pre-filled config:", {
+                    srcPrompt: initialSrcPrompt,
+                    tgtPrompt: initialTgtPrompt,
+                    srcPos: initialSrcPos,
+                    tgtPos: initialTgtPos,
+                });
                 console.log("Using model:", selectedModel);
 
                 try {
@@ -787,8 +831,14 @@ export function ActivationPatchingControls({
                     tgtSelectedPositions={tgtPos}
                     frozenPositions={tgtFreeze}
                     onTgtTokenClick={handleTgtTokenClick}
-                    onTokenHover={isConnecting && !srcEditing && !tgtEditing ? setHoverTgtIdx : undefined}
-                    onTokenLeave={isConnecting && !srcEditing && !tgtEditing ? () => setHoverTgtIdx(null) : undefined}
+                    onTokenHover={
+                        isConnecting && !srcEditing && !tgtEditing ? setHoverTgtIdx : undefined
+                    }
+                    onTokenLeave={
+                        isConnecting && !srcEditing && !tgtEditing
+                            ? () => setHoverTgtIdx(null)
+                            : undefined
+                    }
                     predictionToken={tgtPrediction}
                 />
                 {!tgtEditing && tgtTokens.length > 0 && (
@@ -809,9 +859,12 @@ export function ActivationPatchingControls({
                 disabled={isExecuting}
             />
 
-
             {/* Run Button */}
-            <Button onClick={handleSubmit} disabled={!canRun} className="w-full bg-violet-500 hover:bg-violet-600 text-white">
+            <Button
+                onClick={handleSubmit}
+                disabled={!canRun}
+                className="w-full bg-violet-500 hover:bg-violet-600 text-white"
+            >
                 {isExecuting ? (
                     <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
