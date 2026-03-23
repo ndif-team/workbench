@@ -167,28 +167,24 @@ const activationPatchingHandler: NotebookToolHandler = {
 
     buildVisualizationPayload(chartData, config, displayMode) {
         const lines = chartData.lines as number[][] | undefined;
-        const ranks = chartData.ranks as number[][] | undefined;
-        const probDiffs = chartData.prob_diffs as number[][] | undefined;
-        const tokenLabels = chartData.tokenLabels as string[] | undefined;
         if (!lines?.length) return null;
 
-        const indices =
+        const selectedTokens =
             (config.selectedLineIndices as number[]) ?? [0, 1];
-
-        const filterByIndices = <T>(arr: T[]): T[] =>
-            indices.filter((i) => i < arr.length).map((i) => arr[i]);
-
-        const mode = displayMode ?? "probability";
+        const savedMode = config.selectedMode as string | undefined;
+        const VALID_MODES = ["probability", "rank", "prob_diff"];
+        const mode = displayMode
+            ?? (VALID_MODES.includes(savedMode ?? "") ? savedMode : "probability");
 
         return {
             widget: "ActivationPatchingWidget",
             data: {
-                lines: filterByIndices(lines),
-                ranks: ranks ? filterByIndices(ranks) : [],
-                prob_diffs: probDiffs ? filterByIndices(probDiffs) : [],
-                tokenLabels: tokenLabels ? filterByIndices(tokenLabels) : [],
+                lines,
+                ranks: chartData.ranks ?? [],
+                prob_diffs: chartData.prob_diffs ?? [],
+                tokenLabels: chartData.tokenLabels ?? [],
             },
-            options: { mode },
+            options: { mode, selectedTokens },
         };
     },
 };

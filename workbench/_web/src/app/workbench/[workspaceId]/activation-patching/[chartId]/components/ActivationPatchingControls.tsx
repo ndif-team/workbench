@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getChartById } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
-import { TokenSelector } from "./TokenSelector";
 import {
     PATCH_COLORS,
     useActivationPatchingState,
@@ -282,15 +281,7 @@ export function ActivationPatchingControls({
     // Config updates (like saving line selection) should not affect the Run button
     const isExecuting = isComputing;
 
-    // Token line selector state
-    const [selectedLineIndices, setSelectedLineIndices] = useState<Set<number>>(
-        new Set(initialConfig.data?.selectedLineIndices ?? [0, 1]),
-    );
-    const hasInitializedLinesRef = useRef(false);
-    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const previousDataRef = useRef<string | null>(null);
-
-    // Fetch chart data for token labels (cached by React Query)
+    // Fetch chart data for prediction tokens (cached by React Query)
     interface ActivationPatchingChart {
         id: string;
         data: ActivationPatchingData | null;
@@ -307,147 +298,24 @@ export function ActivationPatchingControls({
     const hasChartData =
         patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
 
-    // Get token labels from chart data
+    // Compute prediction tokens (first two labels are source and target predictions)
+    // Only show predictions when the current prompt matches the last run prompt
     const allLabels = useMemo(() => {
         if (!hasChartData || !patchingChart?.data?.tokenLabels) return [];
         return patchingChart.data.tokenLabels;
     }, [hasChartData, patchingChart?.data?.tokenLabels]);
 
-    // Compute prediction tokens (first two labels are source and target predictions)
-    // Only show predictions when the current prompt matches the last run prompt
     const srcPrediction = useMemo(() => {
         if (!allLabels.length || allLabels.length < 1) return null;
-        // Only show if current prompt matches last run prompt
         if (srcPrompt !== lastRunSrcPrompt) return null;
-        return allLabels[0]; // Source prediction is first label
+        return allLabels[0];
     }, [allLabels, srcPrompt, lastRunSrcPrompt]);
 
     const tgtPrediction = useMemo(() => {
         if (!allLabels.length || allLabels.length < 2) return null;
-        // Only show if current prompt matches last run prompt
         if (tgtPrompt !== lastRunTgtPrompt) return null;
-        return allLabels[1]; // Target prediction is second label
+        return allLabels[1];
     }, [allLabels, tgtPrompt, lastRunTgtPrompt]);
-
-    // Get default selection (first two tokens - source and target predictions)
-    const getDefaultSelection = useCallback((numLines: number) => {
-        const defaults = new Set<number>();
-        if (numLines > 0) defaults.add(0);
-        if (numLines > 1) defaults.add(1);
-        return defaults;
-    }, []);
-
-    const defaultSelection = useMemo(() => {
-        const numLines = patchingChart?.data?.lines?.length || 0;
-        return getDefaultSelection(numLines);
-    }, [patchingChart?.data?.lines?.length, getDefaultSelection]);
-
-    // Create a fingerprint of the data to detect when new results arrive
-    const dataFingerprint = useMemo(() => {
-        if (!hasChartData || !patchingChart?.data?.tokenLabels) return null;
-        return patchingChart.data.tokenLabels.slice(0, 3).join(",");
-    }, [hasChartData, patchingChart?.data?.tokenLabels]);
-
-    // Reset to defaults when new data arrives (after a re-run)
-    useEffect(() => {
-        if (!hasChartData || !patchingChart?.data?.lines) return;
-
-        const currentFingerprint = dataFingerprint;
-        if (
-            currentFingerprint &&
-            previousDataRef.current !== null &&
-            previousDataRef.current !== currentFingerprint
-        ) {
-            // Data changed - reset to default selection (first two tokens)
-            const defaultIndices = getDefaultSelection(patchingChart.data.lines.length);
-            setSelectedLineIndices(defaultIndices);
-
-            // Also save the default selection to config
-            updateConfig({
-                configId: initialConfig.id,
-                chartId,
-                config: {
-                    data: {
-                        ...initialConfig.data,
-                        selectedLineIndices: Array.from(defaultIndices),
-                    },
-                    workspaceId,
-                    type: "activation-patching",
-                },
-            });
-        }
-        previousDataRef.current = currentFingerprint;
-    }, [
-        dataFingerprint,
-        hasChartData,
-        patchingChart?.data?.lines,
-        getDefaultSelection,
-        initialConfig,
-        chartId,
-        workspaceId,
-        updateConfig,
-    ]);
-
-    // Initialize selection from config when it loads (first load only)
-    useEffect(() => {
-        if (initialConfig.data?.selectedLineIndices && !hasInitializedLinesRef.current) {
-            setSelectedLineIndices(new Set(initialConfig.data.selectedLineIndices));
-            hasInitializedLinesRef.current = true;
-        } else if (hasChartData && patchingChart?.data?.lines && !hasInitializedLinesRef.current) {
-            // Default to first two lines if no saved selection
-            const defaultIndices = getDefaultSelection(patchingChart.data.lines.length);
-            setSelectedLineIndices(defaultIndices);
-            hasInitializedLinesRef.current = true;
-        }
-    }, [
-        initialConfig.data?.selectedLineIndices,
-        hasChartData,
-        patchingChart?.data?.lines,
-        getDefaultSelection,
-    ]);
-
-    // Reset initialization flag when chart changes
-    useEffect(() => {
-        hasInitializedLinesRef.current = false;
-        previousDataRef.current = null;
-    }, [chartId]);
-
-    // Save selection to config (debounced)
-    const saveLineSelection = useCallback(
-        (indices: Set<number>) => {
-            if (!initialConfig?.id) return;
-
-            if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current);
-            }
-
-            saveTimeoutRef.current = setTimeout(() => {
-                updateConfig({
-                    configId: initialConfig.id,
-                    chartId,
-                    config: {
-                        data: {
-                            ...initialConfig.data,
-                            selectedLineIndices: Array.from(indices),
-                        },
-                        workspaceId,
-                        type: "activation-patching",
-                    },
-                });
-            }, 500);
-        },
-        [initialConfig, chartId, workspaceId, updateConfig],
-    );
-
-    // Handle selection change
-    const handleLineSelectionChange = useCallback(
-        (indices: number[]) => {
-            const newSet = new Set(indices);
-            setSelectedLineIndices(newSet);
-            saveLineSelection(newSet);
-        },
-        [saveLineSelection],
-    );
 
     // Tokenize prompts on initial load if they exist
     useEffect(() => {
@@ -595,7 +463,7 @@ export function ActivationPatchingControls({
         setTgtTokenizedModel(selectedModel);
 
         const config: ActivationPatchingConfigData = {
-            ...initialConfig.data, // Preserve existing fields like selectedLineIndices
+            ...initialConfig.data,
             model: selectedModel,
             srcPrompt,
             tgtPrompt,
@@ -604,44 +472,36 @@ export function ActivationPatchingControls({
             tgtFreeze,
         };
 
-        // Compute the activation patching visualization
-        await computePatching({
-            request: {
-                completion: config,
+        try {
+            // Save config first with reset token selection — new run means new tokens.
+            // This must happen before computePatching so the widget uses [0,1] when
+            // new data arrives and triggers a rebuild.
+            await updateConfig({
+                configId: initialConfig.id,
                 chartId,
-            },
-            configId: initialConfig.id,
-        });
-
-        // Collapse the config table after successful computation
-        setPatchTableExpanded(false);
-
-        // Track the prompts from this run (to show predictions)
-        setLastRunSrcPrompt(srcPrompt);
-        setLastRunTgtPrompt(tgtPrompt);
-
-        // Reset selected line indices to defaults after new computation
-        // The new data will have new tokens, so we reset to first two (source and target predictions)
-        const defaultIndices = new Set([0, 1]);
-        setSelectedLineIndices(defaultIndices);
-        previousDataRef.current = null; // Clear fingerprint so useEffect can detect new data
-
-        // Update the config in the database with reset line selection
-        await updateConfig({
-            configId: initialConfig.id,
-            chartId,
-            config: {
-                data: {
-                    ...config,
-                    selectedLineIndices: [0, 1], // Reset to defaults
+                config: {
+                    data: { ...config, selectedLineIndices: [0, 1] },
+                    workspaceId,
+                    type: "activation-patching",
                 },
-                workspaceId,
-                type: "activation-patching",
-            },
-        });
+            });
 
-        setSrcEditing(false);
-        setTgtEditing(false);
+            await computePatching({
+                request: {
+                    completion: config,
+                    chartId,
+                },
+                configId: initialConfig.id,
+            });
+
+            setPatchTableExpanded(false);
+            setLastRunSrcPrompt(srcPrompt);
+            setLastRunTgtPrompt(tgtPrompt);
+            setSrcEditing(false);
+            setTgtEditing(false);
+        } catch (error) {
+            toast.error("Failed to run activation patching.");
+        }
     }, [
         srcPrompt,
         tgtPrompt,
@@ -673,24 +533,13 @@ export function ActivationPatchingControls({
                 !isExecuting
             ) {
                 hasAutoRunRef.current = true;
-                shouldAutoRunRef.current = false; // Disable future auto-runs immediately
-                console.log("Auto-running activation patching for pre-filled config:", {
-                    srcPrompt: initialSrcPrompt,
-                    tgtPrompt: initialTgtPrompt,
-                    srcPos: initialSrcPos,
-                    tgtPos: initialTgtPos,
-                });
-                console.log("Using model:", selectedModel);
+                shouldAutoRunRef.current = false;
 
                 try {
-                    // First tokenize both prompts
                     const srcToks = await encodeText(initialSrcPrompt, selectedModel);
                     const tgtToks = await encodeText(initialTgtPrompt, selectedModel);
 
-                    if (srcToks.length <= 1 || tgtToks.length <= 1) {
-                        console.error("Auto-run failed: prompts too short");
-                        return;
-                    }
+                    if (srcToks.length <= 1 || tgtToks.length <= 1) return;
 
                     setSrcTokens(srcToks);
                     setTgtTokens(tgtToks);
@@ -709,7 +558,17 @@ export function ActivationPatchingControls({
                         tgtFreeze: initialTgtFreeze,
                     };
 
-                    // Compute the activation patching visualization
+                    // Save config with reset selection before compute
+                    await updateConfig({
+                        configId: initialConfig.id,
+                        chartId,
+                        config: {
+                            data: { ...config, selectedLineIndices: [0, 1] },
+                            workspaceId,
+                            type: "activation-patching",
+                        },
+                    });
+
                     await computePatching({
                         request: {
                             completion: config,
@@ -718,16 +577,10 @@ export function ActivationPatchingControls({
                         configId: initialConfig.id,
                     });
 
-                    // Collapse the config table after successful computation
                     setPatchTableExpanded(false);
-
-                    // Track the prompts from this run
                     setLastRunSrcPrompt(initialSrcPrompt);
                     setLastRunTgtPrompt(initialTgtPrompt);
-
-                    console.log("Auto-run completed successfully");
                 } catch (error) {
-                    console.error("Auto-run failed:", error);
                     // Don't reset flags - we only try once
                 }
             }
@@ -748,6 +601,7 @@ export function ActivationPatchingControls({
         initialConfig.id,
         initialConfig.data,
         computePatching,
+        updateConfig,
     ]);
 
     // Check if ready to run - requires equal number of source and target positions
@@ -878,18 +732,6 @@ export function ActivationPatchingControls({
                 )}
             </Button>
 
-            {/* Token Line Selector - only show when we have chart data */}
-            {hasChartData && allLabels.length > 0 && (
-                <div className="pt-2 pb-4">
-                    <TokenSelector
-                        allLabels={allLabels}
-                        selectedIndices={selectedLineIndices}
-                        onChange={handleLineSelectionChange}
-                        defaultIndices={defaultSelection}
-                        disabled={isExecuting}
-                    />
-                </div>
-            )}
         </div>
     );
 }
