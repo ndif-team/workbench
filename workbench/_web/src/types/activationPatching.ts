@@ -21,6 +21,7 @@ export interface ActivationPatchingConfigData {
     tgtPos: number[];  // Selected token positions in target prompt (must match srcPos length)
     tgtFreeze: number[];  // Token positions in target prompt to freeze (keep clean activations)
     selectedLineIndices?: number[];  // Indices of lines to display in the chart
+    selectedMode?: string;  // Display mode: "probability" | "rank" | "prob_diff"
 }
 
 /**

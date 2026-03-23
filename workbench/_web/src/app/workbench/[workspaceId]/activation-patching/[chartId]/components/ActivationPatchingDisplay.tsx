@@ -1,17 +1,21 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { ActivationPatchingData, ActivationPatchingConfigData } from "@/types/activationPatching";
+import type { ActivationPatchingMode } from "nnsightful";
 import { Loader2 } from "lucide-react";
 import { ActivationPatchingWidget } from "nnsightful";
 import { useTheme } from "next-themes";
 import { useUpdateChartName } from "@/lib/api/chartApi";
+import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { NotebookExporter } from "@/components/NotebookExporter";
+
+const validModes = new Set<string>(["probability", "rank", "prob_diff"]);
 
 interface ActivationPatchingChart {
     id: string;
@@ -58,6 +62,7 @@ export function ActivationPatchingDisplay() {
     });
 
     const { mutate: updateChartName } = useUpdateChartName();
+    const { mutateAsync: updateConfig } = useUpdateChartConfig();
 
     const patchingChart = chart as ActivationPatchingChart | undefined;
     const patchingConfig = config as ActivationPatchingConfig | undefined;
@@ -112,34 +117,55 @@ export function ActivationPatchingDisplay() {
         }, 0);
     }, [displayTitle]);
 
-    // Get selected line indices from config (managed by ActivationPatchingControls)
-    const selectedLineIndices = useMemo(() => {
-        if (patchingConfig?.data?.selectedLineIndices) {
-            return new Set(patchingConfig.data.selectedLineIndices);
-        }
-        // Default to first two lines
-        return new Set([0, 1]);
-    }, [patchingConfig?.data?.selectedLineIndices]);
+    // Debounced save of token selection to config
+    const saveTokenTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const patchingConfigRef = useRef(patchingConfig);
+    patchingConfigRef.current = patchingConfig;
 
-    // Prepare filtered activation patching data (all metrics, filtered by selected tokens)
-    const filteredData = useMemo(() => {
-        if (!hasData || !patchingChart?.data) return null;
+    const handleTokenSelectionChange = useCallback((indices: number[]) => {
+        if (saveTokenTimeoutRef.current) clearTimeout(saveTokenTimeoutRef.current);
+        saveTokenTimeoutRef.current = setTimeout(() => {
+            const cfg = patchingConfigRef.current;
+            if (!cfg?.id) return;
+            updateConfig({
+                configId: cfg.id,
+                chartId,
+                config: {
+                    data: { ...cfg.data, selectedLineIndices: indices },
+                    workspaceId,
+                    type: "activation-patching",
+                },
+            });
+        }, 500);
+    }, [chartId, workspaceId, updateConfig]);
 
-        const indices = Array.from(selectedLineIndices).sort((a, b) => a - b);
-        const d = patchingChart.data!;
+    // Debounced save of mode to config
+    const saveModeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const handleModeChange = useCallback((mode: ActivationPatchingMode) => {
+        if (saveModeTimeoutRef.current) clearTimeout(saveModeTimeoutRef.current);
+        saveModeTimeoutRef.current = setTimeout(() => {
+            const cfg = patchingConfigRef.current;
+            if (!cfg?.id) return;
+            updateConfig({
+                configId: cfg.id,
+                chartId,
+                config: {
+                    data: { ...cfg.data, selectedMode: mode },
+                    workspaceId,
+                    type: "activation-patching",
+                },
+            });
+        }, 300);
+    }, [chartId, workspaceId, updateConfig]);
 
-        const filterByIndices = (arr: number[][]) =>
-            indices.filter(i => i < arr.length).map(i => arr[i]);
-
-        return {
-            lines: filterByIndices(d.lines),
-            ranks: d.ranks ? filterByIndices(d.ranks) : [],
-            prob_diffs: d.prob_diffs ? filterByIndices(d.prob_diffs) : [],
-            tokenLabels: d.tokenLabels
-                ? indices.filter(i => i < d.tokenLabels!.length).map(i => d.tokenLabels![i])
-                : [],
+    // Clear pending saves on unmount
+    useEffect(() => {
+        return () => {
+            if (saveTokenTimeoutRef.current) clearTimeout(saveTokenTimeoutRef.current);
+            if (saveTitleTimeoutRef.current) clearTimeout(saveTitleTimeoutRef.current);
+            if (saveModeTimeoutRef.current) clearTimeout(saveModeTimeoutRef.current);
         };
-    }, [hasData, patchingChart?.data, selectedLineIndices]);
+    }, []);
 
     // Loading state
     if (isChartLoading || isConfigLoading) {
@@ -223,17 +249,15 @@ export function ActivationPatchingDisplay() {
 
             {/* Chart area */}
             <div className="flex-1 p-4 min-h-0">
-                {filteredData && filteredData.lines.length > 0 ? (
-                    <ActivationPatchingWidget
-                        data={filteredData}
-                        darkMode={isDarkMode}
-                        transparentBackground
-                    />
-                ) : (
-                    <div className="flex size-full items-center justify-center text-muted-foreground">
-                        Select at least one token to display
-                    </div>
-                )}
+                <ActivationPatchingWidget
+                    data={patchingChart!.data!}
+                    darkMode={isDarkMode}
+                    transparentBackground
+                    mode={validModes.has(patchingConfig?.data?.selectedMode ?? "") ? patchingConfig!.data!.selectedMode as ActivationPatchingMode : "probability"}
+                    selectedTokens={patchingConfig?.data?.selectedLineIndices}
+                    onTokenSelectionChange={handleTokenSelectionChange}
+                    onModeChange={handleModeChange}
+                />
             </div>
         </div>
     );
