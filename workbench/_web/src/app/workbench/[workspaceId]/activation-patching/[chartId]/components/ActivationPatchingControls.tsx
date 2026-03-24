@@ -7,8 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Play, X, Snowflake, ChevronDown } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
-import { ActivationPatchingConfigData, ActivationPatchingData, SourcePosition } from "@/types/activationPatching";
+import {
+    ActivationPatchingConfigData,
+    ActivationPatchingData,
+    SourcePosition,
+} from "@/types/activationPatching";
 import { encodeText } from "@/actions/tok";
+import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -68,7 +73,7 @@ function PatchConfigTable({
                     <ChevronDown
                         className={cn(
                             "w-3 h-3 transition-transform duration-200",
-                            expanded && "rotate-180"
+                            expanded && "rotate-180",
                         )}
                     />
                 </button>
@@ -99,9 +104,10 @@ function PatchConfigTable({
                         .map(({ srcPosition, idx }) => {
                             const patchColor = PATCH_COLORS[idx % PATCH_COLORS.length];
                             const hasPairedTarget = idx < tgtPos.length;
-                            const srcPosLabel = typeof srcPosition === "number"
-                                ? `${srcPosition}`
-                                : `${srcPosition[0]}–${srcPosition[1] - 1}`;
+                            const srcPosLabel =
+                                typeof srcPosition === "number"
+                                    ? `${srcPosition}`
+                                    : `${srcPosition[0]}–${srcPosition[1] - 1}`;
                             const tgtPosLabel = hasPairedTarget ? `${tgtPos[idx]}` : "?";
 
                             return (
@@ -133,7 +139,7 @@ function PatchConfigTable({
                                             "font-mono min-w-[24px]",
                                             hasPairedTarget
                                                 ? "text-muted-foreground"
-                                                : "text-muted-foreground/40 italic"
+                                                : "text-muted-foreground/40 italic",
                                         )}
                                     >
                                         {tgtPosLabel}
@@ -145,7 +151,9 @@ function PatchConfigTable({
                     {/* Frozen positions section */}
                     {tgtFreeze.length > 0 && (
                         <>
-                            {srcPos.length > 0 && <div className="border-t border-border/20 my-1" />}
+                            {srcPos.length > 0 && (
+                                <div className="border-t border-border/20 my-1" />
+                            )}
                             <div className="flex items-center gap-1 flex-wrap">
                                 {tgtFreeze
                                     .slice()
@@ -210,18 +218,22 @@ export function ActivationPatchingControls({
     const [patchTableExpanded, setPatchTableExpanded] = useState(true);
 
     // Track the prompts from the last successful run (to show predictions)
-    const [lastRunSrcPrompt, setLastRunSrcPrompt] = useState<string | null>(initialSrcPrompt || null);
-    const [lastRunTgtPrompt, setLastRunTgtPrompt] = useState<string | null>(initialTgtPrompt || null);
+    const [lastRunSrcPrompt, setLastRunSrcPrompt] = useState<string | null>(
+        initialSrcPrompt || null,
+    );
+    const [lastRunTgtPrompt, setLastRunTgtPrompt] = useState<string | null>(
+        initialTgtPrompt || null,
+    );
 
     // Auto-run flags - check if we should auto-run on mount (coming from landing page)
     // Only auto-run if all required data is pre-filled and there's no existing chart data
     const shouldAutoRunRef = useRef(
         initialSrcPrompt.length > 0 &&
-        initialTgtPrompt.length > 0 &&
-        initialSrcPos.length > 0 &&
-        initialTgtPos.length > 0 &&
-        initialSrcPos.length === initialTgtPos.length &&
-        !hasExistingData
+            initialTgtPrompt.length > 0 &&
+            initialSrcPos.length > 0 &&
+            initialTgtPos.length > 0 &&
+            initialSrcPos.length === initialTgtPos.length &&
+            !hasExistingData,
     );
     const hasAutoRunRef = useRef(false);
 
@@ -283,7 +295,8 @@ export function ActivationPatchingControls({
     });
 
     const patchingChart = chart as ActivationPatchingChart | undefined;
-    const hasChartData = patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
+    const hasChartData =
+        patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
 
     // Compute prediction tokens (first two labels are source and target predictions)
     // Only show predictions when the current prompt matches the last run prompt
@@ -333,7 +346,8 @@ export function ActivationPatchingControls({
         const tokens = await encodeText(srcPrompt, selectedModel);
         if (tokens.length > 0) {
             // Check if tokens actually changed (prompt was modified)
-            const tokensChanged = tokens.length !== srcTokens.length ||
+            const tokensChanged =
+                tokens.length !== srcTokens.length ||
                 tokens.some((t, i) => t.text !== srcTokens[i]?.text);
 
             setSrcTokens(tokens);
@@ -354,7 +368,8 @@ export function ActivationPatchingControls({
         const tokens = await encodeText(tgtPrompt, selectedModel);
         if (tokens.length > 0) {
             // Check if tokens actually changed (prompt was modified)
-            const tokensChanged = tokens.length !== tgtTokens.length ||
+            const tokensChanged =
+                tokens.length !== tgtTokens.length ||
                 tokens.some((t, i) => t.text !== tgtTokens[i]?.text);
 
             setTgtTokens(tokens);
@@ -374,7 +389,8 @@ export function ActivationPatchingControls({
         setTimeout(() => {
             const activeElement = document.activeElement;
             const withinTextarea = activeElement && srcTextareaRef.current?.contains(activeElement);
-            const withinToken = activeElement && srcTokenContainerRef.current?.contains(activeElement);
+            const withinToken =
+                activeElement && srcTokenContainerRef.current?.contains(activeElement);
             const popoverOpen = document.querySelector("[data-radix-popper-content-wrapper]");
 
             if (withinTextarea || withinToken || popoverOpen) return;
@@ -390,7 +406,8 @@ export function ActivationPatchingControls({
         setTimeout(() => {
             const activeElement = document.activeElement;
             const withinTextarea = activeElement && tgtTextareaRef.current?.contains(activeElement);
-            const withinToken = activeElement && tgtTokenContainerRef.current?.contains(activeElement);
+            const withinToken =
+                activeElement && tgtTokenContainerRef.current?.contains(activeElement);
             const popoverOpen = document.querySelector("[data-radix-popper-content-wrapper]");
 
             if (withinTextarea || withinToken || popoverOpen) return;
@@ -419,8 +436,21 @@ export function ActivationPatchingControls({
         }
 
         // Tokenize both prompts to ensure they're in sync
-        const srcToks = await encodeText(srcPrompt, selectedModel);
-        const tgtToks = await encodeText(tgtPrompt, selectedModel);
+        let srcToks: Token[];
+        let tgtToks: Token[];
+        try {
+            srcToks = await encodeText(srcPrompt, selectedModel);
+            tgtToks = await encodeText(tgtPrompt, selectedModel);
+        } catch (error) {
+            if (error instanceof TokenizerLoadError) {
+                toast.error(
+                    `Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`,
+                );
+            } else {
+                toast.error("Failed to tokenize prompts.");
+            }
+            return;
+        }
 
         if (srcToks.length <= 1 || tgtToks.length <= 1) {
             toast.error("Please enter longer prompts.");
@@ -655,8 +685,14 @@ export function ActivationPatchingControls({
                     tgtSelectedPositions={tgtPos}
                     frozenPositions={tgtFreeze}
                     onTgtTokenClick={handleTgtTokenClick}
-                    onTokenHover={isConnecting && !srcEditing && !tgtEditing ? setHoverTgtIdx : undefined}
-                    onTokenLeave={isConnecting && !srcEditing && !tgtEditing ? () => setHoverTgtIdx(null) : undefined}
+                    onTokenHover={
+                        isConnecting && !srcEditing && !tgtEditing ? setHoverTgtIdx : undefined
+                    }
+                    onTokenLeave={
+                        isConnecting && !srcEditing && !tgtEditing
+                            ? () => setHoverTgtIdx(null)
+                            : undefined
+                    }
                     predictionToken={tgtPrediction}
                 />
                 {!tgtEditing && tgtTokens.length > 0 && (
@@ -677,9 +713,12 @@ export function ActivationPatchingControls({
                 disabled={isExecuting}
             />
 
-
             {/* Run Button */}
-            <Button onClick={handleSubmit} disabled={!canRun} className="w-full bg-violet-500 hover:bg-violet-600 text-white">
+            <Button
+                onClick={handleSubmit}
+                disabled={!canRun}
+                className="w-full bg-violet-500 hover:bg-violet-600 text-white"
+            >
                 {isExecuting ? (
                     <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

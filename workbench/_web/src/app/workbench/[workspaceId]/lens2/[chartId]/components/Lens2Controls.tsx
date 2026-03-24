@@ -12,6 +12,7 @@ import { Lens2ConfigData } from "@/types/lens2";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { encodeText } from "@/actions/tok";
+import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -60,7 +61,7 @@ function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }
                                 "bg-transparent",
                                 !loading && TOKEN_STYLES.hover,
                                 token.text === "\\n" ? "w-full" : "w-fit",
-                                loading ? "cursor-progress" : "cursor-default"
+                                loading ? "cursor-progress" : "cursor-default",
                             )}
                         >
                             {result}
@@ -79,13 +80,15 @@ export function Lens2Controls({ initialConfig, selectedModel }: Lens2ControlsPro
     // Local state for the form
     const [prompt, setPrompt] = useState(initialConfig.data?.prompt || "");
     const [topk, setTopk] = useState(initialConfig.data?.topk ?? 5);
-    const [includeEntropy, setIncludeEntropy] = useState(initialConfig.data?.includeEntropy ?? true);
+    const [includeEntropy, setIncludeEntropy] = useState(
+        initialConfig.data?.includeEntropy ?? true,
+    );
 
     // Token state
     const [tokenData, setTokenData] = useState<Token[]>([]);
     const [editingText, setEditingText] = useState(true);
     const [tokenizedModel, setTokenizedModel] = useState<string | null>(null);
-    
+
     // Track the last prompt we successfully submitted/tokenized
     const lastSyncedPromptRef = useRef<string>(initialConfig.data?.prompt || "");
 
@@ -157,7 +160,19 @@ export function Lens2Controls({ initialConfig, selectedModel }: Lens2ControlsPro
             return;
         }
 
-        const tokens = await encodeText(prompt, selectedModel);
+        let tokens: Token[];
+        try {
+            tokens = await encodeText(prompt, selectedModel);
+        } catch (error) {
+            if (error instanceof TokenizerLoadError) {
+                toast.error(
+                    `Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`,
+                );
+            } else {
+                toast.error("Failed to tokenize prompt.");
+            }
+            return;
+        }
         if (tokens.length <= 1) {
             toast.error("Please enter a longer prompt.");
             return;
@@ -174,7 +189,19 @@ export function Lens2Controls({ initialConfig, selectedModel }: Lens2ControlsPro
         if (!trimmedPrompt) return;
 
         // Always tokenize with the current prompt to ensure tokens are in sync
-        const tokens = await encodeText(trimmedPrompt, selectedModel);
+        let tokens: Token[];
+        try {
+            tokens = await encodeText(trimmedPrompt, selectedModel);
+        } catch (error) {
+            if (error instanceof TokenizerLoadError) {
+                toast.error(
+                    `Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`,
+                );
+            } else {
+                toast.error("Failed to tokenize prompt.");
+            }
+            return;
+        }
         if (tokens.length <= 1) {
             toast.error("Please enter a longer prompt.");
             return;
@@ -237,7 +264,7 @@ export function Lens2Controls({ initialConfig, selectedModel }: Lens2ControlsPro
                 handleSubmit();
             }
         },
-        [handleSubmit]
+        [handleSubmit],
     );
 
     // Handle textarea blur - automatically tokenize when user clicks away
@@ -259,7 +286,8 @@ export function Lens2Controls({ initialConfig, selectedModel }: Lens2ControlsPro
     }, [prompt, handleTokenize]);
 
     // Check if tokenization is out of sync with selected model
-    const modelMismatch = tokenizedModel && tokenizedModel !== selectedModel && tokenData.length > 0;
+    const modelMismatch =
+        tokenizedModel && tokenizedModel !== selectedModel && tokenData.length > 0;
 
     return (
         <div className="flex flex-col gap-4">
@@ -286,7 +314,7 @@ export function Lens2Controls({ initialConfig, selectedModel }: Lens2ControlsPro
                             ref={tokenContainerRef}
                             className={cn(
                                 "flex w-full px-3 py-2 bg-input/30 border rounded min-h-32",
-                                isExecuting ? "cursor-progress" : "cursor-text"
+                                isExecuting ? "cursor-progress" : "cursor-text",
                             )}
                             onClick={() => {
                                 if (!isExecuting) escapeTokenArea();
@@ -304,7 +332,8 @@ export function Lens2Controls({ initialConfig, selectedModel }: Lens2ControlsPro
                             </TooltipTrigger>
                             <TooltipContent side="bottom">
                                 <p className="w-36 text-wrap text-center">
-                                    Tokenization does not match the selected model. Please retokenize.
+                                    Tokenization does not match the selected model. Please
+                                    retokenize.
                                 </p>
                             </TooltipContent>
                         </Tooltip>

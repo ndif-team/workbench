@@ -143,8 +143,8 @@ export function ModelsDisplay() {
         refetchInterval: 120000,
     });
 
-    const baseModels = models.filter((model) => model.type === "base");
-    const chatModels = models.filter((model) => model.type === "chat");
+    const baseModels = models.filter((model) => !model.is_chat);
+    const chatModels = models.filter((model) => model.is_chat);
 
     if (isLoading) {
         return (

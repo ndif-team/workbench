@@ -23,7 +23,7 @@ MODELS = list()
 MODELS_LAST_UPDATED = 0
 MODEL_INTERVAL = 60
 
-def get_remot_models(state: AppState, is_user_signed_in: bool):
+def get_remote_models(state: AppState, is_user_signed_in: bool):
 
     global MODELS, MODELS_LAST_UPDATED
 
@@ -53,10 +53,10 @@ def get_remot_models(state: AppState, is_user_signed_in: bool):
             else:
                 state.remove_model(deployment_state['repo_id'])
 
-        MODELS = state.get_model_configs()
+        MODELS = state.get_active_model_list()
         MODELS_LAST_UPDATED = time.time()
 
-    models = MODELS.copy()
+    models = [model.copy() for model in MODELS]
     for model in models:
         if not is_user_signed_in and model['gated']:
             model['allowed'] = False
@@ -72,12 +72,12 @@ async def get_models(
 ):
     if state.remote:
         is_user_signed_in: bool = user_email is not None and user_email != "guest@localhost"
-        models = get_remot_models(state, is_user_signed_in)
+        models = get_remote_models(state, is_user_signed_in)
 
         return models
 
     else:
-        return state.get_config().get_model_list()
+        return state.get_all_model_list()
 
 
 class LensCompletion(BaseModel):
@@ -97,7 +97,7 @@ def prediction(
         remote=state.remote,
         backend=state.make_backend(model=model),
     ) as tracer:
-        logits_BLV = model.lm_head.output
+        logits_BLV = model.logits
 
         # Get logits for the correct index
         logits_LV = logits_BLV[0, [idx], :].softmax(dim=-1)
@@ -270,7 +270,7 @@ def generate(req: Completion, state: AppState):
     ) as tracer:
 
         with tracer.iter[last_iter]:
-            logits = model.lm_head.output
+            logits = model.logits
 
         probs_V = logits[0, -1, :].softmax(dim=-1)
         values_V_indices_V = t.sort(probs_V, dim=-1, descending=True)
