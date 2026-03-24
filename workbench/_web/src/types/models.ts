@@ -22,7 +22,7 @@ export interface Prediction {
 
 export interface Model {
     name: string;
-    type: "chat" | "base";
+    is_chat: boolean;
     n_layers: number;
     params: string;
     gated: boolean;

@@ -1,13 +1,5 @@
 remote = false
 
-[models]
-
-[models.one]
-name = "openai-community/gpt2"
-chat = false
-gated = false
-
-[models.one.config]
-n_heads = 12
-n_layers = 12
-params = "124M"
+models = [
+    "openai-community/gpt2",
+]

@@ -39,16 +39,10 @@ def require_user_email(request: Request) -> str:
 
 def user_has_model_access(user_email: str, model_name: str, state: "AppState") -> bool:
     if user_email is None or user_email == "guest@localhost":
-        model_config = None
-        for model in state.get_config().models.values():
-            if model.name == model_name:
-                model_config = model
-                break
-        
-        if model_config is None or model_config.gated:
+        if model_name not in state.model_metadata:
             return False
-        else:
-            return True
+        if state.model_metadata[model_name].gated:
+            return False
 
     return True
 
