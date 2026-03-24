@@ -909,11 +909,25 @@ wheels = [
 [[package]]
 name = "nnsightful"
 version = "0.1.0"
-source = { git = "https://github.com/AdamBelfki3/nnsightful.git#67570def741712d175bc12242a280f9a8935b6b8" }
+source = { git = "https://github.com/AdamBelfki3/nnsightful.git#ceeb429addf23d2490423777840cb0888607988b" }
 dependencies = [
     { name = "ipython" },
     { name = "nnsight" },
+    { name = "nnterp" },
     { name = "pydantic" },
+]
+
+[[package]]
+name = "nnterp"
+version = "1.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nnsight" },
+    { name = "transformers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ee/e2/e45d65fc46e7b0643010fc1f10fd7c64aa7e8c8a09b44df200511f1d5b70/nnterp-1.3.0.tar.gz", hash = "sha256:f8339e518c6618d361b098de5de5ecec76041460f6862bde4034feecd8e8a98e", size = 52922, upload-time = "2026-02-28T00:37:58.636Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/23/8201479195f7f969adc14d467d0b9e35aeb30ad90931d94bf24e59f2dc5c/nnterp-1.3.0-py3-none-any.whl", hash = "sha256:ce828e173b360640ea9b3a7d78b0b1c29d486f7c8a83af47e5df76c767817d40", size = 53012, upload-time = "2026-02-28T00:37:57.456Z" },
 ]
 
 [[package]]
