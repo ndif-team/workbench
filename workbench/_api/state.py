@@ -157,6 +157,12 @@ class AppState:
 
         return remote
 
+    def _ensure_metadata(self, model_name: str) -> ModelMetadata:
+        """Fetch and cache metadata for a model on first access."""
+        if model_name not in self.model_metadata:
+            self.model_metadata[model_name] = fetch_model_metadata(model_name)
+        return self.model_metadata[model_name]
+
     def _load(self):
         env = os.environ.get("CONFIG", "dev")
         logger.info(f'Loading "{env}" config')
@@ -167,17 +173,14 @@ class AppState:
         with open(config_path, "r") as f:
             config = ModelsConfig(**toml.load(f))
 
-        # Fetch metadata for all configured models
-        for model_name in config.models:
-            self.model_metadata[model_name] = fetch_model_metadata(model_name)
-
         if not self.remote:
             for model_name in config.models:
+                self._ensure_metadata(model_name)
                 model = StandardizedTransformer(
                     model_name,
                     device_map="auto",
                     torch_dtype=torch.bfloat16,
-                    dispatch=not self.remote,
+                    remote=self.remote,
                 )
                 self.models[model_name] = model
         return config
@@ -185,14 +188,15 @@ class AppState:
     def _load_model(self, model_name: str):
         logger.info(f"Loading model: {model_name}")
 
-        if model_name not in self.model_metadata:
-            self.model_metadata[model_name] = fetch_model_metadata(model_name)
+        self._ensure_metadata(model_name)
 
         model = StandardizedTransformer(
             model_name,
             device_map="auto",
             torch_dtype=torch.bfloat16,
-            dispatch=not self.remote,
+            remote=False,
+            allow_dispatch=not self.remote,
+            check_renaming=not self.remote,
         )
         self.models[model_name] = model
 
