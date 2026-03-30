@@ -2,22 +2,31 @@
 
 import { useParams } from "next/navigation";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
-import { getChartById } from "@/lib/queries/chartQueries";
+import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
+import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { queryKeys } from "@/lib/queryKeys";
-import { Lens2Data } from "@/types/lens2";
+import { Lens2Data, Lens2ConfigData } from "@/types/lens2";
 import { useTheme } from "next-themes";
 import { Loader2 } from "lucide-react";
 import { LogitLensWidget } from "nnsightful";
 import type { LogitLensData } from "nnsightful";
+import { NotebookExporter } from "@/components/NotebookExporter";
 
 interface Lens2Chart {
     id: string;
     data: Lens2Data | null;
     type: string;
+    name?: string;
+}
+
+interface Lens2Config {
+    id: string;
+    data: Lens2ConfigData;
+    type: string;
 }
 
 export function Lens2Display() {
-    const { chartId } = useParams<{ chartId: string }>();
+    const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
     const { resolvedTheme } = useTheme();
     const isDarkMode = resolvedTheme === "dark";
 
@@ -29,7 +38,20 @@ export function Lens2Display() {
         enabled: !!chartId,
     });
 
+    const { data: config } = useQuery({
+        queryKey: queryKeys.charts.configByChart(chartId),
+        queryFn: () => getConfigForChart(chartId),
+        enabled: !!chartId,
+    });
+
+    const { data: workspace } = useQuery({
+        queryKey: queryKeys.workspaces.workspace(workspaceId),
+        queryFn: () => getWorkspaceById(workspaceId),
+        enabled: !!workspaceId,
+    });
+
     const lens2Chart = chart as Lens2Chart | undefined;
+    const lens2Config = config as Lens2Config | undefined;
     const hasData = lens2Chart?.data && "meta" in lens2Chart.data;
 
     // Loading state
@@ -65,6 +87,15 @@ export function Lens2Display() {
 
     return (
         <div className="size-full overflow-auto p-4">
+            <div className="flex items-center justify-end mb-2">
+                <NotebookExporter
+                    configType="lens2"
+                    configData={(lens2Config?.data ?? {}) as Record<string, unknown>}
+                    chartData={(lens2Chart?.data ?? null) as Record<string, unknown> | null}
+                    chartName={lens2Chart?.name ?? undefined}
+                    workspaceName={(workspace as { name?: string } | undefined)?.name ?? undefined}
+                />
+            </div>
             <LogitLensWidget
                 data={lens2Chart.data! as LogitLensData}
                 darkMode={isDarkMode}

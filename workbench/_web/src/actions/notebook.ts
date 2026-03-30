@@ -189,11 +189,50 @@ const activationPatchingHandler: NotebookToolHandler = {
     },
 };
 
+// ── Logit Lens handler ──────────────────────────────────────────────
+
+const logitLensHandler: NotebookToolHandler = {
+    templateName: "logit-lens",
+
+    buildParameterSource(config) {
+        const prompt = escapePythonTripleDoubleQuoted(
+            (config.prompt as string) ?? ""
+        );
+        const topk = (config.topk as number) ?? 5;
+        const includeEntropy = (config.includeEntropy as boolean) ?? true;
+
+        return [
+            `prompt = """${prompt}"""`,
+            `topk = ${topk}`,
+            `include_entropy = ${includeEntropy ? "True" : "False"}`,
+        ].join("\n");
+    },
+
+    buildConfigSource(config) {
+        const model = (config.model as string) ?? "";
+        return [
+            `MODEL_NAME = "${model}"`,
+            `REMOTE = True`,
+        ].join("\n");
+    },
+
+    buildVisualizationPayload(chartData) {
+        if (!chartData || !("meta" in chartData)) return null;
+
+        return {
+            widget: "LogitLensWidget",
+            data: chartData,
+            options: {},
+        };
+    },
+};
+
 // ── Handler registry ─────────────────────────────────────────────────
 // Add new tool handlers here as they're implemented.
 
 const toolHandlers: Record<string, NotebookToolHandler> = {
     "activation-patching": activationPatchingHandler,
+    "lens2": logitLensHandler,
 };
 
 // ── Public API ───────────────────────────────────────────────────────
