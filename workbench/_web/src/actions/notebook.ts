@@ -112,7 +112,8 @@ interface NotebookToolHandler {
     buildVisualizationPayload(
         chartData: Record<string, unknown>,
         config: Record<string, unknown>,
-        displayMode?: string
+        displayMode?: string,
+        darkMode?: boolean
     ): VisualizationPayload | null;
 }
 
@@ -165,7 +166,7 @@ const activationPatchingHandler: NotebookToolHandler = {
         ].join("\n");
     },
 
-    buildVisualizationPayload(chartData, config, displayMode) {
+    buildVisualizationPayload(chartData, config, displayMode, darkMode) {
         const lines = chartData.lines as number[][] | undefined;
         if (!lines?.length) return null;
 
@@ -184,7 +185,7 @@ const activationPatchingHandler: NotebookToolHandler = {
                 prob_diffs: chartData.prob_diffs ?? [],
                 tokenLabels: chartData.tokenLabels ?? [],
             },
-            options: { mode, selectedTokens },
+            options: { mode, selectedTokens, darkMode },
         };
     },
 };
@@ -209,6 +210,7 @@ interface GenerateNotebookInput {
     workspaceName?: string;
     chartName?: string;
     displayMode?: string;
+    darkMode?: boolean;
 }
 
 /**
@@ -219,7 +221,7 @@ interface GenerateNotebookInput {
 export async function generateNotebook(
     input: GenerateNotebookInput
 ): Promise<string> {
-    const { configType, configData, chartData, workspaceName, chartName, displayMode } = input;
+    const { configType, configData, chartData, workspaceName, chartName, displayMode, darkMode } = input;
 
     const handler = toolHandlers[configType];
     if (!handler) {
@@ -244,7 +246,8 @@ export async function generateNotebook(
         const payload = handler.buildVisualizationPayload(
             chartData,
             configData,
-            displayMode
+            displayMode,
+            darkMode
         );
         if (payload) {
             vizHtml = await buildVisualizationHtml(payload);

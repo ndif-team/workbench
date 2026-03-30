@@ -244,6 +244,7 @@ export function ActivationPatchingDisplay() {
                     chartData={(patchingChart?.data ?? null) as Record<string, unknown> | null}
                     chartName={patchingChart?.name ?? undefined}
                     workspaceName={workspace?.name ?? undefined}
+                    darkMode={isDarkMode}
                 />
             </div>
 

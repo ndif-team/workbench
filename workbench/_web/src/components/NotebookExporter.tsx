@@ -14,6 +14,7 @@ interface NotebookExporterProps {
     chartName?: string;
     workspaceName?: string;
     displayMode?: string;
+    darkMode?: boolean;
 }
 
 export function NotebookExporter({
@@ -23,6 +24,7 @@ export function NotebookExporter({
     chartName,
     workspaceName,
     displayMode,
+    darkMode,
 }: NotebookExporterProps) {
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -36,6 +38,7 @@ export function NotebookExporter({
                 workspaceName,
                 chartName,
                 displayMode,
+                darkMode,
             });
 
             const safeName = (chartName ?? configType)
@@ -57,7 +60,7 @@ export function NotebookExporter({
         } finally {
             setIsDownloading(false);
         }
-    }, [configType, configData, chartData, workspaceName, chartName, displayMode]);
+    }, [configType, configData, chartData, workspaceName, chartName, displayMode, darkMode]);
 
     return (
         <Button
