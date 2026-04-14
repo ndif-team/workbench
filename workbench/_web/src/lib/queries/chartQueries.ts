@@ -7,6 +7,7 @@ import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
+import { LogitLensIntroConfigData } from "@/types/logitLensIntro";
 import { eq, asc, desc } from "drizzle-orm";
 import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
 
@@ -56,7 +57,8 @@ type ConfigPayload =
     | { type: "lens"; data: LensConfigData }
     | { type: "lens2"; data: Lens2ConfigData }
     | { type: "patch"; data: PatchingConfig }
-    | { type: "activation-patching"; data: ActivationPatchingConfigData };
+    | { type: "activation-patching"; data: ActivationPatchingConfigData }
+    | { type: "logit-lens-intro"; data: LogitLensIntroConfigData };
 
 // Creates a chart, its config, and the link between them, with the chart
 // positioned at the bottom of the unified sidebar list.
@@ -87,6 +89,11 @@ export const createLens2ChartPair = async (
     workspaceId: string,
     defaultConfig: Lens2ConfigData,
 ) => createChartConfigPair(workspaceId, { type: "lens2", data: defaultConfig });
+
+export const createLogitLensIntroChartPair = async (
+    workspaceId: string,
+    defaultConfig: LogitLensIntroConfigData,
+) => createChartConfigPair(workspaceId, { type: "logit-lens-intro", data: defaultConfig });
 
 export const createPatchChartPair = async (
     workspaceId: string,

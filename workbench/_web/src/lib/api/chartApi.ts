@@ -4,6 +4,7 @@ import {
     setChartData,
     deleteChart,
     createLens2ChartPair,
+    createLogitLensIntroChartPair,
     createPatchChartPair,
     createActivationPatchingChartPair,
     updateChartName,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/queries/chartQueries";
 import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
+import { LogitLensIntroConfigData } from "@/types/logitLensIntro";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { useCapture } from "@/components/providers/CaptureProvider";
@@ -266,6 +268,32 @@ export const useCreateLens2ChartPair = () => {
         },
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+        },
+    });
+};
+
+export const useCreateLogitLensIntroChartPair = () => {
+    const queryClient = useQueryClient();
+
+    const defaultConfig: LogitLensIntroConfigData = {
+        prompt: "",
+        model: "",
+        topk: 5,
+        includeEntropy: true,
+    };
+
+    return useMutation({
+        mutationFn: async ({
+            workspaceId,
+            config = defaultConfig,
+        }: {
+            workspaceId: string;
+            config?: LogitLensIntroConfigData;
+        }) => {
+            return await createLogitLensIntroChartPair(workspaceId, config);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
         },
     });
 };
