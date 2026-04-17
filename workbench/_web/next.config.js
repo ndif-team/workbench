@@ -34,6 +34,12 @@ const nextConfig = {
         ignoreDuringBuilds: true,
     },
     serverExternalPackages: ["sharp", "onnxruntime-node"],
+    outputFileTracingIncludes: {
+        "/workbench/**": [
+            "./src/notebook-templates/**/*.ipynb",
+            "./node_modules/nnsightful/src/nnsightful/viz/charts.js",
+        ],
+    },
     webpack: (config) => {
         // Fallbacks for @huggingface/transformers package
         config.resolve.fallback = {

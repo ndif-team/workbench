@@ -28,8 +28,8 @@ export function ModelSelector() {
         return <div className="h-8 animate-pulse bg-muted/50" />;
     }
 
-    const baseModels = models.filter((model) => model.type === "base");
-    const chatModels = models.filter((model) => model.type === "chat");
+    const baseModels = models.filter((model) => !model.is_chat);
+    const chatModels = models.filter((model) => model.is_chat);
 
     const handleModelChange = (modelName: string) => {
         const model = models.find((model) => model.name === modelName);

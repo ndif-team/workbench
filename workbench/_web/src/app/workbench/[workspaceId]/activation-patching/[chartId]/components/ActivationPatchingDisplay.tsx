@@ -1,16 +1,21 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
+import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { ActivationPatchingData, ActivationPatchingConfigData } from "@/types/activationPatching";
+import type { ActivationPatchingMode } from "nnsightful";
 import { Loader2 } from "lucide-react";
-import { LinePlotWidget } from "nnsightful";
+import { ActivationPatchingWidget } from "nnsightful";
 import { useTheme } from "next-themes";
-import { cn } from "@/lib/utils";
 import { useUpdateChartName } from "@/lib/api/chartApi";
+import { useUpdateChartConfig } from "@/lib/api/configApi";
+import { NotebookExporter } from "@/components/NotebookExporter";
+
+const validModes = new Set<string>(["probability", "rank", "prob_diff"]);
 
 interface ActivationPatchingChart {
     id: string;
@@ -27,13 +32,10 @@ interface ActivationPatchingConfig {
     workspaceId: string;
 }
 
-type DisplayMode = "probability" | "prob_diff" | "rank";
-
 export function ActivationPatchingDisplay() {
-    const { chartId } = useParams<{ chartId: string }>();
+    const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
     const { resolvedTheme } = useTheme();
     const isDarkMode = resolvedTheme === "dark";
-    const [displayMode, setDisplayMode] = useState<DisplayMode>("probability");
     const [localTitle, setLocalTitle] = useState<string | null>(null); // null means use chart name
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const titleInputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +55,14 @@ export function ActivationPatchingDisplay() {
         enabled: !!chartId,
     });
 
+    const { data: workspace } = useQuery({
+        queryKey: queryKeys.workspaces.workspace(workspaceId),
+        queryFn: () => getWorkspaceById(workspaceId),
+        enabled: !!workspaceId,
+    });
+
     const { mutate: updateChartName } = useUpdateChartName();
+    const { mutateAsync: updateConfig } = useUpdateChartConfig();
 
     const patchingChart = chart as ActivationPatchingChart | undefined;
     const patchingConfig = config as ActivationPatchingConfig | undefined;
@@ -108,42 +117,55 @@ export function ActivationPatchingDisplay() {
         }, 0);
     }, [displayTitle]);
 
-    // Get selected line indices from config (managed by ActivationPatchingControls)
-    const selectedLineIndices = useMemo(() => {
-        if (patchingConfig?.data?.selectedLineIndices) {
-            return new Set(patchingConfig.data.selectedLineIndices);
-        }
-        // Default to first two lines
-        return new Set([0, 1]);
-    }, [patchingConfig?.data?.selectedLineIndices]);
+    // Debounced save of token selection to config
+    const saveTokenTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const patchingConfigRef = useRef(patchingConfig);
+    patchingConfigRef.current = patchingConfig;
 
-    // Prepare filtered data for the line plot
-    const plotData = useMemo(() => {
-        if (!hasData || !patchingChart?.data) return null;
-        
-        const selectedIndicesArray = Array.from(selectedLineIndices).sort((a, b) => a - b);
-        
-        // Select data source based on display mode
-        let sourceData: number[][] | undefined;
-        if (displayMode === "probability") {
-            sourceData = patchingChart.data!.lines;
-        } else if (displayMode === "prob_diff") {
-            sourceData = patchingChart.data!.prob_diffs;
-        } else {
-            sourceData = patchingChart.data!.ranks;
-        }
-        
-        if (!sourceData) return null;
-        
-        const lines = selectedIndicesArray
-            .filter(i => i < sourceData.length)
-            .map(i => sourceData[i]);
-        const labels = selectedIndicesArray
-            .filter(i => i < (patchingChart.data!.tokenLabels?.length || 0))
-            .map(i => patchingChart.data!.tokenLabels![i]);
-        
-        return { lines, labels };
-    }, [hasData, patchingChart?.data, selectedLineIndices, displayMode]);
+    const handleTokenSelectionChange = useCallback((indices: number[]) => {
+        if (saveTokenTimeoutRef.current) clearTimeout(saveTokenTimeoutRef.current);
+        saveTokenTimeoutRef.current = setTimeout(() => {
+            const cfg = patchingConfigRef.current;
+            if (!cfg?.id) return;
+            updateConfig({
+                configId: cfg.id,
+                chartId,
+                config: {
+                    data: { ...cfg.data, selectedLineIndices: indices },
+                    workspaceId,
+                    type: "activation-patching",
+                },
+            });
+        }, 500);
+    }, [chartId, workspaceId, updateConfig]);
+
+    // Debounced save of mode to config
+    const saveModeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const handleModeChange = useCallback((mode: ActivationPatchingMode) => {
+        if (saveModeTimeoutRef.current) clearTimeout(saveModeTimeoutRef.current);
+        saveModeTimeoutRef.current = setTimeout(() => {
+            const cfg = patchingConfigRef.current;
+            if (!cfg?.id) return;
+            updateConfig({
+                configId: cfg.id,
+                chartId,
+                config: {
+                    data: { ...cfg.data, selectedMode: mode },
+                    workspaceId,
+                    type: "activation-patching",
+                },
+            });
+        }, 300);
+    }, [chartId, workspaceId, updateConfig]);
+
+    // Clear pending saves on unmount
+    useEffect(() => {
+        return () => {
+            if (saveTokenTimeoutRef.current) clearTimeout(saveTokenTimeoutRef.current);
+            if (saveTitleTimeoutRef.current) clearTimeout(saveTitleTimeoutRef.current);
+            if (saveModeTimeoutRef.current) clearTimeout(saveModeTimeoutRef.current);
+        };
+    }, []);
 
     // Loading state
     if (isChartLoading || isConfigLoading) {
@@ -182,111 +204,61 @@ export function ActivationPatchingDisplay() {
 
     return (
         <div className="size-full overflow-auto flex flex-col">
-            {/* Title input */}
-            <div className="px-4 pt-4 pb-2">
-                {isEditingTitle ? (
-                    <input
-                        ref={titleInputRef}
-                        type="text"
-                        value={displayTitle}
-                        onChange={handleTitleChange}
-                        onBlur={handleTitleBlur}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                                e.currentTarget.blur();
-                            }
-                        }}
-                        placeholder="Untitled Chart"
-                        className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
-                    />
-                ) : hasTitle ? (
-                    <h2
-                        onClick={handleTitleClick}
-                        className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold"
-                    >
-                        {displayTitle}
-                    </h2>
-                ) : (
-                    <h2
-                        onClick={handleTitleClick}
-                        className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
-                    >
-                        Untitled Chart
-                    </h2>
-                )}
-            </div>
-
-            {/* Mode toggle header */}
-            <div className="px-3 pt-2 pb-1 flex items-center gap-2">
-                {/* <span className="text-xs text-muted-foreground">Display:</span> */}
-                <div className="inline-flex items-center rounded-md border border-input bg-background p-0.5">
-                    <button
-                        onClick={() => setDisplayMode("probability")}
-                        className={cn(
-                            "px-2.5 py-1 text-xs font-medium rounded transition-colors",
-                            displayMode === "probability"
-                                ? "bg-violet-500 text-white"
-                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                        )}
-                    >
-                        Probability
-                    </button>
-                    <button
-                        onClick={() => setDisplayMode("prob_diff")}
-                        className={cn(
-                            "px-2.5 py-1 text-xs font-medium rounded transition-colors",
-                            displayMode === "prob_diff"
-                                ? "bg-violet-500 text-white"
-                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                        )}
-                    >
-                        Prob Δ
-                    </button>
-                    <button
-                        onClick={() => setDisplayMode("rank")}
-                        className={cn(
-                            "px-2.5 py-1 text-xs font-medium rounded transition-colors",
-                            displayMode === "rank"
-                                ? "bg-violet-500 text-white"
-                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                        )}
-                    >
-                        Rank
-                    </button>
+            {/* Title + export */}
+            <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                    {isEditingTitle ? (
+                        <input
+                            ref={titleInputRef}
+                            type="text"
+                            value={displayTitle}
+                            onChange={handleTitleChange}
+                            onBlur={handleTitleBlur}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.currentTarget.blur();
+                                }
+                            }}
+                            placeholder="Untitled Chart"
+                            className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
+                        />
+                    ) : hasTitle ? (
+                        <h2
+                            onClick={handleTitleClick}
+                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold truncate"
+                        >
+                            {displayTitle}
+                        </h2>
+                    ) : (
+                        <h2
+                            onClick={handleTitleClick}
+                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
+                        >
+                            Untitled Chart
+                        </h2>
+                    )}
                 </div>
+                <NotebookExporter
+                    configType="activation-patching"
+                    configData={(patchingConfig?.data ?? {}) as Record<string, unknown>}
+                    chartData={(patchingChart?.data ?? null) as Record<string, unknown> | null}
+                    chartName={patchingChart?.name ?? undefined}
+                    workspaceName={workspace?.name ?? undefined}
+                    darkMode={isDarkMode}
+                />
             </div>
 
             {/* Chart area */}
             <div className="flex-1 p-4 min-h-0">
-                {plotData && plotData.lines.length > 0 ? (
-                    <LinePlotWidget
-                        data={plotData}
-                        title={
-                            displayMode === "probability"
-                                ? "Activation Patching: Token Probability by Layer"
-                                : displayMode === "prob_diff"
-                                    ? "Activation Patching: Probability Difference by Layer"
-                                    : "Activation Patching: Token Rank by Layer"
-                        }
-                        yAxisLabel={
-                            displayMode === "probability"
-                                ? "Probability"
-                                : displayMode === "prob_diff"
-                                    ? "Prob Δ (Patched - Clean)"
-                                    : "Rank"
-                        }
-                        xAxisLabel="Layer"
-                        transparentBackground
-                        mode={displayMode}
-                        invertYAxis={displayMode === "rank"}
-                        centerYAxisAtZero={displayMode === "prob_diff"}
-                        darkMode={isDarkMode}
-                    />
-                ) : (
-                    <div className="flex size-full items-center justify-center text-muted-foreground">
-                        Select at least one token to display
-                    </div>
-                )}
+                <ActivationPatchingWidget
+                    data={patchingChart!.data!}
+                    darkMode={isDarkMode}
+                    transparentBackground
+                    mode={validModes.has(patchingConfig?.data?.selectedMode ?? "") ? patchingConfig!.data!.selectedMode as ActivationPatchingMode : "probability"}
+                    selectedTokens={patchingConfig?.data?.selectedLineIndices}
+                    onTokenSelectionChange={handleTokenSelectionChange}
+                    onModeChange={handleModeChange}
+                />
             </div>
         </div>
     );

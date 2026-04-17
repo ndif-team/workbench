@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { TargetTokenSelector } from "./TargetTokenSelector";
 
 import { encodeText } from "@/actions/tok";
+import { TokenizerLoadError } from "@/actions/errors";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { useParams } from "next/navigation";
 import { useLensCharts } from "@/hooks/useLensCharts";
@@ -209,7 +210,19 @@ export function CompletionCard({ initialConfig, chartType, selectedModel }: Comp
     // Tokenize the prompt and run predictions
     const handleTokenize = async (forceRun = false, modelOverride?: string) => {
         const modelToUse = modelOverride || selectedModel;
-        const tokens = await encodeText(config.prompt, modelToUse);
+        let tokens: Token[];
+        try {
+            tokens = await encodeText(config.prompt, modelToUse);
+        } catch (error) {
+            if (error instanceof TokenizerLoadError) {
+                toast.error(
+                    `Could not load tokenizer for ${modelToUse}. The model may be gated and require authentication.`,
+                );
+            } else {
+                toast.error("Failed to tokenize prompt.");
+            }
+            return;
+        }
 
         if (tokens.length <= 1) {
             toast.error("Please enter a longer prompt.");

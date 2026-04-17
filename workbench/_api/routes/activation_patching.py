@@ -10,7 +10,7 @@ from ..auth import require_user_email
 from ..state import get_state
 
 from nnsightful.types import ActivationPatchingData
-from nnsightful.tools.activation_patching import activation_patching, format_data
+from nnsightful.tools.activation_patching import activation_patching
 
 router = APIRouter()
 
@@ -34,22 +34,38 @@ async def start_activation_patching(
     user_email: str = Depends(require_user_email),
 ):
     model = state[request.model_name]
-    job_id = activation_patching(model, request.src_prompt, request.tgt_prompt, request.src_pos, request.tgt_pos, request.tgt_freeze, state.make_backend(model=model), state.remote)
-    return {"job_id": job_id}
+    backend = state.make_backend(model=model)
+
+    raw = activation_patching._run(
+        model,
+        request.src_prompt,
+        request.tgt_prompt,
+        request.src_pos,
+        request.tgt_pos,
+        request.tgt_freeze,
+        remote=state.remote,
+        backend=backend,
+    )
+
+    if "job_id" in raw:
+        return {"job_id": raw["job_id"]}
+
+    data = activation_patching._format(raw)
+    return {"data": data}
+
 
 @router.post("/results/{job_id}", response_model=ActivationPatchingResponse)
 async def collect_results(
-    job_id: str, 
+    job_id: str,
     request: ActivationPatchingRequest,
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email),
 ):
     backend = state.make_backend(job_id=job_id)
     results = backend()
-    logits = results["patched_logits_per_layer"]
-    src_pred = results["src_pred"].item()
-    clean_pred = results["clean_pred"].item()
-    clean_logits = results["clean_logits"]
-    
-    data = format_data(state[request.model_name].tokenizer, src_pred, clean_pred, logits, clean_logits)
+
+    results["tokenizer"] = state[request.model_name].tokenizer
+
+    data = activation_patching._format(results)
+
     return {"data": data}

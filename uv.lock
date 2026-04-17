@@ -555,7 +555,7 @@ requires-dist = [
     { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.6.1" },
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.6.16" },
     { name = "modal", specifier = ">=0.65.66" },
-    { name = "nnsight", specifier = ">=0.6.1" },
+    { name = "nnsight", specifier = ">=0.6.3" },
     { name = "nnsightful", git = "https://github.com/AdamBelfki3/nnsightful.git" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "toml", specifier = ">=0.10.2" },
@@ -881,7 +881,7 @@ wheels = [
 
 [[package]]
 name = "nnsight"
-version = "0.6.1"
+version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "accelerate" },
@@ -898,22 +898,36 @@ dependencies = [
     { name = "transformers" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/12/09/ac93a92d58f4379e9a6d97f35fc79bd2f00a801c1426e0316ea53aa25b20/nnsight-0.6.1.tar.gz", hash = "sha256:e99f60eaff953f642307131ef31fe039906aea3815b54918af3d2c0ec56d58dd", size = 1003869, upload-time = "2026-02-27T04:45:31.413Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a6/75/e2f5c0913b078e08718e92cf51ddf963579dde59485b024052c7d11bd25d/nnsight-0.6.3.tar.gz", hash = "sha256:d9fa2aa0eed3b3335bbe5d7511a5127ccc3c79bafba6275369697b882e2b8249", size = 1263681, upload-time = "2026-03-20T16:46:33.329Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f0/de/d2e03ce275f712d7b185fdca0099af80e26ae83bdba80e22338bdb5e1f0b/nnsight-0.6.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:01fa5b397696367aad3bc87a7ebd86d55f81def173f770564b60550436ceba68", size = 174568, upload-time = "2026-02-27T04:45:08.523Z" },
-    { url = "https://files.pythonhosted.org/packages/79/15/0bc8f6262707a1fc27471a09d69851998a7222b2caed548f147e26c5831d/nnsight-0.6.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:4dd3ac1b3ad39fd8ab8268141586a37bfdc5ef9bc51ecfc07217be5d099a9725", size = 182040, upload-time = "2026-02-27T04:45:09.888Z" },
-    { url = "https://files.pythonhosted.org/packages/83/8f/ab039e74549683b37db3ea4d755b449063c4c0e0576824fdbfe26a578142/nnsight-0.6.1-cp312-cp312-win32.whl", hash = "sha256:d68079533449480c3c783820057f49dd94a61256fc13d4fd8aff8d12a61c19d7", size = 176259, upload-time = "2026-02-27T04:45:11.188Z" },
-    { url = "https://files.pythonhosted.org/packages/05/89/4068e10070b54629b8ad11ad2832ed2494dc410db7f4b3db748c46b6ede7/nnsight-0.6.1-cp312-cp312-win_amd64.whl", hash = "sha256:1ff599419d7f51a9c5fa44c2fdd19129179f8f4e60b2a4c05aaaa770c9222c0b", size = 176671, upload-time = "2026-02-27T04:45:12.611Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/81/6dacc633467d4b91a7b46871f10be7fa83d1648986b0640fc9946d153c05/nnsight-0.6.3-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:6f8ab8bb002da985bc0ca550f43b9f978d876269953c09709de32afb9c2378ad", size = 176203, upload-time = "2026-03-20T16:46:13.683Z" },
+    { url = "https://files.pythonhosted.org/packages/4d/51/e7d148ca030c7b1ff269268b82c918db88c95a7f378cd26b5d5885345fbf/nnsight-0.6.3-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:4ea008fa818a6a0027a260399f8e921264b85d21cc3e97980a2c3e838068356a", size = 183668, upload-time = "2026-03-20T16:46:14.87Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/0b/57b48373160978dbb37ff0ece06a6d740922deda15745e7afa20659e46a1/nnsight-0.6.3-cp312-cp312-win32.whl", hash = "sha256:2c6be467ac7c5d0ecbb196d251ae07cfc176da9b6b2dbe40f6db887f404d97d7", size = 177888, upload-time = "2026-03-20T16:46:16.138Z" },
+    { url = "https://files.pythonhosted.org/packages/87/8e/a6e739011fe6395c11b5570c2397c5a37c976ad541af820f690489864e7a/nnsight-0.6.3-cp312-cp312-win_amd64.whl", hash = "sha256:ac77ab7717c886412cf022bbd73c7da60e921200f6857255f1779fc40f3a7deb", size = 178305, upload-time = "2026-03-20T16:46:17.082Z" },
 ]
 
 [[package]]
 name = "nnsightful"
 version = "0.1.0"
-source = { git = "https://github.com/AdamBelfki3/nnsightful.git#3575c85803219a7320bd54859bf7c8f674f3d290" }
+source = { git = "https://github.com/AdamBelfki3/nnsightful.git#ceeb429addf23d2490423777840cb0888607988b" }
 dependencies = [
     { name = "ipython" },
     { name = "nnsight" },
+    { name = "nnterp" },
     { name = "pydantic" },
+]
+
+[[package]]
+name = "nnterp"
+version = "1.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nnsight" },
+    { name = "transformers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ee/e2/e45d65fc46e7b0643010fc1f10fd7c64aa7e8c8a09b44df200511f1d5b70/nnterp-1.3.0.tar.gz", hash = "sha256:f8339e518c6618d361b098de5de5ecec76041460f6862bde4034feecd8e8a98e", size = 52922, upload-time = "2026-02-28T00:37:58.636Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/23/8201479195f7f969adc14d467d0b9e35aeb30ad90931d94bf24e59f2dc5c/nnterp-1.3.0-py3-none-any.whl", hash = "sha256:ce828e173b360640ea9b3a7d78b0b1c29d486f7c8a83af47e5df76c767817d40", size = 53012, upload-time = "2026-02-28T00:37:57.456Z" },
 ]
 
 [[package]]

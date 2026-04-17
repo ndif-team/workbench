@@ -2,7 +2,7 @@
 
 import { db } from "@/db/client";
 import { workspaces, charts, documents } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 
 export async function getWorkspaceById(workspaceId: string) {
     const [workspace] = await db
@@ -39,6 +39,7 @@ export const getWorkspaces = async (userId: string) => {
             userId: workspaces.userId,
             name: workspaces.name,
             public: workspaces.public,
+            updatedAt: workspaces.updatedAt,
             chartCount: sql<number>`cast(count(distinct ${charts.id}) as integer)`,
             documentCount: sql<number>`cast(count(distinct ${documents.id}) as integer)`,
         })
@@ -46,7 +47,8 @@ export const getWorkspaces = async (userId: string) => {
         .leftJoin(charts, eq(workspaces.id, charts.workspaceId))
         .leftJoin(documents, eq(workspaces.id, documents.workspaceId))
         .where(eq(workspaces.userId, userId))
-        .groupBy(workspaces.id);
+        .groupBy(workspaces.id)
+        .orderBy(desc(workspaces.updatedAt));
 
     return workspaceList;
 };
@@ -55,6 +57,13 @@ export const deleteWorkspace = async (userId: string, workspaceId: string) => {
     await db
         .delete(workspaces)
         .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)));
+};
+
+export const touchWorkspace = async (workspaceId: string) => {
+    await db
+        .update(workspaces)
+        .set({ updatedAt: new Date() })
+        .where(eq(workspaces.id, workspaceId));
 };
 
 // Wrapped versions for use with server actions/components that use withAuth

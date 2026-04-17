@@ -1,10 +1,10 @@
 from itertools import chain
-from typing import List
+from typing import List, NamedTuple
 import asyncio
 
 import einops
 from fastapi import APIRouter, Request
-from nnsight import LanguageModel
+from nnterp import StandardizedTransformer
 import nnsight as ns
 import torch as t
 from transformers import AutoTokenizer
@@ -50,7 +50,6 @@ class Connection(BaseModel):
 
 class PatchRequest(BaseModel):
     model_config = ConfigDict(
-        # Allow extra fields (like x, y) to be ignored
         extra="ignore"
     )
 
@@ -61,7 +60,6 @@ class PatchRequest(BaseModel):
     submodule: Literal["attn", "mlp", "blocks", "heads"]
     patch_tokens: bool = Field(alias="patchTokens")
 
-    # Which tokens are being predicted
     correct_id: int = Field(alias="correctId")
     incorrect_id: Optional[int] = Field(default=None, alias="incorrectId")
 
@@ -79,21 +77,21 @@ class PatchResponse(BaseModel):
     colLabels: List[str | int] = Field(default_factory=list)
 
 
-def get_components(model, patching_request: PatchRequest):
-    layers = model.model.layers
+def get_components(model: StandardizedTransformer, patching_request: PatchRequest):
+    n_layers = model.num_layers
     match patching_request.submodule:
         case "blocks":
-            return layers
+            return [model.layers[i] for i in range(n_layers)]
         case "attn":
-            return [layer.attn for layer in layers]
+            return [model.attentions[i] for i in range(n_layers)]
         case "mlp":
-            return [layer.mlp for layer in layers]
+            return [model.mlps[i] for i in range(n_layers)]
         case _:
             raise ValueError(f"Invalid submodule: {patching_request.submodule}")
 
 
-def logit_difference(model, patching_request: PatchRequest):
-    logits = model.lm_head.output
+def logit_difference(model: StandardizedTransformer, patching_request: PatchRequest):
+    logits = model.logits
     return (
         logits[0, -1, patching_request.correct_id]
         - logits[0, -1, patching_request.incorrect_id]
@@ -106,13 +104,13 @@ def compute_ioi_metric(source_diff, destination_diff, patched_diff):
     )
 
 
-def get_prob(model, patching_request: PatchRequest):
-    logits = model.lm_head.output
+def get_prob(model: StandardizedTransformer, patching_request: PatchRequest):
+    logits = model.logits
     probs = t.softmax(logits, dim=-1)
     return probs[0, -1, patching_request.correct_id]
 
 
-def patch_components(model: LanguageModel, patching_request: PatchRequest):
+def patch_components(model: StandardizedTransformer, patching_request: PatchRequest):
     components = get_components(model, patching_request)
     is_tuple = patching_request.submodule == "blocks"
 
@@ -164,16 +162,15 @@ def patch_components(model: LanguageModel, patching_request: PatchRequest):
     )
 
 
-def patch_heads(model: LanguageModel, patching_request: PatchRequest):
-    components = [layer.attn.o_proj for layer in model.model.layers]
+def patch_heads(model: StandardizedTransformer, patching_request: PatchRequest):
+    components = [model.attentions[i].o_proj for i in range(model.num_layers)]
+    n_heads = model.num_heads
 
     source_cache = {}
-    n_heads = model.config.n_heads
 
     with model.wrapped_session():
         results = ns.dict().save()
 
-        # Cache source activations
         with model.trace(patching_request.source):
             for component in components:
                 hidden_BLD = component.input
@@ -238,11 +235,10 @@ def patch_heads(model: LanguageModel, patching_request: PatchRequest):
     )
 
 
-def patch_tokens(model: LanguageModel, patching_request: PatchRequest):
+def patch_tokens(model: StandardizedTransformer, patching_request: PatchRequest):
     components = get_components(model, patching_request)
     is_tuple = patching_request.submodule == "blocks"
 
-    # Compute n_tokens
     destination_prompt = patching_request.destination
     destination_tokens = model.tokenizer.encode(destination_prompt)
     n_tokens = len(destination_tokens)
@@ -318,8 +314,6 @@ def patch_tokens(model: LanguageModel, patching_request: PatchRequest):
     )
 
 
-from typing import NamedTuple
-
 class PatchingIdxs(NamedTuple):
     source: List[int]
     destination: List[int]
@@ -331,19 +325,15 @@ def compute_patching_idxs(
     source_prompt: str,
     destination_prompt: str,
 ) -> PatchingIdxs:
-    # Tokenize prompts
     source_tokens = tok.encode(source_prompt)
     destination_tokens = tok.encode(destination_prompt)
 
-    # Extract all token indices from connections
     start_idxs = chain(*[conn.start.token_indices for conn in connections])
     end_idxs = chain(*[conn.end.token_indices for conn in connections])
 
-    # Get all indices
     source_idxs = range(len(source_tokens))
     dest_idxs = range(len(destination_tokens))
 
-    # Compute valid indices and return intersection
     source_valid = set(source_idxs) - set(start_idxs)
     dest_valid = set(dest_idxs) - set(end_idxs)
 
@@ -388,7 +378,7 @@ def get_sync_x_labels(
 
         elif c in seen:
             continue
-        
+
         else:
             x_labels.append(tok.decode(tokens[i]))
             x_items.append(i)
@@ -396,7 +386,7 @@ def get_sync_x_labels(
     return x_labels, x_items
 
 
-def patch_tokens_sync(model: LanguageModel, patching_request: PatchRequest):
+def patch_tokens_sync(model: StandardizedTransformer, patching_request: PatchRequest):
     components = get_components(model, patching_request)
     is_tuple = patching_request.submodule == "blocks"
 
@@ -423,7 +413,6 @@ def patch_tokens_sync(model: LanguageModel, patching_request: PatchRequest):
                 if is_tuple:
                     hidden_BLD = hidden_BLD[0]
 
-                # Cache source activations for connections
                 for connection in connections:
                     start_token_last_idx = connection.start.token_indices[-1]
 
@@ -431,7 +420,6 @@ def patch_tokens_sync(model: LanguageModel, patching_request: PatchRequest):
                         :, start_token_last_idx, :
                     ]
 
-                # Cache source activations for tokens
                 for token_idx in patching_idxs.source:
                     source_cache[(component, token_idx)] = hidden_BLD[
                         :, token_idx, :
@@ -444,26 +432,20 @@ def patch_tokens_sync(model: LanguageModel, patching_request: PatchRequest):
             destination_diff = logit_difference(model, patching_request)
 
         for layer_idx, component in enumerate(components):
-            # Patch tokens
             for token_idx in patching_idxs.destination:
                 with model.trace(patching_request.destination):
                     if is_tuple:
                         hidden_BLD_tuple = component.output
-
                         hidden_BLD = hidden_BLD_tuple[0]
-
                     else:
                         hidden_BLD = component.output
 
-                    # Patch in the token
                     hidden_BLD[:, token_idx, :] = source_cache[
                         (component, patching_idxs.tok_map[token_idx])
                     ]
 
-                    # Set new output
                     if is_tuple:
                         component.output = (hidden_BLD, hidden_BLD_tuple[1])
-
                     else:
                         component.output = hidden_BLD
 
@@ -477,14 +459,11 @@ def patch_tokens_sync(model: LanguageModel, patching_request: PatchRequest):
                         prob = get_prob(model, patching_request)
                         results[(layer_idx, token_idx)] = prob
 
-            # Patch connections
             for connection in connections:
                 with model.trace(patching_request.destination):
                     if is_tuple:
                         hidden_BLD_tuple = component.output
-
                         hidden_BLD = hidden_BLD_tuple[0]
-
                     else:
                         hidden_BLD = component.output
 
@@ -494,10 +473,8 @@ def patch_tokens_sync(model: LanguageModel, patching_request: PatchRequest):
                         (component, connection)
                     ]
 
-                    # Set new output
                     if is_tuple:
                         component.output = (hidden_BLD, hidden_BLD_tuple[1])
-
                     else:
                         component.output = hidden_BLD
 
@@ -528,18 +505,6 @@ def patch_tokens_sync(model: LanguageModel, patching_request: PatchRequest):
     )
 
 
-def patch_tokens_async(model: LanguageModel, patching_request: PatchRequest):
-    pass
-    # components = get_components(model, patching_request)
-
-    # source_cache = {}
-
-    # with model.wrapped_session(job_id=patching_request.job_id):
-    #     with model.trace(patching_request.source):
-    #         for component in components:
-    #             hidden_BLD = component.output
-
-
 router = APIRouter()
 
 
@@ -554,16 +519,12 @@ async def patch(patching_request: PatchRequest, request: Request):
         )
 
         if has_connections:
-            # Run blocking operation in thread pool
             return await asyncio.to_thread(patch_tokens_sync, model, patching_request)
 
-        # Run blocking operation in thread pool
         return await asyncio.to_thread(patch_tokens, model, patching_request)
 
     else:
         if patching_request.submodule == "heads":
-            # Run blocking operation in thread pool
             return await asyncio.to_thread(patch_heads, model, patching_request)
 
-        # Run blocking operation in thread pool
         return await asyncio.to_thread(patch_components, model, patching_request)
