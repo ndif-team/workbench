@@ -12,7 +12,7 @@ import {
 } from "@/types/activationPatching";
 import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
-import { startAndPoll } from "../startAndPoll";
+import { runAndStream } from "../runAndStream";
 import { createUserHeadersAction } from "@/actions/auth";
 
 /**
@@ -42,10 +42,9 @@ const getActivationPatching = async (
         token_ids: [],  // Backend will use src_pred and clean_pred from results
     };
 
-    return await startAndPoll<ActivationPatchingData>(
-        config.endpoints.startActivationPatching,
+    return await runAndStream<ActivationPatchingData>(
+        config.endpoints.runActivationPatching,
         apiRequest,
-        config.endpoints.resultsActivationPatching,
         headers,
     );
 };

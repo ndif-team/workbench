@@ -19,7 +19,7 @@ import { useCapture } from "@/components/providers/CaptureProvider";
 import { Line, HeatmapRow, ChartView } from "@/types/charts";
 import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
-import { startAndPoll } from "../startAndPoll";
+import { runAndStream } from "../runAndStream";
 import { useHeatmapView, useLineView } from "@/components/charts/ViewProvider";
 import { createUserHeadersAction } from "@/actions/auth";
 
@@ -34,10 +34,9 @@ const getLensLine = async (lensRequest: { completion: LensConfigData; chartId: s
         token: lensRequest.completion.token,
     };
 
-    return await startAndPoll<Line[]>(
-        config.endpoints.startLensLine,
+    return await runAndStream<Line[]>(
+        config.endpoints.runLensLine,
         lineRequest,
-        config.endpoints.resultsLensLine,
         headers,
     );
 };
@@ -121,10 +120,9 @@ const getLensGrid = async (lensRequest: { completion: LensConfigData; chartId: s
         prompt: lensRequest.completion.prompt,
     };
 
-    return await startAndPoll<HeatmapRow[]>(
-        config.endpoints.startLensGrid,
+    return await runAndStream<HeatmapRow[]>(
+        config.endpoints.runLensGrid,
         gridRequest,
-        config.endpoints.resultsLensGrid,
         headers,
     );
 };

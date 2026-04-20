@@ -1,10 +1,9 @@
 import config from "@/lib/config";
 import type { LensConfigData } from "@/types/lens";
 import type { Model, Token } from "@/types/models";
-import { startAndPoll } from "../startAndPoll";
+import { runAndStream } from "../runAndStream";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useWorkspace } from "@/stores/useWorkspace";
 import { createUserHeadersAction } from "@/actions/auth";
 
 interface Prediction {
@@ -16,10 +15,9 @@ interface Prediction {
 
 const getPrediction = async (request: LensConfigData): Promise<Prediction> => {
     const headers = await createUserHeadersAction();
-    return await startAndPoll<Prediction>(
-        config.endpoints.startPrediction,
+    return await runAndStream<Prediction>(
+        config.endpoints.runPrediction,
         request,
-        config.endpoints.resultsPrediction,
         headers,
     );
 };
@@ -46,10 +44,9 @@ export interface GenerationResponse {
 
 const generate = async (request: Completion): Promise<GenerationResponse> => {
     const headers = await createUserHeadersAction();
-    return await startAndPoll<GenerationResponse>(
-        config.endpoints.startGenerate,
+    return await runAndStream<GenerationResponse>(
+        config.endpoints.runGenerate,
         request,
-        config.endpoints.resultsGenerate,
         headers,
     );
 };

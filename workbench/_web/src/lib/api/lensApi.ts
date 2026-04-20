@@ -8,7 +8,7 @@ import { setChartData } from "@/lib/queries/chartQueries";
 import { Lens2ConfigData, Lens2Data } from "@/types/lens2";
 import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
-import { startAndPoll } from "../startAndPoll";
+import { runAndStream } from "../runAndStream";
 import { createUserHeadersAction } from "@/actions/auth";
 
 /**
@@ -33,10 +33,9 @@ const getLens2 = async (lensRequest: Lens2Request): Promise<Lens2Data> => {
         include_entropy: lensRequest.completion.includeEntropy ?? true,
     };
 
-    return await startAndPoll<Lens2Data>(
-        config.endpoints.startLens2,
+    return await runAndStream<Lens2Data>(
+        config.endpoints.runLens2,
         request,
-        config.endpoints.resultsLens2,
         headers,
     );
 };
