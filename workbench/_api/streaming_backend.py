@@ -27,7 +27,6 @@ from __future__ import annotations
 
 from typing import Any, AsyncIterator, Dict, Optional
 
-import httpx
 import socketio
 
 from nnsight.intervention.backends.remote import RemoteBackend, RemoteException
@@ -67,8 +66,7 @@ class StreamingRemoteBackend(RemoteBackend):
             headers = dict(self._request_headers)
             headers["ndif-session_id"] = sio.sid
 
-            initial = await self._async_submit(self._request_data, headers)
-            self.job_id = initial.id
+            initial = await self.async_submit_request(self._request_data, headers)
 
             if initial.status == ResponseModel.JobStatus.COMPLETED:
                 await self._async_finalize(initial)
@@ -93,23 +91,6 @@ class StreamingRemoteBackend(RemoteBackend):
                     raise RemoteException(response.description)
 
                 yield response
-
-    async def _async_submit(self, data: bytes, headers: Dict[str, str]) -> ResponseModel:
-        headers = {**headers, "Content-Type": "application/octet-stream"}
-        timeout = httpx.Timeout(self.CONNECT_TIMEOUT, read=self.READ_TIMEOUT)
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(
-                f"{self.address}/request",
-                content=data,
-                headers=headers,
-            )
-        if resp.status_code == 200:
-            return ResponseModel(**resp.json())
-        try:
-            msg = resp.json()["detail"]
-        except Exception:
-            msg = resp.reason_phrase
-        raise ConnectionError(msg)
 
     async def _async_finalize(self, response: ResponseModel) -> None:
         """Download the final payload (if delivered as a URL) and inline it."""
