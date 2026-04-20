@@ -23,6 +23,7 @@ ALLOWED_ORIGINS = [
 
 if os.environ.get('CONFIG') != "prod":
     ALLOWED_ORIGINS.append("http://localhost:3000")
+    ALLOWED_ORIGINS.append("http://127.0.0.1:3000")
 
 ALLOWED_ORIGIN_REGEX = (
     r"^https://workbench-[a-z0-9\-]*-ndif\.vercel\.app$"  # dev/staging previews

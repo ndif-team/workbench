@@ -3,18 +3,26 @@ from enum import Enum
 
 import torch as t
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ..auth import require_user_email, user_has_model_access
-from ..data_models import NDIFResponse, Token
+from ..data_models import Token
+from ..sse import MEDIA_TYPE, stream_backend, stream_value
 from ..state import AppState, get_state
 
-############ LINE ############
 
 class LensStatistic(str, Enum):
     PROBABILITY = "probability"
     RANK = "rank"
     ENTROPY = "entropy"
+
+
+router = APIRouter()
+
+
+# -------------------------------- LINE ------------------------------------
+
 
 class LensLineRequest(BaseModel):
     model: str
@@ -33,14 +41,8 @@ class Line(BaseModel):
     data: list[Point]
 
 
-class LensLineResponse(NDIFResponse):
-    data: list[Line] | None = None
-
-
-router = APIRouter()
-
-
-def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
+def _trace_line(req: LensLineRequest, state: AppState, backend):
+    """Run the lens-line trace. Saves a list of per-layer tensors under key 'results'."""
     model = state[req.model]
     idx = req.token.idx
     target_ids = req.token.target_ids
@@ -49,12 +51,16 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
         return t.nn.functional.softmax(logits, dim=-1)
 
     def _compute_rank(logits):
-        sorted_probs, sorted_indices = t.nn.functional.softmax(logits, dim=-1).sort(descending=True, dim=-1)
+        sorted_probs, sorted_indices = t.nn.functional.softmax(logits, dim=-1).sort(
+            descending=True, dim=-1
+        )
         rank_map = t.empty_like(sorted_indices)
         rank_map.scatter_(
             -1,
             sorted_indices,
-            t.arange(1, logits.size(-1)+1).expand_as(sorted_indices).to(logits.device)
+            t.arange(1, logits.size(-1) + 1)
+            .expand_as(sorted_indices)
+            .to(logits.device),
         )
         return rank_map
 
@@ -62,12 +68,13 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
         _compute_func = _compute_top_probs
     elif req.stat == LensStatistic.RANK:
         _compute_func = _compute_rank
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported statistic for lens-line: {req.stat}",
+        )
 
-    with model.trace(
-        req.prompt,
-        remote=state.remote,
-        backend=state.make_backend(model=model),
-    ) as tracer:
+    with model.trace(req.prompt, remote=state.remote, backend=backend):
         results = []
         for layer in model.model.layers:
             hidden_BLD = layer.output
@@ -81,29 +88,17 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
             target_probs_X = t.gather(metrics, 0, target_ids_tensor)
             results.append(target_probs_X)
 
-        results.save()
-
-    if state.remote:
-        return tracer.backend.job_id
+        results = results.save()
 
     return results
 
 
-def get_remote_line(user_email: str, job_id: str, state: AppState):
-    backend = state.make_backend(job_id=job_id)
-    results = backend()
-    return results["results"]
-
-
-def process_line_results(
-    results: list[t.Tensor],
-    req: LensLineRequest,
-    state: AppState,
-):
+def _format_line(raw: dict, req: LensLineRequest, state: AppState) -> list[Line]:
     tok = state[req.model].tokenizer
+    results = raw["results"]
     target_token_strs = tok.batch_decode(req.token.target_ids)
 
-    lines = []
+    lines: list[Line] = []
 
     for layer_idx, probs in enumerate(results):
         for line_idx, prob in enumerate(probs.tolist()):
@@ -120,50 +115,41 @@ def process_line_results(
     return lines
 
 
-@router.post("/start-line", response_model=LensLineResponse)
-async def start_line(
+@router.post("/run-line")
+async def run_line(
     req: LensLineRequest,
     state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
+    user_email: str = Depends(require_user_email),
 ):
+    if state.remote and not user_has_model_access(user_email, req.model, state):
+        raise HTTPException(
+            status_code=403,
+            detail=f"User does not have access to {req.model}",
+        )
 
-    if state.remote:
-        if not user_has_model_access(user_email, req.model, state):
-            message = f"User does not have access to {req.model}"
-            raise HTTPException(status_code=403, detail=message)
+    if not state.remote:
+        results = _trace_line(req, state, backend=None)
+        lines = _format_line({"results": results}, req, state)
+        return StreamingResponse(stream_value(lines), media_type=MEDIA_TYPE)
 
-    try:
-        result = line(req, state)
-    except Exception as e:
-        raise e
+    model = state[req.model]
+    backend = state.make_streaming_backend(model=model)
+    _trace_line(req, state, backend=backend)
 
-    if state.remote:
-        return {"job_id": result}
+    def process(raw: dict) -> list[Line]:
+        return _format_line(raw, req, state)
 
-    return {"data": process_line_results(result, req, state)}
+    return StreamingResponse(stream_backend(backend, process), media_type=MEDIA_TYPE)
 
 
-@router.post("/results-line/{job_id}", response_model=LensLineResponse)
-async def collect_line(
-    job_id: str,
-    req: LensLineRequest,
-    state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
-):
+# -------------------------------- GRID ------------------------------------
 
-    try:
-        results = get_remote_line(user_email, job_id, state)
-    except Exception as e:
-        raise e
-
-    return {"data": process_line_results(results, req, state)}
-
-############ GRID ############
 
 class GridLensRequest(BaseModel):
     model: str
     stat: LensStatistic
     prompt: str
+
 
 class GridCell(Point):
     label: str
@@ -175,13 +161,8 @@ class GridRow(BaseModel):
     right_axis_label: str | None = None
 
 
-class GridLensResponse(NDIFResponse):
-    data: list[GridRow] | None = None
-
-
-def heatmap(
-    req: GridLensRequest, state: AppState
-) -> tuple[list[t.Tensor], list[t.Tensor]]:
+def _trace_grid(req: GridLensRequest, state: AppState, backend):
+    """Run the grid-lens trace. Saves 'stats' and 'pred_ids' lists."""
     model = state[req.model]
 
     def _compute_top_probs(hs_decoded, logits):
@@ -204,17 +185,21 @@ def heatmap(
         top_tokens = logits.argmax(dim=-1)
 
         for hs in hs_decoded:
-            sorted_probs, sorted_indices = t.nn.functional.softmax(hs, dim=-1).sort(descending=True, dim=-1)
+            sorted_probs, sorted_indices = t.nn.functional.softmax(hs, dim=-1).sort(
+                descending=True, dim=-1
+            )
             rank_map = t.empty_like(sorted_indices)
             rank_map.scatter_(
                 2,
                 sorted_indices,
-                t.arange(1, logits.size(-1)+1).expand_as(sorted_indices).to(hs.device)
+                t.arange(1, logits.size(-1) + 1)
+                .expand_as(sorted_indices)
+                .to(hs.device),
             )
             ranks_L = rank_map.gather(2, top_tokens.unsqueeze(-1)).squeeze(-1)
             ranks.append(ranks_L[0].to("cpu").tolist())
 
-        return ranks, top_tokens[0].to('cpu').tolist()
+        return ranks, top_tokens[0].to("cpu").tolist()
 
     def _compute_entropy(hs_decoded, logits):
         entropies = []
@@ -234,12 +219,13 @@ def heatmap(
         _compute_func = _compute_rank
     elif req.stat == LensStatistic.ENTROPY:
         _compute_func = _compute_entropy
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported statistic for lens-grid: {req.stat}",
+        )
 
-    with model.trace(
-        req.prompt,
-        remote=state.remote,
-        backend=state.make_backend(model=model),
-    ) as tracer:
+    with model.trace(req.prompt, remote=state.remote, backend=backend):
         hs_decoded = []
 
         for layer in model.model.layers[:-1]:
@@ -252,36 +238,22 @@ def heatmap(
         hs_decoded.append(logits)
 
         stats, pred_ids = _compute_func(hs_decoded, logits)
-        stats.save()
-        pred_ids.save()
-
-    if state.remote:
-        return tracer.backend.job_id
+        stats = stats.save()
+        pred_ids = pred_ids.save()
 
     return stats, pred_ids
 
-def get_remote_heatmap(
-    user_email: str,
-    job_id: str,
-    state: AppState
-) -> tuple[list[t.Tensor], list[t.Tensor]]:
-    backend = state.make_backend(job_id=job_id)
-    results = backend()
-    return results["stats"], results["pred_ids"]
 
+def _format_grid(raw: dict, req: GridLensRequest, state: AppState) -> list[GridRow]:
+    tok = state[req.model].tokenizer
+    stats = raw["stats"]
+    pred_ids = raw["pred_ids"]
 
-def process_grid_results(
-    stats: list[t.Tensor],
-    pred_ids: list[t.Tensor],
-    lens_request: GridLensRequest,
-    state: AppState,
-):
-    tok = state[lens_request.model].tokenizer
-    input_strs = tok.batch_decode(tok.encode(lens_request.prompt))
+    input_strs = tok.batch_decode(tok.encode(req.prompt))
 
-    rows = []
+    rows: list[GridRow] = []
     for seq_idx, input_str in enumerate(input_strs):
-        if lens_request.stat == LensStatistic.PROBABILITY:
+        if req.stat == LensStatistic.PROBABILITY:
             points = [
                 GridCell(
                     x=layer_idx,
@@ -291,7 +263,7 @@ def process_grid_results(
                 for layer_idx, (stat, pred_id) in enumerate(zip(stats, pred_ids))
             ]
             rows.append(GridRow(id=f"{input_str}-{seq_idx}", data=points))
-        elif lens_request.stat == LensStatistic.RANK:
+        elif req.stat == LensStatistic.RANK:
             points = [
                 GridCell(
                     x=layer_idx,
@@ -300,8 +272,14 @@ def process_grid_results(
                 )
                 for layer_idx, stat in enumerate(stats)
             ]
-            rows.append(GridRow(id=f"{input_str}-{seq_idx}", data=points, right_axis_label=tok.decode(pred_ids[seq_idx])))
-        elif lens_request.stat == LensStatistic.ENTROPY:
+            rows.append(
+                GridRow(
+                    id=f"{input_str}-{seq_idx}",
+                    data=points,
+                    right_axis_label=tok.decode(pred_ids[seq_idx]),
+                )
+            )
+        elif req.stat == LensStatistic.ENTROPY:
             points = [
                 GridCell(
                     x=layer_idx,
@@ -310,44 +288,39 @@ def process_grid_results(
                 )
                 for layer_idx, stat in enumerate(stats)
             ]
-            rows.append(GridRow(id=f"{input_str}-{seq_idx}", data=points, right_axis_label=tok.decode(pred_ids[seq_idx])))
+            rows.append(
+                GridRow(
+                    id=f"{input_str}-{seq_idx}",
+                    data=points,
+                    right_axis_label=tok.decode(pred_ids[seq_idx]),
+                )
+            )
 
     return rows
 
 
-@router.post("/start-grid", response_model=GridLensResponse)
-async def get_grid(
+@router.post("/run-grid")
+async def run_grid(
     req: GridLensRequest,
     state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
+    user_email: str = Depends(require_user_email),
 ):
-    if state.remote:
-        if not user_has_model_access(user_email, req.model, state):
-            message = f"User does not have access to {req.model}"
-            raise HTTPException(status_code=403, detail=message)
+    if state.remote and not user_has_model_access(user_email, req.model, state):
+        raise HTTPException(
+            status_code=403,
+            detail=f"User does not have access to {req.model}",
+        )
 
-    try:
-        result = heatmap(req, state)
-    except Exception as e:
-        raise e
+    if not state.remote:
+        stats, pred_ids = _trace_grid(req, state, backend=None)
+        rows = _format_grid({"stats": stats, "pred_ids": pred_ids}, req, state)
+        return StreamingResponse(stream_value(rows), media_type=MEDIA_TYPE)
 
-    if state.remote:
-        return {"job_id": result}
+    model = state[req.model]
+    backend = state.make_streaming_backend(model=model)
+    _trace_grid(req, state, backend=backend)
 
-    probs, pred_ids = result
-    return {"data": process_grid_results(probs, pred_ids, req, state)}
+    def process(raw: dict) -> list[GridRow]:
+        return _format_grid(raw, req, state)
 
-
-@router.post("/results-grid/{job_id}", response_model=GridLensResponse)
-async def collect_grid(
-    job_id: str,
-    lens_request: GridLensRequest,
-    state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
-):
-    try:
-        probs, pred_ids = get_remote_heatmap(user_email, job_id, state)
-    except Exception as e:
-        raise e
-
-    return {"data": process_grid_results(probs, pred_ids, lens_request, state)}
+    return StreamingResponse(stream_backend(backend, process), media_type=MEDIA_TYPE)
