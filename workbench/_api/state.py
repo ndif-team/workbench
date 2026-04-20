@@ -12,6 +12,7 @@ from nnterp import StandardizedTransformer
 from nnsight.intervention.backends.remote import RemoteBackend
 from pydantic import BaseModel
 
+from .streaming_backend import StreamingRemoteBackend
 from .telemetry import TelemetryClient
 
 # Set up logger for this module
@@ -135,6 +136,12 @@ class AppState:
             )
         else:
             return None
+
+    def make_streaming_backend(self, model: StandardizedTransformer) -> StreamingRemoteBackend | None:
+        """Backend for SSE routes: async-iterable, defers submission until iteration."""
+        if self.remote:
+            return StreamingRemoteBackend(model_key=model.to_model_key())
+        return None
 
     def __getitem__(self, model_name: str):
         return self.get_model(model_name)
