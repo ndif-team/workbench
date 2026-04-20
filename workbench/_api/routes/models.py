@@ -4,31 +4,28 @@ import time
 import requests
 import torch as t
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ..auth import get_user_email, require_user_email, user_has_model_access
-from ..data_models import NDIFResponse, Token
-from ..telemetry import TelemetryClient, RequestStatus
+from ..data_models import Token
+from ..sse import MEDIA_TYPE, stream_backend, stream_value
 from ..state import AppState, get_state
-from ..data_models import Token, NDIFResponse
-from ..auth import require_user_email, get_user_email
-
-import logging
+from ..telemetry import RequestStatus, TelemetryClient
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-MODELS = list()
+MODELS: list = []
 MODELS_LAST_UPDATED = 0
 MODEL_INTERVAL = 60
 
-def get_remote_models(state: AppState, is_user_signed_in: bool):
 
+def get_remote_models(state: AppState, is_user_signed_in: bool):
     global MODELS, MODELS_LAST_UPDATED
 
     if MODELS_LAST_UPDATED == 0 or time.time() - MODELS_LAST_UPDATED > 60:
-
         ping_resp = requests.get(f"{state.ndif_backend_url}/ping", timeout=30)
         logger.info(f"Call NDIF_BACKEND/ping: {ping_resp.status_code}")
 
@@ -45,80 +42,49 @@ def get_remote_models(state: AppState, is_user_signed_in: bool):
         data = stats_resp.json()
 
         for deployment_state in data["deployments"].values():
-            if deployment_state == {'application_state': 'UNHEALTHY'}:
+            if deployment_state == {"application_state": "UNHEALTHY"}:
                 continue
 
-            if deployment_state['deployment_level'] == "HOT" and deployment_state['application_state'] == "RUNNING":
-                state.add_model(deployment_state['repo_id'])
+            if (
+                deployment_state["deployment_level"] == "HOT"
+                and deployment_state["application_state"] == "RUNNING"
+            ):
+                state.add_model(deployment_state["repo_id"])
             else:
-                state.remove_model(deployment_state['repo_id'])
+                state.remove_model(deployment_state["repo_id"])
 
         MODELS = state.get_active_model_list()
         MODELS_LAST_UPDATED = time.time()
 
     models = [model.copy() for model in MODELS]
     for model in models:
-        if not is_user_signed_in and model['gated']:
-            model['allowed'] = False
+        if not is_user_signed_in and model["gated"]:
+            model["allowed"] = False
         else:
-            model['allowed'] = True
+            model["allowed"] = True
 
     return models
+
 
 @router.get("/")
 async def get_models(
     state: AppState = Depends(get_state),
-    user_email: str = Depends(get_user_email)
+    user_email: str = Depends(get_user_email),
 ):
     if state.remote:
         is_user_signed_in: bool = user_email is not None and user_email != "guest@localhost"
-        models = get_remote_models(state, is_user_signed_in)
+        return get_remote_models(state, is_user_signed_in)
 
-        return models
+    return state.get_all_model_list()
 
-    else:
-        return state.get_all_model_list()
+
+# ------------------------------ Prediction ---------------------------------
 
 
 class LensCompletion(BaseModel):
     model: str
     prompt: str
     token: Token
-
-
-def prediction(
-    req: LensCompletion, state: AppState
-) -> tuple[t.Tensor, t.Tensor] | str:
-    model = state[req.model]
-    idx = req.token.idx
-
-    with model.trace(
-        req.prompt,
-        remote=state.remote,
-        backend=state.make_backend(model=model),
-    ) as tracer:
-        logits_BLV = model.logits
-
-        # Get logits for the correct index
-        logits_LV = logits_BLV[0, [idx], :].softmax(dim=-1)
-
-        # Sort logits by descending probability
-        values_LV_indices_LV = t.sort(logits_LV, dim=-1, descending=True)
-
-        values_LV = values_LV_indices_LV[0].save()
-        indices_LV = values_LV_indices_LV[1].save()
-
-    if state.remote: 
-        return tracer.backend.job_id
-
-    return values_LV, indices_LV
-
-def get_remote_prediction(
-    job_id: str, state: AppState
-) -> tuple[t.Tensor, t.Tensor]:
-    backend = state.make_backend(job_id=job_id)
-    results = backend()
-    return results["values_LV"], results["indices_LV"]
 
 
 class Prediction(BaseModel):
@@ -128,20 +94,27 @@ class Prediction(BaseModel):
     texts: list[str]
 
 
-class PredictionResponse(NDIFResponse):
-    data: Prediction | None = None
+def _trace_prediction(req: LensCompletion, state: AppState, backend):
+    """Run the prediction trace. Saves values_LV + indices_LV on the tracer."""
+    model = state[req.model]
+    idx = req.token.idx
+
+    with model.trace(req.prompt, remote=state.remote, backend=backend):
+        logits_BLV = model.logits
+        logits_LV = logits_BLV[0, [idx], :].softmax(dim=-1)
+        values_LV_indices_LV = t.sort(logits_LV, dim=-1, descending=True)
+        values_LV = values_LV_indices_LV[0].save()
+        indices_LV = values_LV_indices_LV[1].save()
+
+    return values_LV, indices_LV
 
 
-def process_prediction(
-    values_LV: t.Tensor,
-    indices_LV: t.Tensor,
-    req: LensCompletion,
-    state: AppState,
-):
+def _format_prediction(raw: dict, req: LensCompletion, state: AppState) -> Prediction:
     tok = state[req.model].tokenizer
-    idxs = [req.token.idx]
 
-    # Round values to 2 decimal places
+    values_LV = raw["values_LV"]
+    indices_LV = raw["indices_LV"]
+
     idx_values = t.round(values_LV[0] * 100) / 100
     nonzero = idx_values > 0
 
@@ -149,99 +122,60 @@ def process_prediction(
     nonzero_indices = indices_LV[0][nonzero].tolist()
     nonzero_texts = tok.batch_decode(nonzero_indices)
 
-    prediction = Prediction(
-        idx=idxs[0],
+    return Prediction(
+        idx=req.token.idx,
         ids=nonzero_indices,
         probs=nonzero_values,
         texts=nonzero_texts,
     )
 
-    return prediction
 
-
-@router.post("/start-prediction", response_model=PredictionResponse)
-async def start_prediction(
-    prediction_request: LensCompletion, 
+@router.post("/run-prediction")
+async def run_prediction(
+    req: LensCompletion,
     state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
+    user_email: str = Depends(require_user_email),
 ):
-    if state.remote:
-        if not user_has_model_access(user_email, prediction_request.model, state):
-            message = f"User does not have access to {prediction_request.model}"
-            TelemetryClient.log_request(
-                RequestStatus.ERROR, 
-                user_email,
-                method="PREDICTION",
-                type="NEXT_TOKEN",
-                msg=message,
-            )
-            raise HTTPException(status_code=403, detail=message)
+    if state.remote and not user_has_model_access(user_email, req.model, state):
+        message = f"User does not have access to {req.model}"
+        TelemetryClient.log_request(
+            RequestStatus.ERROR,
+            user_email,
+            method="PREDICTION",
+            type="NEXT_TOKEN",
+            msg=message,
+        )
+        raise HTTPException(status_code=403, detail=message)
 
     TelemetryClient.log_request(
-        RequestStatus.STARTED, 
+        RequestStatus.STARTED,
         user_email,
         method="PREDICTION",
         type="NEXT_TOKEN",
     )
 
-    try:
-        result = prediction(prediction_request, state)
-    except Exception as e:
-        TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email,
-            method="PREDICTION",
-            type="NEXT_TOKEN",
-            msg=str(e),
+    if not state.remote:
+        values_LV, indices_LV = _trace_prediction(req, state, backend=None)
+        data = _format_prediction(
+            {"values_LV": values_LV, "indices_LV": indices_LV}, req, state
         )
-        raise e
-    
-    if state.remote:
-        TelemetryClient.log_request(
-            RequestStatus.READY,
-            user_email,
-            method="PREDICTION",
-            type="NEXT_TOKEN",
-            job_id=result
-        )
-        return {"job_id": result}
+        return StreamingResponse(stream_value(data), media_type=MEDIA_TYPE)
 
-    values_LV, indices_LV = result
-    data = process_prediction(values_LV, indices_LV, prediction_request, state)
-    return {"data": data}
+    model = state[req.model]
+    backend = state.make_streaming_backend(model=model)
+    _trace_prediction(req, state, backend=backend)
+
+    # job_id isn't assigned until iteration actually submits the request, so
+    # the READY/COMPLETE milestones previously logged here would carry None.
+    # Skip them for now; STARTED + downstream errors are still captured.
+
+    def process(raw: dict) -> Prediction:
+        return _format_prediction(raw, req, state)
+
+    return StreamingResponse(stream_backend(backend, process), media_type=MEDIA_TYPE)
 
 
-@router.post("/results-prediction/{job_id}", response_model=PredictionResponse)
-async def results_prediction(
-    job_id: str,
-    prediction_request: LensCompletion,
-    state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
-):
-
-    try:
-        values_LV, indices_LV = get_remote_prediction(job_id, state)
-        data = process_prediction(values_LV, indices_LV, prediction_request, state)
-    except Exception as e:
-        TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email,
-            job_id=job_id,
-            method="PREDICTION",
-            type="NEXT_TOKEN",
-            msg=str(e),
-        )
-        raise e
-
-    TelemetryClient.log_request(
-        RequestStatus.COMPLETE, 
-        user_email,
-        job_id=job_id,
-        method="PREDICTION",
-        type="NEXT_TOKEN",
-    )
-
-    return {"data": data}
+# ------------------------------ Generation ---------------------------------
 
 
 class Completion(BaseModel):
@@ -255,20 +189,17 @@ class Generation(BaseModel):
     last_token_prediction: Prediction
 
 
-class GenerationResponse(NDIFResponse):
-    data: Generation | None = None
-
-
-def generate(req: Completion, state: AppState):
+def _trace_generate(req: Completion, state: AppState, backend):
+    """Run the generation trace. Saves values_V, indices_V, new_token_ids."""
     model = state[req.model]
     last_iter = req.max_new_tokens - 1
+
     with model.generate(
         req.prompt,
         max_new_tokens=req.max_new_tokens,
         remote=state.remote,
-        backend=state.make_backend(model=model),
+        backend=backend,
     ) as tracer:
-
         with tracer.iter[last_iter]:
             logits = model.logits
 
@@ -279,28 +210,16 @@ def generate(req: Completion, state: AppState):
 
         new_token_ids = model.generator.output[0].save()
 
-    if state.remote:
-        return tracer.backend.job_id
-
     return values_V, indices_V, new_token_ids
 
 
-def get_remote_generate(
-    job_id: str, state: AppState
-) -> tuple[t.Tensor, t.Tensor, t.Tensor]:
-    backend = state.make_backend(job_id=job_id)
-    results = backend()
-    return results["values_V"], results["indices_V"], results["new_token_ids"]
-
-
-def process_generation_results(
-    values_V: t.Tensor,
-    indices_V: t.Tensor,
-    new_token_ids: t.Tensor,
-    req: Completion,
-    state: AppState,
-):
+def _format_generation(raw: dict, req: Completion, state: AppState) -> Generation:
     tok = state[req.model].tokenizer
+
+    values_V = raw["values_V"]
+    indices_V = raw["indices_V"]
+    new_token_ids = raw["new_token_ids"]
+
     new_token_text = tok.batch_decode(new_token_ids)
 
     tokens = [
@@ -308,7 +227,6 @@ def process_generation_results(
         for i, text in enumerate(new_token_text)
     ]
 
-    # Round values to 2 decimal places
     idx_values = t.round(values_V * 100) / 100
     nonzero = idx_values > 0
 
@@ -317,106 +235,60 @@ def process_generation_results(
     nonzero_texts = tok.batch_decode(nonzero_indices)
 
     last_token_prediction = Prediction(
-        idx=new_token_ids[-1],
+        idx=new_token_ids[-1].item(),
         ids=nonzero_indices,
         probs=nonzero_values,
         texts=nonzero_texts,
-    ).model_dump()
-
-    return {
-        "completion": tokens,
-        "last_token_prediction": last_token_prediction,
-    }
-
-
-@router.post("/start-generate", response_model=GenerationResponse)
-async def start_generate(
-    req: Completion, 
-    state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
-):
-
-    if state.remote:
-        if not user_has_model_access(user_email, req.model, state):
-            message = f"User does not have access to {req.model}"
-            TelemetryClient.log_request(
-                RequestStatus.ERROR, 
-                user_email,
-                method="GENERATE",
-                type="NEXT_TOKEN",
-                msg=message,
-            )
-            raise HTTPException(status_code=403, detail=message)
-
-    TelemetryClient.log_request(
-        RequestStatus.STARTED, 
-        user_email,
-        method="GENERATE",
-        type="NEXT_TOKEN",
     )
 
-    try:
-        result = generate(req, state)
-    except Exception as e:
-        TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email,
-            method="GENERATE",
-            type="NEXT_TOKEN",
-            msg=str(e),
-        )
-        raise e
-    
-    if state.remote:
-        TelemetryClient.log_request(
-            RequestStatus.READY,
-            user_email,
-            method="GENERATE",
-            type="NEXT_TOKEN",
-            job_id=result
-        )
-        print("Hollla")
-        return {"job_id": result}
-
-    else:
-        values_V, indices_V, new_token_ids = result
-
-        data = process_generation_results(
-            values_V, indices_V, new_token_ids, req, state
-        )
-        return {"data": data}
+    return Generation(
+        completion=tokens,
+        last_token_prediction=last_token_prediction,
+    )
 
 
-@router.post("/results-generate/{job_id}", response_model=GenerationResponse)
-async def results_generate(
-    job_id: str,
+@router.post("/run-generate")
+async def run_generate(
     req: Completion,
     state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
+    user_email: str = Depends(require_user_email),
 ):
-
-    try:
-        values_V, indices_V, new_token_ids = get_remote_generate(job_id, state)
-        data = process_generation_results(
-            values_V, indices_V, new_token_ids, req, state
-        )
-    except Exception as e:
+    if state.remote and not user_has_model_access(user_email, req.model, state):
+        message = f"User does not have access to {req.model}"
         TelemetryClient.log_request(
-            RequestStatus.ERROR, 
+            RequestStatus.ERROR,
             user_email,
-            job_id=job_id,
             method="GENERATE",
             type="NEXT_TOKEN",
-            msg=str(e),
+            msg=message,
         )
-        raise e
+        raise HTTPException(status_code=403, detail=message)
 
     TelemetryClient.log_request(
-        RequestStatus.COMPLETE, 
+        RequestStatus.STARTED,
         user_email,
-        job_id=job_id,
         method="GENERATE",
         type="NEXT_TOKEN",
     )
 
-    return {"data": data}
+    if not state.remote:
+        values_V, indices_V, new_token_ids = _trace_generate(req, state, backend=None)
+        data = _format_generation(
+            {
+                "values_V": values_V,
+                "indices_V": indices_V,
+                "new_token_ids": new_token_ids,
+            },
+            req,
+            state,
+        )
+        return StreamingResponse(stream_value(data), media_type=MEDIA_TYPE)
+
+    model = state[req.model]
+    backend = state.make_streaming_backend(model=model)
+    _trace_generate(req, state, backend=backend)
+
+    def process(raw: dict) -> Generation:
+        return _format_generation(raw, req, state)
+
+    return StreamingResponse(stream_backend(backend, process), media_type=MEDIA_TYPE)
