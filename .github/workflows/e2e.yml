@@ -1,7 +1,7 @@
 name: E2E Tests
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, ci-setup]
   pull_request:
     branches: [main, dev]
   workflow_dispatch:
