@@ -64,6 +64,8 @@ jobs:
       - name: Run E2E tests
         run: bun x playwright test
         working-directory: workbench/_web
+        env:
+          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
