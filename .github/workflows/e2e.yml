@@ -16,19 +16,33 @@ jobs:
         with:
           node-version: 20
 
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: workbench/_web/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('workbench/_web/bun.lockb') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('workbench/_web/package.json') }}
+          restore-keys: playwright-${{ runner.os }}-
+
       - name: Install dependencies
         run: bun install
         working-directory: workbench/_web
 
       - name: Set up local env
         run: |
-          cat > .env <<EOF
-          NEXT_PUBLIC_LOCAL_DB=true
-          NEXT_PUBLIC_DISABLE_AUTH=true
-          LOCAL_SQLITE_URL=./e2e.db
-          NEXT_PUBLIC_BASE_URL=http://localhost:3000
-          NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
-          EOF
+          printf '%s\n' \
+            "NEXT_PUBLIC_LOCAL_DB=true" \
+            "NEXT_PUBLIC_DISABLE_AUTH=true" \
+            "LOCAL_SQLITE_URL=./e2e.db" \
+            "NEXT_PUBLIC_BASE_URL=http://localhost:3000" \
+            "NEXT_PUBLIC_BACKEND_URL=http://localhost:8000" \
+            > .env
           cp .env workbench/_web/.env
 
       - name: Create SQLite database
