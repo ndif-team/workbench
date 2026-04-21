@@ -1,0 +1,75 @@
+name: E2E Tests
+on:
+  push:
+    branches: [main, dev, ci-setup]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ripley-cloud-large
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: workbench/_web/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('workbench/_web/bun.lockb') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('workbench/_web/package.json') }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: bun install
+        working-directory: workbench/_web
+
+      - name: Rebuild native modules for Node
+        run: npm rebuild better-sqlite3
+        working-directory: workbench/_web
+
+      - name: Set up local env
+        run: |
+          printf '%s\n' \
+            "NEXT_PUBLIC_LOCAL_DB=true" \
+            "NEXT_PUBLIC_DISABLE_AUTH=true" \
+            "LOCAL_SQLITE_URL=./e2e.db" \
+            "NEXT_PUBLIC_BASE_URL=http://localhost:3000" \
+            "NEXT_PUBLIC_BACKEND_URL=http://localhost:8000" \
+            > .env
+          cp .env workbench/_web/.env
+
+      - name: Create SQLite database
+        run: bun x drizzle-kit push --force
+        working-directory: workbench/_web
+
+      - name: Build app
+        run: bun run build
+        working-directory: workbench/_web
+
+      - name: Install Playwright browsers
+        run: bun x playwright install --with-deps chromium
+        working-directory: workbench/_web
+
+      - name: Run E2E tests
+        run: bun x playwright test
+        working-directory: workbench/_web
+        env:
+          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: workbench/_web/playwright-report/
+          retention-days: 7
