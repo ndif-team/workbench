@@ -27,6 +27,7 @@ interface Lens2Config {
 interface Lens2ControlsProps {
     initialConfig: Lens2Config;
     selectedModel: string;
+    hasExistingData?: boolean;
 }
 
 // Token styling constants (matching the original lens)
@@ -74,15 +75,26 @@ function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }
     );
 }
 
-export function Lens2Controls({ initialConfig, selectedModel }: Lens2ControlsProps) {
+export function Lens2Controls({
+    initialConfig,
+    selectedModel,
+    hasExistingData = false,
+}: Lens2ControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
     // Local state for the form
-    const [prompt, setPrompt] = useState(initialConfig.data?.prompt || "");
-    const [topk, setTopk] = useState(initialConfig.data?.topk ?? 5);
-    const [includeEntropy, setIncludeEntropy] = useState(
-        initialConfig.data?.includeEntropy ?? true,
-    );
+    const initialPrompt = initialConfig.data?.prompt || "";
+    const initialTopk = initialConfig.data?.topk ?? 5;
+    const initialIncludeEntropy = initialConfig.data?.includeEntropy ?? true;
+
+    const [prompt, setPrompt] = useState(initialPrompt);
+    const [topk, setTopk] = useState(initialTopk);
+    const [includeEntropy, setIncludeEntropy] = useState(initialIncludeEntropy);
+
+    // Auto-run flags - check if we should auto-run on mount (coming from landing page)
+    // Only auto-run if a prompt is pre-filled and there's no existing chart data
+    const shouldAutoRunRef = useRef(initialPrompt.trim().length > 0 && !hasExistingData);
+    const hasAutoRunRef = useRef(false);
 
     // Token state
     const [tokenData, setTokenData] = useState<Token[]>([]);
@@ -128,6 +140,84 @@ export function Lens2Controls({ initialConfig, selectedModel }: Lens2ControlsPro
         };
         fetchTokens();
     }, [initialConfig.id, selectedModel]);
+
+    // Auto-run effect for when coming from landing page.
+    // isExecuting is intentionally NOT in deps — hasAutoRunRef already guards against
+    // re-firing, and adding isExecuting would schedule a redundant timer each time
+    // the mutation state flips.
+    useEffect(() => {
+        let isCancelled = false;
+
+        const autoRunLens2 = async () => {
+            if (
+                !shouldAutoRunRef.current ||
+                hasAutoRunRef.current ||
+                !selectedModel ||
+                selectedModel.length === 0
+            ) {
+                return;
+            }
+
+            hasAutoRunRef.current = true;
+            shouldAutoRunRef.current = false;
+
+            try {
+                const tokens = await encodeText(initialPrompt, selectedModel);
+                if (isCancelled || tokens.length <= 1) return;
+
+                setTokenData(tokens);
+                setTokenizedModel(selectedModel);
+                setEditingText(false);
+
+                const config: Lens2ConfigData = {
+                    model: selectedModel,
+                    prompt: initialPrompt,
+                    topk: initialTopk,
+                    includeEntropy: initialIncludeEntropy,
+                };
+
+                await computeLens2({
+                    lensRequest: {
+                        completion: config,
+                        chartId,
+                    },
+                    configId: initialConfig.id,
+                });
+                if (isCancelled) return;
+
+                await updateConfig({
+                    configId: initialConfig.id,
+                    config: {
+                        data: config,
+                        workspaceId,
+                        type: "lens2",
+                    },
+                });
+                if (isCancelled) return;
+
+                lastSyncedPromptRef.current = initialPrompt;
+            } catch (error) {
+                // Don't reset flags - we only try once
+            }
+        };
+
+        // Small delay to ensure all dependencies are ready
+        const timer = setTimeout(autoRunLens2, 800);
+        return () => {
+            isCancelled = true;
+            clearTimeout(timer);
+        };
+    }, [
+        selectedModel,
+        initialPrompt,
+        initialTopk,
+        initialIncludeEntropy,
+        chartId,
+        initialConfig.id,
+        workspaceId,
+        computeLens2,
+        updateConfig,
+    ]);
 
     // Auto-resize the textarea to fit its content
     const autoResizeTextarea = useCallback(() => {

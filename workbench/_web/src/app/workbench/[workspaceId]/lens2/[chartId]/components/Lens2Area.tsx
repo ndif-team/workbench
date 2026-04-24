@@ -28,7 +28,7 @@ export default function Lens2Area() {
         enabled: !!chartId,
     });
 
-    const { data: chart } = useQuery({
+    const { data: chart, isLoading: isChartLoading } = useQuery({
         queryKey: queryKeys.charts.chart(chartId),
         queryFn: () => getChartById(chartId as string),
         enabled: !!chartId,
@@ -68,7 +68,7 @@ export default function Lens2Area() {
         return models[selectedModelIdx]?.name || models[0].name;
     }, [models, selectedModelIdx]);
 
-    if (!config || !selectedModel) {
+    if (!config || !selectedModel || isChartLoading) {
         return (
             <div className="h-full flex flex-col md:min-w-64">
                 <div className="p-3 border-b flex items-center justify-between">
@@ -119,8 +119,10 @@ export default function Lens2Area() {
 
             <div className="p-3 flex-1 overflow-auto">
                 <Lens2Controls
+                    key={config.id}
                     initialConfig={config as Lens2Config}
                     selectedModel={selectedModel}
+                    hasExistingData={!!(chart as { data?: unknown })?.data}
                 />
             </div>
         </div>
