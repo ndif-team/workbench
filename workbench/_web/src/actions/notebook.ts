@@ -62,10 +62,28 @@ async function readTemplate(name: string): Promise<NotebookJson> {
 }
 
 // ── Visualization HTML builder ───────────────────────────────────────
+//
+// Mirrors the shape and defaults of nnsightful's Python `_widget_html()` in
+// `src/nnsightful/viz/__init__.py` so that a chart exported to a notebook
+// renders at the same size as one produced by `display_*()` directly. If
+// you change defaults here, update them in both places.
+
+/** Matches Python `_default_width` in nnsightful.viz. */
+const DEFAULT_WIDTH = "90%";
+
+/** Matches Python `_WIDGET_ASPECT_RATIOS` in nnsightful.viz. `null` =
+ *  content-driven height (no aspect-ratio on the outer wrapper). */
+const WIDGET_ASPECT_RATIOS: Record<string, string | null> = {
+    logit_lens: null,
+    activation_patching: "21 / 9",
+    line_plot: "21 / 9",
+};
 
 interface VisualizationPayload {
     /** Widget name exposed on window by the standalone bundle (e.g. "LinePlotWidget", "LogitLensWidget"). */
     widget: string;
+    /** Key into WIDGET_ASPECT_RATIOS — picks the default aspect-ratio. */
+    widgetKey: keyof typeof WIDGET_ASPECT_RATIOS;
     data: Record<string, unknown>;
     options: Record<string, unknown>;
 }
@@ -76,15 +94,19 @@ async function buildVisualizationHtml(payload: VisualizationPayload): Promise<st
     const optionsJson = JSON.stringify(payload.options);
     const containerId = `lp_${randomUUID().replace(/-/g, "")}`;
 
+    const aspectRatio = WIDGET_ASPECT_RATIOS[payload.widgetKey];
+    const arStyle = aspectRatio ? `aspect-ratio:${aspectRatio};` : "";
+    const innerHeight = aspectRatio ? "height:100%;" : "";
+
     return [
-        `<div id="${containerId}" style="width:80%;height:300px;"></div>`,
+        `<div style="width:${DEFAULT_WIDTH};${arStyle}"><div id="${containerId}" style="width:100%;${innerHeight}"></div></div>`,
         `<script>`,
         `(function() {`,
         js,
         `var container = document.getElementById('${containerId}');`,
         `var data = ${dataJson};`,
         `var options = ${optionsJson};`,
-        `window.${payload.widget}(container, data, options);`,
+        `${payload.widget}(container, data, options);`,
         `})();`,
         `</script>`,
     ].join("\n");
@@ -113,7 +135,7 @@ interface NotebookToolHandler {
         chartData: Record<string, unknown>,
         config: Record<string, unknown>,
         displayMode?: string,
-        darkMode?: boolean
+        // darkMode?: boolean
     ): VisualizationPayload | null;
 }
 
@@ -166,7 +188,7 @@ const activationPatchingHandler: NotebookToolHandler = {
         ].join("\n");
     },
 
-    buildVisualizationPayload(chartData, config, displayMode, darkMode) {
+    buildVisualizationPayload(chartData, config, displayMode) {
         const lines = chartData.lines as number[][] | undefined;
         if (!lines?.length) return null;
 
@@ -179,13 +201,14 @@ const activationPatchingHandler: NotebookToolHandler = {
 
         return {
             widget: "ActivationPatchingWidget",
+            widgetKey: "activation_patching",
             data: {
                 lines,
                 ranks: chartData.ranks ?? [],
                 prob_diffs: chartData.prob_diffs ?? [],
                 tokenLabels: chartData.tokenLabels ?? [],
             },
-            options: { mode, selectedTokens, darkMode },
+            options: { mode, selectedTokens },
         };
     },
 };
@@ -210,7 +233,6 @@ interface GenerateNotebookInput {
     workspaceName?: string;
     chartName?: string;
     displayMode?: string;
-    darkMode?: boolean;
 }
 
 /**
@@ -221,7 +243,7 @@ interface GenerateNotebookInput {
 export async function generateNotebook(
     input: GenerateNotebookInput
 ): Promise<string> {
-    const { configType, configData, chartData, workspaceName, chartName, displayMode, darkMode } = input;
+    const { configType, configData, chartData, workspaceName, chartName, displayMode } = input;
 
     const handler = toolHandlers[configType];
     if (!handler) {
@@ -247,7 +269,6 @@ export async function generateNotebook(
             chartData,
             configData,
             displayMode,
-            darkMode
         );
         if (payload) {
             vizHtml = await buildVisualizationHtml(payload);
