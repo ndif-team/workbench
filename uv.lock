@@ -520,51 +520,6 @@ wheels = [
 ]
 
 [[package]]
-name = "interp-workbench"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "dill" },
-    { name = "einops" },
-    { name = "fastapi" },
-    { name = "influxdb-client" },
-    { name = "modal" },
-    { name = "nnsight" },
-    { name = "nnsightful" },
-    { name = "python-dotenv" },
-    { name = "toml" },
-    { name = "torch", version = "2.9.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
-    { name = "torch", version = "2.9.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
-    { name = "uvicorn" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "ipykernel" },
-    { name = "mkdocs" },
-    { name = "mkdocs-material" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "dill", specifier = ">=0.4.0" },
-    { name = "einops", specifier = ">=0.8.1" },
-    { name = "fastapi", specifier = ">=0.115.6" },
-    { name = "influxdb-client", specifier = ">=1.49.0" },
-    { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=6.29.5" },
-    { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.6.1" },
-    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.6.16" },
-    { name = "modal", specifier = ">=0.65.66" },
-    { name = "nnsight", specifier = ">=0.6.3" },
-    { name = "nnsightful", git = "https://github.com/AdamBelfki3/nnsightful.git" },
-    { name = "python-dotenv", specifier = ">=1.0.1" },
-    { name = "toml", specifier = ">=0.10.2" },
-    { name = "torch", specifier = ">=2.9.0", index = "https://download.pytorch.org/whl/cpu" },
-    { name = "uvicorn", specifier = ">=0.33.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
 name = "ipykernel"
 version = "6.30.1"
 source = { registry = "https://pypi.org/simple" }
@@ -909,7 +864,7 @@ wheels = [
 [[package]]
 name = "nnsightful"
 version = "0.1.0"
-source = { git = "https://github.com/AdamBelfki3/nnsightful.git#ceeb429addf23d2490423777840cb0888607988b" }
+source = { git = "https://github.com/AdamBelfki3/nnsightful.git#f94eeb7b23de60702d6ca806be67275a3d23c45c" }
 dependencies = [
     { name = "ipython" },
     { name = "nnsight" },
@@ -1519,7 +1474,7 @@ dependencies = [
     { name = "typing-extensions", marker = "sys_platform == 'darwin'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.9.0-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:4de0ed8cbc457a506dbca40376e206a29efee10756a00f1f3404bf67ad737d04" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.9.0-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:4de0ed8cbc457a506dbca40376e206a29efee10756a00f1f3404bf67ad737d04", upload-time = "2025-10-14T17:26:17Z" },
 ]
 
 [[package]]
@@ -1539,10 +1494,10 @@ dependencies = [
     { name = "typing-extensions", marker = "sys_platform != 'darwin'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:3a651434ae1248b0568c12b5f9e3acc8942eb28378d9d04a79302938b68c6f24" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:28f6eb31b08180a5c5e98d5bc14eef6909c9f5a1dbff9632c3e02a8773449349" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-win_amd64.whl", hash = "sha256:e438061b87ec7dd6018fca9f975219889aa0a3f6cdc3ea10dd0ae2bc7f1c47ce" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-win_arm64.whl", hash = "sha256:eb13ff1c34e338d722e76a4fd83b8d282782505bd1b99af4b3c32da66eba6eb4" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:3a651434ae1248b0568c12b5f9e3acc8942eb28378d9d04a79302938b68c6f24", upload-time = "2025-10-14T17:26:02Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:28f6eb31b08180a5c5e98d5bc14eef6909c9f5a1dbff9632c3e02a8773449349", upload-time = "2025-10-14T17:26:03Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-win_amd64.whl", hash = "sha256:e438061b87ec7dd6018fca9f975219889aa0a3f6cdc3ea10dd0ae2bc7f1c47ce", upload-time = "2025-10-14T17:26:05Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-win_arm64.whl", hash = "sha256:eb13ff1c34e338d722e76a4fd83b8d282782505bd1b99af4b3c32da66eba6eb4", upload-time = "2025-10-14T17:26:06Z" },
 ]
 
 [[package]]
@@ -1744,6 +1699,51 @@ sdist = { url = "https://files.pythonhosted.org/packages/e6/30/fba0d96b4b5fbf594
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5a/84/44687a29792a70e111c5c477230a72c4b957d88d16141199bf9acb7537a3/websocket_client-1.8.0-py3-none-any.whl", hash = "sha256:17b44cc997f5c498e809b22cdf2d9c7a9e71c02c8cc2b6c56e7c2d1239bfa526", size = 58826, upload-time = "2024-04-23T22:16:14.422Z" },
 ]
+
+[[package]]
+name = "workbench"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "dill" },
+    { name = "einops" },
+    { name = "fastapi" },
+    { name = "influxdb-client" },
+    { name = "modal" },
+    { name = "nnsight" },
+    { name = "nnsightful" },
+    { name = "python-dotenv" },
+    { name = "toml" },
+    { name = "torch", version = "2.9.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.9.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
+    { name = "uvicorn" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "ipykernel" },
+    { name = "mkdocs" },
+    { name = "mkdocs-material" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dill", specifier = ">=0.4.0" },
+    { name = "einops", specifier = ">=0.8.1" },
+    { name = "fastapi", specifier = ">=0.115.6" },
+    { name = "influxdb-client", specifier = ">=1.49.0" },
+    { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=6.29.5" },
+    { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.6.1" },
+    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.6.16" },
+    { name = "modal", specifier = ">=0.65.66" },
+    { name = "nnsight", specifier = ">=0.6.3" },
+    { name = "nnsightful", git = "https://github.com/AdamBelfki3/nnsightful.git" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "toml", specifier = ">=0.10.2" },
+    { name = "torch", specifier = ">=2.9.0", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "uvicorn", specifier = ">=0.33.0" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "wsproto"
