@@ -30,17 +30,13 @@ async def start_logit_lens(
     model = state[req.model]
     backend = state.make_backend(model=model)
 
-    raw = logit_lens._run(model, req.prompt, remote=state.remote, backend=backend)
+    output = logit_lens._run(model, req.prompt, remote=state.remote, backend=backend, non_blocking=state.remote, raw=False)
 
-    if "job_id" in raw:
-        return {"job_id": raw["job_id"]}
+    if not backend.blocking:
+        return {"job_id": output}
 
-    data = logit_lens._format(
-        raw,
-        top_k=req.topk,
-        include_entropy=req.include_entropy,
-    )
-    return {"data": data}
+
+    return {"data": logit_lens.to_data_obj(**output)}
 
 
 @router.post("/results/{job_id}", response_model=LogitLensResponse)
@@ -51,22 +47,8 @@ async def collect_logit_lens(
     user_email: str = Depends(require_user_email),
 ):
     backend = state.make_backend(job_id=job_id)
-    results = backend()
+    results = backend()['results']
 
-    print("logit_lens collect keys:", list(results.keys()) if isinstance(results, dict) else type(results))
-
-    tokenizer = state[req.model].tokenizer
-    results["tokenizer"] = tokenizer
-    results["model_name"] = req.model
-    results["input_tokens"] = [
-        str(tokenizer.decode(token))
-        for token in tokenizer.encode(req.prompt)
-    ]
-
-    data = logit_lens._format(
-        results,
-        top_k=req.topk,
-        include_entropy=req.include_entropy,
-    )
+    data = logit_lens.to_data_obj(**results)
 
     return {"data": data}
