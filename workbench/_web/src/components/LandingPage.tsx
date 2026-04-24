@@ -233,12 +233,23 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
 
         // Check if user is trying to use a gated model without being logged in
         if (isSelectedModelGated() && (!loggedIn || !currentUser || currentUser.is_anonymous)) {
-            // Redirect to login with the prompt/model info
+            // Redirect to login with the full tool context so the request can resume post-auth
             const params = new URLSearchParams({
-                prompt: selectedTool === "Activation Patching" ? srcPrompt : prompt,
                 model: selectedModel,
+                tool: selectedTool,
                 gatedModel: "true",
             });
+            if (selectedTool === "Activation Patching") {
+                params.set("srcPrompt", srcPrompt);
+                params.set("tgtPrompt", tgtPrompt);
+                params.set("srcPos", JSON.stringify(srcPos));
+                params.set("tgtPos", JSON.stringify(tgtPos));
+                if (tgtFreeze.length > 0) {
+                    params.set("tgtFreeze", JSON.stringify(tgtFreeze));
+                }
+            } else {
+                params.set("prompt", prompt);
+            }
             router.push(`/login?${params.toString()}`);
             return;
         }

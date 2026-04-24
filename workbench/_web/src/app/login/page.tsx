@@ -14,19 +14,21 @@ export const dynamic = "force-dynamic";
 const PENDING_REQUEST_KEY = "workbench_pending_request";
 
 export interface PendingRequest {
-    prompt: string;
     model: string;
+    tool?: string;
+    prompt?: string;
+    srcPrompt?: string;
+    tgtPrompt?: string;
+    srcPos?: string;
+    tgtPos?: string;
+    tgtFreeze?: string;
     timestamp: number;
 }
 
 // Helper to save pending request to localStorage
-export function savePendingRequest(prompt: string, model: string) {
-    const request: PendingRequest = {
-        prompt,
-        model,
-        timestamp: Date.now(),
-    };
-    localStorage.setItem(PENDING_REQUEST_KEY, JSON.stringify(request));
+export function savePendingRequest(request: Omit<PendingRequest, "timestamp">) {
+    const payload: PendingRequest = { ...request, timestamp: Date.now() };
+    localStorage.setItem(PENDING_REQUEST_KEY, JSON.stringify(payload));
 }
 
 // Helper to get and clear pending request from localStorage
@@ -57,16 +59,24 @@ function LoginContent() {
     const searchParams = useSearchParams();
 
     // Get pending request params (from gated model redirect)
-    const pendingPrompt = searchParams.get("prompt");
     const pendingModel = searchParams.get("model");
     const isGatedModelRequest = searchParams.get("gatedModel") === "true";
 
     // Save pending request to localStorage when the page loads with gated model params
     useEffect(() => {
-        if (pendingPrompt && pendingModel && isGatedModelRequest) {
-            savePendingRequest(pendingPrompt, pendingModel);
+        if (isGatedModelRequest && pendingModel) {
+            savePendingRequest({
+                model: pendingModel,
+                tool: searchParams.get("tool") ?? undefined,
+                prompt: searchParams.get("prompt") ?? undefined,
+                srcPrompt: searchParams.get("srcPrompt") ?? undefined,
+                tgtPrompt: searchParams.get("tgtPrompt") ?? undefined,
+                srcPos: searchParams.get("srcPos") ?? undefined,
+                tgtPos: searchParams.get("tgtPos") ?? undefined,
+                tgtFreeze: searchParams.get("tgtFreeze") ?? undefined,
+            });
         }
-    }, [pendingPrompt, pendingModel, isGatedModelRequest]);
+    }, [isGatedModelRequest, pendingModel, searchParams]);
 
     if (process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
         redirect("/workbench");
