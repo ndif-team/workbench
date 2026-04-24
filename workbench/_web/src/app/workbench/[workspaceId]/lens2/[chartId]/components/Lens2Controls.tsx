@@ -275,13 +275,12 @@ export function Lens2Controls({
 
     // Handle form submission (tokenize + run)
     const handleSubmit = useCallback(async () => {
-        const trimmedPrompt = prompt.trim();
-        if (!trimmedPrompt) return;
+        if (!prompt.trim()) return;
 
         // Always tokenize with the current prompt to ensure tokens are in sync
         let tokens: Token[];
         try {
-            tokens = await encodeText(trimmedPrompt, selectedModel);
+            tokens = await encodeText(prompt, selectedModel);
         } catch (error) {
             if (error instanceof TokenizerLoadError) {
                 toast.error(
@@ -301,7 +300,7 @@ export function Lens2Controls({
 
         const config: Lens2ConfigData = {
             model: selectedModel,
-            prompt: trimmedPrompt,
+            prompt,
             topk,
             includeEntropy,
         };
@@ -326,7 +325,7 @@ export function Lens2Controls({
         });
 
         // Update our sync ref so the useEffect doesn't overwrite our prompt
-        lastSyncedPromptRef.current = trimmedPrompt;
+        lastSyncedPromptRef.current = prompt;
         setEditingText(false);
     }, [
         prompt,
