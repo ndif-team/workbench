@@ -19,7 +19,7 @@ export default function Lens2ChartPage() {
     if (isMobile) {
         return (
             <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pb-20 gap-2">
-                <MobileCollapsibleControls label="Lens 2" icon={Layers} isRunning={isRunning}>
+                <MobileCollapsibleControls label="Logit Lens" icon={Layers} isRunning={isRunning}>
                     <Lens2Area />
                 </MobileCollapsibleControls>
                 <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">

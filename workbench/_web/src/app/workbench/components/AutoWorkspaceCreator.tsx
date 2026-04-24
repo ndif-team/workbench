@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
-import { pushTutorialChart } from "@/lib/queries/tutorialChart";
+// import { pushTutorialChart } from "@/lib/queries/tutorialChart";
 import { createLens2ChartPair, createActivationPatchingChartPair } from "@/lib/queries/chartQueries";
 import type { Lens2ConfigData } from "@/types/lens2";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
@@ -62,11 +62,12 @@ export function AutoWorkspaceCreator({
                     targetWorkspaceId = newWorkspace.id;
 
                     // Seed with example charts if enabled
-                    if (seedWithExamples) {
-                        console.log("Seeding workspace with example charts...");
-                        await pushTutorialChart(targetWorkspaceId);
-                        console.log("Successfully seeded workspace with examples");
-                    }
+                    // Temporarily disabled — example charts use the legacy Lens v1 format.
+                    // if (seedWithExamples) {
+                    //     console.log("Seeding workspace with example charts...");
+                    //     await pushTutorialChart(targetWorkspaceId);
+                    //     console.log("Successfully seeded workspace with examples");
+                    // }
                 }
 
                 // If user submitted a prompt from landing page, create a chart for it

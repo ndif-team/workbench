@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { getMostRecentChartForWorkspace, createLensChartPair, getConfigForChart } from "@/lib/queries/chartQueries";
-import { LensConfigData } from "@/types/lens";
+import { getMostRecentChartForWorkspace, createLens2ChartPair, getConfigForChart } from "@/lib/queries/chartQueries";
+import { Lens2ConfigData } from "@/types/lens2";
 
 export default async function Page({
     params,
@@ -17,15 +17,16 @@ export default async function Page({
     // Check if there's an existing chart
     let chart = await getMostRecentChartForWorkspace(workspaceId);
 
-    // If no chart exists, create a new lens chart pair with default config
+    // If no chart exists, create a new Logit Lens chart pair with default config
     if (!chart) {
-        const defaultConfig: LensConfigData = {
+        const defaultConfig: Lens2ConfigData = {
             prompt: initialPrompt,
             model: initialModel,
-            token: { idx: 0, id: 0, text: "", targetIds: [] },
+            topk: 5,
+            includeEntropy: true,
         };
 
-        const result = await createLensChartPair(workspaceId, defaultConfig);
+        const result = await createLens2ChartPair(workspaceId, defaultConfig);
         chart = result.chart;
     }
 

@@ -72,7 +72,7 @@ export default function Lens2Area() {
         return (
             <div className="h-full flex flex-col md:min-w-64">
                 <div className="p-3 border-b flex items-center justify-between">
-                    <h2 className="text-sm pl-2 font-medium">Lens</h2>
+                    <h2 className="text-sm pl-2 font-medium">Logit Lens</h2>
                     <div className="flex items-center gap-2">
                         {configModelUnavailable && (
                             <Tooltip>
@@ -98,7 +98,7 @@ export default function Lens2Area() {
     return (
         <div className="h-full flex flex-col md:min-w-64">
             <div className="p-3 border-b flex items-center justify-between">
-                <h2 className="text-sm pl-2 font-medium">Lens</h2>
+                <h2 className="text-sm pl-2 font-medium">Logit Lens</h2>
                 <div className="flex items-center gap-2">
                     {configModelUnavailable && (
                         <Tooltip>

@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     setChartData,
     deleteChart,
-    createLensChartPair,
     createLens2ChartPair,
     createPatchChartPair,
     createActivationPatchingChartPair,
@@ -239,32 +238,6 @@ export const useDeleteChart = () => {
     return useMutation({
         mutationFn: (chartId: string) => deleteChart(chartId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
-        },
-    });
-};
-
-export const useCreateLensChartPair = () => {
-    const queryClient = useQueryClient();
-
-    const defaultConfig = {
-        prompt: "",
-        model: "",
-        statisticType: "probability" as const,
-        token: { idx: 0, id: 0, text: "", targetIds: [] },
-    } as LensConfigData;
-
-    return useMutation({
-        mutationFn: async ({
-            workspaceId,
-            config = defaultConfig,
-        }: {
-            workspaceId: string;
-            config?: LensConfigData;
-        }) => {
-            return await createLensChartPair(workspaceId, config);
-        },
-        onSuccess: ({ chart }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
         },
     });

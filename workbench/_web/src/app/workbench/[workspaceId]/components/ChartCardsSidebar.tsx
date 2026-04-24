@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { getChartsMetadata } from "@/lib/queries/chartQueries";
 import { useParams, useRouter } from "next/navigation";
 import {
-    useCreateLensChartPair,
     useCreateLens2ChartPair,
     useCreatePatchChartPair,
     useCreateActivationPatchingChartPair,
@@ -19,7 +18,7 @@ import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
 import { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
-import { Loader2, Plus, PanelLeftClose, PanelLeft, Search, FileText, Layers, GitBranch } from "lucide-react";
+import { Loader2, Plus, PanelLeftClose, PanelLeft, FileText, Layers, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 
@@ -38,7 +37,6 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         workspaceId as string,
     );
 
-    const { mutate: createLensPair, isPending: isCreatingLens } = useCreateLensChartPair();
     const { mutate: createLens2Pair, isPending: isCreatingLens2 } = useCreateLens2ChartPair();
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
     const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
@@ -112,7 +110,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (toolType: "lens" | "lens2" | "patch" | "activation-patching") => {
+    const handleCreate = (toolType: "lens2" | "patch" | "activation-patching") => {
         if (toolType === "lens2") {
             createLens2Pair(
                 { workspaceId: workspaceId as string },
@@ -131,8 +129,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             );
             return;
         }
-        const mutation = toolType === "lens" ? createLensPair : createPatchPair;
-        mutation(
+        createPatchPair(
             {
                 workspaceId: workspaceId as string,
             },
@@ -185,40 +182,24 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         );
     };
 
-    const isCreatingAny = isCreatingLens || isCreatingLens2 || isCreatingPatch || isCreatingActivationPatching || isCreatingDocument;
+    const isCreatingAny = isCreatingLens2 || isCreatingPatch || isCreatingActivationPatching || isCreatingDocument;
 
     const actionButtons = (
         <div className="flex flex-col w-full gap-2 text-sm">
-            <div className="flex flex-row w-full gap-2">
-                <Button
-                    variant="outline"
-                    onClick={() => handleCreate("lens")}
-                    disabled={isCreatingAny}
-                    className="flex-1"
-                    title="Original Lens (Line/Heatmap)"
-                >
-                    {isCreatingLens ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                        <Plus className="w-4 h-4" />
-                    )}
-                    <span>Lens</span>
-                </Button>
-                <Button
-                    variant="outline"
-                    onClick={() => handleCreate("lens2")}
-                    disabled={isCreatingAny}
-                    className="flex-1"
-                    title="New Logit Lens Visualization"
-                >
-                    {isCreatingLens2 ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                        <Layers className="w-4 h-4" />
-                    )}
-                    <span>Lens 2</span>
-                </Button>
-            </div>
+            <Button
+                variant="outline"
+                onClick={() => handleCreate("lens2")}
+                disabled={isCreatingAny}
+                className="w-full"
+                title="New Logit Lens visualization"
+            >
+                {isCreatingLens2 ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                    <Layers className="w-4 h-4" />
+                )}
+                <span>Logit Lens</span>
+            </Button>
             <Button
                 variant="outline"
                 onClick={() => handleCreate("activation-patching")}
@@ -266,20 +247,6 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
 
                 {/* Action buttons - below expand */}
                 <div className="flex flex-col items-center gap-2 mt-3">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleCreate("lens")}
-                        disabled={isCreatingAny}
-                        className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
-                        title="New Lens chart"
-                    >
-                        {isCreatingLens ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <Search className="h-4 w-4" />
-                        )}
-                    </Button>
                     <Button
                         variant="ghost"
                         size="icon"
