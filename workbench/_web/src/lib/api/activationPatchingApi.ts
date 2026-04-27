@@ -97,13 +97,12 @@ export const useActivationPatching = () => {
             const chartKey = queryKeys.charts.chart(variables.request.chartId);
             await queryClient.invalidateQueries({ queryKey: chartKey });
 
-            // Invalidate sidebar to update chart type display
             const chart = queryClient.getQueryData(chartKey) as
                 | { workspaceId?: string }
                 | undefined;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
-                    queryKey: ["chartsForSidebar", chart.workspaceId],
+                    queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
                 // Note: We do NOT invalidate the config query here to avoid race conditions.
                 // The config is invalidated by updateConfig after the new prompts are saved.

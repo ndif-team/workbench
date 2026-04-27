@@ -66,6 +66,48 @@ export const touchWorkspace = async (workspaceId: string) => {
         .where(eq(workspaces.id, workspaceId));
 };
 
+export const getNextWorkspaceItemPosition = async (workspaceId: string): Promise<number> => {
+    const [chartRows, docRows] = await Promise.all([
+        db
+            .select({ max: sql<number | null>`max(${charts.position})` })
+            .from(charts)
+            .where(eq(charts.workspaceId, workspaceId)),
+        db
+            .select({ max: sql<number | null>`max(${documents.position})` })
+            .from(documents)
+            .where(eq(documents.workspaceId, workspaceId)),
+    ]);
+    const maxPos = Math.max(
+        Number(chartRows[0]?.max ?? -1),
+        Number(docRows[0]?.max ?? -1),
+    );
+    return maxPos + 1;
+};
+
+export type WorkspaceItemKind = "chart" | "report";
+
+export const reorderWorkspaceItems = async (
+    workspaceId: string,
+    items: { kind: WorkspaceItemKind; id: string }[],
+): Promise<void> => {
+    await db.transaction(async (tx: typeof db) => {
+        for (let i = 0; i < items.length; i++) {
+            const { kind, id } = items[i];
+            if (kind === "chart") {
+                await tx
+                    .update(charts)
+                    .set({ position: i, updatedAt: sql`${charts.updatedAt}` })
+                    .where(and(eq(charts.id, id), eq(charts.workspaceId, workspaceId)));
+            } else {
+                await tx
+                    .update(documents)
+                    .set({ position: i, updatedAt: sql`${documents.updatedAt}` })
+                    .where(and(eq(documents.id, id), eq(documents.workspaceId, workspaceId)));
+            }
+        }
+    });
+};
+
 // Wrapped versions for use with server actions/components that use withAuth
 export const createWorkspace = async (userId: string, name: string) => {
     const [workspace] = await db

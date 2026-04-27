@@ -100,7 +100,7 @@ export const useLensLine = () => {
             const chart = queryClient.getQueryData(chartKey) as any;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
-                    queryKey: ["chartsForSidebar", chart.workspaceId],
+                    queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId),
@@ -187,7 +187,7 @@ export const useLensGrid = () => {
             const chart = queryClient.getQueryData(chartKey) as any;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
-                    queryKey: ["chartsForSidebar", chart.workspaceId],
+                    queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId),
@@ -212,7 +212,7 @@ export const useUpdateChartName = () => {
             const chart = queryClient.getQueryData(chartKey) as { workspaceId?: string } | undefined;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
-                    queryKey: ["chartsForSidebar", chart.workspaceId],
+                    queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
             }
         },
@@ -236,9 +236,10 @@ export const useDeleteChart = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (chartId: string) => deleteChart(chartId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        mutationFn: ({ chartId }: { chartId: string; workspaceId: string }) =>
+            deleteChart(chartId),
+        onSuccess: (_, { workspaceId }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
         },
     });
 };
@@ -263,8 +264,8 @@ export const useCreateLens2ChartPair = () => {
         }) => {
             return await createLens2ChartPair(workspaceId, config);
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        onSuccess: (_, { workspaceId }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
         },
     });
 };
@@ -295,10 +296,10 @@ export const useCreatePatchChartPair = () => {
             return await createPatchChartPair(workspaceId, config);
         },
         onSuccess: ({ chart }) => {
-            // Refresh charts and configs
             queryClient.invalidateQueries({ queryKey: ["patchCharts"] });
-            // Note: This invalidates all chart configs - consider if this is needed
-            queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.charts.sidebar(chart.workspaceId),
+            });
         },
     });
 };
@@ -308,8 +309,10 @@ export const useCopyChart = () => {
 
     return useMutation({
         mutationFn: (chartId: string) => copyChart(chartId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        onSuccess: (newChart) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.charts.sidebar(newChart.workspaceId),
+            });
         },
     });
 };
@@ -335,8 +338,8 @@ export const useCreateActivationPatchingChartPair = () => {
         }) => {
             return await createActivationPatchingChartPair(workspaceId, config);
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        onSuccess: (_, { workspaceId }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
         },
     });
 };

@@ -2,9 +2,9 @@
 
 import { db } from "@/db/client";
 import { documents, Document } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { SerializedEditorState } from "lexical";
-import { touchWorkspace } from "@/lib/queries/workspaceQueries";
+import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
 
 export const getDocumentById = async (documentId: string): Promise<Document | null> => {
     const [document] = await db.select().from(documents).where(eq(documents.id, documentId));
@@ -93,6 +93,7 @@ function deriveTitleFromContent(content: SerializedEditorState): string {
 }
 
 export type DocumentListItem = Pick<Document, "id" | "workspaceId" | "createdAt" | "updatedAt"> & {
+    position: number;
     derivedTitle: string;
 };
 
@@ -103,13 +104,14 @@ export const getDocumentsForWorkspace = async (
         .select()
         .from(documents)
         .where(eq(documents.workspaceId, workspaceId))
-        .orderBy(desc(documents.createdAt));
+        .orderBy(asc(documents.position), asc(documents.createdAt));
 
     return docs.map((d) => ({
         id: d.id,
         workspaceId: d.workspaceId,
+        position: d.position,
         createdAt: d.createdAt,
-        updatedAt: (d as any).updatedAt ?? d.createdAt,
+        updatedAt: d.updatedAt,
         derivedTitle: deriveTitleFromContent(d.content as SerializedEditorState),
     }));
 };
@@ -142,79 +144,6 @@ const defaultInitialContent = {
                     },
                 ],
             },
-            // {
-            //     type: "paragraph",
-            //     version: 1,
-            //     format: "",
-            //     indent: 0,
-            //     direction: "ltr",
-            //     children: [
-            //         {
-            //             type: "text",
-            //             version: 1,
-            //             text: "This is your overview.",
-            //             detail: 0,
-            //             format: 0,
-            //             mode: "normal",
-            //             style: "",
-            //         },
-            //     ],
-            // },
-            // {
-            //     type: "heading",
-            //     tag: "h2",
-            //     version: 1,
-            //     format: "",
-            //     indent: 0,
-            //     direction: "ltr",
-            //     children: [
-            //         {
-            //             type: "text",
-            //             version: 1,
-            //             text: "Getting Started",
-            //             detail: 0,
-            //             format: 0,
-            //             mode: "normal",
-            //             style: "",
-            //         },
-            //     ],
-            // },
-            // {
-            //     type: "paragraph",
-            //     version: 1,
-            //     format: "",
-            //     indent: 0,
-            //     direction: "ltr",
-            //     children: [
-            //         {
-            //             type: "text",
-            //             version: 1,
-            //             text: "- Type markdown, it autoformats",
-            //             detail: 0,
-            //             format: 0,
-            //             mode: "normal",
-            //             style: "",
-            //         },
-            //     ],
-            // },
-            // {
-            //     type: "paragraph",
-            //     version: 1,
-            //     format: "",
-            //     indent: 0,
-            //     direction: "ltr",
-            //     children: [
-            //         {
-            //             type: "text",
-            //             version: 1,
-            //             text: "- Add charts by dragging them in from the sidebar",
-            //             detail: 0,
-            //             format: 0,
-            //             mode: "normal",
-            //             style: "",
-            //         },
-            //     ],
-            // },
             {
                 type: "paragraph",
                 version: 1,
@@ -228,12 +157,14 @@ const defaultInitialContent = {
 
 export const createDocument = async (workspaceId: string): Promise<Document> => {
     const initialContent = defaultInitialContent;
+    const position = await getNextWorkspaceItemPosition(workspaceId);
 
     const [document] = await db
         .insert(documents)
         .values({
             workspaceId,
             content: initialContent,
+            position,
         })
         .returning();
 

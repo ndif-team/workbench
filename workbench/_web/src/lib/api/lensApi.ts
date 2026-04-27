@@ -88,11 +88,10 @@ export const useLens2 = () => {
             const chartKey = queryKeys.charts.chart(variables.lensRequest.chartId);
             await queryClient.invalidateQueries({ queryKey: chartKey });
             
-            // Invalidate sidebar to update chart type display
             const chart = queryClient.getQueryData(chartKey) as { workspaceId?: string } | undefined;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
-                    queryKey: ["chartsForSidebar", chart.workspaceId],
+                    queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId),
