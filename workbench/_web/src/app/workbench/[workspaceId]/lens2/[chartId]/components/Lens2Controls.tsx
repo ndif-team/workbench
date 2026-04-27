@@ -187,6 +187,7 @@ export function Lens2Controls({
 
                 await updateConfig({
                     configId: initialConfig.id,
+                    chartId,
                     config: {
                         data: config,
                         workspaceId,
@@ -317,6 +318,7 @@ export function Lens2Controls({
         // Update the config in the database
         await updateConfig({
             configId: initialConfig.id,
+            chartId,
             config: {
                 data: config,
                 workspaceId,

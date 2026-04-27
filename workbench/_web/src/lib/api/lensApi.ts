@@ -87,14 +87,16 @@ export const useLens2 = () => {
         onSuccess: async (data, variables) => {
             const chartKey = queryKeys.charts.chart(variables.lensRequest.chartId);
             await queryClient.invalidateQueries({ queryKey: chartKey });
-            
+
+            // Do NOT invalidate configByChart here. The lens run is always
+            // followed by `updateConfig` in the caller (Lens2Controls.handleSubmit
+            // and the auto-run effect), and useUpdateChartConfig owns that
+            // invalidation. Triggering it here races the in-flight config write
+            // and can cache the pre-write (stale) row.
             const chart = queryClient.getQueryData(chartKey) as { workspaceId?: string } | undefined;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.sidebar(chart.workspaceId),
-                });
-                queryClient.invalidateQueries({
-                    queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId),
                 });
             }
         },

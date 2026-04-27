@@ -95,15 +95,15 @@ export const useLensLine = () => {
                         captureChartThumbnail(variables.lensRequest.chartId);
                     }, 500);
                 });
-            // Invalidate sidebar to update chart type display
-            // Get the chart to find workspaceId for proper cache invalidation
+            // Do NOT invalidate configByChart here. Lens runs are always
+            // followed by `updateConfig` (see useLensCharts handlers and
+            // GenerateButton), and useUpdateChartConfig owns that invalidation.
+            // Triggering it here races the in-flight config write and can cache
+            // the pre-write (stale) row.
             const chart = queryClient.getQueryData(chartKey) as any;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.sidebar(chart.workspaceId),
-                });
-                queryClient.invalidateQueries({
-                    queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId),
                 });
             }
         },
@@ -182,15 +182,15 @@ export const useLensGrid = () => {
                         captureChartThumbnail(variables.lensRequest.chartId);
                     }, 500);
                 });
-            // Invalidate sidebar to update chart type display
-            // Get the chart to find workspaceId for proper cache invalidation
+            // Do NOT invalidate configByChart here. Lens runs are always
+            // followed by `updateConfig` (see useLensCharts handlers and
+            // GenerateButton), and useUpdateChartConfig owns that invalidation.
+            // Triggering it here races the in-flight config write and can cache
+            // the pre-write (stale) row.
             const chart = queryClient.getQueryData(chartKey) as any;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.sidebar(chart.workspaceId),
-                });
-                queryClient.invalidateQueries({
-                    queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId),
                 });
             }
         },

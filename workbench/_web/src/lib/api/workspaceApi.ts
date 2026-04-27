@@ -6,8 +6,6 @@ import {
     reorderWorkspaceItems,
     type WorkspaceItemKind,
 } from "@/lib/queries/workspaceQueries";
-import { setConfig } from "@/lib/queries/configQueries";
-import { NewConfig } from "@/db/schema";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
@@ -44,23 +42,6 @@ export const useDeleteWorkspace = () => {
         },
         onError: (error) => {
             console.error("Error deleting workspace:", error);
-        },
-    });
-};
-
-export const useUpdateChartConfig = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async ({ configId, config }: { configId: string; config: NewConfig }) => {
-            await setConfig(configId, config);
-        },
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ["lensCharts"] });
-            console.log("Successfully updated chart config");
-        },
-        onError: (error) => {
-            console.error("Error updating workspace:", error);
         },
     });
 };

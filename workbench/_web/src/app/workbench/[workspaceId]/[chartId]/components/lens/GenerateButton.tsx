@@ -34,7 +34,7 @@ export default function GenerateButton({
     handleCreateHeatmap,
 }: GenerateButtonProps) {
     const [maxNewTokens, setMaxNewTokens] = useState(10);
-    const { workspaceId } = useParams<{ workspaceId: string }>();
+    const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
     const { mutateAsync: generate, isPending: isGenerating } = useGenerate();
     const { mutateAsync: updateChartConfigMutation } = useUpdateChartConfig();
 
@@ -68,6 +68,7 @@ export default function GenerateButton({
         // Update the config in the database
         await updateChartConfigMutation({
             configId: configId,
+            chartId,
             config: {
                 data: newConfig,
                 workspaceId,
