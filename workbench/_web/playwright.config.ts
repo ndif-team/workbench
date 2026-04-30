@@ -19,6 +19,11 @@ export default defineConfig({
         baseURL: "http://localhost:3000",
         trace: "on-first-retry",
         screenshot: "only-on-failure",
+        // The browser polls https://api.ndif.us directly. Some CI / dev
+        // environments (cluster egress proxies with custom CA roots) present
+        // a cert chain that bundled Playwright Chromium doesn't trust —
+        // accept those so the real-NDIF poll loop can complete.
+        ignoreHTTPSErrors: true,
     },
     projects: [
         {

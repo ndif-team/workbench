@@ -9,12 +9,25 @@ on:
 jobs:
   e2e:
     runs-on: ripley-cloud-large
+    env:
+      # Real-NDIF e2e: a restricted model config (gpt2-only) keeps the
+      # `/models/` endpoint from probing gated repos at startup.
+      CONFIG: e2e
+      REMOTE: "true"
+      NDIF_API_KEY: ${{ secrets.NDIF_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.4.27"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Cache bun dependencies
         uses: actions/cache@v4
@@ -23,6 +36,15 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('workbench/_web/bun.lockb') }}
           restore-keys: bun-${{ runner.os }}-
 
+      - name: Cache uv environment
+        uses: actions/cache@v4
+        with:
+          path: |
+            .venv
+            ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+          restore-keys: uv-${{ runner.os }}-
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -30,7 +52,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('workbench/_web/package.json') }}
           restore-keys: playwright-${{ runner.os }}-
 
-      - name: Install dependencies
+      - name: Install Python dependencies
+        run: uv sync --extra dev
+
+      - name: Install frontend dependencies
         run: bun install
         working-directory: workbench/_web
 
@@ -38,7 +63,7 @@ jobs:
         run: npm rebuild better-sqlite3
         working-directory: workbench/_web
 
-      - name: Set up local env
+      - name: Set up local env files
         run: |
           printf '%s\n' \
             "NEXT_PUBLIC_LOCAL_DB=true" \
@@ -46,8 +71,18 @@ jobs:
             "LOCAL_SQLITE_URL=./e2e.db" \
             "NEXT_PUBLIC_BASE_URL=http://localhost:3000" \
             "NEXT_PUBLIC_BACKEND_URL=http://localhost:8000" \
+            "HF_TOKEN=${HF_TOKEN}" \
             > .env
           cp .env workbench/_web/.env
+          # Backend reads its own .env; mirror the secrets so CONFIG=e2e
+          # picks up NDIF_API_KEY / HF_TOKEN even if env propagation is
+          # restricted by the runner.
+          printf '%s\n' \
+            "CONFIG=e2e" \
+            "REMOTE=true" \
+            "NDIF_API_KEY=${NDIF_API_KEY}" \
+            "HF_TOKEN=${HF_TOKEN}" \
+            > workbench/_api/.env
 
       - name: Create SQLite database
         run: bun x drizzle-kit push --force
@@ -61,15 +96,54 @@ jobs:
         run: bun x playwright install --with-deps chromium
         working-directory: workbench/_web
 
+      - name: Start backend (real NDIF)
+        run: |
+          mkdir -p /tmp/wb-logs
+          # Launch the FastAPI backend wired up to the real NDIF service.
+          # The CONFIG=e2e model config restricts to a single non-gated
+          # model (gpt2) so /models/ never tries to fetch metadata for a
+          # gated repo at startup.
+          nohup uv run uvicorn workbench._api.main:app \
+            --host 0.0.0.0 --port 8000 --log-level info \
+            > /tmp/wb-logs/api.log 2>&1 &
+          echo $! > /tmp/wb-logs/api.pid
+          # Wait until /models/ returns a non-empty response — this also
+          # acts as a smoke test against NDIF before tests run.
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8000/models/ -m 30 \
+                | grep -q openai-community; then
+              echo "backend ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "backend failed to come up:"
+          tail -200 /tmp/wb-logs/api.log
+          exit 1
+
       - name: Run E2E tests
         run: bun x playwright test
         working-directory: workbench/_web
         env:
           ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}
 
+      - name: Stop backend
+        if: ${{ always() }}
+        run: |
+          if [ -f /tmp/wb-logs/api.pid ]; then
+            kill "$(cat /tmp/wb-logs/api.pid)" 2>/dev/null || true
+          fi
+
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: workbench/_web/playwright-report/
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: api-log
+          path: /tmp/wb-logs/api.log
           retention-days: 7

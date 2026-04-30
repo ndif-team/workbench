@@ -1,0 +1,8 @@
+remote = true
+
+# Restricted set of models for E2E tests against the real NDIF service.
+# Only public, non-gated models are listed so the /models endpoint never
+# tries to fetch metadata for a gated repo.
+models = [
+    "openai-community/gpt2",
+]
