@@ -1,0 +1,130 @@
+{
+  "record_type": "commitment_strip",
+  "example_id": "commitment_strip_fixture",
+  "prompt": "The Eiffel Tower is in",
+  "completion_text": " the city of Paris.",
+  "completion_tokens": [
+    { "idx": 0, "id": 262, "text": " the", "targetIds": [262] },
+    { "idx": 1, "id": 1748, "text": " city", "targetIds": [1748] },
+    { "idx": 2, "id": 286, "text": " of", "targetIds": [286] },
+    { "idx": 3, "id": 6342, "text": " Paris", "targetIds": [6342] },
+    { "idx": 4, "id": 13, "text": ".", "targetIds": [13] }
+  ],
+  "model": "openai-community/gpt2",
+  "num_layers": 4,
+  "per_position_per_layer_top_k": [
+    [
+      [
+        { "token_id": 257, "token_text": " a", "probability": 0.21 },
+        { "token_id": 262, "token_text": " the", "probability": 0.18 },
+        { "token_id": 257, "token_text": " an", "probability": 0.09 }
+      ],
+      [
+        { "token_id": 262, "token_text": " the", "probability": 0.32 },
+        { "token_id": 257, "token_text": " a", "probability": 0.14 },
+        { "token_id": 4141, "token_text": " French", "probability": 0.05 }
+      ],
+      [
+        { "token_id": 262, "token_text": " the", "probability": 0.55 },
+        { "token_id": 4141, "token_text": " French", "probability": 0.07 },
+        { "token_id": 257, "token_text": " a", "probability": 0.06 }
+      ],
+      [
+        { "token_id": 262, "token_text": " the", "probability": 0.71 },
+        { "token_id": 4141, "token_text": " French", "probability": 0.09 },
+        { "token_id": 6342, "token_text": " Paris", "probability": 0.04 }
+      ]
+    ],
+    [
+      [
+        { "token_id": 1748, "token_text": " city", "probability": 0.12 },
+        { "token_id": 1499, "token_text": " country", "probability": 0.09 },
+        { "token_id": 1295, "token_text": " place", "probability": 0.08 }
+      ],
+      [
+        { "token_id": 1748, "token_text": " city", "probability": 0.31 },
+        { "token_id": 1295, "token_text": " place", "probability": 0.12 },
+        { "token_id": 1499, "token_text": " country", "probability": 0.08 }
+      ],
+      [
+        { "token_id": 1748, "token_text": " city", "probability": 0.62 },
+        { "token_id": 1295, "token_text": " place", "probability": 0.07 },
+        { "token_id": 4141, "token_text": " French", "probability": 0.05 }
+      ],
+      [
+        { "token_id": 1748, "token_text": " city", "probability": 0.78 },
+        { "token_id": 1295, "token_text": " place", "probability": 0.04 },
+        { "token_id": 1499, "token_text": " country", "probability": 0.03 }
+      ]
+    ],
+    [
+      [
+        { "token_id": 286, "token_text": " of", "probability": 0.62 },
+        { "token_id": 287, "token_text": " in", "probability": 0.11 },
+        { "token_id": 11, "token_text": ",", "probability": 0.06 }
+      ],
+      [
+        { "token_id": 286, "token_text": " of", "probability": 0.83 },
+        { "token_id": 287, "token_text": " in", "probability": 0.06 },
+        { "token_id": 11, "token_text": ",", "probability": 0.03 }
+      ],
+      [
+        { "token_id": 286, "token_text": " of", "probability": 0.91 },
+        { "token_id": 287, "token_text": " in", "probability": 0.03 },
+        { "token_id": 11, "token_text": ",", "probability": 0.02 }
+      ],
+      [
+        { "token_id": 286, "token_text": " of", "probability": 0.96 },
+        { "token_id": 287, "token_text": " in", "probability": 0.02 },
+        { "token_id": 11, "token_text": ",", "probability": 0.01 }
+      ]
+    ],
+    [
+      [
+        { "token_id": 4141, "token_text": " French", "probability": 0.18 },
+        { "token_id": 6342, "token_text": " Paris", "probability": 0.15 },
+        { "token_id": 2031, "token_text": " Europe", "probability": 0.07 }
+      ],
+      [
+        { "token_id": 6342, "token_text": " Paris", "probability": 0.31 },
+        { "token_id": 4141, "token_text": " French", "probability": 0.16 },
+        { "token_id": 2031, "token_text": " Europe", "probability": 0.05 }
+      ],
+      [
+        { "token_id": 6342, "token_text": " Paris", "probability": 0.58 },
+        { "token_id": 4141, "token_text": " French", "probability": 0.07 },
+        { "token_id": 5664, "token_text": " love", "probability": 0.03 }
+      ],
+      [
+        { "token_id": 6342, "token_text": " Paris", "probability": 0.84 },
+        { "token_id": 4141, "token_text": " French", "probability": 0.04 },
+        { "token_id": 5664, "token_text": " love", "probability": 0.02 }
+      ]
+    ],
+    [
+      [
+        { "token_id": 11, "token_text": ",", "probability": 0.18 },
+        { "token_id": 13, "token_text": ".", "probability": 0.16 },
+        { "token_id": 290, "token_text": " and", "probability": 0.08 }
+      ],
+      [
+        { "token_id": 13, "token_text": ".", "probability": 0.41 },
+        { "token_id": 11, "token_text": ",", "probability": 0.18 },
+        { "token_id": 290, "token_text": " and", "probability": 0.07 }
+      ],
+      [
+        { "token_id": 13, "token_text": ".", "probability": 0.68 },
+        { "token_id": 11, "token_text": ",", "probability": 0.09 },
+        { "token_id": 290, "token_text": " and", "probability": 0.04 }
+      ],
+      [
+        { "token_id": 13, "token_text": ".", "probability": 0.86 },
+        { "token_id": 11, "token_text": ",", "probability": 0.04 },
+        { "token_id": 290, "token_text": " and", "probability": 0.02 }
+      ]
+    ]
+  ],
+  "critical_framing_prompt": "Some tokens were 'easy' for the model — decided by mid layers — and some only resolved at the very end. What does that distinction tell you about how the model 'decides'?",
+  "pedagogical_narrative": "Not every generated token is equally committed. Some are formulaic; others remain contested through the final layer.",
+  "risk_flag": "low"
+}

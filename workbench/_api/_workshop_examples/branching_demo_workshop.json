@@ -1,0 +1,2910 @@
+{
+  "record_type": "branching_generation_set",
+  "example_id": "branching_demo_workshop",
+  "prompt": "Design a 60-minute critical AI literacy workshop for university faculty using interactive interpretability tools.",
+  "model": "openai-community/gpt2",
+  "max_tokens": 200,
+  "samples": [
+    {
+      "temperature": 0.4,
+      "seed": 0,
+      "completion_text": " Begin with a 10-minute orientation framing the AI literacy gap, followed by three 15-minute hands-on tasks using logit lens, activation patching, and PatchScope, closing with reflection.",
+      "completion_tokens": [
+        {
+          "idx": 0,
+          "id": 1,
+          "text": "",
+          "targetIds": [
+            1
+          ]
+        },
+        {
+          "idx": 1,
+          "id": 23553,
+          "text": " Begin",
+          "targetIds": [
+            23553
+          ]
+        },
+        {
+          "idx": 2,
+          "id": 35834,
+          "text": " with",
+          "targetIds": [
+            35834
+          ]
+        },
+        {
+          "idx": 3,
+          "id": 22826,
+          "text": " a",
+          "targetIds": [
+            22826
+          ]
+        },
+        {
+          "idx": 4,
+          "id": 33417,
+          "text": " 10-minute",
+          "targetIds": [
+            33417
+          ]
+        },
+        {
+          "idx": 5,
+          "id": 32589,
+          "text": " orientation",
+          "targetIds": [
+            32589
+          ]
+        },
+        {
+          "idx": 6,
+          "id": 28641,
+          "text": " framing",
+          "targetIds": [
+            28641
+          ]
+        },
+        {
+          "idx": 7,
+          "id": 30096,
+          "text": " the",
+          "targetIds": [
+            30096
+          ]
+        },
+        {
+          "idx": 8,
+          "id": 20914,
+          "text": " AI",
+          "targetIds": [
+            20914
+          ]
+        },
+        {
+          "idx": 9,
+          "id": 27767,
+          "text": " literacy",
+          "targetIds": [
+            27767
+          ]
+        },
+        {
+          "idx": 10,
+          "id": 2894,
+          "text": " gap,",
+          "targetIds": [
+            2894
+          ]
+        },
+        {
+          "idx": 11,
+          "id": 3500,
+          "text": " followed",
+          "targetIds": [
+            3500
+          ]
+        },
+        {
+          "idx": 12,
+          "id": 24492,
+          "text": " by",
+          "targetIds": [
+            24492
+          ]
+        },
+        {
+          "idx": 13,
+          "id": 9561,
+          "text": " three",
+          "targetIds": [
+            9561
+          ]
+        },
+        {
+          "idx": 14,
+          "id": 26453,
+          "text": " 15-minute",
+          "targetIds": [
+            26453
+          ]
+        },
+        {
+          "idx": 15,
+          "id": 6283,
+          "text": " hands-on",
+          "targetIds": [
+            6283
+          ]
+        },
+        {
+          "idx": 16,
+          "id": 40542,
+          "text": " tasks",
+          "targetIds": [
+            40542
+          ]
+        },
+        {
+          "idx": 17,
+          "id": 2172,
+          "text": " using",
+          "targetIds": [
+            2172
+          ]
+        },
+        {
+          "idx": 18,
+          "id": 42678,
+          "text": " logit",
+          "targetIds": [
+            42678
+          ]
+        },
+        {
+          "idx": 19,
+          "id": 17326,
+          "text": " lens,",
+          "targetIds": [
+            17326
+          ]
+        },
+        {
+          "idx": 20,
+          "id": 17705,
+          "text": " activation",
+          "targetIds": [
+            17705
+          ]
+        },
+        {
+          "idx": 21,
+          "id": 10057,
+          "text": " patching,",
+          "targetIds": [
+            10057
+          ]
+        },
+        {
+          "idx": 22,
+          "id": 13683,
+          "text": " and",
+          "targetIds": [
+            13683
+          ]
+        },
+        {
+          "idx": 23,
+          "id": 15835,
+          "text": " PatchScope,",
+          "targetIds": [
+            15835
+          ]
+        },
+        {
+          "idx": 24,
+          "id": 5466,
+          "text": " closing",
+          "targetIds": [
+            5466
+          ]
+        },
+        {
+          "idx": 25,
+          "id": 35834,
+          "text": " with",
+          "targetIds": [
+            35834
+          ]
+        },
+        {
+          "idx": 26,
+          "id": 18117,
+          "text": " reflection.",
+          "targetIds": [
+            18117
+          ]
+        }
+      ],
+      "per_position_top_k": [
+        [
+          {
+            "token_id": 1,
+            "token_text": "",
+            "probability": 0.55
+          },
+          {
+            "token_id": 3,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 4,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 5,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 6,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 23553,
+            "token_text": " Begin",
+            "probability": 0.55
+          },
+          {
+            "token_id": 23555,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 23556,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 23557,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 23558,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 35834,
+            "token_text": " with",
+            "probability": 0.55
+          },
+          {
+            "token_id": 35836,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 35837,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 35838,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 35839,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 22826,
+            "token_text": " a",
+            "probability": 0.55
+          },
+          {
+            "token_id": 22828,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 22829,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 22830,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 22831,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 33417,
+            "token_text": " 10-minute",
+            "probability": 0.55
+          },
+          {
+            "token_id": 33419,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 33420,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 33421,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 33422,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 32589,
+            "token_text": " orientation",
+            "probability": 0.55
+          },
+          {
+            "token_id": 32591,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 32592,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 32593,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 32594,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 28641,
+            "token_text": " framing",
+            "probability": 0.55
+          },
+          {
+            "token_id": 28643,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 28644,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 28645,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 28646,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 30096,
+            "token_text": " the",
+            "probability": 0.55
+          },
+          {
+            "token_id": 30098,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 30099,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 30100,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 30101,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 20914,
+            "token_text": " AI",
+            "probability": 0.55
+          },
+          {
+            "token_id": 20916,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 20917,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 20918,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 20919,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 27767,
+            "token_text": " literacy",
+            "probability": 0.55
+          },
+          {
+            "token_id": 27769,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 27770,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 27771,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 27772,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 2894,
+            "token_text": " gap,",
+            "probability": 0.55
+          },
+          {
+            "token_id": 2896,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 2897,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 2898,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 2899,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 3500,
+            "token_text": " followed",
+            "probability": 0.55
+          },
+          {
+            "token_id": 3502,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 3503,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 3504,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 3505,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 24492,
+            "token_text": " by",
+            "probability": 0.55
+          },
+          {
+            "token_id": 24494,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 24495,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 24496,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 24497,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 9561,
+            "token_text": " three",
+            "probability": 0.55
+          },
+          {
+            "token_id": 9563,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 9564,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 9565,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 9566,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 26453,
+            "token_text": " 15-minute",
+            "probability": 0.55
+          },
+          {
+            "token_id": 26455,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 26456,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 26457,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 26458,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 6283,
+            "token_text": " hands-on",
+            "probability": 0.55
+          },
+          {
+            "token_id": 6285,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 6286,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 6287,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 6288,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 40542,
+            "token_text": " tasks",
+            "probability": 0.55
+          },
+          {
+            "token_id": 40544,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 40545,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 40546,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 40547,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 2172,
+            "token_text": " using",
+            "probability": 0.55
+          },
+          {
+            "token_id": 2174,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 2175,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 2176,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 2177,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 42678,
+            "token_text": " logit",
+            "probability": 0.55
+          },
+          {
+            "token_id": 42680,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 42681,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 42682,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 42683,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 17326,
+            "token_text": " lens,",
+            "probability": 0.55
+          },
+          {
+            "token_id": 17328,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 17329,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 17330,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 17331,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 17705,
+            "token_text": " activation",
+            "probability": 0.55
+          },
+          {
+            "token_id": 17707,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 17708,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 17709,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 17710,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 10057,
+            "token_text": " patching,",
+            "probability": 0.55
+          },
+          {
+            "token_id": 10059,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 10060,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 10061,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 10062,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 13683,
+            "token_text": " and",
+            "probability": 0.55
+          },
+          {
+            "token_id": 13685,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 13686,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 13687,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 13688,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 15835,
+            "token_text": " PatchScope,",
+            "probability": 0.55
+          },
+          {
+            "token_id": 15837,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 15838,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 15839,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 15840,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 5466,
+            "token_text": " closing",
+            "probability": 0.55
+          },
+          {
+            "token_id": 5468,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 5469,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 5470,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 5471,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 35834,
+            "token_text": " with",
+            "probability": 0.55
+          },
+          {
+            "token_id": 35836,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 35837,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 35838,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 35839,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 18117,
+            "token_text": " reflection.",
+            "probability": 0.55
+          },
+          {
+            "token_id": 18119,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 18120,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 18121,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 18122,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ]
+      ]
+    },
+    {
+      "temperature": 0.7,
+      "seed": 0,
+      "completion_text": " Begin with a 10-minute orientation framing the AI literacy gap, then run three interactive stations where faculty manipulate a transformer's residual stream live, ending in a structured discussion.",
+      "completion_tokens": [
+        {
+          "idx": 0,
+          "id": 1,
+          "text": "",
+          "targetIds": [
+            1
+          ]
+        },
+        {
+          "idx": 1,
+          "id": 23553,
+          "text": " Begin",
+          "targetIds": [
+            23553
+          ]
+        },
+        {
+          "idx": 2,
+          "id": 35834,
+          "text": " with",
+          "targetIds": [
+            35834
+          ]
+        },
+        {
+          "idx": 3,
+          "id": 22826,
+          "text": " a",
+          "targetIds": [
+            22826
+          ]
+        },
+        {
+          "idx": 4,
+          "id": 33417,
+          "text": " 10-minute",
+          "targetIds": [
+            33417
+          ]
+        },
+        {
+          "idx": 5,
+          "id": 32589,
+          "text": " orientation",
+          "targetIds": [
+            32589
+          ]
+        },
+        {
+          "idx": 6,
+          "id": 28641,
+          "text": " framing",
+          "targetIds": [
+            28641
+          ]
+        },
+        {
+          "idx": 7,
+          "id": 30096,
+          "text": " the",
+          "targetIds": [
+            30096
+          ]
+        },
+        {
+          "idx": 8,
+          "id": 20914,
+          "text": " AI",
+          "targetIds": [
+            20914
+          ]
+        },
+        {
+          "idx": 9,
+          "id": 27767,
+          "text": " literacy",
+          "targetIds": [
+            27767
+          ]
+        },
+        {
+          "idx": 10,
+          "id": 2894,
+          "text": " gap,",
+          "targetIds": [
+            2894
+          ]
+        },
+        {
+          "idx": 11,
+          "id": 31284,
+          "text": " then",
+          "targetIds": [
+            31284
+          ]
+        },
+        {
+          "idx": 12,
+          "id": 25284,
+          "text": " run",
+          "targetIds": [
+            25284
+          ]
+        },
+        {
+          "idx": 13,
+          "id": 9561,
+          "text": " three",
+          "targetIds": [
+            9561
+          ]
+        },
+        {
+          "idx": 14,
+          "id": 13759,
+          "text": " interactive",
+          "targetIds": [
+            13759
+          ]
+        },
+        {
+          "idx": 15,
+          "id": 38599,
+          "text": " stations",
+          "targetIds": [
+            38599
+          ]
+        },
+        {
+          "idx": 16,
+          "id": 26615,
+          "text": " where",
+          "targetIds": [
+            26615
+          ]
+        },
+        {
+          "idx": 17,
+          "id": 26005,
+          "text": " faculty",
+          "targetIds": [
+            26005
+          ]
+        },
+        {
+          "idx": 18,
+          "id": 28110,
+          "text": " manipulate",
+          "targetIds": [
+            28110
+          ]
+        },
+        {
+          "idx": 19,
+          "id": 22826,
+          "text": " a",
+          "targetIds": [
+            22826
+          ]
+        },
+        {
+          "idx": 20,
+          "id": 1582,
+          "text": " transformer's",
+          "targetIds": [
+            1582
+          ]
+        },
+        {
+          "idx": 21,
+          "id": 29348,
+          "text": " residual",
+          "targetIds": [
+            29348
+          ]
+        },
+        {
+          "idx": 22,
+          "id": 15301,
+          "text": " stream",
+          "targetIds": [
+            15301
+          ]
+        },
+        {
+          "idx": 23,
+          "id": 579,
+          "text": " live,",
+          "targetIds": [
+            579
+          ]
+        },
+        {
+          "idx": 24,
+          "id": 12424,
+          "text": " ending",
+          "targetIds": [
+            12424
+          ]
+        },
+        {
+          "idx": 25,
+          "id": 45890,
+          "text": " in",
+          "targetIds": [
+            45890
+          ]
+        },
+        {
+          "idx": 26,
+          "id": 22826,
+          "text": " a",
+          "targetIds": [
+            22826
+          ]
+        },
+        {
+          "idx": 27,
+          "id": 28854,
+          "text": " structured",
+          "targetIds": [
+            28854
+          ]
+        },
+        {
+          "idx": 28,
+          "id": 42147,
+          "text": " discussion.",
+          "targetIds": [
+            42147
+          ]
+        }
+      ],
+      "per_position_top_k": [
+        [
+          {
+            "token_id": 1,
+            "token_text": "",
+            "probability": 0.55
+          },
+          {
+            "token_id": 3,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 4,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 5,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 6,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 23553,
+            "token_text": " Begin",
+            "probability": 0.55
+          },
+          {
+            "token_id": 23555,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 23556,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 23557,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 23558,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 35834,
+            "token_text": " with",
+            "probability": 0.55
+          },
+          {
+            "token_id": 35836,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 35837,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 35838,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 35839,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 22826,
+            "token_text": " a",
+            "probability": 0.55
+          },
+          {
+            "token_id": 22828,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 22829,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 22830,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 22831,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 33417,
+            "token_text": " 10-minute",
+            "probability": 0.55
+          },
+          {
+            "token_id": 33419,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 33420,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 33421,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 33422,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 32589,
+            "token_text": " orientation",
+            "probability": 0.55
+          },
+          {
+            "token_id": 32591,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 32592,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 32593,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 32594,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 28641,
+            "token_text": " framing",
+            "probability": 0.55
+          },
+          {
+            "token_id": 28643,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 28644,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 28645,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 28646,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 30096,
+            "token_text": " the",
+            "probability": 0.55
+          },
+          {
+            "token_id": 30098,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 30099,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 30100,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 30101,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 20914,
+            "token_text": " AI",
+            "probability": 0.55
+          },
+          {
+            "token_id": 20916,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 20917,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 20918,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 20919,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 27767,
+            "token_text": " literacy",
+            "probability": 0.55
+          },
+          {
+            "token_id": 27769,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 27770,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 27771,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 27772,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 2894,
+            "token_text": " gap,",
+            "probability": 0.55
+          },
+          {
+            "token_id": 2896,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 2897,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 2898,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 2899,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 31284,
+            "token_text": " then",
+            "probability": 0.55
+          },
+          {
+            "token_id": 31286,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 31287,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 31288,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 31289,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 25284,
+            "token_text": " run",
+            "probability": 0.55
+          },
+          {
+            "token_id": 25286,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 25287,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 25288,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 25289,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 9561,
+            "token_text": " three",
+            "probability": 0.55
+          },
+          {
+            "token_id": 9563,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 9564,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 9565,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 9566,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 13759,
+            "token_text": " interactive",
+            "probability": 0.55
+          },
+          {
+            "token_id": 13761,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 13762,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 13763,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 13764,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 38599,
+            "token_text": " stations",
+            "probability": 0.55
+          },
+          {
+            "token_id": 38601,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 38602,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 38603,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 38604,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 26615,
+            "token_text": " where",
+            "probability": 0.55
+          },
+          {
+            "token_id": 26617,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 26618,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 26619,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 26620,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 26005,
+            "token_text": " faculty",
+            "probability": 0.55
+          },
+          {
+            "token_id": 26007,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 26008,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 26009,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 26010,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 28110,
+            "token_text": " manipulate",
+            "probability": 0.55
+          },
+          {
+            "token_id": 28112,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 28113,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 28114,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 28115,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 22826,
+            "token_text": " a",
+            "probability": 0.55
+          },
+          {
+            "token_id": 22828,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 22829,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 22830,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 22831,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 1582,
+            "token_text": " transformer's",
+            "probability": 0.55
+          },
+          {
+            "token_id": 1584,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 1585,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 1586,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 1587,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 29348,
+            "token_text": " residual",
+            "probability": 0.55
+          },
+          {
+            "token_id": 29350,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 29351,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 29352,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 29353,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 15301,
+            "token_text": " stream",
+            "probability": 0.55
+          },
+          {
+            "token_id": 15303,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 15304,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 15305,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 15306,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 579,
+            "token_text": " live,",
+            "probability": 0.55
+          },
+          {
+            "token_id": 581,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 582,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 583,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 584,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 12424,
+            "token_text": " ending",
+            "probability": 0.55
+          },
+          {
+            "token_id": 12426,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 12427,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 12428,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 12429,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 45890,
+            "token_text": " in",
+            "probability": 0.55
+          },
+          {
+            "token_id": 45892,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 45893,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 45894,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 45895,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 22826,
+            "token_text": " a",
+            "probability": 0.55
+          },
+          {
+            "token_id": 22828,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 22829,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 22830,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 22831,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 28854,
+            "token_text": " structured",
+            "probability": 0.55
+          },
+          {
+            "token_id": 28856,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 28857,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 28858,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 28859,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 42147,
+            "token_text": " discussion.",
+            "probability": 0.55
+          },
+          {
+            "token_id": 42149,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 42150,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 42151,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 42152,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ]
+      ]
+    },
+    {
+      "temperature": 1.0,
+      "seed": 0,
+      "completion_text": " Open with provocative paired examples that participants must explain, then split into rotating breakout groups exploring interpretability tooling, and close with a public commitment exercise.",
+      "completion_tokens": [
+        {
+          "idx": 0,
+          "id": 1,
+          "text": "",
+          "targetIds": [
+            1
+          ]
+        },
+        {
+          "idx": 1,
+          "id": 34949,
+          "text": " Open",
+          "targetIds": [
+            34949
+          ]
+        },
+        {
+          "idx": 2,
+          "id": 35834,
+          "text": " with",
+          "targetIds": [
+            35834
+          ]
+        },
+        {
+          "idx": 3,
+          "id": 2544,
+          "text": " provocative",
+          "targetIds": [
+            2544
+          ]
+        },
+        {
+          "idx": 4,
+          "id": 9313,
+          "text": " paired",
+          "targetIds": [
+            9313
+          ]
+        },
+        {
+          "idx": 5,
+          "id": 1960,
+          "text": " examples",
+          "targetIds": [
+            1960
+          ]
+        },
+        {
+          "idx": 6,
+          "id": 20707,
+          "text": " that",
+          "targetIds": [
+            20707
+          ]
+        },
+        {
+          "idx": 7,
+          "id": 29406,
+          "text": " participants",
+          "targetIds": [
+            29406
+          ]
+        },
+        {
+          "idx": 8,
+          "id": 10875,
+          "text": " must",
+          "targetIds": [
+            10875
+          ]
+        },
+        {
+          "idx": 9,
+          "id": 8778,
+          "text": " explain,",
+          "targetIds": [
+            8778
+          ]
+        },
+        {
+          "idx": 10,
+          "id": 31284,
+          "text": " then",
+          "targetIds": [
+            31284
+          ]
+        },
+        {
+          "idx": 11,
+          "id": 38336,
+          "text": " split",
+          "targetIds": [
+            38336
+          ]
+        },
+        {
+          "idx": 12,
+          "id": 34390,
+          "text": " into",
+          "targetIds": [
+            34390
+          ]
+        },
+        {
+          "idx": 13,
+          "id": 19220,
+          "text": " rotating",
+          "targetIds": [
+            19220
+          ]
+        },
+        {
+          "idx": 14,
+          "id": 19762,
+          "text": " breakout",
+          "targetIds": [
+            19762
+          ]
+        },
+        {
+          "idx": 15,
+          "id": 47430,
+          "text": " groups",
+          "targetIds": [
+            47430
+          ]
+        },
+        {
+          "idx": 16,
+          "id": 14828,
+          "text": " exploring",
+          "targetIds": [
+            14828
+          ]
+        },
+        {
+          "idx": 17,
+          "id": 43992,
+          "text": " interpretability",
+          "targetIds": [
+            43992
+          ]
+        },
+        {
+          "idx": 18,
+          "id": 10283,
+          "text": " tooling,",
+          "targetIds": [
+            10283
+          ]
+        },
+        {
+          "idx": 19,
+          "id": 13683,
+          "text": " and",
+          "targetIds": [
+            13683
+          ]
+        },
+        {
+          "idx": 20,
+          "id": 37136,
+          "text": " close",
+          "targetIds": [
+            37136
+          ]
+        },
+        {
+          "idx": 21,
+          "id": 35834,
+          "text": " with",
+          "targetIds": [
+            35834
+          ]
+        },
+        {
+          "idx": 22,
+          "id": 22826,
+          "text": " a",
+          "targetIds": [
+            22826
+          ]
+        },
+        {
+          "idx": 23,
+          "id": 26255,
+          "text": " public",
+          "targetIds": [
+            26255
+          ]
+        },
+        {
+          "idx": 24,
+          "id": 11410,
+          "text": " commitment",
+          "targetIds": [
+            11410
+          ]
+        },
+        {
+          "idx": 25,
+          "id": 5987,
+          "text": " exercise.",
+          "targetIds": [
+            5987
+          ]
+        }
+      ],
+      "per_position_top_k": [
+        [
+          {
+            "token_id": 1,
+            "token_text": "",
+            "probability": 0.55
+          },
+          {
+            "token_id": 3,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 4,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 5,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 6,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 34949,
+            "token_text": " Open",
+            "probability": 0.55
+          },
+          {
+            "token_id": 34951,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 34952,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 34953,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 34954,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 35834,
+            "token_text": " with",
+            "probability": 0.55
+          },
+          {
+            "token_id": 35836,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 35837,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 35838,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 35839,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 2544,
+            "token_text": " provocative",
+            "probability": 0.55
+          },
+          {
+            "token_id": 2546,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 2547,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 2548,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 2549,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 9313,
+            "token_text": " paired",
+            "probability": 0.55
+          },
+          {
+            "token_id": 9315,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 9316,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 9317,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 9318,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 1960,
+            "token_text": " examples",
+            "probability": 0.55
+          },
+          {
+            "token_id": 1962,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 1963,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 1964,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 1965,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 20707,
+            "token_text": " that",
+            "probability": 0.55
+          },
+          {
+            "token_id": 20709,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 20710,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 20711,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 20712,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 29406,
+            "token_text": " participants",
+            "probability": 0.55
+          },
+          {
+            "token_id": 29408,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 29409,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 29410,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 29411,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 10875,
+            "token_text": " must",
+            "probability": 0.55
+          },
+          {
+            "token_id": 10877,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 10878,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 10879,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 10880,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 8778,
+            "token_text": " explain,",
+            "probability": 0.55
+          },
+          {
+            "token_id": 8780,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 8781,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 8782,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 8783,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 31284,
+            "token_text": " then",
+            "probability": 0.55
+          },
+          {
+            "token_id": 31286,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 31287,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 31288,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 31289,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 38336,
+            "token_text": " split",
+            "probability": 0.55
+          },
+          {
+            "token_id": 38338,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 38339,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 38340,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 38341,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 34390,
+            "token_text": " into",
+            "probability": 0.55
+          },
+          {
+            "token_id": 34392,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 34393,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 34394,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 34395,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 19220,
+            "token_text": " rotating",
+            "probability": 0.55
+          },
+          {
+            "token_id": 19222,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 19223,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 19224,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 19225,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 19762,
+            "token_text": " breakout",
+            "probability": 0.55
+          },
+          {
+            "token_id": 19764,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 19765,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 19766,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 19767,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 47430,
+            "token_text": " groups",
+            "probability": 0.55
+          },
+          {
+            "token_id": 47432,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 47433,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 47434,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 47435,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 14828,
+            "token_text": " exploring",
+            "probability": 0.55
+          },
+          {
+            "token_id": 14830,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 14831,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 14832,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 14833,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 43992,
+            "token_text": " interpretability",
+            "probability": 0.55
+          },
+          {
+            "token_id": 43994,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 43995,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 43996,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 43997,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 10283,
+            "token_text": " tooling,",
+            "probability": 0.55
+          },
+          {
+            "token_id": 10285,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 10286,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 10287,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 10288,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 13683,
+            "token_text": " and",
+            "probability": 0.55
+          },
+          {
+            "token_id": 13685,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 13686,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 13687,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 13688,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 37136,
+            "token_text": " close",
+            "probability": 0.55
+          },
+          {
+            "token_id": 37138,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 37139,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 37140,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 37141,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 35834,
+            "token_text": " with",
+            "probability": 0.55
+          },
+          {
+            "token_id": 35836,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 35837,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 35838,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 35839,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 22826,
+            "token_text": " a",
+            "probability": 0.55
+          },
+          {
+            "token_id": 22828,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 22829,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 22830,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 22831,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 26255,
+            "token_text": " public",
+            "probability": 0.55
+          },
+          {
+            "token_id": 26257,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 26258,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 26259,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 26260,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 11410,
+            "token_text": " commitment",
+            "probability": 0.55
+          },
+          {
+            "token_id": 11412,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 11413,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 11414,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 11415,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ],
+        [
+          {
+            "token_id": 5987,
+            "token_text": " exercise.",
+            "probability": 0.55
+          },
+          {
+            "token_id": 5989,
+            "token_text": "<alt1>",
+            "probability": 0.2
+          },
+          {
+            "token_id": 5990,
+            "token_text": "<alt2>",
+            "probability": 0.13333333333333333
+          },
+          {
+            "token_id": 5991,
+            "token_text": "<alt3>",
+            "probability": 0.1
+          },
+          {
+            "token_id": 5992,
+            "token_text": "<alt4>",
+            "probability": 0.08
+          }
+        ]
+      ]
+    }
+  ],
+  "drill_downs": [],
+  "critical_framing_prompt": "Three workshops, same prompt. Where did they decide to be different?",
+  "pedagogical_narrative": "Each generation is one path through a branching probability tree.",
+  "risk_flag": "synthetic (low)"
+}

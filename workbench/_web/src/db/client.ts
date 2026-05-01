@@ -42,6 +42,7 @@ export const clearDatabase = async () => {
     if (process.env.NEXT_PUBLIC_LOCAL_DB !== "true" || !sqliteClient) return;
     
     const clearStatements = `
+        DELETE FROM workshop_annotations;
         DELETE FROM chart_config_links;
         DELETE FROM views;
         DELETE FROM documents;

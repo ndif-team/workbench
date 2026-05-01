@@ -1,0 +1,4357 @@
+{
+  "record_type": "commitment_strip",
+  "example_id": "task1_ex4_lamarr_coinventor",
+  "prompt": "Hedy Lamarr's co-inventor on the 1942 frequency-hopping patent was the composer",
+  "completion_text": " George Antheil, an avant-garde American.",
+  "completion_tokens": [
+    {
+      "idx": 0,
+      "id": 4502,
+      "text": " George",
+      "targetIds": [
+        4502
+      ]
+    },
+    {
+      "idx": 1,
+      "id": 3738,
+      "text": " Ant",
+      "targetIds": [
+        3738
+      ]
+    },
+    {
+      "idx": 2,
+      "id": 258,
+      "text": "he",
+      "targetIds": [
+        258
+      ]
+    },
+    {
+      "idx": 3,
+      "id": 346,
+      "text": "il",
+      "targetIds": [
+        346
+      ]
+    },
+    {
+      "idx": 4,
+      "id": 11,
+      "text": ",",
+      "targetIds": [
+        11
+      ]
+    },
+    {
+      "idx": 5,
+      "id": 281,
+      "text": " an",
+      "targetIds": [
+        281
+      ]
+    },
+    {
+      "idx": 6,
+      "id": 1196,
+      "text": " av",
+      "targetIds": [
+        1196
+      ]
+    },
+    {
+      "idx": 7,
+      "id": 415,
+      "text": "ant",
+      "targetIds": [
+        415
+      ]
+    },
+    {
+      "idx": 8,
+      "id": 12,
+      "text": "-",
+      "targetIds": [
+        12
+      ]
+    },
+    {
+      "idx": 9,
+      "id": 19977,
+      "text": "gard",
+      "targetIds": [
+        19977
+      ]
+    },
+    {
+      "idx": 10,
+      "id": 68,
+      "text": "e",
+      "targetIds": [
+        68
+      ]
+    },
+    {
+      "idx": 11,
+      "id": 1605,
+      "text": " American",
+      "targetIds": [
+        1605
+      ]
+    },
+    {
+      "idx": 12,
+      "id": 13,
+      "text": ".",
+      "targetIds": [
+        13
+      ]
+    }
+  ],
+  "model": "openai-community/gpt2",
+  "num_layers": 12,
+  "per_position_per_layer_top_k": [
+    [
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 1.0
+        },
+        {
+          "token_id": 21751,
+          "token_text": " soundtrack",
+          "probability": 3.123283386230469e-05
+        },
+        {
+          "token_id": 18882,
+          "token_text": " compos",
+          "probability": 5.424022674560547e-06
+        },
+        {
+          "token_id": 2647,
+          "token_text": " music",
+          "probability": 4.798173904418945e-06
+        },
+        {
+          "token_id": 43259,
+          "token_text": " artisan",
+          "probability": 1.4603137969970703e-06
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 1.0
+        },
+        {
+          "token_id": 21751,
+          "token_text": " soundtrack",
+          "probability": 0.0008544921875
+        },
+        {
+          "token_id": 49734,
+          "token_text": " laureate",
+          "probability": 8.487701416015625e-05
+        },
+        {
+          "token_id": 2647,
+          "token_text": " music",
+          "probability": 3.314018249511719e-05
+        },
+        {
+          "token_id": 11742,
+          "token_text": " composition",
+          "probability": 2.276897430419922e-05
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.98828125
+        },
+        {
+          "token_id": 21751,
+          "token_text": " soundtrack",
+          "probability": 0.008056640625
+        },
+        {
+          "token_id": 49734,
+          "token_text": " laureate",
+          "probability": 0.00109100341796875
+        },
+        {
+          "token_id": 2647,
+          "token_text": " music",
+          "probability": 0.00026702880859375
+        },
+        {
+          "token_id": 43923,
+          "token_text": " pian",
+          "probability": 8.678436279296875e-05
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.98828125
+        },
+        {
+          "token_id": 49734,
+          "token_text": " laureate",
+          "probability": 0.005523681640625
+        },
+        {
+          "token_id": 21751,
+          "token_text": " soundtrack",
+          "probability": 0.005523681640625
+        },
+        {
+          "token_id": 18545,
+          "token_text": " duo",
+          "probability": 0.00015926361083984375
+        },
+        {
+          "token_id": 2647,
+          "token_text": " music",
+          "probability": 0.00014400482177734375
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.9921875
+        },
+        {
+          "token_id": 21751,
+          "token_text": " soundtrack",
+          "probability": 0.0047607421875
+        },
+        {
+          "token_id": 49734,
+          "token_text": " laureate",
+          "probability": 0.0024261474609375
+        },
+        {
+          "token_id": 8034,
+          "token_text": " studio",
+          "probability": 0.0002841949462890625
+        },
+        {
+          "token_id": 338,
+          "token_text": "'s",
+          "probability": 0.0001926422119140625
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.9765625
+        },
+        {
+          "token_id": 49734,
+          "token_text": " laureate",
+          "probability": 0.01416015625
+        },
+        {
+          "token_id": 338,
+          "token_text": "'s",
+          "probability": 0.0015411376953125
+        },
+        {
+          "token_id": 21751,
+          "token_text": " soundtrack",
+          "probability": 0.001129150390625
+        },
+        {
+          "token_id": 2241,
+          "token_text": " himself",
+          "probability": 0.000774383544921875
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.8515625
+        },
+        {
+          "token_id": 49734,
+          "token_text": " laureate",
+          "probability": 0.054443359375
+        },
+        {
+          "token_id": 338,
+          "token_text": "'s",
+          "probability": 0.0257568359375
+        },
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.01214599609375
+        },
+        {
+          "token_id": 2241,
+          "token_text": " himself",
+          "probability": 0.00946044921875
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.77734375
+        },
+        {
+          "token_id": 5199,
+          "token_text": " Robert",
+          "probability": 0.049560546875
+        },
+        {
+          "token_id": 49734,
+          "token_text": " laureate",
+          "probability": 0.0341796875
+        },
+        {
+          "token_id": 338,
+          "token_text": "'s",
+          "probability": 0.0125732421875
+        },
+        {
+          "token_id": 7970,
+          "token_text": " Stephen",
+          "probability": 0.0125732421875
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.333984375
+        },
+        {
+          "token_id": 5199,
+          "token_text": " Robert",
+          "probability": 0.2294921875
+        },
+        {
+          "token_id": 1757,
+          "token_text": " John",
+          "probability": 0.06591796875
+        },
+        {
+          "token_id": 14576,
+          "token_text": " Philip",
+          "probability": 0.039794921875
+        },
+        {
+          "token_id": 49734,
+          "token_text": " laureate",
+          "probability": 0.03515625
+        }
+      ],
+      [
+        {
+          "token_id": 5199,
+          "token_text": " Robert",
+          "probability": 0.265625
+        },
+        {
+          "token_id": 3977,
+          "token_text": " William",
+          "probability": 0.20703125
+        },
+        {
+          "token_id": 1757,
+          "token_text": " John",
+          "probability": 0.1611328125
+        },
+        {
+          "token_id": 7212,
+          "token_text": " Joseph",
+          "probability": 0.076171875
+        },
+        {
+          "token_id": 4502,
+          "token_text": " George",
+          "probability": 0.024658203125
+        }
+      ],
+      [
+        {
+          "token_id": 3977,
+          "token_text": " William",
+          "probability": 0.1669921875
+        },
+        {
+          "token_id": 5199,
+          "token_text": " Robert",
+          "probability": 0.1298828125
+        },
+        {
+          "token_id": 1757,
+          "token_text": " John",
+          "probability": 0.10107421875
+        },
+        {
+          "token_id": 24532,
+          "token_text": " Eugene",
+          "probability": 0.0478515625
+        },
+        {
+          "token_id": 7212,
+          "token_text": " Joseph",
+          "probability": 0.0478515625
+        }
+      ],
+      [
+        {
+          "token_id": 286,
+          "token_text": " of",
+          "probability": 0.07958984375
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.04833984375
+        },
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.04833984375
+        },
+        {
+          "token_id": 3977,
+          "token_text": " William",
+          "probability": 0.029296875
+        },
+        {
+          "token_id": 1757,
+          "token_text": " John",
+          "probability": 0.029296875
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 4502,
+          "token_text": " George",
+          "probability": 0.81640625
+        },
+        {
+          "token_id": 15257,
+          "token_text": " Lucas",
+          "probability": 0.046142578125
+        },
+        {
+          "token_id": 5511,
+          "token_text": " Bush",
+          "probability": 0.04345703125
+        },
+        {
+          "token_id": 13002,
+          "token_text": " Thor",
+          "probability": 0.00567626953125
+        },
+        {
+          "token_id": 3977,
+          "token_text": " William",
+          "probability": 0.004150390625
+        }
+      ],
+      [
+        {
+          "token_id": 4502,
+          "token_text": " George",
+          "probability": 0.7578125
+        },
+        {
+          "token_id": 5511,
+          "token_text": " Bush",
+          "probability": 0.051513671875
+        },
+        {
+          "token_id": 15257,
+          "token_text": " Lucas",
+          "probability": 0.02587890625
+        },
+        {
+          "token_id": 3977,
+          "token_text": " William",
+          "probability": 0.01043701171875
+        },
+        {
+          "token_id": 370,
+          "token_text": " W",
+          "probability": 0.00811767578125
+        }
+      ],
+      [
+        {
+          "token_id": 4502,
+          "token_text": " George",
+          "probability": 0.314453125
+        },
+        {
+          "token_id": 15257,
+          "token_text": " Lucas",
+          "probability": 0.166015625
+        },
+        {
+          "token_id": 370,
+          "token_text": " W",
+          "probability": 0.052490234375
+        },
+        {
+          "token_id": 1982,
+          "token_text": " Mc",
+          "probability": 0.035888671875
+        },
+        {
+          "token_id": 28648,
+          "token_text": " Herbert",
+          "probability": 0.03173828125
+        }
+      ],
+      [
+        {
+          "token_id": 15257,
+          "token_text": " Lucas",
+          "probability": 0.236328125
+        },
+        {
+          "token_id": 4502,
+          "token_text": " George",
+          "probability": 0.1484375
+        },
+        {
+          "token_id": 28648,
+          "token_text": " Herbert",
+          "probability": 0.10009765625
+        },
+        {
+          "token_id": 370,
+          "token_text": " W",
+          "probability": 0.056640625
+        },
+        {
+          "token_id": 17161,
+          "token_text": " Wallace",
+          "probability": 0.0458984375
+        }
+      ],
+      [
+        {
+          "token_id": 15257,
+          "token_text": " Lucas",
+          "probability": 0.3515625
+        },
+        {
+          "token_id": 28648,
+          "token_text": " Herbert",
+          "probability": 0.056884765625
+        },
+        {
+          "token_id": 4502,
+          "token_text": " George",
+          "probability": 0.05517578125
+        },
+        {
+          "token_id": 5780,
+          "token_text": " Martin",
+          "probability": 0.051025390625
+        },
+        {
+          "token_id": 1982,
+          "token_text": " Mc",
+          "probability": 0.040283203125
+        }
+      ],
+      [
+        {
+          "token_id": 15257,
+          "token_text": " Lucas",
+          "probability": 0.1435546875
+        },
+        {
+          "token_id": 28648,
+          "token_text": " Herbert",
+          "probability": 0.06689453125
+        },
+        {
+          "token_id": 569,
+          "token_text": " V",
+          "probability": 0.06689453125
+        },
+        {
+          "token_id": 370,
+          "token_text": " W",
+          "probability": 0.064453125
+        },
+        {
+          "token_id": 17161,
+          "token_text": " Wallace",
+          "probability": 0.0537109375
+        }
+      ],
+      [
+        {
+          "token_id": 15257,
+          "token_text": " Lucas",
+          "probability": 0.384765625
+        },
+        {
+          "token_id": 17161,
+          "token_text": " Wallace",
+          "probability": 0.0732421875
+        },
+        {
+          "token_id": 370,
+          "token_text": " W",
+          "probability": 0.06298828125
+        },
+        {
+          "token_id": 4502,
+          "token_text": " George",
+          "probability": 0.043212890625
+        },
+        {
+          "token_id": 9659,
+          "token_text": " Allen",
+          "probability": 0.0380859375
+        }
+      ],
+      [
+        {
+          "token_id": 15257,
+          "token_text": " Lucas",
+          "probability": 0.365234375
+        },
+        {
+          "token_id": 17161,
+          "token_text": " Wallace",
+          "probability": 0.1044921875
+        },
+        {
+          "token_id": 9659,
+          "token_text": " Allen",
+          "probability": 0.07666015625
+        },
+        {
+          "token_id": 28648,
+          "token_text": " Herbert",
+          "probability": 0.055908203125
+        },
+        {
+          "token_id": 7920,
+          "token_text": " Miller",
+          "probability": 0.043701171875
+        }
+      ],
+      [
+        {
+          "token_id": 15257,
+          "token_text": " Lucas",
+          "probability": 0.396484375
+        },
+        {
+          "token_id": 7920,
+          "token_text": " Miller",
+          "probability": 0.1552734375
+        },
+        {
+          "token_id": 28648,
+          "token_text": " Herbert",
+          "probability": 0.10009765625
+        },
+        {
+          "token_id": 5780,
+          "token_text": " Martin",
+          "probability": 0.06884765625
+        },
+        {
+          "token_id": 9659,
+          "token_text": " Allen",
+          "probability": 0.052001953125
+        }
+      ],
+      [
+        {
+          "token_id": 370,
+          "token_text": " W",
+          "probability": 0.22265625
+        },
+        {
+          "token_id": 28648,
+          "token_text": " Herbert",
+          "probability": 0.138671875
+        },
+        {
+          "token_id": 26451,
+          "token_text": " Wagner",
+          "probability": 0.06787109375
+        },
+        {
+          "token_id": 32226,
+          "token_text": " Orwell",
+          "probability": 0.06787109375
+        },
+        {
+          "token_id": 15257,
+          "token_text": " Lucas",
+          "probability": 0.05615234375
+        }
+      ],
+      [
+        {
+          "token_id": 370,
+          "token_text": " W",
+          "probability": 0.09326171875
+        },
+        {
+          "token_id": 26451,
+          "token_text": " Wagner",
+          "probability": 0.07275390625
+        },
+        {
+          "token_id": 16197,
+          "token_text": " Bernard",
+          "probability": 0.07275390625
+        },
+        {
+          "token_id": 15257,
+          "token_text": " Lucas",
+          "probability": 0.07275390625
+        },
+        {
+          "token_id": 371,
+          "token_text": " R",
+          "probability": 0.0439453125
+        }
+      ],
+      [
+        {
+          "token_id": 16197,
+          "token_text": " Bernard",
+          "probability": 0.0167236328125
+        },
+        {
+          "token_id": 347,
+          "token_text": " B",
+          "probability": 0.0167236328125
+        },
+        {
+          "token_id": 5780,
+          "token_text": " Martin",
+          "probability": 0.0167236328125
+        },
+        {
+          "token_id": 370,
+          "token_text": " W",
+          "probability": 0.0101318359375
+        },
+        {
+          "token_id": 327,
+          "token_text": " C",
+          "probability": 0.0101318359375
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 3738,
+          "token_text": " Ant",
+          "probability": 0.84375
+        },
+        {
+          "token_id": 1773,
+          "token_text": "rop",
+          "probability": 0.034912109375
+        },
+        {
+          "token_id": 6570,
+          "token_text": "aph",
+          "probability": 0.004180908203125
+        },
+        {
+          "token_id": 320,
+          "token_text": "im",
+          "probability": 0.0032501220703125
+        },
+        {
+          "token_id": 13713,
+          "token_text": "enna",
+          "probability": 0.00238037109375
+        }
+      ],
+      [
+        {
+          "token_id": 1773,
+          "token_text": "rop",
+          "probability": 0.353515625
+        },
+        {
+          "token_id": 3738,
+          "token_text": " Ant",
+          "probability": 0.083984375
+        },
+        {
+          "token_id": 320,
+          "token_text": "im",
+          "probability": 0.042236328125
+        },
+        {
+          "token_id": 258,
+          "token_text": "he",
+          "probability": 0.02734375
+        },
+        {
+          "token_id": 3319,
+          "token_text": "fort",
+          "probability": 0.022705078125
+        }
+      ],
+      [
+        {
+          "token_id": 1773,
+          "token_text": "rop",
+          "probability": 0.361328125
+        },
+        {
+          "token_id": 75,
+          "token_text": "l",
+          "probability": 0.103515625
+        },
+        {
+          "token_id": 1840,
+          "token_text": "agon",
+          "probability": 0.03466796875
+        },
+        {
+          "token_id": 258,
+          "token_text": "he",
+          "probability": 0.0296630859375
+        },
+        {
+          "token_id": 330,
+          "token_text": "ac",
+          "probability": 0.0230712890625
+        }
+      ],
+      [
+        {
+          "token_id": 1773,
+          "token_text": "rop",
+          "probability": 0.275390625
+        },
+        {
+          "token_id": 75,
+          "token_text": "l",
+          "probability": 0.1279296875
+        },
+        {
+          "token_id": 15448,
+          "token_text": "wer",
+          "probability": 0.06640625
+        },
+        {
+          "token_id": 488,
+          "token_text": "ich",
+          "probability": 0.043701171875
+        },
+        {
+          "token_id": 258,
+          "token_text": "he",
+          "probability": 0.03369140625
+        }
+      ],
+      [
+        {
+          "token_id": 1773,
+          "token_text": "rop",
+          "probability": 0.1923828125
+        },
+        {
+          "token_id": 75,
+          "token_text": "l",
+          "probability": 0.1357421875
+        },
+        {
+          "token_id": 488,
+          "token_text": "ich",
+          "probability": 0.12353515625
+        },
+        {
+          "token_id": 330,
+          "token_text": "ac",
+          "probability": 0.06396484375
+        },
+        {
+          "token_id": 15448,
+          "token_text": "wer",
+          "probability": 0.048828125
+        }
+      ],
+      [
+        {
+          "token_id": 1773,
+          "token_text": "rop",
+          "probability": 0.5078125
+        },
+        {
+          "token_id": 488,
+          "token_text": "ich",
+          "probability": 0.04638671875
+        },
+        {
+          "token_id": 20601,
+          "token_text": "sch",
+          "probability": 0.033203125
+        },
+        {
+          "token_id": 38863,
+          "token_text": "stadt",
+          "probability": 0.02734375
+        },
+        {
+          "token_id": 15448,
+          "token_text": "wer",
+          "probability": 0.0250244140625
+        }
+      ],
+      [
+        {
+          "token_id": 1773,
+          "token_text": "rop",
+          "probability": 0.2236328125
+        },
+        {
+          "token_id": 488,
+          "token_text": "ich",
+          "probability": 0.19921875
+        },
+        {
+          "token_id": 20601,
+          "token_text": "sch",
+          "probability": 0.052490234375
+        },
+        {
+          "token_id": 2879,
+          "token_text": "ino",
+          "probability": 0.04638671875
+        },
+        {
+          "token_id": 38863,
+          "token_text": "stadt",
+          "probability": 0.0341796875
+        }
+      ],
+      [
+        {
+          "token_id": 488,
+          "token_text": "ich",
+          "probability": 0.59765625
+        },
+        {
+          "token_id": 20601,
+          "token_text": "sch",
+          "probability": 0.0556640625
+        },
+        {
+          "token_id": 11109,
+          "token_text": "ello",
+          "probability": 0.052734375
+        },
+        {
+          "token_id": 2879,
+          "token_text": "ino",
+          "probability": 0.044189453125
+        },
+        {
+          "token_id": 1773,
+          "token_text": "rop",
+          "probability": 0.039794921875
+        }
+      ],
+      [
+        {
+          "token_id": 488,
+          "token_text": "ich",
+          "probability": 0.73046875
+        },
+        {
+          "token_id": 2879,
+          "token_text": "ino",
+          "probability": 0.05078125
+        },
+        {
+          "token_id": 42722,
+          "token_text": "oine",
+          "probability": 0.04833984375
+        },
+        {
+          "token_id": 11109,
+          "token_text": "ello",
+          "probability": 0.03076171875
+        },
+        {
+          "token_id": 3885,
+          "token_text": "aud",
+          "probability": 0.017578125
+        }
+      ],
+      [
+        {
+          "token_id": 488,
+          "token_text": "ich",
+          "probability": 0.39453125
+        },
+        {
+          "token_id": 42722,
+          "token_text": "oine",
+          "probability": 0.2470703125
+        },
+        {
+          "token_id": 15448,
+          "token_text": "wer",
+          "probability": 0.03564453125
+        },
+        {
+          "token_id": 3885,
+          "token_text": "aud",
+          "probability": 0.0277099609375
+        },
+        {
+          "token_id": 1773,
+          "token_text": "rop",
+          "probability": 0.0196533203125
+        }
+      ],
+      [
+        {
+          "token_id": 42722,
+          "token_text": "oine",
+          "probability": 0.55859375
+        },
+        {
+          "token_id": 1647,
+          "token_text": "ony",
+          "probability": 0.263671875
+        },
+        {
+          "token_id": 505,
+          "token_text": "one",
+          "probability": 0.0216064453125
+        },
+        {
+          "token_id": 1754,
+          "token_text": "ler",
+          "probability": 0.01483154296875
+        },
+        {
+          "token_id": 36743,
+          "token_text": "oin",
+          "probability": 0.01312255859375
+        }
+      ],
+      [
+        {
+          "token_id": 42722,
+          "token_text": "oine",
+          "probability": 0.171875
+        },
+        {
+          "token_id": 1647,
+          "token_text": "ony",
+          "probability": 0.171875
+        },
+        {
+          "token_id": 505,
+          "token_text": "one",
+          "probability": 0.0634765625
+        },
+        {
+          "token_id": 4015,
+          "token_text": "unes",
+          "probability": 0.01409912109375
+        },
+        {
+          "token_id": 36743,
+          "token_text": "oin",
+          "probability": 0.01409912109375
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 258,
+          "token_text": "he",
+          "probability": 0.197265625
+        },
+        {
+          "token_id": 677,
+          "token_text": "lic",
+          "probability": 0.06005859375
+        },
+        {
+          "token_id": 4980,
+          "token_text": "ading",
+          "probability": 0.041259765625
+        },
+        {
+          "token_id": 1197,
+          "token_text": "thing",
+          "probability": 0.0322265625
+        },
+        {
+          "token_id": 283,
+          "token_text": "ar",
+          "probability": 0.0322265625
+        }
+      ],
+      [
+        {
+          "token_id": 258,
+          "token_text": "he",
+          "probability": 0.11328125
+        },
+        {
+          "token_id": 1032,
+          "token_text": "ather",
+          "probability": 0.10986328125
+        },
+        {
+          "token_id": 694,
+          "token_text": "ck",
+          "probability": 0.08544921875
+        },
+        {
+          "token_id": 4980,
+          "token_text": "ading",
+          "probability": 0.036865234375
+        },
+        {
+          "token_id": 677,
+          "token_text": "lic",
+          "probability": 0.032470703125
+        }
+      ],
+      [
+        {
+          "token_id": 694,
+          "token_text": "ck",
+          "probability": 0.234375
+        },
+        {
+          "token_id": 42908,
+          "token_text": "rette",
+          "probability": 0.146484375
+        },
+        {
+          "token_id": 15280,
+          "token_text": "cker",
+          "probability": 0.058349609375
+        },
+        {
+          "token_id": 6051,
+          "token_text": "ller",
+          "probability": 0.049072265625
+        },
+        {
+          "token_id": 505,
+          "token_text": "one",
+          "probability": 0.04833984375
+        }
+      ],
+      [
+        {
+          "token_id": 524,
+          "token_text": "ime",
+          "probability": 0.08056640625
+        },
+        {
+          "token_id": 6051,
+          "token_text": "ller",
+          "probability": 0.0791015625
+        },
+        {
+          "token_id": 1186,
+          "token_text": "ret",
+          "probability": 0.0751953125
+        },
+        {
+          "token_id": 20609,
+          "token_text": "isure",
+          "probability": 0.064453125
+        },
+        {
+          "token_id": 694,
+          "token_text": "ck",
+          "probability": 0.03515625
+        }
+      ],
+      [
+        {
+          "token_id": 6051,
+          "token_text": "ller",
+          "probability": 0.2021484375
+        },
+        {
+          "token_id": 729,
+          "token_text": "ater",
+          "probability": 0.171875
+        },
+        {
+          "token_id": 32681,
+          "token_text": "illard",
+          "probability": 0.1611328125
+        },
+        {
+          "token_id": 10562,
+          "token_text": "atre",
+          "probability": 0.1279296875
+        },
+        {
+          "token_id": 1186,
+          "token_text": "ret",
+          "probability": 0.0277099609375
+        }
+      ],
+      [
+        {
+          "token_id": 21070,
+          "token_text": "kar",
+          "probability": 0.1318359375
+        },
+        {
+          "token_id": 8466,
+          "token_text": "lla",
+          "probability": 0.1318359375
+        },
+        {
+          "token_id": 729,
+          "token_text": "ater",
+          "probability": 0.1044921875
+        },
+        {
+          "token_id": 1150,
+          "token_text": "med",
+          "probability": 0.07080078125
+        },
+        {
+          "token_id": 10562,
+          "token_text": "atre",
+          "probability": 0.0634765625
+        }
+      ],
+      [
+        {
+          "token_id": 729,
+          "token_text": "ater",
+          "probability": 0.0947265625
+        },
+        {
+          "token_id": 8466,
+          "token_text": "lla",
+          "probability": 0.0947265625
+        },
+        {
+          "token_id": 32681,
+          "token_text": "illard",
+          "probability": 0.08642578125
+        },
+        {
+          "token_id": 1186,
+          "token_text": "ret",
+          "probability": 0.0693359375
+        },
+        {
+          "token_id": 10562,
+          "token_text": "atre",
+          "probability": 0.06103515625
+        }
+      ],
+      [
+        {
+          "token_id": 729,
+          "token_text": "ater",
+          "probability": 0.2158203125
+        },
+        {
+          "token_id": 21070,
+          "token_text": "kar",
+          "probability": 0.16015625
+        },
+        {
+          "token_id": 32681,
+          "token_text": "illard",
+          "probability": 0.09130859375
+        },
+        {
+          "token_id": 6051,
+          "token_text": "ller",
+          "probability": 0.0859375
+        },
+        {
+          "token_id": 10562,
+          "token_text": "atre",
+          "probability": 0.06787109375
+        }
+      ],
+      [
+        {
+          "token_id": 729,
+          "token_text": "ater",
+          "probability": 0.236328125
+        },
+        {
+          "token_id": 2611,
+          "token_text": "ma",
+          "probability": 0.1953125
+        },
+        {
+          "token_id": 346,
+          "token_text": "il",
+          "probability": 0.189453125
+        },
+        {
+          "token_id": 8466,
+          "token_text": "lla",
+          "probability": 0.0625
+        },
+        {
+          "token_id": 6051,
+          "token_text": "ller",
+          "probability": 0.053466796875
+        }
+      ],
+      [
+        {
+          "token_id": 2611,
+          "token_text": "ma",
+          "probability": 0.3359375
+        },
+        {
+          "token_id": 907,
+          "token_text": "ms",
+          "probability": 0.126953125
+        },
+        {
+          "token_id": 17027,
+          "token_text": "zi",
+          "probability": 0.12353515625
+        },
+        {
+          "token_id": 8466,
+          "token_text": "lla",
+          "probability": 0.06005859375
+        },
+        {
+          "token_id": 346,
+          "token_text": "il",
+          "probability": 0.06005859375
+        }
+      ],
+      [
+        {
+          "token_id": 907,
+          "token_text": "ms",
+          "probability": 0.1337890625
+        },
+        {
+          "token_id": 346,
+          "token_text": "il",
+          "probability": 0.10400390625
+        },
+        {
+          "token_id": 385,
+          "token_text": "us",
+          "probability": 0.0810546875
+        },
+        {
+          "token_id": 13254,
+          "token_text": "isen",
+          "probability": 0.038330078125
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.02978515625
+        }
+      ],
+      [
+        {
+          "token_id": 346,
+          "token_text": "il",
+          "probability": 0.1396484375
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.0849609375
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.0849609375
+        },
+        {
+          "token_id": 907,
+          "token_text": "ms",
+          "probability": 0.0849609375
+        },
+        {
+          "token_id": 385,
+          "token_text": "us",
+          "probability": 0.0849609375
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 346,
+          "token_text": "il",
+          "probability": 0.78125
+        },
+        {
+          "token_id": 1513,
+          "token_text": "ted",
+          "probability": 0.038818359375
+        },
+        {
+          "token_id": 320,
+          "token_text": "im",
+          "probability": 0.0311279296875
+        },
+        {
+          "token_id": 889,
+          "token_text": "ting",
+          "probability": 0.0172119140625
+        },
+        {
+          "token_id": 65,
+          "token_text": "b",
+          "probability": 0.0142822265625
+        }
+      ],
+      [
+        {
+          "token_id": 346,
+          "token_text": "il",
+          "probability": 0.46875
+        },
+        {
+          "token_id": 1513,
+          "token_text": "ted",
+          "probability": 0.1337890625
+        },
+        {
+          "token_id": 259,
+          "token_text": "in",
+          "probability": 0.042724609375
+        },
+        {
+          "token_id": 889,
+          "token_text": "ting",
+          "probability": 0.04150390625
+        },
+        {
+          "token_id": 320,
+          "token_text": "im",
+          "probability": 0.03466796875
+        }
+      ],
+      [
+        {
+          "token_id": 2676,
+          "token_text": "iter",
+          "probability": 0.1884765625
+        },
+        {
+          "token_id": 346,
+          "token_text": "il",
+          "probability": 0.1611328125
+        },
+        {
+          "token_id": 12604,
+          "token_text": "aments",
+          "probability": 0.1513671875
+        },
+        {
+          "token_id": 1513,
+          "token_text": "ted",
+          "probability": 0.087890625
+        },
+        {
+          "token_id": 578,
+          "token_text": "ite",
+          "probability": 0.04345703125
+        }
+      ],
+      [
+        {
+          "token_id": 2676,
+          "token_text": "iter",
+          "probability": 0.4453125
+        },
+        {
+          "token_id": 1513,
+          "token_text": "ted",
+          "probability": 0.09326171875
+        },
+        {
+          "token_id": 578,
+          "token_text": "ite",
+          "probability": 0.068359375
+        },
+        {
+          "token_id": 12604,
+          "token_text": "aments",
+          "probability": 0.060302734375
+        },
+        {
+          "token_id": 346,
+          "token_text": "il",
+          "probability": 0.0390625
+        }
+      ],
+      [
+        {
+          "token_id": 2676,
+          "token_text": "iter",
+          "probability": 0.71875
+        },
+        {
+          "token_id": 12604,
+          "token_text": "aments",
+          "probability": 0.04736328125
+        },
+        {
+          "token_id": 7230,
+          "token_text": "umin",
+          "probability": 0.025390625
+        },
+        {
+          "token_id": 3263,
+          "token_text": "ament",
+          "probability": 0.02099609375
+        },
+        {
+          "token_id": 24086,
+          "token_text": "iman",
+          "probability": 0.01361083984375
+        }
+      ],
+      [
+        {
+          "token_id": 2676,
+          "token_text": "iter",
+          "probability": 0.7578125
+        },
+        {
+          "token_id": 24086,
+          "token_text": "iman",
+          "probability": 0.0294189453125
+        },
+        {
+          "token_id": 1150,
+          "token_text": "med",
+          "probability": 0.0260009765625
+        },
+        {
+          "token_id": 7944,
+          "token_text": "enth",
+          "probability": 0.01226806640625
+        },
+        {
+          "token_id": 8827,
+          "token_text": "utive",
+          "probability": 0.01080322265625
+        }
+      ],
+      [
+        {
+          "token_id": 24086,
+          "token_text": "iman",
+          "probability": 0.33203125
+        },
+        {
+          "token_id": 2676,
+          "token_text": "iter",
+          "probability": 0.259765625
+        },
+        {
+          "token_id": 959,
+          "token_text": "ier",
+          "probability": 0.09521484375
+        },
+        {
+          "token_id": 2150,
+          "token_text": "ung",
+          "probability": 0.051025390625
+        },
+        {
+          "token_id": 1150,
+          "token_text": "med",
+          "probability": 0.031005859375
+        }
+      ],
+      [
+        {
+          "token_id": 2676,
+          "token_text": "iter",
+          "probability": 0.79296875
+        },
+        {
+          "token_id": 959,
+          "token_text": "ier",
+          "probability": 0.027099609375
+        },
+        {
+          "token_id": 2150,
+          "token_text": "ung",
+          "probability": 0.0164794921875
+        },
+        {
+          "token_id": 952,
+          "token_text": "io",
+          "probability": 0.0145263671875
+        },
+        {
+          "token_id": 1559,
+          "token_text": "son",
+          "probability": 0.01129150390625
+        }
+      ],
+      [
+        {
+          "token_id": 1559,
+          "token_text": "son",
+          "probability": 0.1689453125
+        },
+        {
+          "token_id": 2676,
+          "token_text": "iter",
+          "probability": 0.1318359375
+        },
+        {
+          "token_id": 952,
+          "token_text": "io",
+          "probability": 0.1025390625
+        },
+        {
+          "token_id": 2150,
+          "token_text": "ung",
+          "probability": 0.054931640625
+        },
+        {
+          "token_id": 259,
+          "token_text": "in",
+          "probability": 0.03759765625
+        }
+      ],
+      [
+        {
+          "token_id": 709,
+          "token_text": "ov",
+          "probability": 0.09326171875
+        },
+        {
+          "token_id": 1559,
+          "token_text": "son",
+          "probability": 0.08251953125
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.08251953125
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.034423828125
+        },
+        {
+          "token_id": 328,
+          "token_text": "ig",
+          "probability": 0.034423828125
+        }
+      ],
+      [
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.197265625
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.1533203125
+        },
+        {
+          "token_id": 709,
+          "token_text": "ov",
+          "probability": 0.09326171875
+        },
+        {
+          "token_id": 1559,
+          "token_text": "son",
+          "probability": 0.056396484375
+        },
+        {
+          "token_id": 259,
+          "token_text": "in",
+          "probability": 0.0267333984375
+        }
+      ],
+      [
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.30078125
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.234375
+        },
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.0247802734375
+        },
+        {
+          "token_id": 357,
+          "token_text": " (",
+          "probability": 0.0150146484375
+        },
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.0150146484375
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 543,
+          "token_text": " which",
+          "probability": 0.1513671875
+        },
+        {
+          "token_id": 3584,
+          "token_text": " although",
+          "probability": 0.07861328125
+        },
+        {
+          "token_id": 3503,
+          "token_text": " etc",
+          "probability": 0.061767578125
+        },
+        {
+          "token_id": 981,
+          "token_text": " while",
+          "probability": 0.05029296875
+        },
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.04248046875
+        }
+      ],
+      [
+        {
+          "token_id": 543,
+          "token_text": " which",
+          "probability": 0.318359375
+        },
+        {
+          "token_id": 3584,
+          "token_text": " although",
+          "probability": 0.166015625
+        },
+        {
+          "token_id": 3503,
+          "token_text": " etc",
+          "probability": 0.08056640625
+        },
+        {
+          "token_id": 981,
+          "token_text": " while",
+          "probability": 0.06640625
+        },
+        {
+          "token_id": 1390,
+          "token_text": " including",
+          "probability": 0.043701171875
+        }
+      ],
+      [
+        {
+          "token_id": 543,
+          "token_text": " which",
+          "probability": 0.54296875
+        },
+        {
+          "token_id": 3584,
+          "token_text": " although",
+          "probability": 0.20703125
+        },
+        {
+          "token_id": 981,
+          "token_text": " while",
+          "probability": 0.0439453125
+        },
+        {
+          "token_id": 22430,
+          "token_text": " aka",
+          "probability": 0.0201416015625
+        },
+        {
+          "token_id": 475,
+          "token_text": " but",
+          "probability": 0.018310546875
+        }
+      ],
+      [
+        {
+          "token_id": 3584,
+          "token_text": " although",
+          "probability": 0.353515625
+        },
+        {
+          "token_id": 543,
+          "token_text": " which",
+          "probability": 0.337890625
+        },
+        {
+          "token_id": 981,
+          "token_text": " while",
+          "probability": 0.060546875
+        },
+        {
+          "token_id": 22430,
+          "token_text": " aka",
+          "probability": 0.05517578125
+        },
+        {
+          "token_id": 7504,
+          "token_text": " Jr",
+          "probability": 0.02685546875
+        }
+      ],
+      [
+        {
+          "token_id": 3584,
+          "token_text": " although",
+          "probability": 0.27734375
+        },
+        {
+          "token_id": 543,
+          "token_text": " which",
+          "probability": 0.216796875
+        },
+        {
+          "token_id": 22430,
+          "token_text": " aka",
+          "probability": 0.10888671875
+        },
+        {
+          "token_id": 7504,
+          "token_text": " Jr",
+          "probability": 0.10205078125
+        },
+        {
+          "token_id": 3025,
+          "token_text": " whose",
+          "probability": 0.09619140625
+        }
+      ],
+      [
+        {
+          "token_id": 3025,
+          "token_text": " whose",
+          "probability": 0.482421875
+        },
+        {
+          "token_id": 543,
+          "token_text": " which",
+          "probability": 0.228515625
+        },
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.189453125
+        },
+        {
+          "token_id": 7504,
+          "token_text": " Jr",
+          "probability": 0.042236328125
+        },
+        {
+          "token_id": 3584,
+          "token_text": " although",
+          "probability": 0.013671875
+        }
+      ],
+      [
+        {
+          "token_id": 3025,
+          "token_text": " whose",
+          "probability": 0.65625
+        },
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.291015625
+        },
+        {
+          "token_id": 543,
+          "token_text": " which",
+          "probability": 0.0223388671875
+        },
+        {
+          "token_id": 7504,
+          "token_text": " Jr",
+          "probability": 0.01055908203125
+        },
+        {
+          "token_id": 4150,
+          "token_text": " whom",
+          "probability": 0.01055908203125
+        }
+      ],
+      [
+        {
+          "token_id": 3025,
+          "token_text": " whose",
+          "probability": 0.81640625
+        },
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.1708984375
+        },
+        {
+          "token_id": 4150,
+          "token_text": " whom",
+          "probability": 0.00848388671875
+        },
+        {
+          "token_id": 543,
+          "token_text": " which",
+          "probability": 0.0021514892578125
+        },
+        {
+          "token_id": 22430,
+          "token_text": " aka",
+          "probability": 0.0014801025390625
+        }
+      ],
+      [
+        {
+          "token_id": 3025,
+          "token_text": " whose",
+          "probability": 0.89453125
+        },
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.08349609375
+        },
+        {
+          "token_id": 4150,
+          "token_text": " whom",
+          "probability": 0.01446533203125
+        },
+        {
+          "token_id": 543,
+          "token_text": " which",
+          "probability": 0.0028533935546875
+        },
+        {
+          "token_id": 22430,
+          "token_text": " aka",
+          "probability": 0.001953125
+        }
+      ],
+      [
+        {
+          "token_id": 3025,
+          "token_text": " whose",
+          "probability": 0.5546875
+        },
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.43359375
+        },
+        {
+          "token_id": 4150,
+          "token_text": " whom",
+          "probability": 0.00897216796875
+        },
+        {
+          "token_id": 7504,
+          "token_text": " Jr",
+          "probability": 0.000576019287109375
+        },
+        {
+          "token_id": 22430,
+          "token_text": " aka",
+          "probability": 0.0004482269287109375
+        }
+      ],
+      [
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.7109375
+        },
+        {
+          "token_id": 3025,
+          "token_text": " whose",
+          "probability": 0.26171875
+        },
+        {
+          "token_id": 4150,
+          "token_text": " whom",
+          "probability": 0.021484375
+        },
+        {
+          "token_id": 4642,
+          "token_text": " born",
+          "probability": 0.00064849853515625
+        },
+        {
+          "token_id": 1900,
+          "token_text": " known",
+          "probability": 0.00064849853515625
+        }
+      ],
+      [
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.490234375
+        },
+        {
+          "token_id": 3025,
+          "token_text": " whose",
+          "probability": 0.109375
+        },
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.06640625
+        },
+        {
+          "token_id": 257,
+          "token_text": " a",
+          "probability": 0.040283203125
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.0244140625
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 649,
+          "token_text": " new",
+          "probability": 0.039306640625
+        },
+        {
+          "token_id": 845,
+          "token_text": " very",
+          "probability": 0.02197265625
+        },
+        {
+          "token_id": 4858,
+          "token_text": " massive",
+          "probability": 0.019775390625
+        },
+        {
+          "token_id": 1049,
+          "token_text": " great",
+          "probability": 0.0172119140625
+        },
+        {
+          "token_id": 2383,
+          "token_text": " significant",
+          "probability": 0.0164794921875
+        }
+      ],
+      [
+        {
+          "token_id": 1049,
+          "token_text": " great",
+          "probability": 0.0615234375
+        },
+        {
+          "token_id": 2383,
+          "token_text": " significant",
+          "probability": 0.03857421875
+        },
+        {
+          "token_id": 4858,
+          "token_text": " massive",
+          "probability": 0.033935546875
+        },
+        {
+          "token_id": 3236,
+          "token_text": " huge",
+          "probability": 0.031982421875
+        },
+        {
+          "token_id": 649,
+          "token_text": " new",
+          "probability": 0.030517578125
+        }
+      ],
+      [
+        {
+          "token_id": 1049,
+          "token_text": " great",
+          "probability": 0.06787109375
+        },
+        {
+          "token_id": 9208,
+          "token_text": " prominent",
+          "probability": 0.057861328125
+        },
+        {
+          "token_id": 3665,
+          "token_text": " powerful",
+          "probability": 0.057861328125
+        },
+        {
+          "token_id": 649,
+          "token_text": " new",
+          "probability": 0.03857421875
+        },
+        {
+          "token_id": 3236,
+          "token_text": " huge",
+          "probability": 0.0264892578125
+        }
+      ],
+      [
+        {
+          "token_id": 9208,
+          "token_text": " prominent",
+          "probability": 0.1259765625
+        },
+        {
+          "token_id": 2968,
+          "token_text": " popular",
+          "probability": 0.059326171875
+        },
+        {
+          "token_id": 3665,
+          "token_text": " powerful",
+          "probability": 0.0556640625
+        },
+        {
+          "token_id": 4941,
+          "token_text": " reference",
+          "probability": 0.04345703125
+        },
+        {
+          "token_id": 1966,
+          "token_text": " former",
+          "probability": 0.024658203125
+        }
+      ],
+      [
+        {
+          "token_id": 9208,
+          "token_text": " prominent",
+          "probability": 0.2119140625
+        },
+        {
+          "token_id": 12411,
+          "token_text": " notable",
+          "probability": 0.060546875
+        },
+        {
+          "token_id": 3665,
+          "token_text": " powerful",
+          "probability": 0.060546875
+        },
+        {
+          "token_id": 2041,
+          "token_text": " special",
+          "probability": 0.04443359375
+        },
+        {
+          "token_id": 6768,
+          "token_text": " widely",
+          "probability": 0.03466796875
+        }
+      ],
+      [
+        {
+          "token_id": 1966,
+          "token_text": " former",
+          "probability": 0.1328125
+        },
+        {
+          "token_id": 9208,
+          "token_text": " prominent",
+          "probability": 0.08056640625
+        },
+        {
+          "token_id": 3665,
+          "token_text": " powerful",
+          "probability": 0.08056640625
+        },
+        {
+          "token_id": 18876,
+          "token_text": " distinguished",
+          "probability": 0.06298828125
+        },
+        {
+          "token_id": 15076,
+          "token_text": " longtime",
+          "probability": 0.043212890625
+        }
+      ],
+      [
+        {
+          "token_id": 1966,
+          "token_text": " former",
+          "probability": 0.58984375
+        },
+        {
+          "token_id": 15076,
+          "token_text": " longtime",
+          "probability": 0.09033203125
+        },
+        {
+          "token_id": 32450,
+          "token_text": " avid",
+          "probability": 0.0228271484375
+        },
+        {
+          "token_id": 3665,
+          "token_text": " powerful",
+          "probability": 0.0201416015625
+        },
+        {
+          "token_id": 5863,
+          "token_text": " famous",
+          "probability": 0.017822265625
+        }
+      ],
+      [
+        {
+          "token_id": 1966,
+          "token_text": " former",
+          "probability": 0.51953125
+        },
+        {
+          "token_id": 15076,
+          "token_text": " longtime",
+          "probability": 0.1904296875
+        },
+        {
+          "token_id": 32450,
+          "token_text": " avid",
+          "probability": 0.1484375
+        },
+        {
+          "token_id": 22140,
+          "token_text": " renowned",
+          "probability": 0.0291748046875
+        },
+        {
+          "token_id": 28331,
+          "token_text": " famed",
+          "probability": 0.0177001953125
+        }
+      ],
+      [
+        {
+          "token_id": 43033,
+          "token_text": " ardent",
+          "probability": 0.453125
+        },
+        {
+          "token_id": 32450,
+          "token_text": " avid",
+          "probability": 0.400390625
+        },
+        {
+          "token_id": 1966,
+          "token_text": " former",
+          "probability": 0.032958984375
+        },
+        {
+          "token_id": 15076,
+          "token_text": " longtime",
+          "probability": 0.025634765625
+        },
+        {
+          "token_id": 27687,
+          "token_text": " outspoken",
+          "probability": 0.0093994140625
+        }
+      ],
+      [
+        {
+          "token_id": 43033,
+          "token_text": " ardent",
+          "probability": 0.482421875
+        },
+        {
+          "token_id": 32450,
+          "token_text": " avid",
+          "probability": 0.33203125
+        },
+        {
+          "token_id": 13013,
+          "token_text": " accomplished",
+          "probability": 0.0308837890625
+        },
+        {
+          "token_id": 27687,
+          "token_text": " outspoken",
+          "probability": 0.021240234375
+        },
+        {
+          "token_id": 21099,
+          "token_text": " admire",
+          "probability": 0.01458740234375
+        }
+      ],
+      [
+        {
+          "token_id": 32450,
+          "token_text": " avid",
+          "probability": 0.2197265625
+        },
+        {
+          "token_id": 43033,
+          "token_text": " ardent",
+          "probability": 0.2197265625
+        },
+        {
+          "token_id": 13013,
+          "token_text": " accomplished",
+          "probability": 0.103515625
+        },
+        {
+          "token_id": 25691,
+          "token_text": " Austrian",
+          "probability": 0.0380859375
+        },
+        {
+          "token_id": 21099,
+          "token_text": " admire",
+          "probability": 0.0380859375
+        }
+      ],
+      [
+        {
+          "token_id": 1605,
+          "token_text": " American",
+          "probability": 0.09619140625
+        },
+        {
+          "token_id": 11949,
+          "token_text": " engineer",
+          "probability": 0.035400390625
+        },
+        {
+          "token_id": 8200,
+          "token_text": " Italian",
+          "probability": 0.035400390625
+        },
+        {
+          "token_id": 13013,
+          "token_text": " accomplished",
+          "probability": 0.035400390625
+        },
+        {
+          "token_id": 1903,
+          "token_text": " early",
+          "probability": 0.035400390625
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 1196,
+          "token_text": " av",
+          "probability": 0.88671875
+        },
+        {
+          "token_id": 49845,
+          "token_text": "alist",
+          "probability": 0.0235595703125
+        },
+        {
+          "token_id": 282,
+          "token_text": "al",
+          "probability": 0.0162353515625
+        },
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.006744384765625
+        },
+        {
+          "token_id": 330,
+          "token_text": "ac",
+          "probability": 0.006744384765625
+        }
+      ],
+      [
+        {
+          "token_id": 769,
+          "token_text": "iew",
+          "probability": 0.201171875
+        },
+        {
+          "token_id": 282,
+          "token_text": "al",
+          "probability": 0.08935546875
+        },
+        {
+          "token_id": 49845,
+          "token_text": "alist",
+          "probability": 0.07861328125
+        },
+        {
+          "token_id": 1196,
+          "token_text": " av",
+          "probability": 0.0654296875
+        },
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.061279296875
+        }
+      ],
+      [
+        {
+          "token_id": 769,
+          "token_text": "iew",
+          "probability": 0.3515625
+        },
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.15625
+        },
+        {
+          "token_id": 330,
+          "token_text": "ac",
+          "probability": 0.08349609375
+        },
+        {
+          "token_id": 452,
+          "token_text": "iv",
+          "probability": 0.07373046875
+        },
+        {
+          "token_id": 282,
+          "token_text": "al",
+          "probability": 0.0419921875
+        }
+      ],
+      [
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.427734375
+        },
+        {
+          "token_id": 769,
+          "token_text": "iew",
+          "probability": 0.16796875
+        },
+        {
+          "token_id": 452,
+          "token_text": "iv",
+          "probability": 0.06591796875
+        },
+        {
+          "token_id": 330,
+          "token_text": "ac",
+          "probability": 0.054443359375
+        },
+        {
+          "token_id": 282,
+          "token_text": "al",
+          "probability": 0.054443359375
+        }
+      ],
+      [
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.6015625
+        },
+        {
+          "token_id": 330,
+          "token_text": "ac",
+          "probability": 0.1337890625
+        },
+        {
+          "token_id": 452,
+          "token_text": "iv",
+          "probability": 0.04345703125
+        },
+        {
+          "token_id": 38585,
+          "token_text": "iator",
+          "probability": 0.028076171875
+        },
+        {
+          "token_id": 328,
+          "token_text": "ig",
+          "probability": 0.0263671875
+        }
+      ],
+      [
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.56640625
+        },
+        {
+          "token_id": 330,
+          "token_text": "ac",
+          "probability": 0.0869140625
+        },
+        {
+          "token_id": 38585,
+          "token_text": "iator",
+          "probability": 0.08203125
+        },
+        {
+          "token_id": 452,
+          "token_text": "iv",
+          "probability": 0.0301513671875
+        },
+        {
+          "token_id": 420,
+          "token_text": "oc",
+          "probability": 0.02490234375
+        }
+      ],
+      [
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.41015625
+        },
+        {
+          "token_id": 330,
+          "token_text": "ac",
+          "probability": 0.2490234375
+        },
+        {
+          "token_id": 420,
+          "token_text": "oc",
+          "probability": 0.1328125
+        },
+        {
+          "token_id": 452,
+          "token_text": "iv",
+          "probability": 0.0169677734375
+        },
+        {
+          "token_id": 282,
+          "token_text": "al",
+          "probability": 0.015869140625
+        }
+      ],
+      [
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.77734375
+        },
+        {
+          "token_id": 330,
+          "token_text": "ac",
+          "probability": 0.072265625
+        },
+        {
+          "token_id": 420,
+          "token_text": "oc",
+          "probability": 0.0301513671875
+        },
+        {
+          "token_id": 1651,
+          "token_text": "ideo",
+          "probability": 0.0301513671875
+        },
+        {
+          "token_id": 38585,
+          "token_text": "iator",
+          "probability": 0.0172119140625
+        }
+      ],
+      [
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.609375
+        },
+        {
+          "token_id": 38585,
+          "token_text": "iator",
+          "probability": 0.099609375
+        },
+        {
+          "token_id": 22379,
+          "token_text": "ril",
+          "probability": 0.046875
+        },
+        {
+          "token_id": 1651,
+          "token_text": "ideo",
+          "probability": 0.0322265625
+        },
+        {
+          "token_id": 330,
+          "token_text": "ac",
+          "probability": 0.0267333984375
+        }
+      ],
+      [
+        {
+          "token_id": 38585,
+          "token_text": "iator",
+          "probability": 0.9765625
+        },
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.010498046875
+        },
+        {
+          "token_id": 6972,
+          "token_text": "owed",
+          "probability": 0.006195068359375
+        },
+        {
+          "token_id": 12523,
+          "token_text": "ista",
+          "probability": 0.002044677734375
+        },
+        {
+          "token_id": 22379,
+          "token_text": "ril",
+          "probability": 0.0015716552734375
+        }
+      ],
+      [
+        {
+          "token_id": 38585,
+          "token_text": "iator",
+          "probability": 0.9609375
+        },
+        {
+          "token_id": 6972,
+          "token_text": "owed",
+          "probability": 0.02001953125
+        },
+        {
+          "token_id": 415,
+          "token_text": "ant",
+          "probability": 0.007354736328125
+        },
+        {
+          "token_id": 666,
+          "token_text": "ian",
+          "probability": 0.00238037109375
+        },
+        {
+          "token_id": 72,
+          "token_text": "i",
+          "probability": 0.000682830810546875
+        }
+      ],
+      [
+        {
+          "token_id": 415,
+          "token_text": "ant",
+          "probability": 0.671875
+        },
+        {
+          "token_id": 38585,
+          "token_text": "iator",
+          "probability": 0.1494140625
+        },
+        {
+          "token_id": 6972,
+          "token_text": "owed",
+          "probability": 0.11669921875
+        },
+        {
+          "token_id": 403,
+          "token_text": "un",
+          "probability": 0.020263671875
+        },
+        {
+          "token_id": 12427,
+          "token_text": "ante",
+          "probability": 0.0074462890625
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 415,
+          "token_text": "ant",
+          "probability": 0.83984375
+        },
+        {
+          "token_id": 3055,
+          "token_text": "ech",
+          "probability": 0.0184326171875
+        },
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.00848388671875
+        },
+        {
+          "token_id": 505,
+          "token_text": "one",
+          "probability": 0.00732421875
+        },
+        {
+          "token_id": 75,
+          "token_text": "l",
+          "probability": 0.006988525390625
+        }
+      ],
+      [
+        {
+          "token_id": 415,
+          "token_text": "ant",
+          "probability": 0.50390625
+        },
+        {
+          "token_id": 505,
+          "token_text": "one",
+          "probability": 0.08984375
+        },
+        {
+          "token_id": 3055,
+          "token_text": "ech",
+          "probability": 0.03759765625
+        },
+        {
+          "token_id": 498,
+          "token_text": "ial",
+          "probability": 0.0296630859375
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.024658203125
+        }
+      ],
+      [
+        {
+          "token_id": 505,
+          "token_text": "one",
+          "probability": 0.33203125
+        },
+        {
+          "token_id": 415,
+          "token_text": "ant",
+          "probability": 0.29296875
+        },
+        {
+          "token_id": 88,
+          "token_text": "y",
+          "probability": 0.05908203125
+        },
+        {
+          "token_id": 9386,
+          "token_text": "iate",
+          "probability": 0.03466796875
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.0301513671875
+        }
+      ],
+      [
+        {
+          "token_id": 415,
+          "token_text": "ant",
+          "probability": 0.3046875
+        },
+        {
+          "token_id": 305,
+          "token_text": "ro",
+          "probability": 0.12890625
+        },
+        {
+          "token_id": 1453,
+          "token_text": "ee",
+          "probability": 0.09912109375
+        },
+        {
+          "token_id": 9386,
+          "token_text": "iate",
+          "probability": 0.07470703125
+        },
+        {
+          "token_id": 5362,
+          "token_text": "ini",
+          "probability": 0.0498046875
+        }
+      ],
+      [
+        {
+          "token_id": 9386,
+          "token_text": "iate",
+          "probability": 0.337890625
+        },
+        {
+          "token_id": 415,
+          "token_text": "ant",
+          "probability": 0.263671875
+        },
+        {
+          "token_id": 1453,
+          "token_text": "ee",
+          "probability": 0.138671875
+        },
+        {
+          "token_id": 305,
+          "token_text": "ro",
+          "probability": 0.060546875
+        },
+        {
+          "token_id": 295,
+          "token_text": "ion",
+          "probability": 0.0390625
+        }
+      ],
+      [
+        {
+          "token_id": 415,
+          "token_text": "ant",
+          "probability": 0.2001953125
+        },
+        {
+          "token_id": 1453,
+          "token_text": "ee",
+          "probability": 0.11669921875
+        },
+        {
+          "token_id": 3609,
+          "token_text": "ae",
+          "probability": 0.09716796875
+        },
+        {
+          "token_id": 295,
+          "token_text": "ion",
+          "probability": 0.08837890625
+        },
+        {
+          "token_id": 9386,
+          "token_text": "iate",
+          "probability": 0.06689453125
+        }
+      ],
+      [
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.3515625
+        },
+        {
+          "token_id": 16985,
+          "token_text": " gard",
+          "probability": 0.166015625
+        },
+        {
+          "token_id": 3609,
+          "token_text": "ae",
+          "probability": 0.1494140625
+        },
+        {
+          "token_id": 295,
+          "token_text": "ion",
+          "probability": 0.06298828125
+        },
+        {
+          "token_id": 1453,
+          "token_text": "ee",
+          "probability": 0.03515625
+        }
+      ],
+      [
+        {
+          "token_id": 16985,
+          "token_text": " gard",
+          "probability": 0.515625
+        },
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.421875
+        },
+        {
+          "token_id": 1453,
+          "token_text": "ee",
+          "probability": 0.0245361328125
+        },
+        {
+          "token_id": 3609,
+          "token_text": "ae",
+          "probability": 0.0135498046875
+        },
+        {
+          "token_id": 295,
+          "token_text": "ion",
+          "probability": 0.005828857421875
+        }
+      ],
+      [
+        {
+          "token_id": 16985,
+          "token_text": " gard",
+          "probability": 0.984375
+        },
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.01361083984375
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 5.555152893066406e-05
+        },
+        {
+          "token_id": 1453,
+          "token_text": "ee",
+          "probability": 4.3392181396484375e-05
+        },
+        {
+          "token_id": 2634,
+          "token_text": "\u00e9",
+          "probability": 2.8014183044433594e-05
+        }
+      ],
+      [
+        {
+          "token_id": 16985,
+          "token_text": " gard",
+          "probability": 0.99609375
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.0025634765625
+        },
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.0008087158203125
+        },
+        {
+          "token_id": 8591,
+          "token_text": " la",
+          "probability": 0.00013637542724609375
+        },
+        {
+          "token_id": 2634,
+          "token_text": "\u00e9",
+          "probability": 1.1920928955078125e-05
+        }
+      ],
+      [
+        {
+          "token_id": 16985,
+          "token_text": " gard",
+          "probability": 0.98046875
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.015869140625
+        },
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.00189208984375
+        },
+        {
+          "token_id": 8591,
+          "token_text": " la",
+          "probability": 0.00101470947265625
+        },
+        {
+          "token_id": 443,
+          "token_text": " le",
+          "probability": 5.054473876953125e-05
+        }
+      ],
+      [
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.578125
+        },
+        {
+          "token_id": 16985,
+          "token_text": " gard",
+          "probability": 0.3984375
+        },
+        {
+          "token_id": 8591,
+          "token_text": " la",
+          "probability": 0.006439208984375
+        },
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.004425048828125
+        },
+        {
+          "token_id": 443,
+          "token_text": " le",
+          "probability": 0.0008697509765625
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 5715,
+          "token_text": "level",
+          "probability": 0.2578125
+        },
+        {
+          "token_id": 3106,
+          "token_text": "based",
+          "probability": 0.12158203125
+        },
+        {
+          "token_id": 1462,
+          "token_text": "to",
+          "probability": 0.0654296875
+        },
+        {
+          "token_id": 7635,
+          "token_text": "style",
+          "probability": 0.047607421875
+        },
+        {
+          "token_id": 79,
+          "token_text": "p",
+          "probability": 0.03076171875
+        }
+      ],
+      [
+        {
+          "token_id": 3106,
+          "token_text": "based",
+          "probability": 0.19921875
+        },
+        {
+          "token_id": 5715,
+          "token_text": "level",
+          "probability": 0.1865234375
+        },
+        {
+          "token_id": 1462,
+          "token_text": "to",
+          "probability": 0.1064453125
+        },
+        {
+          "token_id": 7635,
+          "token_text": "style",
+          "probability": 0.0830078125
+        },
+        {
+          "token_id": 4906,
+          "token_text": "type",
+          "probability": 0.041748046875
+        }
+      ],
+      [
+        {
+          "token_id": 1462,
+          "token_text": "to",
+          "probability": 0.3671875
+        },
+        {
+          "token_id": 7635,
+          "token_text": "style",
+          "probability": 0.0927734375
+        },
+        {
+          "token_id": 3106,
+          "token_text": "based",
+          "probability": 0.0869140625
+        },
+        {
+          "token_id": 5715,
+          "token_text": "level",
+          "probability": 0.08203125
+        },
+        {
+          "token_id": 4906,
+          "token_text": "type",
+          "probability": 0.03857421875
+        }
+      ],
+      [
+        {
+          "token_id": 7635,
+          "token_text": "style",
+          "probability": 0.4765625
+        },
+        {
+          "token_id": 1462,
+          "token_text": "to",
+          "probability": 0.1064453125
+        },
+        {
+          "token_id": 5715,
+          "token_text": "level",
+          "probability": 0.064453125
+        },
+        {
+          "token_id": 5787,
+          "token_text": "free",
+          "probability": 0.05029296875
+        },
+        {
+          "token_id": 4906,
+          "token_text": "type",
+          "probability": 0.03466796875
+        }
+      ],
+      [
+        {
+          "token_id": 5715,
+          "token_text": "level",
+          "probability": 0.34765625
+        },
+        {
+          "token_id": 7635,
+          "token_text": "style",
+          "probability": 0.1640625
+        },
+        {
+          "token_id": 83,
+          "token_text": "t",
+          "probability": 0.14453125
+        },
+        {
+          "token_id": 4906,
+          "token_text": "type",
+          "probability": 0.068359375
+        },
+        {
+          "token_id": 1462,
+          "token_text": "to",
+          "probability": 0.068359375
+        }
+      ],
+      [
+        {
+          "token_id": 5715,
+          "token_text": "level",
+          "probability": 0.1640625
+        },
+        {
+          "token_id": 16514,
+          "token_text": "tim",
+          "probability": 0.14453125
+        },
+        {
+          "token_id": 4906,
+          "token_text": "type",
+          "probability": 0.11279296875
+        },
+        {
+          "token_id": 7635,
+          "token_text": "style",
+          "probability": 0.087890625
+        },
+        {
+          "token_id": 83,
+          "token_text": "t",
+          "probability": 0.068359375
+        }
+      ],
+      [
+        {
+          "token_id": 4906,
+          "token_text": "type",
+          "probability": 0.251953125
+        },
+        {
+          "token_id": 83,
+          "token_text": "t",
+          "probability": 0.134765625
+        },
+        {
+          "token_id": 16514,
+          "token_text": "tim",
+          "probability": 0.11865234375
+        },
+        {
+          "token_id": 1659,
+          "token_text": "of",
+          "probability": 0.1044921875
+        },
+        {
+          "token_id": 3866,
+          "token_text": "pre",
+          "probability": 0.049560546875
+        }
+      ],
+      [
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.7578125
+        },
+        {
+          "token_id": 1659,
+          "token_text": "of",
+          "probability": 0.054931640625
+        },
+        {
+          "token_id": 5715,
+          "token_text": "level",
+          "probability": 0.054931640625
+        },
+        {
+          "token_id": 3866,
+          "token_text": "pre",
+          "probability": 0.020263671875
+        },
+        {
+          "token_id": 2385,
+          "token_text": "su",
+          "probability": 0.017822265625
+        }
+      ],
+      [
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 1.0
+        },
+        {
+          "token_id": 26278,
+          "token_text": "duty",
+          "probability": 1.6689300537109375e-05
+        },
+        {
+          "token_id": 2934,
+          "token_text": "de",
+          "probability": 1.3828277587890625e-05
+        },
+        {
+          "token_id": 4906,
+          "token_text": "type",
+          "probability": 1.3828277587890625e-05
+        },
+        {
+          "token_id": 13776,
+          "token_text": "priv",
+          "probability": 1.150369644165039e-05
+        }
+      ],
+      [
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 1.0
+        },
+        {
+          "token_id": 2934,
+          "token_text": "de",
+          "probability": 1.150369644165039e-05
+        },
+        {
+          "token_id": 24622,
+          "token_text": "general",
+          "probability": 5.0961971282958984e-06
+        },
+        {
+          "token_id": 1533,
+          "token_text": "eg",
+          "probability": 4.500150680541992e-06
+        },
+        {
+          "token_id": 3642,
+          "token_text": "cont",
+          "probability": 3.9637088775634766e-06
+        }
+      ],
+      [
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 1.0
+        },
+        {
+          "token_id": 16985,
+          "token_text": " gard",
+          "probability": 4.1961669921875e-05
+        },
+        {
+          "token_id": 49016,
+          "token_text": "artist",
+          "probability": 7.748603820800781e-06
+        },
+        {
+          "token_id": 2934,
+          "token_text": "de",
+          "probability": 6.4373016357421875e-06
+        },
+        {
+          "token_id": 3866,
+          "token_text": "pre",
+          "probability": 3.6656856536865234e-06
+        }
+      ],
+      [
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 1.0
+        },
+        {
+          "token_id": 16985,
+          "token_text": " gard",
+          "probability": 0.000335693359375
+        },
+        {
+          "token_id": 70,
+          "token_text": "g",
+          "probability": 5.14984130859375e-05
+        },
+        {
+          "token_id": 2164,
+          "token_text": "gr",
+          "probability": 4.00543212890625e-05
+        },
+        {
+          "token_id": 1084,
+          "token_text": "min",
+          "probability": 2.1457672119140625e-05
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 1.0
+        },
+        {
+          "token_id": 666,
+          "token_text": "ian",
+          "probability": 1.7061829566955566e-06
+        },
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 7.115304470062256e-07
+        },
+        {
+          "token_id": 42424,
+          "token_text": "DragonMagazine",
+          "probability": 3.688037395477295e-07
+        },
+        {
+          "token_id": 10640,
+          "token_text": "eries",
+          "probability": 3.688037395477295e-07
+        }
+      ],
+      [
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 1.0
+        },
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.0002536773681640625
+        },
+        {
+          "token_id": 666,
+          "token_text": "ian",
+          "probability": 0.0002231597900390625
+        },
+        {
+          "token_id": 1008,
+          "token_text": "ner",
+          "probability": 0.000179290771484375
+        },
+        {
+          "token_id": 274,
+          "token_text": "es",
+          "probability": 0.0001583099365234375
+        }
+      ],
+      [
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.80859375
+        },
+        {
+          "token_id": 666,
+          "token_text": "ian",
+          "probability": 0.07275390625
+        },
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.02294921875
+        },
+        {
+          "token_id": 274,
+          "token_text": "es",
+          "probability": 0.0147705078125
+        },
+        {
+          "token_id": 8101,
+          "token_text": "azz",
+          "probability": 0.01263427734375
+        }
+      ],
+      [
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.232421875
+        },
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.205078125
+        },
+        {
+          "token_id": 666,
+          "token_text": "ian",
+          "probability": 0.16015625
+        },
+        {
+          "token_id": 49845,
+          "token_text": "alist",
+          "probability": 0.10009765625
+        },
+        {
+          "token_id": 274,
+          "token_text": "es",
+          "probability": 0.058837890625
+        }
+      ],
+      [
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.421875
+        },
+        {
+          "token_id": 515,
+          "token_text": "ated",
+          "probability": 0.1455078125
+        },
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.08056640625
+        },
+        {
+          "token_id": 274,
+          "token_text": "es",
+          "probability": 0.078125
+        },
+        {
+          "token_id": 8126,
+          "token_text": "aga",
+          "probability": 0.0390625
+        }
+      ],
+      [
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.283203125
+        },
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.2353515625
+        },
+        {
+          "token_id": 40833,
+          "token_text": "iste",
+          "probability": 0.07373046875
+        },
+        {
+          "token_id": 515,
+          "token_text": "ated",
+          "probability": 0.0673828125
+        },
+        {
+          "token_id": 8126,
+          "token_text": "aga",
+          "probability": 0.0576171875
+        }
+      ],
+      [
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.474609375
+        },
+        {
+          "token_id": 8126,
+          "token_text": "aga",
+          "probability": 0.11279296875
+        },
+        {
+          "token_id": 666,
+          "token_text": "ian",
+          "probability": 0.064453125
+        },
+        {
+          "token_id": 515,
+          "token_text": "ated",
+          "probability": 0.05859375
+        },
+        {
+          "token_id": 19977,
+          "token_text": "gard",
+          "probability": 0.04150390625
+        }
+      ],
+      [
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.9140625
+        },
+        {
+          "token_id": 666,
+          "token_text": "ian",
+          "probability": 0.0211181640625
+        },
+        {
+          "token_id": 8126,
+          "token_text": "aga",
+          "probability": 0.0120849609375
+        },
+        {
+          "token_id": 378,
+          "token_text": "ate",
+          "probability": 0.00885009765625
+        },
+        {
+          "token_id": 396,
+          "token_text": "ist",
+          "probability": 0.008056640625
+        }
+      ],
+      [
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.99609375
+        },
+        {
+          "token_id": 666,
+          "token_text": "ian",
+          "probability": 0.00168609619140625
+        },
+        {
+          "token_id": 8126,
+          "token_text": "aga",
+          "probability": 0.000640869140625
+        },
+        {
+          "token_id": 11025,
+          "token_text": "ean",
+          "probability": 0.0003223419189453125
+        },
+        {
+          "token_id": 972,
+          "token_text": "ement",
+          "probability": 0.0003223419189453125
+        }
+      ],
+      [
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.9921875
+        },
+        {
+          "token_id": 666,
+          "token_text": "ian",
+          "probability": 0.0029754638671875
+        },
+        {
+          "token_id": 11025,
+          "token_text": "ean",
+          "probability": 0.00115966796875
+        },
+        {
+          "token_id": 396,
+          "token_text": "ist",
+          "probability": 0.00115966796875
+        },
+        {
+          "token_id": 291,
+          "token_text": "ic",
+          "probability": 0.0002288818359375
+        }
+      ],
+      [
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.79296875
+        },
+        {
+          "token_id": 396,
+          "token_text": "ist",
+          "probability": 0.1767578125
+        },
+        {
+          "token_id": 666,
+          "token_text": "ian",
+          "probability": 0.01446533203125
+        },
+        {
+          "token_id": 49845,
+          "token_text": "alist",
+          "probability": 0.00323486328125
+        },
+        {
+          "token_id": 40833,
+          "token_text": "iste",
+          "probability": 0.0019683837890625
+        }
+      ],
+      [
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.9921875
+        },
+        {
+          "token_id": 396,
+          "token_text": "ist",
+          "probability": 0.006683349609375
+        },
+        {
+          "token_id": 1008,
+          "token_text": "ner",
+          "probability": 0.0001220703125
+        },
+        {
+          "token_id": 877,
+          "token_text": "ener",
+          "probability": 0.0001220703125
+        },
+        {
+          "token_id": 666,
+          "token_text": "ian",
+          "probability": 0.0001220703125
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 68,
+          "token_text": "e",
+          "probability": 0.10302734375
+        },
+        {
+          "token_id": 2736,
+          "token_text": "ze",
+          "probability": 0.08056640625
+        },
+        {
+          "token_id": 344,
+          "token_text": "ce",
+          "probability": 0.07861328125
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.059814453125
+        },
+        {
+          "token_id": 1073,
+          "token_text": "co",
+          "probability": 0.0419921875
+        }
+      ],
+      [
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.2333984375
+        },
+        {
+          "token_id": 1073,
+          "token_text": "co",
+          "probability": 0.09130859375
+        },
+        {
+          "token_id": 2736,
+          "token_text": "ze",
+          "probability": 0.04736328125
+        },
+        {
+          "token_id": 344,
+          "token_text": "ce",
+          "probability": 0.046630859375
+        },
+        {
+          "token_id": 1453,
+          "token_text": "ee",
+          "probability": 0.026611328125
+        }
+      ],
+      [
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.396484375
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.058837890625
+        },
+        {
+          "token_id": 2736,
+          "token_text": "ze",
+          "probability": 0.04296875
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.0230712890625
+        },
+        {
+          "token_id": 2633,
+          "token_text": "joy",
+          "probability": 0.01904296875
+        }
+      ],
+      [
+        {
+          "token_id": 306,
+          "token_text": "ly",
+          "probability": 0.2197265625
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.1513671875
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.1103515625
+        },
+        {
+          "token_id": 3918,
+          "token_text": " style",
+          "probability": 0.06689453125
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.03369140625
+        }
+      ],
+      [
+        {
+          "token_id": 306,
+          "token_text": "ly",
+          "probability": 0.72265625
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.04931640625
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.03173828125
+        },
+        {
+          "token_id": 3918,
+          "token_text": " style",
+          "probability": 0.0150146484375
+        },
+        {
+          "token_id": 7548,
+          "token_text": " equivalent",
+          "probability": 0.01031494140625
+        }
+      ],
+      [
+        {
+          "token_id": 3918,
+          "token_text": " style",
+          "probability": 0.09326171875
+        },
+        {
+          "token_id": 2196,
+          "token_text": " version",
+          "probability": 0.0771484375
+        },
+        {
+          "token_id": 3356,
+          "token_text": " movement",
+          "probability": 0.07275390625
+        },
+        {
+          "token_id": 306,
+          "token_text": "ly",
+          "probability": 0.068359375
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.06005859375
+        }
+      ],
+      [
+        {
+          "token_id": 3918,
+          "token_text": " style",
+          "probability": 0.2216796875
+        },
+        {
+          "token_id": 2196,
+          "token_text": " version",
+          "probability": 0.0634765625
+        },
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.052490234375
+        },
+        {
+          "token_id": 11742,
+          "token_text": " composition",
+          "probability": 0.041015625
+        },
+        {
+          "token_id": 34886,
+          "token_text": " powerhouse",
+          "probability": 0.028076171875
+        }
+      ],
+      [
+        {
+          "token_id": 15606,
+          "token_text": " scholar",
+          "probability": 0.259765625
+        },
+        {
+          "token_id": 6802,
+          "token_text": " artist",
+          "probability": 0.09521484375
+        },
+        {
+          "token_id": 21623,
+          "token_text": " musician",
+          "probability": 0.09521484375
+        },
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.083984375
+        },
+        {
+          "token_id": 29570,
+          "token_text": " pioneer",
+          "probability": 0.051025390625
+        }
+      ],
+      [
+        {
+          "token_id": 15606,
+          "token_text": " scholar",
+          "probability": 0.380859375
+        },
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.0849609375
+        },
+        {
+          "token_id": 6802,
+          "token_text": " artist",
+          "probability": 0.0751953125
+        },
+        {
+          "token_id": 6260,
+          "token_text": " writer",
+          "probability": 0.0751953125
+        },
+        {
+          "token_id": 4336,
+          "token_text": " fan",
+          "probability": 0.0517578125
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.88671875
+        },
+        {
+          "token_id": 21623,
+          "token_text": " musician",
+          "probability": 0.0303955078125
+        },
+        {
+          "token_id": 6260,
+          "token_text": " writer",
+          "probability": 0.0184326171875
+        },
+        {
+          "token_id": 6802,
+          "token_text": " artist",
+          "probability": 0.0184326171875
+        },
+        {
+          "token_id": 21810,
+          "token_text": " poet",
+          "probability": 0.00677490234375
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.486328125
+        },
+        {
+          "token_id": 21623,
+          "token_text": " musician",
+          "probability": 0.1083984375
+        },
+        {
+          "token_id": 6802,
+          "token_text": " artist",
+          "probability": 0.1083984375
+        },
+        {
+          "token_id": 6260,
+          "token_text": " writer",
+          "probability": 0.0400390625
+        },
+        {
+          "token_id": 26479,
+          "token_text": " filmmaker",
+          "probability": 0.0242919921875
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.205078125
+        },
+        {
+          "token_id": 43923,
+          "token_text": " pian",
+          "probability": 0.045654296875
+        },
+        {
+          "token_id": 21623,
+          "token_text": " musician",
+          "probability": 0.0277099609375
+        },
+        {
+          "token_id": 2679,
+          "token_text": " German",
+          "probability": 0.0277099609375
+        },
+        {
+          "token_id": 4141,
+          "token_text": " French",
+          "probability": 0.016845703125
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 1605,
+          "token_text": " American",
+          "probability": 0.5234375
+        },
+        {
+          "token_id": 3942,
+          "token_text": " Indian",
+          "probability": 0.17578125
+        },
+        {
+          "token_id": 7610,
+          "token_text": " Dream",
+          "probability": 0.031982421875
+        },
+        {
+          "token_id": 8894,
+          "token_text": " Heart",
+          "probability": 0.02099609375
+        },
+        {
+          "token_id": 4041,
+          "token_text": " League",
+          "probability": 0.011962890625
+        }
+      ],
+      [
+        {
+          "token_id": 3942,
+          "token_text": " Indian",
+          "probability": 0.359375
+        },
+        {
+          "token_id": 1605,
+          "token_text": " American",
+          "probability": 0.138671875
+        },
+        {
+          "token_id": 7610,
+          "token_text": " Dream",
+          "probability": 0.12255859375
+        },
+        {
+          "token_id": 9303,
+          "token_text": " Revolution",
+          "probability": 0.045166015625
+        },
+        {
+          "token_id": 4041,
+          "token_text": " League",
+          "probability": 0.03369140625
+        }
+      ],
+      [
+        {
+          "token_id": 7610,
+          "token_text": " Dream",
+          "probability": 0.5234375
+        },
+        {
+          "token_id": 9303,
+          "token_text": " Revolution",
+          "probability": 0.095703125
+        },
+        {
+          "token_id": 4041,
+          "token_text": " League",
+          "probability": 0.0712890625
+        },
+        {
+          "token_id": 3942,
+          "token_text": " Indian",
+          "probability": 0.047119140625
+        },
+        {
+          "token_id": 10604,
+          "token_text": " Express",
+          "probability": 0.033935546875
+        }
+      ],
+      [
+        {
+          "token_id": 7610,
+          "token_text": " Dream",
+          "probability": 0.2314453125
+        },
+        {
+          "token_id": 4041,
+          "token_text": " League",
+          "probability": 0.1396484375
+        },
+        {
+          "token_id": 9303,
+          "token_text": " Revolution",
+          "probability": 0.0830078125
+        },
+        {
+          "token_id": 3942,
+          "token_text": " Indian",
+          "probability": 0.0390625
+        },
+        {
+          "token_id": 34392,
+          "token_text": " Idol",
+          "probability": 0.037353515625
+        }
+      ],
+      [
+        {
+          "token_id": 4041,
+          "token_text": " League",
+          "probability": 0.22265625
+        },
+        {
+          "token_id": 34392,
+          "token_text": " Idol",
+          "probability": 0.158203125
+        },
+        {
+          "token_id": 7610,
+          "token_text": " Dream",
+          "probability": 0.08447265625
+        },
+        {
+          "token_id": 9511,
+          "token_text": " citizen",
+          "probability": 0.080078125
+        },
+        {
+          "token_id": 9303,
+          "token_text": " Revolution",
+          "probability": 0.057861328125
+        }
+      ],
+      [
+        {
+          "token_id": 9511,
+          "token_text": " citizen",
+          "probability": 0.4765625
+        },
+        {
+          "token_id": 34392,
+          "token_text": " Idol",
+          "probability": 0.1064453125
+        },
+        {
+          "token_id": 7610,
+          "token_text": " Dream",
+          "probability": 0.0791015625
+        },
+        {
+          "token_id": 9303,
+          "token_text": " Revolution",
+          "probability": 0.04150390625
+        },
+        {
+          "token_id": 4041,
+          "token_text": " League",
+          "probability": 0.0380859375
+        }
+      ],
+      [
+        {
+          "token_id": 9511,
+          "token_text": " citizen",
+          "probability": 0.466796875
+        },
+        {
+          "token_id": 34392,
+          "token_text": " Idol",
+          "probability": 0.146484375
+        },
+        {
+          "token_id": 7610,
+          "token_text": " Dream",
+          "probability": 0.08642578125
+        },
+        {
+          "token_id": 2351,
+          "token_text": " National",
+          "probability": 0.0279541015625
+        },
+        {
+          "token_id": 4293,
+          "token_text": " hero",
+          "probability": 0.0224609375
+        }
+      ],
+      [
+        {
+          "token_id": 9511,
+          "token_text": " citizen",
+          "probability": 0.4375
+        },
+        {
+          "token_id": 19834,
+          "token_text": " businessman",
+          "probability": 0.06494140625
+        },
+        {
+          "token_id": 10099,
+          "token_text": " journalist",
+          "probability": 0.034912109375
+        },
+        {
+          "token_id": 34392,
+          "token_text": " Idol",
+          "probability": 0.0289306640625
+        },
+        {
+          "token_id": 8674,
+          "token_text": " actor",
+          "probability": 0.0289306640625
+        }
+      ],
+      [
+        {
+          "token_id": 9511,
+          "token_text": " citizen",
+          "probability": 0.59765625
+        },
+        {
+          "token_id": 15606,
+          "token_text": " scholar",
+          "probability": 0.103515625
+        },
+        {
+          "token_id": 19834,
+          "token_text": " businessman",
+          "probability": 0.0458984375
+        },
+        {
+          "token_id": 6802,
+          "token_text": " artist",
+          "probability": 0.0191650390625
+        },
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.0169677734375
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.31640625
+        },
+        {
+          "token_id": 6802,
+          "token_text": " artist",
+          "probability": 0.1923828125
+        },
+        {
+          "token_id": 21623,
+          "token_text": " musician",
+          "probability": 0.1494140625
+        },
+        {
+          "token_id": 6260,
+          "token_text": " writer",
+          "probability": 0.05517578125
+        },
+        {
+          "token_id": 21810,
+          "token_text": " poet",
+          "probability": 0.048583984375
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.4140625
+        },
+        {
+          "token_id": 6802,
+          "token_text": " artist",
+          "probability": 0.15234375
+        },
+        {
+          "token_id": 21623,
+          "token_text": " musician",
+          "probability": 0.11865234375
+        },
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.07177734375
+        },
+        {
+          "token_id": 15606,
+          "token_text": " scholar",
+          "probability": 0.0264892578125
+        }
+      ],
+      [
+        {
+          "token_id": 26777,
+          "token_text": " composer",
+          "probability": 0.138671875
+        },
+        {
+          "token_id": 508,
+          "token_text": " who",
+          "probability": 0.083984375
+        },
+        {
+          "token_id": 21623,
+          "token_text": " musician",
+          "probability": 0.051025390625
+        },
+        {
+          "token_id": 1196,
+          "token_text": " av",
+          "probability": 0.0308837890625
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.0186767578125
+        }
+      ]
+    ]
+  ],
+  "critical_framing_prompt": "The right answer was in the model \u2014 you watched it appear in the middle layers and then lose. What does that change about the question 'does the model know?'",
+  "pedagogical_narrative": "'Knowing' and 'saying' are different operations inside a transformer; the gap between them is where a category of hallucinations lives.",
+  "risk_flag": "low"
+}

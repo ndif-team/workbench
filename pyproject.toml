@@ -24,7 +24,14 @@ dev = [
     "ipykernel>=6.29.5",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.6.16",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["workbench/_api/tests"]
 
 [build-system]
 requires = ["hatchling"]

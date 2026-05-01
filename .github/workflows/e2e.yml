@@ -55,6 +55,9 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --extra dev
 
+      - name: Backend unit tests (Pydantic shape + loader fixtures)
+        run: uv run pytest workbench/_api/tests/ -v
+
       - name: Install frontend dependencies
         run: bun install
         working-directory: workbench/_web
@@ -87,6 +90,12 @@ jobs:
       - name: Create SQLite database
         run: bun x drizzle-kit push --force
         working-directory: workbench/_web
+
+      - name: Pre-cache workshop example payloads (synthetic)
+        # Synthetic payloads keep the E2E flow self-contained: workshop pages
+        # render from on-disk fixtures, never live NDIF, so the workshop-flow
+        # spec can assert zero-NDIF traffic deterministically.
+        run: uv run python scripts/precache_workshop_payloads.py --mode synthetic
 
       - name: Build app
         run: bun run build

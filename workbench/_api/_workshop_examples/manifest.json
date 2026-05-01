@@ -1,0 +1,29 @@
+{
+  "examples": {
+    "branching_generation_set": [
+      "branching_demo_fixture",
+      "branching_demo_workshop"
+    ],
+    "commitment_strip": [
+      "commitment_strip_fixture",
+      "task1_ex1_51st_state",
+      "task1_ex2_mri_inventor",
+      "task1_ex3_bandura_paper",
+      "task1_ex4_lamarr_coinventor",
+      "task1_ex5_higgs_boson",
+      "task1_ex6_foucault_surveillance"
+    ],
+    "prompt_influence": [
+      "prompt_influence_fixture"
+    ]
+  },
+  "task1_logit_lens": [
+    "task1_ex1_51st_state",
+    "task1_ex2_mri_inventor",
+    "task1_ex3_bandura_paper",
+    "task1_ex4_lamarr_coinventor",
+    "task1_ex5_higgs_boson",
+    "task1_ex6_foucault_surveillance"
+  ],
+  "branching_demo": "branching_demo_workshop"
+}

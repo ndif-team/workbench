@@ -81,6 +81,20 @@ export const documents = pgTable("documents", {
         .$onUpdate(() => new Date()),
 });
 
+export const workshopAnnotations = pgTable("workshop_annotations", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: varchar("session_id", { length: 256 }).notNull(),
+    participantId: varchar("participant_id", { length: 256 }),
+    exampleId: varchar("example_id", { length: 256 }).notNull(),
+    annotationText: varchar("annotation_text", { length: 8192 }).notNull().default(""),
+    framingResponse: varchar("framing_response", { length: 8192 }).notNull().default(""),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+        .defaultNow()
+        .notNull()
+        .$onUpdate(() => new Date()),
+});
+
 // Generate types from schema
 export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
@@ -96,3 +110,6 @@ export type NewChartConfigLink = typeof chartConfigLinks.$inferInsert;
 
 export type View = typeof views.$inferSelect;
 export type NewView = typeof views.$inferInsert;
+
+export type WorkshopAnnotation = typeof workshopAnnotations.$inferSelect;
+export type NewWorkshopAnnotation = typeof workshopAnnotations.$inferInsert;

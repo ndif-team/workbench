@@ -26,6 +26,10 @@ const config = {
         resultsGenerate: (jobId: string) => `/models/results-generate/${jobId}`,
 
         models: "/models/",
+
+        // Workshop pre-cached payloads
+        workshopExample: (exampleId: string) => `/examples/${exampleId}`,
+        workshopExamplesList: "/examples/",
     },
     getApiUrl: (endpoint: string) => `${config.backendUrl}${endpoint}`,
     ndifStatusUrl: (jobId: string) => `${config.ndifUrl}/response/${jobId}`,

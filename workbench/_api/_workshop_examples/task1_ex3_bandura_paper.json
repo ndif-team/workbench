@@ -1,0 +1,3021 @@
+{
+  "record_type": "commitment_strip",
+  "example_id": "task1_ex3_bandura_paper",
+  "prompt": "In his 1987 paper \"Self-Efficacy and Classroom Engagement,\" Albert Bandura argued that",
+  "completion_text": " reciprocal interactions between agency and environment shape mastery.",
+  "completion_tokens": [
+    {
+      "idx": 0,
+      "id": 48135,
+      "text": " reciprocal",
+      "targetIds": [
+        48135
+      ]
+    },
+    {
+      "idx": 1,
+      "id": 12213,
+      "text": " interactions",
+      "targetIds": [
+        12213
+      ]
+    },
+    {
+      "idx": 2,
+      "id": 1022,
+      "text": " between",
+      "targetIds": [
+        1022
+      ]
+    },
+    {
+      "idx": 3,
+      "id": 4086,
+      "text": " agency",
+      "targetIds": [
+        4086
+      ]
+    },
+    {
+      "idx": 4,
+      "id": 290,
+      "text": " and",
+      "targetIds": [
+        290
+      ]
+    },
+    {
+      "idx": 5,
+      "id": 2858,
+      "text": " environment",
+      "targetIds": [
+        2858
+      ]
+    },
+    {
+      "idx": 6,
+      "id": 5485,
+      "text": " shape",
+      "targetIds": [
+        5485
+      ]
+    },
+    {
+      "idx": 7,
+      "id": 30677,
+      "text": " mastery",
+      "targetIds": [
+        30677
+      ]
+    },
+    {
+      "idx": 8,
+      "id": 13,
+      "text": ".",
+      "targetIds": [
+        13
+      ]
+    }
+  ],
+  "model": "openai-community/gpt2",
+  "num_layers": 12,
+  "per_position_per_layer_top_k": [
+    [
+      [
+        {
+          "token_id": 484,
+          "token_text": " they",
+          "probability": 0.224609375
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.1337890625
+        },
+        {
+          "token_id": 339,
+          "token_text": " he",
+          "probability": 0.0703125
+        },
+        {
+          "token_id": 356,
+          "token_text": " we",
+          "probability": 0.064453125
+        },
+        {
+          "token_id": 976,
+          "token_text": " same",
+          "probability": 0.06298828125
+        }
+      ],
+      [
+        {
+          "token_id": 484,
+          "token_text": " they",
+          "probability": 0.2080078125
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.1337890625
+        },
+        {
+          "token_id": 356,
+          "token_text": " we",
+          "probability": 0.125
+        },
+        {
+          "token_id": 339,
+          "token_text": " he",
+          "probability": 0.10205078125
+        },
+        {
+          "token_id": 611,
+          "token_text": " if",
+          "probability": 0.07421875
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.1796875
+        },
+        {
+          "token_id": 484,
+          "token_text": " they",
+          "probability": 0.10400390625
+        },
+        {
+          "token_id": 611,
+          "token_text": " if",
+          "probability": 0.07373046875
+        },
+        {
+          "token_id": 340,
+          "token_text": " it",
+          "probability": 0.06640625
+        },
+        {
+          "token_id": 339,
+          "token_text": " he",
+          "probability": 0.06201171875
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.2373046875
+        },
+        {
+          "token_id": 340,
+          "token_text": " it",
+          "probability": 0.08935546875
+        },
+        {
+          "token_id": 484,
+          "token_text": " they",
+          "probability": 0.07275390625
+        },
+        {
+          "token_id": 339,
+          "token_text": " he",
+          "probability": 0.0517578125
+        },
+        {
+          "token_id": 366,
+          "token_text": " \"",
+          "probability": 0.0517578125
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.2734375
+        },
+        {
+          "token_id": 12878,
+          "token_text": " \"[",
+          "probability": 0.12890625
+        },
+        {
+          "token_id": 366,
+          "token_text": " \"",
+          "probability": 0.0859375
+        },
+        {
+          "token_id": 340,
+          "token_text": " it",
+          "probability": 0.06689453125
+        },
+        {
+          "token_id": 339,
+          "token_text": " he",
+          "probability": 0.050537109375
+        }
+      ],
+      [
+        {
+          "token_id": 12878,
+          "token_text": " \"[",
+          "probability": 0.2412109375
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.1884765625
+        },
+        {
+          "token_id": 366,
+          "token_text": " \"",
+          "probability": 0.1005859375
+        },
+        {
+          "token_id": 3584,
+          "token_text": " although",
+          "probability": 0.0888671875
+        },
+        {
+          "token_id": 340,
+          "token_text": " it",
+          "probability": 0.07861328125
+        }
+      ],
+      [
+        {
+          "token_id": 12878,
+          "token_text": " \"[",
+          "probability": 0.54296875
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.11376953125
+        },
+        {
+          "token_id": 366,
+          "token_text": " \"",
+          "probability": 0.10693359375
+        },
+        {
+          "token_id": 612,
+          "token_text": " there",
+          "probability": 0.050537109375
+        },
+        {
+          "token_id": 3584,
+          "token_text": " although",
+          "probability": 0.04736328125
+        }
+      ],
+      [
+        {
+          "token_id": 12878,
+          "token_text": " \"[",
+          "probability": 0.419921875
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.154296875
+        },
+        {
+          "token_id": 366,
+          "token_text": " \"",
+          "probability": 0.13671875
+        },
+        {
+          "token_id": 612,
+          "token_text": " there",
+          "probability": 0.08251953125
+        },
+        {
+          "token_id": 3584,
+          "token_text": " although",
+          "probability": 0.064453125
+        }
+      ],
+      [
+        {
+          "token_id": 12878,
+          "token_text": " \"[",
+          "probability": 0.6953125
+        },
+        {
+          "token_id": 366,
+          "token_text": " \"",
+          "probability": 0.13671875
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.064453125
+        },
+        {
+          "token_id": 612,
+          "token_text": " there",
+          "probability": 0.03466796875
+        },
+        {
+          "token_id": 3584,
+          "token_text": " although",
+          "probability": 0.0098876953125
+        }
+      ],
+      [
+        {
+          "token_id": 366,
+          "token_text": " \"",
+          "probability": 0.435546875
+        },
+        {
+          "token_id": 12878,
+          "token_text": " \"[",
+          "probability": 0.435546875
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.0458984375
+        },
+        {
+          "token_id": 612,
+          "token_text": " there",
+          "probability": 0.02783203125
+        },
+        {
+          "token_id": 1919,
+          "token_text": " social",
+          "probability": 0.00482177734375
+        }
+      ],
+      [
+        {
+          "token_id": 366,
+          "token_text": " \"",
+          "probability": 0.3671875
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.1728515625
+        },
+        {
+          "token_id": 12878,
+          "token_text": " \"[",
+          "probability": 0.049560546875
+        },
+        {
+          "token_id": 2444,
+          "token_text": " students",
+          "probability": 0.0301513671875
+        },
+        {
+          "token_id": 612,
+          "token_text": " there",
+          "probability": 0.0301513671875
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.1298828125
+        },
+        {
+          "token_id": 366,
+          "token_text": " \"",
+          "probability": 0.0791015625
+        },
+        {
+          "token_id": 2444,
+          "token_text": " students",
+          "probability": 0.029052734375
+        },
+        {
+          "token_id": 2116,
+          "token_text": " self",
+          "probability": 0.029052734375
+        },
+        {
+          "token_id": 612,
+          "token_text": " there",
+          "probability": 0.017578125
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 48135,
+          "token_text": " reciprocal",
+          "probability": 0.76953125
+        },
+        {
+          "token_id": 36564,
+          "token_text": " reciproc",
+          "probability": 0.20703125
+        },
+        {
+          "token_id": 37677,
+          "token_text": " altru",
+          "probability": 0.00518798828125
+        },
+        {
+          "token_id": 40686,
+          "token_text": " symmetry",
+          "probability": 0.0048828125
+        },
+        {
+          "token_id": 14752,
+          "token_text": " arrangements",
+          "probability": 0.0012359619140625
+        }
+      ],
+      [
+        {
+          "token_id": 36564,
+          "token_text": " reciproc",
+          "probability": 0.578125
+        },
+        {
+          "token_id": 48135,
+          "token_text": " reciprocal",
+          "probability": 0.2734375
+        },
+        {
+          "token_id": 37677,
+          "token_text": " altru",
+          "probability": 0.0419921875
+        },
+        {
+          "token_id": 40686,
+          "token_text": " symmetry",
+          "probability": 0.03173828125
+        },
+        {
+          "token_id": 2316,
+          "token_text": " relations",
+          "probability": 0.00994873046875
+        }
+      ],
+      [
+        {
+          "token_id": 36564,
+          "token_text": " reciproc",
+          "probability": 0.640625
+        },
+        {
+          "token_id": 48135,
+          "token_text": " reciprocal",
+          "probability": 0.11669921875
+        },
+        {
+          "token_id": 37677,
+          "token_text": " altru",
+          "probability": 0.083984375
+        },
+        {
+          "token_id": 2316,
+          "token_text": " relations",
+          "probability": 0.022216796875
+        },
+        {
+          "token_id": 14752,
+          "token_text": " arrangements",
+          "probability": 0.00830078125
+        }
+      ],
+      [
+        {
+          "token_id": 36564,
+          "token_text": " reciproc",
+          "probability": 0.51953125
+        },
+        {
+          "token_id": 37677,
+          "token_text": " altru",
+          "probability": 0.07568359375
+        },
+        {
+          "token_id": 48135,
+          "token_text": " reciprocal",
+          "probability": 0.058349609375
+        },
+        {
+          "token_id": 40686,
+          "token_text": " symmetry",
+          "probability": 0.046875
+        },
+        {
+          "token_id": 14752,
+          "token_text": " arrangements",
+          "probability": 0.038330078125
+        }
+      ],
+      [
+        {
+          "token_id": 36564,
+          "token_text": " reciproc",
+          "probability": 0.5703125
+        },
+        {
+          "token_id": 14752,
+          "token_text": " arrangements",
+          "probability": 0.0673828125
+        },
+        {
+          "token_id": 37677,
+          "token_text": " altru",
+          "probability": 0.034423828125
+        },
+        {
+          "token_id": 6958,
+          "token_text": " relationships",
+          "probability": 0.021240234375
+        },
+        {
+          "token_id": 2316,
+          "token_text": " relations",
+          "probability": 0.0205078125
+        }
+      ],
+      [
+        {
+          "token_id": 36564,
+          "token_text": " reciproc",
+          "probability": 0.412109375
+        },
+        {
+          "token_id": 6958,
+          "token_text": " relationships",
+          "probability": 0.08642578125
+        },
+        {
+          "token_id": 14752,
+          "token_text": " arrangements",
+          "probability": 0.0478515625
+        },
+        {
+          "token_id": 37677,
+          "token_text": " altru",
+          "probability": 0.044921875
+        },
+        {
+          "token_id": 4381,
+          "token_text": " agreement",
+          "probability": 0.034912109375
+        }
+      ],
+      [
+        {
+          "token_id": 36564,
+          "token_text": " reciproc",
+          "probability": 0.31640625
+        },
+        {
+          "token_id": 6958,
+          "token_text": " relationships",
+          "probability": 0.19140625
+        },
+        {
+          "token_id": 37677,
+          "token_text": " altru",
+          "probability": 0.064453125
+        },
+        {
+          "token_id": 2776,
+          "token_text": " relationship",
+          "probability": 0.060302734375
+        },
+        {
+          "token_id": 2316,
+          "token_text": " relations",
+          "probability": 0.046875
+        }
+      ],
+      [
+        {
+          "token_id": 6958,
+          "token_text": " relationships",
+          "probability": 0.22265625
+        },
+        {
+          "token_id": 37677,
+          "token_text": " altru",
+          "probability": 0.1845703125
+        },
+        {
+          "token_id": 36564,
+          "token_text": " reciproc",
+          "probability": 0.06005859375
+        },
+        {
+          "token_id": 2776,
+          "token_text": " relationship",
+          "probability": 0.046630859375
+        },
+        {
+          "token_id": 9109,
+          "token_text": " responses",
+          "probability": 0.041259765625
+        }
+      ],
+      [
+        {
+          "token_id": 6958,
+          "token_text": " relationships",
+          "probability": 0.263671875
+        },
+        {
+          "token_id": 12352,
+          "token_text": " engagement",
+          "probability": 0.1318359375
+        },
+        {
+          "token_id": 37677,
+          "token_text": " altru",
+          "probability": 0.0908203125
+        },
+        {
+          "token_id": 4673,
+          "token_text": " learning",
+          "probability": 0.06640625
+        },
+        {
+          "token_id": 10375,
+          "token_text": " interaction",
+          "probability": 0.0517578125
+        }
+      ],
+      [
+        {
+          "token_id": 12352,
+          "token_text": " engagement",
+          "probability": 0.310546875
+        },
+        {
+          "token_id": 6958,
+          "token_text": " relationships",
+          "probability": 0.1474609375
+        },
+        {
+          "token_id": 37677,
+          "token_text": " altru",
+          "probability": 0.0693359375
+        },
+        {
+          "token_id": 36564,
+          "token_text": " reciproc",
+          "probability": 0.061279296875
+        },
+        {
+          "token_id": 4673,
+          "token_text": " learning",
+          "probability": 0.05419921875
+        }
+      ],
+      [
+        {
+          "token_id": 12352,
+          "token_text": " engagement",
+          "probability": 0.419921875
+        },
+        {
+          "token_id": 4673,
+          "token_text": " learning",
+          "probability": 0.1201171875
+        },
+        {
+          "token_id": 36564,
+          "token_text": " reciproc",
+          "probability": 0.044189453125
+        },
+        {
+          "token_id": 6958,
+          "token_text": " relationships",
+          "probability": 0.02685546875
+        },
+        {
+          "token_id": 37677,
+          "token_text": " altru",
+          "probability": 0.0208740234375
+        }
+      ],
+      [
+        {
+          "token_id": 4673,
+          "token_text": " learning",
+          "probability": 0.0693359375
+        },
+        {
+          "token_id": 12352,
+          "token_text": " engagement",
+          "probability": 0.0693359375
+        },
+        {
+          "token_id": 2116,
+          "token_text": " self",
+          "probability": 0.0419921875
+        },
+        {
+          "token_id": 1398,
+          "token_text": " class",
+          "probability": 0.025390625
+        },
+        {
+          "token_id": 3707,
+          "token_text": " education",
+          "probability": 0.01544189453125
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 12213,
+          "token_text": " interactions",
+          "probability": 0.96875
+        },
+        {
+          "token_id": 10375,
+          "token_text": " interaction",
+          "probability": 0.0242919921875
+        },
+        {
+          "token_id": 24986,
+          "token_text": " interacting",
+          "probability": 0.000690460205078125
+        },
+        {
+          "token_id": 6958,
+          "token_text": " relationships",
+          "probability": 0.00057220458984375
+        },
+        {
+          "token_id": 9427,
+          "token_text": " interact",
+          "probability": 0.0005035400390625
+        }
+      ],
+      [
+        {
+          "token_id": 12213,
+          "token_text": " interactions",
+          "probability": 0.91796875
+        },
+        {
+          "token_id": 10375,
+          "token_text": " interaction",
+          "probability": 0.040283203125
+        },
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.00927734375
+        },
+        {
+          "token_id": 6958,
+          "token_text": " relationships",
+          "probability": 0.006561279296875
+        },
+        {
+          "token_id": 24986,
+          "token_text": " interacting",
+          "probability": 0.002197265625
+        }
+      ],
+      [
+        {
+          "token_id": 12213,
+          "token_text": " interactions",
+          "probability": 0.64453125
+        },
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.2099609375
+        },
+        {
+          "token_id": 10375,
+          "token_text": " interaction",
+          "probability": 0.0771484375
+        },
+        {
+          "token_id": 6958,
+          "token_text": " relationships",
+          "probability": 0.011474609375
+        },
+        {
+          "token_id": 351,
+          "token_text": " with",
+          "probability": 0.00762939453125
+        }
+      ],
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.9609375
+        },
+        {
+          "token_id": 351,
+          "token_text": " with",
+          "probability": 0.01171875
+        },
+        {
+          "token_id": 12213,
+          "token_text": " interactions",
+          "probability": 0.0074462890625
+        },
+        {
+          "token_id": 5748,
+          "token_text": "hips",
+          "probability": 0.0026397705078125
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.00193023681640625
+        }
+      ],
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.97265625
+        },
+        {
+          "token_id": 5748,
+          "token_text": "hips",
+          "probability": 0.01116943359375
+        },
+        {
+          "token_id": 351,
+          "token_text": " with",
+          "probability": 0.005340576171875
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.000820159912109375
+        },
+        {
+          "token_id": 287,
+          "token_text": " in",
+          "probability": 0.0007781982421875
+        }
+      ],
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.98046875
+        },
+        {
+          "token_id": 5748,
+          "token_text": "hips",
+          "probability": 0.00927734375
+        },
+        {
+          "token_id": 351,
+          "token_text": " with",
+          "probability": 0.00372314453125
+        },
+        {
+          "token_id": 287,
+          "token_text": " in",
+          "probability": 0.0006103515625
+        },
+        {
+          "token_id": 1626,
+          "token_text": " within",
+          "probability": 0.000518798828125
+        }
+      ],
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.97265625
+        },
+        {
+          "token_id": 5748,
+          "token_text": "hips",
+          "probability": 0.0186767578125
+        },
+        {
+          "token_id": 351,
+          "token_text": " with",
+          "probability": 0.00384521484375
+        },
+        {
+          "token_id": 1056,
+          "token_text": "hip",
+          "probability": 0.0014801025390625
+        },
+        {
+          "token_id": 286,
+          "token_text": " of",
+          "probability": 0.000732421875
+        }
+      ],
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.9765625
+        },
+        {
+          "token_id": 5748,
+          "token_text": "hips",
+          "probability": 0.0123291015625
+        },
+        {
+          "token_id": 351,
+          "token_text": " with",
+          "probability": 0.00482177734375
+        },
+        {
+          "token_id": 1056,
+          "token_text": "hip",
+          "probability": 0.00133514404296875
+        },
+        {
+          "token_id": 7411,
+          "token_text": " involving",
+          "probability": 0.0007171630859375
+        }
+      ],
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.98828125
+        },
+        {
+          "token_id": 351,
+          "token_text": " with",
+          "probability": 0.0069580078125
+        },
+        {
+          "token_id": 1871,
+          "token_text": " among",
+          "probability": 0.00176239013671875
+        },
+        {
+          "token_id": 7411,
+          "token_text": " involving",
+          "probability": 0.000732421875
+        },
+        {
+          "token_id": 5748,
+          "token_text": "hips",
+          "probability": 0.000690460205078125
+        }
+      ],
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.99609375
+        },
+        {
+          "token_id": 1871,
+          "token_text": " among",
+          "probability": 0.00141143798828125
+        },
+        {
+          "token_id": 351,
+          "token_text": " with",
+          "probability": 0.0003147125244140625
+        },
+        {
+          "token_id": 7411,
+          "token_text": " involving",
+          "probability": 0.00010204315185546875
+        },
+        {
+          "token_id": 389,
+          "token_text": " are",
+          "probability": 0.00010204315185546875
+        }
+      ],
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.9765625
+        },
+        {
+          "token_id": 1871,
+          "token_text": " among",
+          "probability": 0.0084228515625
+        },
+        {
+          "token_id": 389,
+          "token_text": " are",
+          "probability": 0.002410888671875
+        },
+        {
+          "token_id": 714,
+          "token_text": " could",
+          "probability": 0.002410888671875
+        },
+        {
+          "token_id": 1244,
+          "token_text": " might",
+          "probability": 0.0011444091796875
+        }
+      ],
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.30859375
+        },
+        {
+          "token_id": 389,
+          "token_text": " are",
+          "probability": 0.11376953125
+        },
+        {
+          "token_id": 1871,
+          "token_text": " among",
+          "probability": 0.041748046875
+        },
+        {
+          "token_id": 547,
+          "token_text": " were",
+          "probability": 0.041748046875
+        },
+        {
+          "token_id": 287,
+          "token_text": " in",
+          "probability": 0.025390625
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.53125
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.1435546875
+        },
+        {
+          "token_id": 734,
+          "token_text": " two",
+          "probability": 0.1435546875
+        },
+        {
+          "token_id": 883,
+          "token_text": " those",
+          "probability": 0.02490234375
+        },
+        {
+          "token_id": 23395,
+          "token_text": "between",
+          "probability": 0.01416015625
+        }
+      ],
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.34375
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.302734375
+        },
+        {
+          "token_id": 734,
+          "token_text": " two",
+          "probability": 0.162109375
+        },
+        {
+          "token_id": 883,
+          "token_text": " those",
+          "probability": 0.01708984375
+        },
+        {
+          "token_id": 777,
+          "token_text": " these",
+          "probability": 0.01611328125
+        }
+      ],
+      [
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.349609375
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.240234375
+        },
+        {
+          "token_id": 734,
+          "token_text": " two",
+          "probability": 0.2255859375
+        },
+        {
+          "token_id": 777,
+          "token_text": " these",
+          "probability": 0.02197265625
+        },
+        {
+          "token_id": 883,
+          "token_text": " those",
+          "probability": 0.01373291015625
+        }
+      ],
+      [
+        {
+          "token_id": 734,
+          "token_text": " two",
+          "probability": 0.482421875
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.275390625
+        },
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.07470703125
+        },
+        {
+          "token_id": 1111,
+          "token_text": " both",
+          "probability": 0.02001953125
+        },
+        {
+          "token_id": 777,
+          "token_text": " these",
+          "probability": 0.0185546875
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.515625
+        },
+        {
+          "token_id": 734,
+          "token_text": " two",
+          "probability": 0.267578125
+        },
+        {
+          "token_id": 1111,
+          "token_text": " both",
+          "probability": 0.059814453125
+        },
+        {
+          "token_id": 1022,
+          "token_text": " between",
+          "probability": 0.0306396484375
+        },
+        {
+          "token_id": 2628,
+          "token_text": " groups",
+          "probability": 0.0191650390625
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.369140625
+        },
+        {
+          "token_id": 734,
+          "token_text": " two",
+          "probability": 0.2314453125
+        },
+        {
+          "token_id": 1111,
+          "token_text": " both",
+          "probability": 0.09619140625
+        },
+        {
+          "token_id": 2628,
+          "token_text": " groups",
+          "probability": 0.09619140625
+        },
+        {
+          "token_id": 777,
+          "token_text": " these",
+          "probability": 0.05322265625
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.4140625
+        },
+        {
+          "token_id": 734,
+          "token_text": " two",
+          "probability": 0.166015625
+        },
+        {
+          "token_id": 1111,
+          "token_text": " both",
+          "probability": 0.12353515625
+        },
+        {
+          "token_id": 777,
+          "token_text": " these",
+          "probability": 0.1162109375
+        },
+        {
+          "token_id": 2628,
+          "token_text": " groups",
+          "probability": 0.020751953125
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.298828125
+        },
+        {
+          "token_id": 3925,
+          "token_text": " individuals",
+          "probability": 0.1591796875
+        },
+        {
+          "token_id": 734,
+          "token_text": " two",
+          "probability": 0.0908203125
+        },
+        {
+          "token_id": 777,
+          "token_text": " these",
+          "probability": 0.08544921875
+        },
+        {
+          "token_id": 2628,
+          "token_text": " groups",
+          "probability": 0.06640625
+        }
+      ],
+      [
+        {
+          "token_id": 3925,
+          "token_text": " individuals",
+          "probability": 0.498046875
+        },
+        {
+          "token_id": 2628,
+          "token_text": " groups",
+          "probability": 0.18359375
+        },
+        {
+          "token_id": 5384,
+          "token_text": " humans",
+          "probability": 0.09228515625
+        },
+        {
+          "token_id": 734,
+          "token_text": " two",
+          "probability": 0.076171875
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.0299072265625
+        }
+      ],
+      [
+        {
+          "token_id": 3925,
+          "token_text": " individuals",
+          "probability": 0.6953125
+        },
+        {
+          "token_id": 5384,
+          "token_text": " humans",
+          "probability": 0.05029296875
+        },
+        {
+          "token_id": 661,
+          "token_text": " people",
+          "probability": 0.0390625
+        },
+        {
+          "token_id": 6809,
+          "token_text": " participants",
+          "probability": 0.0252685546875
+        },
+        {
+          "token_id": 2628,
+          "token_text": " groups",
+          "probability": 0.023681640625
+        }
+      ],
+      [
+        {
+          "token_id": 3925,
+          "token_text": " individuals",
+          "probability": 0.279296875
+        },
+        {
+          "token_id": 2444,
+          "token_text": " students",
+          "probability": 0.279296875
+        },
+        {
+          "token_id": 661,
+          "token_text": " people",
+          "probability": 0.048583984375
+        },
+        {
+          "token_id": 7799,
+          "token_text": " teachers",
+          "probability": 0.048583984375
+        },
+        {
+          "token_id": 6809,
+          "token_text": " participants",
+          "probability": 0.02294921875
+        }
+      ],
+      [
+        {
+          "token_id": 2444,
+          "token_text": " students",
+          "probability": 0.1328125
+        },
+        {
+          "token_id": 7799,
+          "token_text": " teachers",
+          "probability": 0.08056640625
+        },
+        {
+          "token_id": 3925,
+          "token_text": " individuals",
+          "probability": 0.029541015625
+        },
+        {
+          "token_id": 661,
+          "token_text": " people",
+          "probability": 0.029541015625
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.029541015625
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 4086,
+          "token_text": " agency",
+          "probability": 0.7421875
+        },
+        {
+          "token_id": 1767,
+          "token_text": " body",
+          "probability": 0.043212890625
+        },
+        {
+          "token_id": 5797,
+          "token_text": " agent",
+          "probability": 0.0238037109375
+        },
+        {
+          "token_id": 1182,
+          "token_text": " head",
+          "probability": 0.0174560546875
+        },
+        {
+          "token_id": 5942,
+          "token_text": " agencies",
+          "probability": 0.01275634765625
+        }
+      ],
+      [
+        {
+          "token_id": 4086,
+          "token_text": " agency",
+          "probability": 0.28125
+        },
+        {
+          "token_id": 5942,
+          "token_text": " agencies",
+          "probability": 0.048583984375
+        },
+        {
+          "token_id": 2746,
+          "token_text": " model",
+          "probability": 0.033935546875
+        },
+        {
+          "token_id": 1767,
+          "token_text": " body",
+          "probability": 0.033447265625
+        },
+        {
+          "token_id": 3641,
+          "token_text": " center",
+          "probability": 0.0294189453125
+        }
+      ],
+      [
+        {
+          "token_id": 4673,
+          "token_text": " learning",
+          "probability": 0.298828125
+        },
+        {
+          "token_id": 4581,
+          "token_text": " spending",
+          "probability": 0.052001953125
+        },
+        {
+          "token_id": 5942,
+          "token_text": " agencies",
+          "probability": 0.0245361328125
+        },
+        {
+          "token_id": 3641,
+          "token_text": " center",
+          "probability": 0.0203857421875
+        },
+        {
+          "token_id": 3005,
+          "token_text": " bott",
+          "probability": 0.0191650390625
+        }
+      ],
+      [
+        {
+          "token_id": 4673,
+          "token_text": " learning",
+          "probability": 0.1259765625
+        },
+        {
+          "token_id": 6554,
+          "token_text": " agents",
+          "probability": 0.0595703125
+        },
+        {
+          "token_id": 5942,
+          "token_text": " agencies",
+          "probability": 0.04638671875
+        },
+        {
+          "token_id": 4581,
+          "token_text": " spending",
+          "probability": 0.02197265625
+        },
+        {
+          "token_id": 4069,
+          "token_text": " behavior",
+          "probability": 0.0194091796875
+        }
+      ],
+      [
+        {
+          "token_id": 5942,
+          "token_text": " agencies",
+          "probability": 0.078125
+        },
+        {
+          "token_id": 4673,
+          "token_text": " learning",
+          "probability": 0.0693359375
+        },
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.053955078125
+        },
+        {
+          "token_id": 6554,
+          "token_text": " agents",
+          "probability": 0.037109375
+        },
+        {
+          "token_id": 3858,
+          "token_text": " types",
+          "probability": 0.0224609375
+        }
+      ],
+      [
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.19921875
+        },
+        {
+          "token_id": 5942,
+          "token_text": " agencies",
+          "probability": 0.13671875
+        },
+        {
+          "token_id": 6554,
+          "token_text": " agents",
+          "probability": 0.0390625
+        },
+        {
+          "token_id": 4673,
+          "token_text": " learning",
+          "probability": 0.0390625
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.030517578125
+        }
+      ],
+      [
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.380859375
+        },
+        {
+          "token_id": 5942,
+          "token_text": " agencies",
+          "probability": 0.0849609375
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.0400390625
+        },
+        {
+          "token_id": 2628,
+          "token_text": " groups",
+          "probability": 0.035400390625
+        },
+        {
+          "token_id": 6554,
+          "token_text": " agents",
+          "probability": 0.03125
+        }
+      ],
+      [
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.73828125
+        },
+        {
+          "token_id": 5942,
+          "token_text": " agencies",
+          "probability": 0.047119140625
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.036865234375
+        },
+        {
+          "token_id": 3858,
+          "token_text": " types",
+          "probability": 0.0223388671875
+        },
+        {
+          "token_id": 2628,
+          "token_text": " groups",
+          "probability": 0.01055908203125
+        }
+      ],
+      [
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.80078125
+        },
+        {
+          "token_id": 3858,
+          "token_text": " types",
+          "probability": 0.03515625
+        },
+        {
+          "token_id": 5942,
+          "token_text": " agencies",
+          "probability": 0.0213623046875
+        },
+        {
+          "token_id": 1866,
+          "token_text": " members",
+          "probability": 0.0213623046875
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.0213623046875
+        }
+      ],
+      [
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.7734375
+        },
+        {
+          "token_id": 1866,
+          "token_text": " members",
+          "probability": 0.043701171875
+        },
+        {
+          "token_id": 3858,
+          "token_text": " types",
+          "probability": 0.033935546875
+        },
+        {
+          "token_id": 3259,
+          "token_text": " workers",
+          "probability": 0.0233154296875
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.0181884765625
+        }
+      ],
+      [
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.8671875
+        },
+        {
+          "token_id": 1866,
+          "token_text": " members",
+          "probability": 0.0262451171875
+        },
+        {
+          "token_id": 3259,
+          "token_text": " workers",
+          "probability": 0.0203857421875
+        },
+        {
+          "token_id": 3858,
+          "token_text": " types",
+          "probability": 0.015869140625
+        },
+        {
+          "token_id": 4409,
+          "token_text": " employees",
+          "probability": 0.0096435546875
+        }
+      ],
+      [
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.43359375
+        },
+        {
+          "token_id": 3259,
+          "token_text": " workers",
+          "probability": 0.0966796875
+        },
+        {
+          "token_id": 1866,
+          "token_text": " members",
+          "probability": 0.05859375
+        },
+        {
+          "token_id": 12,
+          "token_text": "-",
+          "probability": 0.05859375
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.03564453125
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 584,
+          "token_text": " other",
+          "probability": 0.2158203125
+        },
+        {
+          "token_id": 788,
+          "token_text": " then",
+          "probability": 0.16015625
+        },
+        {
+          "token_id": 5457,
+          "token_text": " possibly",
+          "probability": 0.09765625
+        },
+        {
+          "token_id": 14,
+          "token_text": "/",
+          "probability": 0.07275390625
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.059814453125
+        }
+      ],
+      [
+        {
+          "token_id": 584,
+          "token_text": " other",
+          "probability": 0.44921875
+        },
+        {
+          "token_id": 788,
+          "token_text": " then",
+          "probability": 0.10498046875
+        },
+        {
+          "token_id": 5457,
+          "token_text": " possibly",
+          "probability": 0.0869140625
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.08154296875
+        },
+        {
+          "token_id": 14,
+          "token_text": "/",
+          "probability": 0.06640625
+        }
+      ],
+      [
+        {
+          "token_id": 584,
+          "token_text": " other",
+          "probability": 0.328125
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.1806640625
+        },
+        {
+          "token_id": 788,
+          "token_text": " then",
+          "probability": 0.11669921875
+        },
+        {
+          "token_id": 14,
+          "token_text": "/",
+          "probability": 0.0732421875
+        },
+        {
+          "token_id": 5457,
+          "token_text": " possibly",
+          "probability": 0.045654296875
+        }
+      ],
+      [
+        {
+          "token_id": 584,
+          "token_text": " other",
+          "probability": 0.259765625
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.1484375
+        },
+        {
+          "token_id": 788,
+          "token_text": " then",
+          "probability": 0.115234375
+        },
+        {
+          "token_id": 663,
+          "token_text": " its",
+          "probability": 0.05615234375
+        },
+        {
+          "token_id": 14,
+          "token_text": "/",
+          "probability": 0.041259765625
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.21484375
+        },
+        {
+          "token_id": 663,
+          "token_text": " its",
+          "probability": 0.2021484375
+        },
+        {
+          "token_id": 584,
+          "token_text": " other",
+          "probability": 0.138671875
+        },
+        {
+          "token_id": 1729,
+          "token_text": " non",
+          "probability": 0.051025390625
+        },
+        {
+          "token_id": 14,
+          "token_text": "/",
+          "probability": 0.022705078125
+        }
+      ],
+      [
+        {
+          "token_id": 584,
+          "token_text": " other",
+          "probability": 0.322265625
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.15234375
+        },
+        {
+          "token_id": 663,
+          "token_text": " its",
+          "probability": 0.1474609375
+        },
+        {
+          "token_id": 1729,
+          "token_text": " non",
+          "probability": 0.0654296875
+        },
+        {
+          "token_id": 1854,
+          "token_text": " others",
+          "probability": 0.041015625
+        }
+      ],
+      [
+        {
+          "token_id": 584,
+          "token_text": " other",
+          "probability": 0.5234375
+        },
+        {
+          "token_id": 1729,
+          "token_text": " non",
+          "probability": 0.1669921875
+        },
+        {
+          "token_id": 663,
+          "token_text": " its",
+          "probability": 0.0615234375
+        },
+        {
+          "token_id": 1854,
+          "token_text": " others",
+          "probability": 0.039794921875
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.037353515625
+        }
+      ],
+      [
+        {
+          "token_id": 1729,
+          "token_text": " non",
+          "probability": 0.318359375
+        },
+        {
+          "token_id": 584,
+          "token_text": " other",
+          "probability": 0.28125
+        },
+        {
+          "token_id": 1981,
+          "token_text": " individual",
+          "probability": 0.09130859375
+        },
+        {
+          "token_id": 1919,
+          "token_text": " social",
+          "probability": 0.04296875
+        },
+        {
+          "token_id": 663,
+          "token_text": " its",
+          "probability": 0.020263671875
+        }
+      ],
+      [
+        {
+          "token_id": 2055,
+          "token_text": " community",
+          "probability": 0.388671875
+        },
+        {
+          "token_id": 2858,
+          "token_text": " environment",
+          "probability": 0.0986328125
+        },
+        {
+          "token_id": 5456,
+          "token_text": " client",
+          "probability": 0.07666015625
+        },
+        {
+          "token_id": 1981,
+          "token_text": " individual",
+          "probability": 0.06787109375
+        },
+        {
+          "token_id": 7172,
+          "token_text": " consumer",
+          "probability": 0.05615234375
+        }
+      ],
+      [
+        {
+          "token_id": 1981,
+          "token_text": " individual",
+          "probability": 0.1767578125
+        },
+        {
+          "token_id": 5456,
+          "token_text": " client",
+          "probability": 0.1552734375
+        },
+        {
+          "token_id": 2055,
+          "token_text": " community",
+          "probability": 0.1552734375
+        },
+        {
+          "token_id": 9511,
+          "token_text": " citizen",
+          "probability": 0.10693359375
+        },
+        {
+          "token_id": 8383,
+          "token_text": " worker",
+          "probability": 0.05712890625
+        }
+      ],
+      [
+        {
+          "token_id": 5456,
+          "token_text": " client",
+          "probability": 0.146484375
+        },
+        {
+          "token_id": 2055,
+          "token_text": " community",
+          "probability": 0.1142578125
+        },
+        {
+          "token_id": 1981,
+          "token_text": " individual",
+          "probability": 0.0693359375
+        },
+        {
+          "token_id": 8383,
+          "token_text": " worker",
+          "probability": 0.0419921875
+        },
+        {
+          "token_id": 6538,
+          "token_text": " employee",
+          "probability": 0.0419921875
+        }
+      ],
+      [
+        {
+          "token_id": 1398,
+          "token_text": " class",
+          "probability": 0.054931640625
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.054931640625
+        },
+        {
+          "token_id": 6538,
+          "token_text": " employee",
+          "probability": 0.033203125
+        },
+        {
+          "token_id": 5456,
+          "token_text": " client",
+          "probability": 0.033203125
+        },
+        {
+          "token_id": 3710,
+          "token_text": " student",
+          "probability": 0.033203125
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 2858,
+          "token_text": " environment",
+          "probability": 0.9609375
+        },
+        {
+          "token_id": 9344,
+          "token_text": " Environment",
+          "probability": 0.034912109375
+        },
+        {
+          "token_id": 12493,
+          "token_text": " environments",
+          "probability": 0.0031585693359375
+        },
+        {
+          "token_id": 3403,
+          "token_text": " conditions",
+          "probability": 0.000316619873046875
+        },
+        {
+          "token_id": 17365,
+          "token_text": " env",
+          "probability": 0.00023937225341796875
+        }
+      ],
+      [
+        {
+          "token_id": 2858,
+          "token_text": " environment",
+          "probability": 0.8828125
+        },
+        {
+          "token_id": 9344,
+          "token_text": " Environment",
+          "probability": 0.08203125
+        },
+        {
+          "token_id": 12493,
+          "token_text": " environments",
+          "probability": 0.026611328125
+        },
+        {
+          "token_id": 3403,
+          "token_text": " conditions",
+          "probability": 0.00750732421875
+        },
+        {
+          "token_id": 9633,
+          "token_text": " variables",
+          "probability": 0.00049591064453125
+        }
+      ],
+      [
+        {
+          "token_id": 2858,
+          "token_text": " environment",
+          "probability": 0.74609375
+        },
+        {
+          "token_id": 12493,
+          "token_text": " environments",
+          "probability": 0.177734375
+        },
+        {
+          "token_id": 3403,
+          "token_text": " conditions",
+          "probability": 0.03662109375
+        },
+        {
+          "token_id": 9344,
+          "token_text": " Environment",
+          "probability": 0.0189208984375
+        },
+        {
+          "token_id": 26307,
+          "token_text": " contexts",
+          "probability": 0.002410888671875
+        }
+      ],
+      [
+        {
+          "token_id": 2858,
+          "token_text": " environment",
+          "probability": 0.578125
+        },
+        {
+          "token_id": 12493,
+          "token_text": " environments",
+          "probability": 0.205078125
+        },
+        {
+          "token_id": 3403,
+          "token_text": " conditions",
+          "probability": 0.1416015625
+        },
+        {
+          "token_id": 9344,
+          "token_text": " Environment",
+          "probability": 0.01275634765625
+        },
+        {
+          "token_id": 9633,
+          "token_text": " variables",
+          "probability": 0.00933837890625
+        }
+      ],
+      [
+        {
+          "token_id": 2858,
+          "token_text": " environment",
+          "probability": 0.53125
+        },
+        {
+          "token_id": 12493,
+          "token_text": " environments",
+          "probability": 0.2353515625
+        },
+        {
+          "token_id": 3403,
+          "token_text": " conditions",
+          "probability": 0.04931640625
+        },
+        {
+          "token_id": 9633,
+          "token_text": " variables",
+          "probability": 0.03173828125
+        },
+        {
+          "token_id": 12936,
+          "token_text": " alike",
+          "probability": 0.01507568359375
+        }
+      ],
+      [
+        {
+          "token_id": 2858,
+          "token_text": " environment",
+          "probability": 0.29296875
+        },
+        {
+          "token_id": 12493,
+          "token_text": " environments",
+          "probability": 0.2431640625
+        },
+        {
+          "token_id": 9633,
+          "token_text": " variables",
+          "probability": 0.10791015625
+        },
+        {
+          "token_id": 3403,
+          "token_text": " conditions",
+          "probability": 0.0615234375
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.044921875
+        }
+      ],
+      [
+        {
+          "token_id": 12936,
+          "token_text": " alike",
+          "probability": 0.451171875
+        },
+        {
+          "token_id": 12493,
+          "token_text": " environments",
+          "probability": 0.10107421875
+        },
+        {
+          "token_id": 9633,
+          "token_text": " variables",
+          "probability": 0.05078125
+        },
+        {
+          "token_id": 2858,
+          "token_text": " environment",
+          "probability": 0.044677734375
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.03955078125
+        }
+      ],
+      [
+        {
+          "token_id": 12936,
+          "token_text": " alike",
+          "probability": 0.80078125
+        },
+        {
+          "token_id": 9633,
+          "token_text": " variables",
+          "probability": 0.022705078125
+        },
+        {
+          "token_id": 389,
+          "token_text": " are",
+          "probability": 0.0177001953125
+        },
+        {
+          "token_id": 5087,
+          "token_text": " factors",
+          "probability": 0.015625
+        },
+        {
+          "token_id": 12493,
+          "token_text": " environments",
+          "probability": 0.015625
+        }
+      ],
+      [
+        {
+          "token_id": 12936,
+          "token_text": " alike",
+          "probability": 0.6484375
+        },
+        {
+          "token_id": 9633,
+          "token_text": " variables",
+          "probability": 0.050048828125
+        },
+        {
+          "token_id": 5087,
+          "token_text": " factors",
+          "probability": 0.044189453125
+        },
+        {
+          "token_id": 16717,
+          "token_text": " influences",
+          "probability": 0.0303955078125
+        },
+        {
+          "token_id": 12493,
+          "token_text": " environments",
+          "probability": 0.023681640625
+        }
+      ],
+      [
+        {
+          "token_id": 12936,
+          "token_text": " alike",
+          "probability": 0.3515625
+        },
+        {
+          "token_id": 389,
+          "token_text": " are",
+          "probability": 0.146484375
+        },
+        {
+          "token_id": 743,
+          "token_text": " may",
+          "probability": 0.07861328125
+        },
+        {
+          "token_id": 318,
+          "token_text": " is",
+          "probability": 0.06103515625
+        },
+        {
+          "token_id": 5087,
+          "token_text": " factors",
+          "probability": 0.047607421875
+        }
+      ],
+      [
+        {
+          "token_id": 389,
+          "token_text": " are",
+          "probability": 0.306640625
+        },
+        {
+          "token_id": 714,
+          "token_text": " could",
+          "probability": 0.185546875
+        },
+        {
+          "token_id": 743,
+          "token_text": " may",
+          "probability": 0.11279296875
+        },
+        {
+          "token_id": 1244,
+          "token_text": " might",
+          "probability": 0.068359375
+        },
+        {
+          "token_id": 460,
+          "token_text": " can",
+          "probability": 0.068359375
+        }
+      ],
+      [
+        {
+          "token_id": 389,
+          "token_text": " are",
+          "probability": 0.1962890625
+        },
+        {
+          "token_id": 460,
+          "token_text": " can",
+          "probability": 0.072265625
+        },
+        {
+          "token_id": 547,
+          "token_text": " were",
+          "probability": 0.072265625
+        },
+        {
+          "token_id": 714,
+          "token_text": " could",
+          "probability": 0.043701171875
+        },
+        {
+          "token_id": 423,
+          "token_text": " have",
+          "probability": 0.0264892578125
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 5485,
+          "token_text": " shape",
+          "probability": 0.81640625
+        },
+        {
+          "token_id": 25959,
+          "token_text": " Shape",
+          "probability": 0.1103515625
+        },
+        {
+          "token_id": 43358,
+          "token_text": "shape",
+          "probability": 0.05224609375
+        },
+        {
+          "token_id": 15268,
+          "token_text": " shapes",
+          "probability": 0.0191650390625
+        },
+        {
+          "token_id": 14292,
+          "token_text": " shaped",
+          "probability": 0.00013828277587890625
+        }
+      ],
+      [
+        {
+          "token_id": 5485,
+          "token_text": " shape",
+          "probability": 0.83984375
+        },
+        {
+          "token_id": 25959,
+          "token_text": " Shape",
+          "probability": 0.05712890625
+        },
+        {
+          "token_id": 43358,
+          "token_text": "shape",
+          "probability": 0.0537109375
+        },
+        {
+          "token_id": 15268,
+          "token_text": " shapes",
+          "probability": 0.041748046875
+        },
+        {
+          "token_id": 3803,
+          "token_text": "change",
+          "probability": 0.0017242431640625
+        }
+      ],
+      [
+        {
+          "token_id": 5485,
+          "token_text": " shape",
+          "probability": 0.82421875
+        },
+        {
+          "token_id": 3803,
+          "token_text": "change",
+          "probability": 0.030029296875
+        },
+        {
+          "token_id": 23610,
+          "token_text": " shaping",
+          "probability": 0.024169921875
+        },
+        {
+          "token_id": 15268,
+          "token_text": " shapes",
+          "probability": 0.02197265625
+        },
+        {
+          "token_id": 43358,
+          "token_text": "shape",
+          "probability": 0.0181884765625
+        }
+      ],
+      [
+        {
+          "token_id": 5485,
+          "token_text": " shape",
+          "probability": 0.48046875
+        },
+        {
+          "token_id": 23610,
+          "token_text": " shaping",
+          "probability": 0.053955078125
+        },
+        {
+          "token_id": 15268,
+          "token_text": " shapes",
+          "probability": 0.03515625
+        },
+        {
+          "token_id": 9978,
+          "token_text": " formation",
+          "probability": 0.0302734375
+        },
+        {
+          "token_id": 3803,
+          "token_text": "change",
+          "probability": 0.0284423828125
+        }
+      ],
+      [
+        {
+          "token_id": 23610,
+          "token_text": " shaping",
+          "probability": 0.404296875
+        },
+        {
+          "token_id": 5485,
+          "token_text": " shape",
+          "probability": 0.279296875
+        },
+        {
+          "token_id": 23574,
+          "token_text": " perceptions",
+          "probability": 0.0361328125
+        },
+        {
+          "token_id": 2346,
+          "token_text": " itself",
+          "probability": 0.02001953125
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.018798828125
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.181640625
+        },
+        {
+          "token_id": 23610,
+          "token_text": " shaping",
+          "probability": 0.1708984375
+        },
+        {
+          "token_id": 674,
+          "token_text": " our",
+          "probability": 0.12451171875
+        },
+        {
+          "token_id": 23574,
+          "token_text": " perceptions",
+          "probability": 0.0712890625
+        },
+        {
+          "token_id": 8613,
+          "token_text": "lessly",
+          "probability": 0.0380859375
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.2734375
+        },
+        {
+          "token_id": 674,
+          "token_text": " our",
+          "probability": 0.212890625
+        },
+        {
+          "token_id": 23574,
+          "token_text": " perceptions",
+          "probability": 0.12158203125
+        },
+        {
+          "token_id": 1111,
+          "token_text": " both",
+          "probability": 0.07373046875
+        },
+        {
+          "token_id": 23610,
+          "token_text": " shaping",
+          "probability": 0.03271484375
+        }
+      ],
+      [
+        {
+          "token_id": 23574,
+          "token_text": " perceptions",
+          "probability": 0.625
+        },
+        {
+          "token_id": 23610,
+          "token_text": " shaping",
+          "probability": 0.16796875
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.09033203125
+        },
+        {
+          "token_id": 1111,
+          "token_text": " both",
+          "probability": 0.01385498046875
+        },
+        {
+          "token_id": 674,
+          "token_text": " our",
+          "probability": 0.0107421875
+        }
+      ],
+      [
+        {
+          "token_id": 23574,
+          "token_text": " perceptions",
+          "probability": 0.95703125
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.00933837890625
+        },
+        {
+          "token_id": 10906,
+          "token_text": " outcomes",
+          "probability": 0.006439208984375
+        },
+        {
+          "token_id": 1692,
+          "token_text": " human",
+          "probability": 0.006439208984375
+        },
+        {
+          "token_id": 703,
+          "token_text": " how",
+          "probability": 0.004425048828125
+        }
+      ],
+      [
+        {
+          "token_id": 23574,
+          "token_text": " perceptions",
+          "probability": 0.8125
+        },
+        {
+          "token_id": 703,
+          "token_text": " how",
+          "probability": 0.08544921875
+        },
+        {
+          "token_id": 1692,
+          "token_text": " human",
+          "probability": 0.03564453125
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.01483154296875
+        },
+        {
+          "token_id": 10906,
+          "token_text": " outcomes",
+          "probability": 0.006195068359375
+        }
+      ],
+      [
+        {
+          "token_id": 703,
+          "token_text": " how",
+          "probability": 0.310546875
+        },
+        {
+          "token_id": 23574,
+          "token_text": " perceptions",
+          "probability": 0.1875
+        },
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.0888671875
+        },
+        {
+          "token_id": 4069,
+          "token_text": " behavior",
+          "probability": 0.053955078125
+        },
+        {
+          "token_id": 1692,
+          "token_text": " human",
+          "probability": 0.053955078125
+        }
+      ],
+      [
+        {
+          "token_id": 262,
+          "token_text": " the",
+          "probability": 0.255859375
+        },
+        {
+          "token_id": 703,
+          "token_text": " how",
+          "probability": 0.05712890625
+        },
+        {
+          "token_id": 257,
+          "token_text": " a",
+          "probability": 0.02099609375
+        },
+        {
+          "token_id": 2116,
+          "token_text": " self",
+          "probability": 0.02099609375
+        },
+        {
+          "token_id": 674,
+          "token_text": " our",
+          "probability": 0.02099609375
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "token_id": 30677,
+          "token_text": " mastery",
+          "probability": 0.99609375
+        },
+        {
+          "token_id": 2759,
+          "token_text": "fully",
+          "probability": 0.00102996826171875
+        },
+        {
+          "token_id": 1630,
+          "token_text": " control",
+          "probability": 0.0004024505615234375
+        },
+        {
+          "token_id": 35915,
+          "token_text": " comprehension",
+          "probability": 0.000377655029296875
+        },
+        {
+          "token_id": 913,
+          "token_text": "ful",
+          "probability": 0.000377655029296875
+        }
+      ],
+      [
+        {
+          "token_id": 30677,
+          "token_text": " mastery",
+          "probability": 0.9296875
+        },
+        {
+          "token_id": 2759,
+          "token_text": "fully",
+          "probability": 0.0272216796875
+        },
+        {
+          "token_id": 1630,
+          "token_text": " control",
+          "probability": 0.01068115234375
+        },
+        {
+          "token_id": 913,
+          "token_text": "ful",
+          "probability": 0.005340576171875
+        },
+        {
+          "token_id": 1241,
+          "token_text": " level",
+          "probability": 0.00185394287109375
+        }
+      ],
+      [
+        {
+          "token_id": 30677,
+          "token_text": " mastery",
+          "probability": 0.84765625
+        },
+        {
+          "token_id": 2759,
+          "token_text": "fully",
+          "probability": 0.044189453125
+        },
+        {
+          "token_id": 4678,
+          "token_text": " skills",
+          "probability": 0.0205078125
+        },
+        {
+          "token_id": 1630,
+          "token_text": " control",
+          "probability": 0.0145263671875
+        },
+        {
+          "token_id": 913,
+          "token_text": "ful",
+          "probability": 0.00732421875
+        }
+      ],
+      [
+        {
+          "token_id": 30677,
+          "token_text": " mastery",
+          "probability": 0.61328125
+        },
+        {
+          "token_id": 2759,
+          "token_text": "fully",
+          "probability": 0.1455078125
+        },
+        {
+          "token_id": 4678,
+          "token_text": " skills",
+          "probability": 0.032470703125
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.032470703125
+        },
+        {
+          "token_id": 913,
+          "token_text": "ful",
+          "probability": 0.032470703125
+        }
+      ],
+      [
+        {
+          "token_id": 30677,
+          "token_text": " mastery",
+          "probability": 0.35546875
+        },
+        {
+          "token_id": 2759,
+          "token_text": "fully",
+          "probability": 0.203125
+        },
+        {
+          "token_id": 4678,
+          "token_text": " skills",
+          "probability": 0.123046875
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.05810546875
+        },
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.04248046875
+        }
+      ],
+      [
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.2255859375
+        },
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.1455078125
+        },
+        {
+          "token_id": 4678,
+          "token_text": " skills",
+          "probability": 0.12109375
+        },
+        {
+          "token_id": 30677,
+          "token_text": " mastery",
+          "probability": 0.11376953125
+        },
+        {
+          "token_id": 2759,
+          "token_text": "fully",
+          "probability": 0.0830078125
+        }
+      ],
+      [
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.35546875
+        },
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.244140625
+        },
+        {
+          "token_id": 4678,
+          "token_text": " skills",
+          "probability": 0.115234375
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.054443359375
+        },
+        {
+          "token_id": 2759,
+          "token_text": "fully",
+          "probability": 0.037353515625
+        }
+      ],
+      [
+        {
+          "token_id": 4678,
+          "token_text": " skills",
+          "probability": 0.38671875
+        },
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.234375
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.1416015625
+        },
+        {
+          "token_id": 286,
+          "token_text": " of",
+          "probability": 0.0279541015625
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.021728515625
+        }
+      ],
+      [
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.3515625
+        },
+        {
+          "token_id": 4678,
+          "token_text": " skills",
+          "probability": 0.2265625
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.12109375
+        },
+        {
+          "token_id": 286,
+          "token_text": " of",
+          "probability": 0.06494140625
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.0269775390625
+        }
+      ],
+      [
+        {
+          "token_id": 4678,
+          "token_text": " skills",
+          "probability": 0.494140625
+        },
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.2333984375
+        },
+        {
+          "token_id": 286,
+          "token_text": " of",
+          "probability": 0.052001953125
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.0458984375
+        },
+        {
+          "token_id": 14301,
+          "token_text": " behaviors",
+          "probability": 0.031494140625
+        }
+      ],
+      [
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.310546875
+        },
+        {
+          "token_id": 286,
+          "token_text": " of",
+          "probability": 0.1884765625
+        },
+        {
+          "token_id": 4678,
+          "token_text": " skills",
+          "probability": 0.146484375
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.08935546875
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.0419921875
+        }
+      ],
+      [
+        {
+          "token_id": 290,
+          "token_text": " and",
+          "probability": 0.29296875
+        },
+        {
+          "token_id": 13,
+          "token_text": ".",
+          "probability": 0.177734375
+        },
+        {
+          "token_id": 286,
+          "token_text": " of",
+          "probability": 0.10791015625
+        },
+        {
+          "token_id": 11,
+          "token_text": ",",
+          "probability": 0.10791015625
+        },
+        {
+          "token_id": 287,
+          "token_text": " in",
+          "probability": 0.0654296875
+        }
+      ]
+    ]
+  ],
+  "critical_framing_prompt": "The model's Bandura knowledge is genuinely there in the layers. So why couldn't it tell you the paper doesn't exist? What would 'checking' even look like?",
+  "pedagogical_narrative": "The model can't distinguish a real citation from a plausible-sounding one \u2014 no separate representation of 'exists in the world'.",
+  "risk_flag": "medium"
+}

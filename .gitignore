@@ -62,3 +62,4 @@ cdk.out
 
 local.db
 .test.db
+.dev.db

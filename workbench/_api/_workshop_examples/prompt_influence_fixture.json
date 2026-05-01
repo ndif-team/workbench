@@ -1,0 +1,25 @@
+{
+  "record_type": "prompt_influence",
+  "example_id": "prompt_influence_fixture",
+  "prompt": "The Eiffel Tower is in",
+  "completion_text": " the city of Paris.",
+  "completion_tokens": [
+    { "idx": 0, "id": 262, "text": " the", "targetIds": [262] },
+    { "idx": 1, "id": 1748, "text": " city", "targetIds": [1748] },
+    { "idx": 2, "id": 286, "text": " of", "targetIds": [286] },
+    { "idx": 3, "id": 6342, "text": " Paris", "targetIds": [6342] },
+    { "idx": 4, "id": 13, "text": ".", "targetIds": [13] }
+  ],
+  "target_output_position": 3,
+  "method": "attention_rollup",
+  "attributions": [
+    { "prompt_position": 0, "prompt_token_text": "The", "score": 0.04 },
+    { "prompt_position": 1, "prompt_token_text": " Eiffel", "score": 0.62 },
+    { "prompt_position": 2, "prompt_token_text": " Tower", "score": 0.21 },
+    { "prompt_position": 3, "prompt_token_text": " is", "score": 0.05 },
+    { "prompt_position": 4, "prompt_token_text": " in", "score": 0.08 }
+  ],
+  "critical_framing_prompt": "Which words in your prompt did most of the work for this part of the output? Would you have predicted that?",
+  "pedagogical_narrative": "Prompts have structured, localized effects — not uniform influence.",
+  "risk_flag": "low"
+}

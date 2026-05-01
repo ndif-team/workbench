@@ -3,9 +3,21 @@ from .patch import router as patch
 from .models import router as models
 from .logit_lens import router as logit_lens
 from .activation_patching import router as activation_patching
+from .branching import router as branching
+from .commitment_strip import router as commitment_strip
+from .examples import router as examples
 
 from nnsight import ndif
 import nnsightful
 ndif.register(nnsightful)
 
-__all__ = ["lens", "patch", "models", "logit_lens", "activation_patching"]
+__all__ = [
+    "lens",
+    "patch",
+    "models",
+    "logit_lens",
+    "activation_patching",
+    "branching",
+    "commitment_strip",
+    "examples",
+]

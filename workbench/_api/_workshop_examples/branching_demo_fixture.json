@@ -1,0 +1,106 @@
+{
+  "record_type": "branching_generation_set",
+  "example_id": "branching_demo_fixture",
+  "prompt": "The capital of France is",
+  "model": "openai-community/gpt2",
+  "max_tokens": 4,
+  "samples": [
+    {
+      "temperature": 0.4,
+      "seed": 0,
+      "completion_text": " Paris.",
+      "completion_tokens": [
+        { "idx": 0, "id": 6342, "text": " Paris", "targetIds": [6342] },
+        { "idx": 1, "id": 13, "text": ".", "targetIds": [13] }
+      ],
+      "per_position_top_k": [
+        [
+          { "token_id": 6342, "token_text": " Paris", "probability": 0.91 },
+          { "token_id": 1737, "token_text": " Paris.", "probability": 0.04 },
+          { "token_id": 257, "token_text": " a", "probability": 0.02 },
+          { "token_id": 262, "token_text": " the", "probability": 0.02 },
+          { "token_id": 5862, "token_text": " known", "probability": 0.01 }
+        ],
+        [
+          { "token_id": 13, "token_text": ".", "probability": 0.62 },
+          { "token_id": 11, "token_text": ",", "probability": 0.21 },
+          { "token_id": 290, "token_text": " and", "probability": 0.08 },
+          { "token_id": 287, "token_text": " in", "probability": 0.05 },
+          { "token_id": 198, "token_text": "\n", "probability": 0.04 }
+        ]
+      ]
+    },
+    {
+      "temperature": 0.7,
+      "seed": 0,
+      "completion_text": " Paris,",
+      "completion_tokens": [
+        { "idx": 0, "id": 6342, "text": " Paris", "targetIds": [6342] },
+        { "idx": 1, "id": 11, "text": ",", "targetIds": [11] }
+      ],
+      "per_position_top_k": [
+        [
+          { "token_id": 6342, "token_text": " Paris", "probability": 0.74 },
+          { "token_id": 257, "token_text": " a", "probability": 0.08 },
+          { "token_id": 262, "token_text": " the", "probability": 0.06 },
+          { "token_id": 1737, "token_text": " Paris.", "probability": 0.05 },
+          { "token_id": 5862, "token_text": " known", "probability": 0.04 }
+        ],
+        [
+          { "token_id": 11, "token_text": ",", "probability": 0.41 },
+          { "token_id": 13, "token_text": ".", "probability": 0.32 },
+          { "token_id": 290, "token_text": " and", "probability": 0.12 },
+          { "token_id": 287, "token_text": " in", "probability": 0.08 },
+          { "token_id": 543, "token_text": " which", "probability": 0.04 }
+        ]
+      ]
+    },
+    {
+      "temperature": 1.0,
+      "seed": 0,
+      "completion_text": " a city",
+      "completion_tokens": [
+        { "idx": 0, "id": 257, "text": " a", "targetIds": [257] },
+        { "idx": 1, "id": 1748, "text": " city", "targetIds": [1748] }
+      ],
+      "per_position_top_k": [
+        [
+          { "token_id": 6342, "token_text": " Paris", "probability": 0.42 },
+          { "token_id": 257, "token_text": " a", "probability": 0.18 },
+          { "token_id": 262, "token_text": " the", "probability": 0.14 },
+          { "token_id": 5862, "token_text": " known", "probability": 0.09 },
+          { "token_id": 1737, "token_text": " Paris.", "probability": 0.05 }
+        ],
+        [
+          { "token_id": 1748, "token_text": " city", "probability": 0.36 },
+          { "token_id": 1295, "token_text": " place", "probability": 0.18 },
+          { "token_id": 1499, "token_text": " country", "probability": 0.11 },
+          { "token_id": 4141, "token_text": " French", "probability": 0.09 },
+          { "token_id": 6342, "token_text": " Paris", "probability": 0.07 }
+        ]
+      ]
+    }
+  ],
+  "drill_downs": [
+    {
+      "sample_idx": 2,
+      "branch_position": 0,
+      "forced_token_id": 6342,
+      "forced_token_text": " Paris",
+      "continuation_text": " Paris, the city of light.",
+      "continuation_tokens": [
+        { "idx": 0, "id": 6342, "text": " Paris", "targetIds": [6342] },
+        { "idx": 1, "id": 11, "text": ",", "targetIds": [11] },
+        { "idx": 2, "id": 262, "text": " the", "targetIds": [262] },
+        { "idx": 3, "id": 1748, "text": " city", "targetIds": [1748] },
+        { "idx": 4, "id": 286, "text": " of", "targetIds": [286] },
+        { "idx": 5, "id": 1657, "text": " light", "targetIds": [1657] },
+        { "idx": 6, "id": 13, "text": ".", "targetIds": [13] }
+      ],
+      "per_position_top_k": []
+    }
+  ],
+  "critical_framing_prompt": "Three workshops, same prompt. Where did they decide to be different?",
+  "pedagogical_narrative": "Each generation is one path through a branching probability tree. The model never picks 'the' answer — sampling does.",
+  "risk_flag": "low"
+}

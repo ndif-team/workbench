@@ -4,7 +4,16 @@ import logging
 import os
 import anyio
 
-from .routes import lens, patch, models, logit_lens, activation_patching
+from .routes import (
+    lens,
+    patch,
+    models,
+    logit_lens,
+    activation_patching,
+    branching,
+    commitment_strip,
+    examples,
+)
 from .state import AppState
 
 from dotenv import load_dotenv; load_dotenv()
@@ -50,6 +59,9 @@ def fastapi_app():
     app.include_router(activation_patching, prefix="/activation_patching")
     app.include_router(patch, prefix="/patch")
     app.include_router(models, prefix="/models")
+    app.include_router(branching, prefix="/branching")
+    app.include_router(commitment_strip, prefix="/commitment_strip")
+    app.include_router(examples, prefix="/examples")
 
     app.state.m = AppState()
 
