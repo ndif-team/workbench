@@ -289,7 +289,7 @@ def build_real_commitment_strip(spec: dict) -> dict:
         "completion": spec["completion"],
         "top_k": 5,
     }
-    resp = requests.post(url, json=body, headers=headers, timeout=120)
+    resp = requests.post(url, json=body, headers=headers, timeout=600)
     resp.raise_for_status()
     data = resp.json()["data"]
     return {
@@ -318,7 +318,7 @@ def build_real_branching(spec: dict) -> dict:
         "max_tokens": 60,
         "top_k": 5,
     }
-    resp = requests.post(url, json=body, headers=headers, timeout=120)
+    resp = requests.post(url, json=body, headers=headers, timeout=600)
     resp.raise_for_status()
     data = resp.json()["data"]
     return {

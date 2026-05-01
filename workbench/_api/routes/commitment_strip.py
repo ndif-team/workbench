@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from ..auth import require_user_email, user_has_model_access
 from ..data_models import Token
 from ..state import AppState, get_state
+from .._remote_poll import wait_for_job_and_collect
 from .commitment_strip_models import (
     CommitmentStripRequest,
     CommitmentStripData,
@@ -72,35 +73,55 @@ def _sequence_logit_lens(
     if not completion_token_ids:
         raise HTTPException(status_code=400, detail="completion is empty after tokenization")
 
-    # Define accumulator OUTSIDE the with — nnsight's trace context can rewrite
-    # the body, so locals defined inside aren't always visible afterwards.
-    per_layer_logits: list = []
+    # Compute top-K *inside* the trace so the wire payload is small (~K instead
+    # of full vocab) and the saved tensors have well-known names that survive
+    # the remote job_id round-trip.
     with model.trace(
         full_text,
         remote=state.remote,
         backend=state.make_backend(model=model),
     ) as tracer:
+        per_layer_top_ids = []
+        per_layer_top_probs = []
         for layer in model.model.layers:
             hs = layer.output
             if isinstance(hs, tuple):
                 hs = hs[0]
-            # Project hidden states through final layernorm + lm_head
             logits_BLV = model.lm_head(model.model.ln_f(hs))
-            # Slice to completion positions only
             logits_LV = logits_BLV[0, completion_start - 1 : -1, :]
-            per_layer_logits.append(logits_LV.save())
-    n_layers = len(per_layer_logits)
+            probs_LV = t.nn.functional.softmax(logits_LV, dim=-1)
+            top_probs_LK, top_ids_LK = t.topk(probs_LV, k=top_k, dim=-1)
+            per_layer_top_ids.append(top_ids_LK)
+            per_layer_top_probs.append(top_probs_LK)
+        # Stack into [layers, positions, K]; named locals so the remote results
+        # dict has predictable keys.
+        stacked_top_ids = t.stack(per_layer_top_ids, dim=0).save()
+        stacked_top_probs = t.stack(per_layer_top_probs, dim=0).save()
 
-    # Shape per layer: [num_completion_positions, vocab]
-    # Reorganize: [position][layer] -> top_k
+    if state.remote:
+        # Poll NDIF status until COMPLETED, then collect the saved tensors.
+        results = wait_for_job_and_collect(state, tracer.backend.job_id)
+        stacked_top_ids = results["stacked_top_ids"]
+        stacked_top_probs = results["stacked_top_probs"]
+
+    n_layers = stacked_top_ids.shape[0]
     num_positions = len(completion_token_ids)
     per_position_per_layer_top_k: list[list[list[TopKEntry]]] = []
     for pos in range(num_positions):
         per_layer: list[list[TopKEntry]] = []
-        for layer_logits in per_layer_logits:
-            # layer_logits shape [num_positions, vocab]
-            row = layer_logits[pos]
-            per_layer.append(_topk_for_logits(row, tokenizer, top_k))
+        for layer in range(n_layers):
+            ids_K = stacked_top_ids[layer, pos]
+            probs_K = stacked_top_probs[layer, pos]
+            per_layer.append(
+                [
+                    TopKEntry(
+                        token_id=int(tid),
+                        token_text=_decode_token(tokenizer, int(tid)),
+                        probability=float(p),
+                    )
+                    for tid, p in zip(ids_K.tolist(), probs_K.tolist())
+                ]
+            )
         per_position_per_layer_top_k.append(per_layer)
 
     completion_tokens = [

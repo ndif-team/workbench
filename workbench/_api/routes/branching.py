@@ -1,5 +1,12 @@
 """Branching Generations backend (Feature A).
 
+Note: when state.remote is True, model.trace queues a job at NDIF and returns
+non-blocking. The Workshop Mode UI doesn't call these endpoints at runtime
+(participants get pre-cached payloads), but the precache script needs to
+drive them synchronously. We poll the NDIF status endpoint internally and
+collect the saved tensors once the job is COMPLETED — saving the script
+from having to re-implement the lens.py-style two-step start+poll flow.
+
 Two endpoints power the spec §1.4 contract:
 
 - POST /branching/generate    — N samples (different temperature/seed) of
@@ -31,6 +38,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from ..auth import require_user_email, user_has_model_access
 from ..data_models import Token
 from ..state import AppState, get_state
+from .._remote_poll import wait_for_job_and_collect
 from .branching_models import (
     SamplingSpec,
     BranchingGenerateRequest,
@@ -81,7 +89,6 @@ def _generate_token_ids(
     tokenizer = model.tokenizer
     t.manual_seed(spec.seed)
 
-    new_token_ids_box: list = []
     with model.generate(
         prompt,
         max_new_tokens=max_tokens,
@@ -91,11 +98,12 @@ def _generate_token_ids(
         remote=state.remote,
         backend=state.make_backend(model=model),
     ) as tracer:
-        new_token_ids_box.append(model.generator.output[0].save())
+        new_token_ids = model.generator.output[0].save()
 
-    new_token_ids = new_token_ids_box[0] if new_token_ids_box else None
-    if new_token_ids is None:
-        raise RuntimeError("nnsight generate did not produce output")
+    if state.remote:
+        results = wait_for_job_and_collect(state, tracer.backend.job_id)
+        new_token_ids = results["new_token_ids"]
+
     new_ids_list = (
         new_token_ids.tolist()
         if hasattr(new_token_ids, "tolist")
@@ -115,7 +123,6 @@ def _greedy_continuation_token_ids(
 ) -> list[int]:
     """Same as _generate_token_ids but greedy (do_sample=False)."""
     tokenizer = model.tokenizer
-    new_token_ids_box: list = []
     with model.generate(
         prefix_text,
         max_new_tokens=max_tokens,
@@ -123,11 +130,12 @@ def _greedy_continuation_token_ids(
         remote=state.remote,
         backend=state.make_backend(model=model),
     ) as tracer:
-        new_token_ids_box.append(model.generator.output[0].save())
+        new_token_ids = model.generator.output[0].save()
 
-    new_token_ids = new_token_ids_box[0] if new_token_ids_box else None
-    if new_token_ids is None:
-        raise RuntimeError("nnsight generate did not produce output")
+    if state.remote:
+        results = wait_for_job_and_collect(state, tracer.backend.job_id)
+        new_token_ids = results["new_token_ids"]
+
     new_ids_list = (
         new_token_ids.tolist()
         if hasattr(new_token_ids, "tolist")
@@ -152,6 +160,8 @@ def _per_position_top_k(
     Equivalent to per-step logits — at each completion position the next-token
     distribution depends only on the tokens before it, which is what teacher-
     forcing on the actual sampled completion provides.
+
+    Top-K reduction is done inside the trace so the remote payload is small.
     """
     tokenizer = model.tokenizer
     if not completion_token_ids:
@@ -161,26 +171,40 @@ def _per_position_top_k(
     full_ids = list(prompt_ids) + list(completion_token_ids)
     full_text = tokenizer.decode(full_ids)
     completion_start = len(prompt_ids)
+    n_completion = len(completion_token_ids)
 
-    logits_box: list = []
     with model.trace(
         full_text,
         remote=state.remote,
         backend=state.make_backend(model=model),
     ) as tracer:
-        # logits[0, i, :] is the next-token distribution conditioned on tokens 0..i.
-        # We want the distribution for predicting completion position p, which is
-        # at logits index (completion_start - 1 + p). Slice all those rows.
-        sliced = model.logits[0, completion_start - 1 : completion_start - 1 + len(completion_token_ids), :]
-        logits_box.append(sliced.save())
+        sliced_logits = model.logits[
+            0, completion_start - 1 : completion_start - 1 + n_completion, :
+        ]
+        probs_LV = t.nn.functional.softmax(sliced_logits, dim=-1)
+        top_probs_LK, top_ids_LK = t.topk(probs_LV, k=top_k, dim=-1)
+        top_probs = top_probs_LK.save()
+        top_ids = top_ids_LK.save()
 
-    logits_LV = logits_box[0] if logits_box else None
-    if logits_LV is None:
-        raise RuntimeError("nnsight trace did not produce logits")
+    if state.remote:
+        results = wait_for_job_and_collect(state, tracer.backend.job_id)
+        top_probs = results["top_probs"]
+        top_ids = results["top_ids"]
 
     out: list[list[TopKEntry]] = []
-    for pos in range(logits_LV.shape[0]):
-        out.append(_top_k_for_logits(logits_LV[pos], tokenizer, top_k))
+    for pos in range(top_probs.shape[0]):
+        ids_K = top_ids[pos]
+        probs_K = top_probs[pos]
+        out.append(
+            [
+                TopKEntry(
+                    token_id=int(tid),
+                    token_text=_decode_token(tokenizer, int(tid)),
+                    probability=float(p),
+                )
+                for tid, p in zip(ids_K.tolist(), probs_K.tolist())
+            ]
+        )
     return out
 
 
