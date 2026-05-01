@@ -63,4 +63,32 @@ test.describe("Branching Generations (workshop demo)", () => {
         // No NDIF call should happen for the workshop drill-down.
         expect(ndifCalls).toHaveLength(0);
     });
+
+    test("Generate full alternate trajectory renders a new panel", async ({
+        workbenchPage: page,
+    }) => {
+        // Hits POST /branching/continue live via the workshop server action.
+        // gpt2 is fast enough (~5s) that we don't need the long-running NDIF
+        // budget here.
+        test.setTimeout(REAL_NDIF_TIMEOUT_MS * 2);
+
+        await page.goto(`/workshop/${BRANCHING_ID}`);
+        await expect(page.getByTestId("trajectory-panel-0")).toBeVisible({ timeout: 15_000 });
+
+        // Open the drill-down on a position with realistic alternatives.
+        await page.getByTestId("trajectory-token-0-0").click();
+        await expect(page.getByTestId("branch-drill-down")).toBeVisible();
+
+        // The first NON-chosen alternative should have a "Generate" button.
+        const generate = page
+            .getByTestId(/^drill-down-alt-\d+-generate$/)
+            .first();
+        await expect(generate).toBeVisible();
+        await generate.click();
+
+        // A 4th panel slides in once the call completes.
+        await expect(page.getByTestId("trajectory-alternate-panel-0")).toBeVisible({
+            timeout: REAL_NDIF_TIMEOUT_MS,
+        });
+    });
 });

@@ -21,7 +21,7 @@ export const workspaces = sqliteTable("workspaces", {
         .$onUpdate(() => new Date()),
 });
 
-export const chartTypes = ["line", "heatmap"] as const;
+export const chartTypes = ["line", "heatmap", "branching"] as const;
 
 export const charts = sqliteTable("charts", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
@@ -40,7 +40,7 @@ export const charts = sqliteTable("charts", {
         .$onUpdate(() => new Date()),
 });
 
-export const configTypes = ["lens", "patch"] as const;
+export const configTypes = ["lens", "patch", "branching"] as const;
 
 export const configs = sqliteTable("configs", {
     id: text("id").primaryKey().$defaultFn(generateUUID),

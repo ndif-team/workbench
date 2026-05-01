@@ -64,6 +64,18 @@ export async function gotoFreshLensWorkspace(page: Page) {
     await waitForModelsLoaded(page);
 }
 
+/** Navigate to a fresh workspace with a branching chart. */
+export async function gotoFreshBranchingWorkspace(page: Page) {
+    const params = new URLSearchParams({
+        createNew: "true",
+        tool: "Branching Generations",
+        model: "openai-community/gpt2",
+    });
+    await page.goto(`/workbench?${params.toString()}`);
+    await page.waitForURL(/\/branching\//, { timeout: 30_000 });
+    await waitForModelsLoaded(page);
+}
+
 /** Navigate to a fresh workspace with an activation patching chart. */
 export async function gotoFreshAPWorkspace(
     page: Page,

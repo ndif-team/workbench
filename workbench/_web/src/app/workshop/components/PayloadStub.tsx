@@ -1,6 +1,6 @@
 import type { WorkshopExamplePayload } from "@/types/workshop";
-import { TrajectoryComparison } from "@/components/branching/TrajectoryComparison";
-import { HeatStrip } from "@/components/commitment-strip/HeatStrip";
+import { WorkshopBranchingPanel } from "./WorkshopBranchingPanel";
+import { WorkshopHeatStripPanel } from "./WorkshopHeatStripPanel";
 
 interface PayloadStubProps {
     payload: WorkshopExamplePayload;
@@ -12,7 +12,7 @@ export function PayloadStub({ payload }: PayloadStubProps) {
             <div data-testid="payload-stub-branching" className="rounded-md border p-4 bg-muted/30">
                 <p className="text-sm text-muted-foreground mb-2">Prompt:</p>
                 <p className="font-mono text-sm mb-4">{payload.prompt}</p>
-                <TrajectoryComparison payload={payload} />
+                <WorkshopBranchingPanel payload={payload} />
                 {/* Per-sample shorthand (kept for E2E backwards-compat). */}
                 <div className="hidden">
                     {payload.samples.map((s, i) => (
@@ -32,7 +32,7 @@ export function PayloadStub({ payload }: PayloadStubProps) {
             >
                 <p className="text-sm text-muted-foreground mb-2">Prompt:</p>
                 <p className="font-mono text-sm mb-3">{payload.prompt}</p>
-                <HeatStrip payload={payload} />
+                <WorkshopHeatStripPanel payload={payload} />
             </div>
         );
     }

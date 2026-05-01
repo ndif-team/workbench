@@ -30,6 +30,10 @@ const config = {
         // Workshop pre-cached payloads
         workshopExample: (exampleId: string) => `/examples/${exampleId}`,
         workshopExamplesList: "/examples/",
+
+        // Branching Generations researcher endpoints
+        branchingGenerate: "/branching/generate",
+        branchingContinue: "/branching/continue",
     },
     getApiUrl: (endpoint: string) => `${config.backendUrl}${endpoint}`,
     ndifStatusUrl: (jobId: string) => `${config.ndifUrl}/response/${jobId}`,

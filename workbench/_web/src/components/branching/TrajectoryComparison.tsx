@@ -6,15 +6,28 @@ import {
     pluralityTokenAtPosition,
     divergenceToSaturation,
 } from "@/lib/branching-divergence";
-import type { BranchingGenerationSet, BranchingDrillDown } from "@/types/workshop";
+import type {
+    BranchingGenerationSet,
+    BranchingDrillDown as DrillDownData,
+    BranchingSample,
+} from "@/types/workshop";
 import { BranchDrillDown } from "./BranchDrillDown";
 
 interface TrajectoryComparisonProps {
     payload: BranchingGenerationSet;
     /** Optional: alternates beyond the pre-cached ones (researcher mode). */
-    extraDrillDowns?: BranchingDrillDown[];
-    /** Researcher-mode hook to fetch a forced-token continuation live. */
-    onGenerateAlternate?: (sampleIdx: number, position: number, forcedTokenId: number) => void;
+    extraDrillDowns?: DrillDownData[];
+    /**
+     * Async hook for "Generate full alternate trajectory". Returns a
+     * BranchingDrillDown — the component appends its continuation as a new
+     * panel and registers it for future drill-downs at the same branch point.
+     */
+    generateAlternate?: (input: {
+        sampleIdx: number;
+        position: number;
+        forcedTokenId: number;
+        forcedTokenText: string;
+    }) => Promise<DrillDownData>;
 }
 
 interface SelectedToken {
@@ -25,9 +38,14 @@ interface SelectedToken {
 export function TrajectoryComparison({
     payload,
     extraDrillDowns,
-    onGenerateAlternate,
+    generateAlternate,
 }: TrajectoryComparisonProps) {
     const [selected, setSelected] = useState<SelectedToken | null>(null);
+    const [liveDrillDowns, setLiveDrillDowns] = useState<DrillDownData[]>([]);
+    const [alternatePanels, setAlternatePanels] = useState<
+        { drillDown: DrillDownData; sampleSnapshot: BranchingSample }[]
+    >([]);
+    const [generating, setGenerating] = useState(false);
 
     const divergence = useMemo(
         () => computeDivergenceByPosition(payload.samples),
@@ -35,8 +53,8 @@ export function TrajectoryComparison({
     );
 
     const drillDowns = useMemo(
-        () => [...payload.drill_downs, ...(extraDrillDowns ?? [])],
-        [payload.drill_downs, extraDrillDowns],
+        () => [...payload.drill_downs, ...(extraDrillDowns ?? []), ...liveDrillDowns],
+        [payload.drill_downs, extraDrillDowns, liveDrillDowns],
     );
 
     const allIdentical = useMemo(() => {
@@ -44,6 +62,61 @@ export function TrajectoryComparison({
         const first = payload.samples[0].completion_text;
         return payload.samples.every((s) => s.completion_text === first);
     }, [payload.samples]);
+
+    const handleGenerateAlternate = async (forcedTokenId: number) => {
+        if (!generateAlternate || !selected) return;
+        const sample = payload.samples[selected.sampleIdx];
+        const topAlt = (sample.per_position_top_k[selected.position] ?? []).find(
+            (e) => e.token_id === forcedTokenId,
+        );
+        const tokenText = topAlt?.token_text ?? "?";
+        setGenerating(true);
+        try {
+            const dd = await generateAlternate({
+                sampleIdx: selected.sampleIdx,
+                position: selected.position,
+                forcedTokenId,
+                forcedTokenText: tokenText,
+            });
+            setLiveDrillDowns((prev) => [...prev, dd]);
+            setAlternatePanels((prev) => [
+                ...prev,
+                {
+                    drillDown: dd,
+                    sampleSnapshot: {
+                        temperature: sample.temperature,
+                        seed: sample.seed,
+                        completion_text:
+                            sample.completion_tokens
+                                .slice(0, selected.position)
+                                .map((t) => t.text)
+                                .join("") +
+                            tokenText +
+                            dd.continuation_text,
+                        completion_tokens: [
+                            ...sample.completion_tokens.slice(0, selected.position),
+                            {
+                                idx: selected.position,
+                                id: forcedTokenId,
+                                text: tokenText,
+                                targetIds: [forcedTokenId],
+                            },
+                            ...dd.continuation_tokens.map((t, i) => ({
+                                ...t,
+                                idx: selected.position + 1 + i,
+                            })),
+                        ],
+                        per_position_top_k: dd.per_position_top_k,
+                    },
+                },
+            ]);
+        } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error("generateAlternate failed", e);
+        } finally {
+            setGenerating(false);
+        }
+    };
 
     return (
         <div data-testid="trajectory-comparison" className="flex flex-col gap-3">
@@ -80,9 +153,10 @@ export function TrajectoryComparison({
                                 const sat = divergenceToSaturation(div);
                                 const plurality = pluralityTokenAtPosition(payload.samples, pos);
                                 const differs = plurality !== null && tok.id !== plurality;
-                                const borderStyle = differs && sat > 0
-                                    ? { boxShadow: `inset 0 -2px 0 0 hsl(var(--primary) / ${sat})` }
-                                    : undefined;
+                                const borderStyle =
+                                    differs && sat > 0
+                                        ? { boxShadow: `inset 0 -2px 0 0 hsl(var(--primary) / ${sat})` }
+                                        : undefined;
                                 return (
                                     <button
                                         type="button"
@@ -105,7 +179,44 @@ export function TrajectoryComparison({
                         </div>
                     </div>
                 ))}
+
+                {alternatePanels.map((alt, idx) => (
+                    <div
+                        key={`alt-${idx}`}
+                        data-testid={`trajectory-alternate-panel-${idx}`}
+                        className="rounded-md border-2 border-dashed border-primary p-3 bg-card flex flex-col gap-2"
+                    >
+                        <div className="text-xs text-muted-foreground">
+                            alternate · sample {alt.drillDown.sample_idx + 1}, position{" "}
+                            {alt.drillDown.branch_position} · forced{" "}
+                            <span className="font-mono">{alt.drillDown.forced_token_text}</span>
+                        </div>
+                        <div className="font-mono text-sm leading-relaxed flex flex-wrap gap-px">
+                            {alt.sampleSnapshot.completion_tokens.map((tok, pos) => (
+                                <span
+                                    key={pos}
+                                    className={
+                                        pos === alt.drillDown.branch_position
+                                            ? "px-1 rounded bg-primary/20"
+                                            : "px-1"
+                                    }
+                                >
+                                    {tok.text}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                ))}
             </div>
+
+            {generating && (
+                <div
+                    data-testid="trajectory-generating"
+                    className="text-xs text-muted-foreground"
+                >
+                    Generating alternate trajectory…
+                </div>
+            )}
 
             {selected && (
                 <BranchDrillDown
@@ -114,13 +225,8 @@ export function TrajectoryComparison({
                     branchPosition={selected.position}
                     drillDowns={drillDowns}
                     onGenerateAlternate={
-                        onGenerateAlternate
-                            ? (forcedTokenId) =>
-                                  onGenerateAlternate(
-                                      selected.sampleIdx,
-                                      selected.position,
-                                      forcedTokenId,
-                                  )
+                        generateAlternate
+                            ? (forcedTokenId) => handleGenerateAlternate(forcedTokenId)
                             : undefined
                     }
                     onClose={() => setSelected(null)}

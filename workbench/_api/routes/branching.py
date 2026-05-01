@@ -35,7 +35,13 @@ import logging
 import torch as t
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..auth import require_user_email, user_has_model_access
+from ..auth import (
+    CallerIdentity,
+    caller_has_model_access,
+    require_user_email,
+    require_user_or_workshop,
+    user_has_model_access,
+)
 from ..data_models import Token
 from ..state import AppState, get_state
 from .._remote_poll import wait_for_job_and_collect
@@ -329,9 +335,13 @@ async def start_generate(
 async def start_continue(
     req: BranchingContinueRequest,
     state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email),
+    caller: CallerIdentity = Depends(require_user_or_workshop),
 ):
-    if state.remote and not user_has_model_access(user_email, req.model, state):
+    """Workshop participants can hit this endpoint via X-Workshop-Session — it
+    powers the "Generate full alternate trajectory" drill-down button per
+    spec §1.3. Researchers use the standard X-User-Email flow.
+    """
+    if state.remote and not caller_has_model_access(caller, req.model, state):
         raise HTTPException(status_code=403, detail=f"no access to {req.model}")
 
     try:

@@ -507,6 +507,13 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                         >
                                                             Activation Patching
                                                         </SelectItem>
+                                                        <SelectItem
+                                                            key="Branching Generations"
+                                                            value="Branching Generations"
+                                                            className="text-xs"
+                                                        >
+                                                            Branching Generations
+                                                        </SelectItem>
                                                     </SelectGroup>
                                                 </SelectContent>
                                             </Select>

@@ -8,6 +8,8 @@ import {
 } from "@/lib/queries/workshopAnnotationQueries";
 import type { WorkshopAnnotation } from "@/db/schema";
 import { WORKSHOP_SESSION_COOKIE } from "@/lib/workshop-session";
+import config from "@/lib/config";
+import type { BranchingDrillDown } from "@/types/workshop";
 
 function generateSessionId(): string {
     return "wkshp-xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -77,4 +79,68 @@ export async function loadSessionAnnotations(): Promise<WorkshopAnnotation[]> {
     const sessionId = await getWorkshopSessionIdReadOnly();
     if (!sessionId) return [];
     return await getSessionAnnotations(sessionId);
+}
+
+/**
+ * Generate a forced-token continuation for a branching drill-down. Powers the
+ * "Generate full alternate trajectory" button per spec §1.3 / §1.8.
+ *
+ * Hits POST /branching/continue with X-Workshop-Session so anonymous workshop
+ * participants can call it without an X-User-Email. Returns a payload that
+ * matches the BranchingDrillDown shape so the UI can render it alongside the
+ * pre-cached samples.
+ */
+export async function generateBranchingAlternate(input: {
+    model: string;
+    prompt: string;
+    sample_idx: number;
+    branch_position: number;
+    prefix_token_ids: number[];
+    forced_next_token_id: number;
+    forced_next_token_text: string;
+    max_tokens?: number;
+}): Promise<BranchingDrillDown> {
+    const sessionId = await getOrCreateWorkshopSessionId();
+    const url =
+        config.getApiUrl("/branching/continue") ?? "/branching/continue";
+
+    const res = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Workshop-Session": sessionId,
+        },
+        body: JSON.stringify({
+            model: input.model,
+            prompt: input.prompt,
+            prefix_token_ids: input.prefix_token_ids,
+            forced_next_token_id: input.forced_next_token_id,
+            max_tokens: input.max_tokens ?? 60,
+            top_k: 5,
+        }),
+        cache: "no-store",
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`branching/continue failed: ${res.status} ${text.slice(0, 200)}`);
+    }
+    const json = (await res.json()) as {
+        data: {
+            continuation_text: string;
+            continuation_tokens: BranchingDrillDown["continuation_tokens"];
+            per_position_top_k: BranchingDrillDown["per_position_top_k"];
+        } | null;
+    };
+    if (!json.data) {
+        throw new Error("branching/continue returned no data");
+    }
+    return {
+        sample_idx: input.sample_idx,
+        branch_position: input.branch_position,
+        forced_token_id: input.forced_next_token_id,
+        forced_token_text: input.forced_next_token_text,
+        continuation_text: json.data.continuation_text,
+        continuation_tokens: json.data.continuation_tokens,
+        per_position_top_k: json.data.per_position_top_k,
+    };
 }

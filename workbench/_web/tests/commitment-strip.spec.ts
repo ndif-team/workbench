@@ -29,6 +29,36 @@ test.describe("Commitment-Strip Logit Lens (workshop)", () => {
         expect(layerAttr).not.toBeNull();
     });
 
+    test("clicking a token opens single-token logit-lens modal", async ({
+        workbenchPage: page,
+    }) => {
+        await page.goto(`/workshop/${COMMITMENT_ID}`);
+        await expect(page.getByTestId("commitment-strip")).toBeVisible({ timeout: 15_000 });
+
+        // No live NDIF call should happen — the modal reads pre-cached data.
+        const ndifCalls: string[] = [];
+        page.on("request", (req) => {
+            const url = req.url();
+            if (url.includes("ndif.us")) ndifCalls.push(url);
+        });
+
+        await page.getByTestId("heat-strip-token-3").click();
+        const modal = page.getByTestId("single-token-logit-lens-modal");
+        await expect(modal).toBeVisible({ timeout: 5_000 });
+        // First layer row should always exist regardless of fixture content.
+        await expect(page.getByTestId("logit-lens-layer-0")).toBeVisible();
+
+        // Argos snapshot of the modal — distinctive view for the spec's
+        // "click-to-drill-down" acceptance criterion.
+        await argosScreenshot(page, "single-token-logit-lens-modal", { fullPage: false });
+
+        // Close via ✕.
+        await page.getByTestId("single-token-modal-close").click();
+        await expect(page.getByTestId("single-token-logit-lens-modal")).toHaveCount(0);
+
+        expect(ndifCalls).toHaveLength(0);
+    });
+
     test("toggling definition recolors without a refetch", async ({ workbenchPage: page }) => {
         await page.goto(`/workshop/${COMMITMENT_ID}`);
         await expect(page.getByTestId("commitment-strip")).toBeVisible({ timeout: 15_000 });

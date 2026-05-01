@@ -4,10 +4,15 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 import { pushTutorialChart } from "@/lib/queries/tutorialChart";
-import { createLensChartPair, createActivationPatchingChartPair } from "@/lib/queries/chartQueries";
+import {
+    createLensChartPair,
+    createActivationPatchingChartPair,
+    createBranchingChartPair,
+} from "@/lib/queries/chartQueries";
 import type { LensConfigData } from "@/types/lens";
 import { Metrics } from "@/types/lens";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
+import type { BranchingConfigData } from "@/types/branching";
 
 interface AutoWorkspaceCreatorProps {
     userId: string;
@@ -94,6 +99,28 @@ export function AutoWorkspaceCreator({
                     userChartId = chart.id;
                     chartType = "activation-patching";
                     console.log("Created activation patching chart:", userChartId);
+                } else if (tool === "Branching Generations") {
+                    console.log("Creating branching chart");
+                    const branchingConfig: BranchingConfigData = {
+                        prompt: initialPrompt && initialPrompt.trim().length > 0
+                            ? initialPrompt
+                            : "Design a 60-minute critical AI literacy workshop for university faculty using interactive interpretability tools.",
+                        model: initialModel || "openai-community/gpt2",
+                        samples: [
+                            { temperature: 0.4, seed: 0, top_p: 1.0 },
+                            { temperature: 0.7, seed: 1, top_p: 1.0 },
+                            { temperature: 1.0, seed: 2, top_p: 1.0 },
+                        ],
+                        max_tokens: 80,
+                        top_k: 5,
+                    };
+                    const { chart } = await createBranchingChartPair(
+                        targetWorkspaceId,
+                        branchingConfig,
+                    );
+                    userChartId = chart.id;
+                    chartType = "branching";
+                    console.log("Created branching chart:", userChartId);
                 } else if (initialPrompt && initialPrompt.trim() && initialModel) {
                     console.log("Creating chart for user prompt:", initialPrompt);
                     const userChartConfig: LensConfigData = {
@@ -113,6 +140,8 @@ export function AutoWorkspaceCreator({
                     if (userChartId) {
                         if (chartType === "activation-patching") {
                             router.push(`/workbench/${targetWorkspaceId}/activation-patching/${userChartId}`);
+                        } else if (chartType === "branching") {
+                            router.push(`/workbench/${targetWorkspaceId}/branching/${userChartId}`);
                         } else {
                             router.push(`/workbench/${targetWorkspaceId}/${userChartId}`);
                         }

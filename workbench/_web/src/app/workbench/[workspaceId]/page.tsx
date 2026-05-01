@@ -38,6 +38,8 @@ export default async function Page({
         redirect(`/workbench/${workspaceId}/lens2/${chart.id}`);
     } else if (chartType === "activation-patching") {
         redirect(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
+    } else if (chartType === "branching") {
+        redirect(`/workbench/${workspaceId}/branching/${chart.id}`);
     } else {
         redirect(`/workbench/${workspaceId}/${chart.id}`);
     }

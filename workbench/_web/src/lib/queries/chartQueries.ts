@@ -7,6 +7,7 @@ import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
+import { BranchingConfigData } from "@/types/branching";
 import { eq, desc } from "drizzle-orm";
 import { touchWorkspace } from "@/lib/queries/workspaceQueries";
 
@@ -127,6 +128,28 @@ export const createActivationPatchingChartPair = async (
         .returning();
 
     // Create the link between chart and config
+    await db.insert(chartConfigLinks).values({
+        chartId: newChart.id,
+        configId: newConfig.id,
+    });
+
+    await touchWorkspace(workspaceId);
+    return { chart: newChart as Chart, config: newConfig as Config };
+};
+
+export const createBranchingChartPair = async (
+    workspaceId: string,
+    defaultConfig: BranchingConfigData,
+): Promise<{ chart: Chart; config: Config }> => {
+    const [newChart] = await db
+        .insert(charts)
+        .values({ workspaceId, type: "branching" })
+        .returning();
+    const [newConfig] = await db
+        .insert(configs)
+        .values({ workspaceId, type: "branching", data: defaultConfig })
+        .returning();
+
     await db.insert(chartConfigLinks).values({
         chartId: newChart.id,
         configId: newConfig.id,
