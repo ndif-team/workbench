@@ -1,4 +1,4 @@
-import { test, expect, REAL_NDIF_TIMEOUT_MS } from "./fixtures";
+import { test, expect, argosScreenshot, REAL_NDIF_TIMEOUT_MS } from "./fixtures";
 
 /**
  * End-to-end workshop flow. A participant walks the Movement-2 sequence with
@@ -63,6 +63,12 @@ test.describe("Workshop full flow", () => {
         await expect(page.getByTestId("annotation-textarea")).toHaveValue(note, {
             timeout: 15_000,
         });
+
+        // Argos baseline at the end-of-session moment: a Task 1 page with a
+        // saved annotation, framing prompt available, branching indicator
+        // pinned, and the summary-export CTA — the participant's last view
+        // before they download their session record.
+        await argosScreenshot(page, "workshop-flow-end-of-session", { fullPage: false });
 
         // Summary export must contain both notes.
         const downloadPromise = page.waitForEvent("download");

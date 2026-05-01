@@ -1,4 +1,4 @@
-import type { TopKLogit, BranchingSample } from "@/types/workshop";
+import type { BranchingSample } from "@/types/workshop";
 
 /**
  * Compute a per-position divergence score across N samples. The score is the
@@ -82,9 +82,4 @@ export function pluralityTokenAtPosition(samples: BranchingSample[], pos: number
 export function divergenceToSaturation(score: number): number {
     if (score <= 0) return 0;
     return Math.min(1, score / 1.5);
-}
-
-/** Convenience: get top-5 alternatives at a position from a sample. */
-export function topKAtPosition(sample: BranchingSample, pos: number): TopKLogit[] {
-    return sample.per_position_top_k[pos] ?? [];
 }

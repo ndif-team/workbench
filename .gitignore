@@ -63,3 +63,7 @@ cdk.out
 local.db
 .test.db
 .dev.db
+
+# Playwright
+test-results/
+playwright-report/

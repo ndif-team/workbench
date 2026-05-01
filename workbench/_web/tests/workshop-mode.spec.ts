@@ -24,6 +24,10 @@ test.describe("Workshop Mode", () => {
 
         const commitmentLink = page.getByTestId(`workshop-link-${COMMITMENT_ID}`);
         await expect(commitmentLink).toBeVisible();
+
+        // Argos baseline of the participant entry point — all task sections
+        // and the SessionSummaryExport CTA visible in one shot.
+        await argosScreenshot(page, "workshop-mode-index", { fullPage: false });
     });
 
     test("branching example page shows payload stub + chrome", async ({ workbenchPage: page }) => {
@@ -38,8 +42,6 @@ test.describe("Workshop Mode", () => {
         await expect(page.getByTestId("workshop-task-header")).toBeVisible();
         await expect(page.getByTestId("annotation-pane")).toBeVisible();
         await expect(page.getByTestId("branching-indicator")).toBeVisible();
-
-        await argosScreenshot(page, "workshop-mode-branching", { fullPage: false });
     });
 
     test("commitment-strip example page renders heat-strip", async ({

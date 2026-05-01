@@ -7,8 +7,7 @@ import {
     getSessionAnnotations,
 } from "@/lib/queries/workshopAnnotationQueries";
 import type { WorkshopAnnotation } from "@/db/schema";
-
-const WORKSHOP_SESSION_COOKIE = "workshop_session_id";
+import { WORKSHOP_SESSION_COOKIE } from "@/lib/workshop-session";
 
 function generateSessionId(): string {
     return "wkshp-xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
