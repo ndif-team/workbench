@@ -30,7 +30,7 @@ def wait_for_job_and_collect(
     state: AppState,
     job_id: str,
     *,
-    timeout_s: float = 600.0,
+    timeout_s: float = 1800.0,
     interval_s: float = 1.0,
 ) -> dict[str, Any]:
     """Poll NDIF /response/{job_id} until COMPLETED, then drive the backend

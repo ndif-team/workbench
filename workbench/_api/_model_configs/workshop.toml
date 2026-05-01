@@ -1,0 +1,11 @@
+remote = true
+
+# Workshop pre-cache config: just the models the workshop actually needs.
+# Llama-3.1-8B is the spec's target model; gpt2 is kept for E2E and as a
+# fallback when 8B is unavailable. Other Llama variants are excluded so the
+# /models endpoint doesn't fail on gated repos that the precache HF_TOKEN
+# can't access.
+models = [
+    "openai-community/gpt2",
+    "meta-llama/Llama-3.1-8B",
+]

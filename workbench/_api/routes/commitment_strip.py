@@ -75,7 +75,11 @@ def _sequence_logit_lens(
 
     # Compute top-K *inside* the trace so the wire payload is small (~K instead
     # of full vocab) and the saved tensors have well-known names that survive
-    # the remote job_id round-trip.
+    # the remote job_id round-trip. Use the StandardizedTransformer accessors
+    # (`layers_output`, `project_on_vocab`) so the same code works across
+    # gpt2 / llama / qwen / etc. — the GPT-2-specific `model.model.ln_f`
+    # path doesn't exist on Llama.
+    n_layers_total = model.num_layers
     with model.trace(
         full_text,
         remote=state.remote,
@@ -83,11 +87,9 @@ def _sequence_logit_lens(
     ) as tracer:
         per_layer_top_ids = []
         per_layer_top_probs = []
-        for layer in model.model.layers:
-            hs = layer.output
-            if isinstance(hs, tuple):
-                hs = hs[0]
-            logits_BLV = model.lm_head(model.model.ln_f(hs))
+        for layer_idx in range(n_layers_total):
+            hs = model.layers_output[layer_idx]
+            logits_BLV = model.project_on_vocab(hs)
             logits_LV = logits_BLV[0, completion_start - 1 : -1, :]
             probs_LV = t.nn.functional.softmax(logits_LV, dim=-1)
             top_probs_LK, top_ids_LK = t.topk(probs_LV, k=top_k, dim=-1)
