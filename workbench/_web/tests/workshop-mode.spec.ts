@@ -30,9 +30,11 @@ test.describe("Workshop Mode", () => {
         await page.goto(`/workshop/${BRANCHING_ID}`);
         await expect(page.getByTestId("workshop-example-page")).toBeVisible({ timeout: 15_000 });
         await expect(page.getByTestId("payload-stub-branching")).toBeVisible();
-        await expect(page.getByTestId("branching-sample-0")).toBeVisible();
-        await expect(page.getByTestId("branching-sample-1")).toBeVisible();
-        await expect(page.getByTestId("branching-sample-2")).toBeVisible();
+        // Trajectory panels (visible side-by-side) — Wave 3 replaced the
+        // earlier hidden `branching-sample-N` shorthand with these.
+        await expect(page.getByTestId("trajectory-panel-0")).toBeVisible();
+        await expect(page.getByTestId("trajectory-panel-1")).toBeVisible();
+        await expect(page.getByTestId("trajectory-panel-2")).toBeVisible();
         await expect(page.getByTestId("workshop-task-header")).toBeVisible();
         await expect(page.getByTestId("annotation-pane")).toBeVisible();
         await expect(page.getByTestId("branching-indicator")).toBeVisible();
@@ -103,6 +105,9 @@ test.describe("Workshop Mode", () => {
         const saveBtn = page.getByTestId("critical-framing-save");
         await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
         await saveBtn.click();
+        // Wait for the server action's Set-Cookie + DB row to land before
+        // reloading — without this, reload races the action.
+        await page.waitForTimeout(1500);
 
         await page.reload();
         // Already-saved response means component opens revealed on reload.

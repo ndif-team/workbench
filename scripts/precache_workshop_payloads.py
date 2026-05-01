@@ -396,18 +396,12 @@ def main() -> int:
         )
         written.append(write_payload(payload))
 
-    # Branching real-mode disabled in Phase 1: nnsight's autoregressive trace
-    # body has scoping quirks that drop locally-built logit lists. The workshop
-    # demo (3 facilitator-shown trajectories) is fine on the synthetic
-    # branching payload — it just needs three plausible completions and one
-    # drill-down. Researcher mode will use the live endpoint directly.
-    branching = build_synthetic_branching(BRANCHING_DEMO)
+    branching = (
+        build_synthetic_branching(BRANCHING_DEMO)
+        if args.mode == "synthetic"
+        else build_real_branching(BRANCHING_DEMO)
+    )
     written.append(write_payload(branching))
-    if args.mode == "real":
-        print(
-            "  note: branching demo uses synthetic payload; real-mode branching "
-            "is deferred to Phase 1.5 (nnsight per-step logit collection)"
-        )
 
     update_manifest()
     print(f"Wrote {len(written)} payloads in {args.mode} mode:")

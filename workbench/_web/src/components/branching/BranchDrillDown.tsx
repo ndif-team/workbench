@@ -42,7 +42,9 @@ export function BranchDrillDown({
             data-testid="branch-drill-down"
             data-sample-idx={sampleIdx}
             data-branch-position={branchPosition}
-            className="fixed top-0 right-0 h-full w-full md:w-[480px] bg-background border-l shadow-xl z-40 flex flex-col"
+            // z-[60] sits above the BranchingIndicator (z-50) so its close
+            // button isn't intercepted by the persistent upper-right widget.
+            className="fixed top-0 right-0 h-full w-full md:w-[480px] bg-background border-l shadow-xl z-[60] flex flex-col"
         >
             <header className="flex items-center justify-between border-b p-3">
                 <div>

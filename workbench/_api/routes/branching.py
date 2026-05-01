@@ -10,7 +10,16 @@ Two endpoints power the spec §1.4 contract:
 
 Workshop deployment doesn't hit these endpoints at participant runtime; the
 demo uses pre-cached payloads. These endpoints back researcher mode and the
-pre-cache script (`scripts/precache_branching_demo.py`).
+pre-cache script (`scripts/precache_workshop_payloads.py`).
+
+Implementation note (Phase 1.5): collecting per-step logits *during* sampled
+generation via `model.generate(...)` + `tracer.iter[i]` in a loop hits an
+nnsight scoping bug (locals defined inside the with-block don't survive
+exit). Instead we use a two-pass approach: (1) generate the tokens, then
+(2) run a single forward pass over `prompt + completion` and extract
+top-K at each completion position. This is mathematically equivalent — the
+next-token distribution at position i depends only on tokens 0..i-1, which
+is what the teacher-forced forward pass conditions on.
 """
 from __future__ import annotations
 
@@ -41,27 +50,137 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# --- helpers ----------------------------------------------------------------
-
-
 def _decode_token(tokenizer, token_id: int) -> str:
     return tokenizer.decode([token_id])
 
 
-def _top_k_at_step(
-    logits_V: "t.Tensor", tokenizer, top_k: int
-) -> list[TopKEntry]:
+def _top_k_for_logits(logits_V, tokenizer, top_k: int) -> list[TopKEntry]:
     probs_V = t.nn.functional.softmax(logits_V, dim=-1)
     top_probs, top_ids = t.topk(probs_V, k=min(top_k, probs_V.shape[-1]))
-    out: list[TopKEntry] = []
-    for tid, p in zip(top_ids.tolist(), top_probs.tolist()):
-        out.append(
-            TopKEntry(
-                token_id=int(tid),
-                token_text=_decode_token(tokenizer, int(tid)),
-                probability=float(p),
-            )
+    return [
+        TopKEntry(
+            token_id=int(tid),
+            token_text=_decode_token(tokenizer, int(tid)),
+            probability=float(p),
         )
+        for tid, p in zip(top_ids.tolist(), top_probs.tolist())
+    ]
+
+
+def _generate_token_ids(
+    state: AppState,
+    model,
+    prompt: str,
+    spec: SamplingSpec,
+    max_tokens: int,
+) -> list[int]:
+    """Pass 1: produce sampled token ids only — no per-step logit capture.
+
+    Returns the *new* tokens (prompt prefix stripped if the runtime included it).
+    """
+    tokenizer = model.tokenizer
+    t.manual_seed(spec.seed)
+
+    new_token_ids_box: list = []
+    with model.generate(
+        prompt,
+        max_new_tokens=max_tokens,
+        do_sample=True,
+        temperature=max(spec.temperature, 1e-5),
+        top_p=spec.top_p,
+        remote=state.remote,
+        backend=state.make_backend(model=model),
+    ) as tracer:
+        new_token_ids_box.append(model.generator.output[0].save())
+
+    new_token_ids = new_token_ids_box[0] if new_token_ids_box else None
+    if new_token_ids is None:
+        raise RuntimeError("nnsight generate did not produce output")
+    new_ids_list = (
+        new_token_ids.tolist()
+        if hasattr(new_token_ids, "tolist")
+        else list(new_token_ids)
+    )
+    prompt_ids = tokenizer.encode(prompt)
+    if list(new_ids_list[: len(prompt_ids)]) == list(prompt_ids):
+        new_ids_list = new_ids_list[len(prompt_ids) :]
+    return [int(x) for x in new_ids_list[:max_tokens]]
+
+
+def _greedy_continuation_token_ids(
+    state: AppState,
+    model,
+    prefix_text: str,
+    max_tokens: int,
+) -> list[int]:
+    """Same as _generate_token_ids but greedy (do_sample=False)."""
+    tokenizer = model.tokenizer
+    new_token_ids_box: list = []
+    with model.generate(
+        prefix_text,
+        max_new_tokens=max_tokens,
+        do_sample=False,
+        remote=state.remote,
+        backend=state.make_backend(model=model),
+    ) as tracer:
+        new_token_ids_box.append(model.generator.output[0].save())
+
+    new_token_ids = new_token_ids_box[0] if new_token_ids_box else None
+    if new_token_ids is None:
+        raise RuntimeError("nnsight generate did not produce output")
+    new_ids_list = (
+        new_token_ids.tolist()
+        if hasattr(new_token_ids, "tolist")
+        else list(new_token_ids)
+    )
+    prefix_ids = tokenizer.encode(prefix_text)
+    if list(new_ids_list[: len(prefix_ids)]) == list(prefix_ids):
+        new_ids_list = new_ids_list[len(prefix_ids) :]
+    return [int(x) for x in new_ids_list[:max_tokens]]
+
+
+def _per_position_top_k(
+    state: AppState,
+    model,
+    prompt: str,
+    completion_token_ids: list[int],
+    top_k: int,
+) -> list[list[TopKEntry]]:
+    """Pass 2: run a single forward pass over prompt+completion, then extract
+    top-K at each completion position.
+
+    Equivalent to per-step logits — at each completion position the next-token
+    distribution depends only on the tokens before it, which is what teacher-
+    forcing on the actual sampled completion provides.
+    """
+    tokenizer = model.tokenizer
+    if not completion_token_ids:
+        return []
+
+    prompt_ids = tokenizer.encode(prompt)
+    full_ids = list(prompt_ids) + list(completion_token_ids)
+    full_text = tokenizer.decode(full_ids)
+    completion_start = len(prompt_ids)
+
+    logits_box: list = []
+    with model.trace(
+        full_text,
+        remote=state.remote,
+        backend=state.make_backend(model=model),
+    ) as tracer:
+        # logits[0, i, :] is the next-token distribution conditioned on tokens 0..i.
+        # We want the distribution for predicting completion position p, which is
+        # at logits index (completion_start - 1 + p). Slice all those rows.
+        sliced = model.logits[0, completion_start - 1 : completion_start - 1 + len(completion_token_ids), :]
+        logits_box.append(sliced.save())
+
+    logits_LV = logits_box[0] if logits_box else None
+    if logits_LV is None:
+        raise RuntimeError("nnsight trace did not produce logits")
+
+    out: list[list[TopKEntry]] = []
+    for pos in range(logits_LV.shape[0]):
+        out.append(_top_k_for_logits(logits_LV[pos], tokenizer, top_k))
     return out
 
 
@@ -73,63 +192,26 @@ def _generate_one_sample(
     max_tokens: int,
     top_k: int,
 ) -> BranchingSampleData:
-    """Run one sampled generation and collect per-step top-K logits.
-
-    The model is driven via nnsight's generate() context. For each iteration
-    we save the next-token logits so per-position top-K is materialized.
+    """Run sampled generation + a teacher-forced forward pass to collect
+    per-position top-K logits.
     """
     model = state[model_name]
     tokenizer = model.tokenizer
 
-    # Manual seeding — nnsight's generate doesn't take a seed argument.
-    t.manual_seed(spec.seed)
-
-    # Use list-of-1 slots for accumulators that need to survive nnsight's
-    # trace-body rewriting. Plain locals defined inside the with-block don't
-    # always propagate out.
-    per_step_logits: list = []
-    new_token_ids_box: list = []
-    with model.generate(
-        prompt,
-        max_new_tokens=max_tokens,
-        do_sample=True,
-        temperature=max(spec.temperature, 1e-5),
-        top_p=spec.top_p,
-        remote=state.remote,
-        backend=state.make_backend(model=model),
-    ) as tracer:
-        for i in range(max_tokens):
-            with tracer.iter[i]:
-                # logits shape: [B, L, V]; at generation step i, the next-token
-                # logits live at position -1 in the second axis.
-                step_logits = model.logits[0, -1, :].save()
-                per_step_logits.append(step_logits)
-        new_token_ids_box.append(model.generator.output[0].save())
-
-    new_token_ids = new_token_ids_box[0] if new_token_ids_box else None
-    if new_token_ids is None:
-        raise RuntimeError("nnsight trace did not produce generator output")
-    new_ids_list = new_token_ids.tolist() if hasattr(new_token_ids, "tolist") else list(new_token_ids)
-    # Drop any prompt-prefix that may have been included by the runtime.
-    prompt_ids = tokenizer.encode(prompt)
-    if list(new_ids_list[: len(prompt_ids)]) == list(prompt_ids):
-        new_ids_list = new_ids_list[len(prompt_ids) :]
-
-    completion_tokens: list[Token] = []
-    for i, tid in enumerate(new_ids_list[:max_tokens]):
-        completion_tokens.append(
-            Token(
-                idx=i,
-                id=int(tid),
-                text=_decode_token(tokenizer, int(tid)),
-                targetIds=[int(tid)],
-            )
+    new_ids_list = _generate_token_ids(state, model, prompt, spec, max_tokens)
+    completion_tokens = [
+        Token(
+            idx=i,
+            id=int(tid),
+            text=_decode_token(tokenizer, int(tid)),
+            targetIds=[int(tid)],
         )
+        for i, tid in enumerate(new_ids_list)
+    ]
 
-    per_position_top_k: list[list[TopKEntry]] = []
-    for step_logits in per_step_logits[: len(completion_tokens)]:
-        per_position_top_k.append(_top_k_at_step(step_logits, tokenizer, top_k))
-
+    per_position_top_k = _per_position_top_k(
+        state, model, prompt, new_ids_list, top_k
+    )
     completion_text = tokenizer.decode([tok.id for tok in completion_tokens])
 
     return BranchingSampleData(
@@ -159,41 +241,18 @@ def _continue_from_branch(
     full_prefix = list(prompt_ids) + list(prefix_token_ids) + [int(forced_next_token_id)]
     prefix_text = tokenizer.decode(full_prefix)
 
-    per_step_logits: list = []
-    new_token_ids_box: list = []
-    with model.generate(
-        prefix_text,
-        max_new_tokens=max_tokens,
-        do_sample=False,  # greedy continuation for stable demo
-        remote=state.remote,
-        backend=state.make_backend(model=model),
-    ) as tracer:
-        for i in range(max_tokens):
-            with tracer.iter[i]:
-                step_logits = model.logits[0, -1, :].save()
-                per_step_logits.append(step_logits)
-        new_token_ids_box.append(model.generator.output[0].save())
-
-    new_token_ids = new_token_ids_box[0] if new_token_ids_box else None
-    if new_token_ids is None:
-        raise RuntimeError("nnsight trace did not produce generator output")
-    new_ids_list = new_token_ids.tolist() if hasattr(new_token_ids, "tolist") else list(new_token_ids)
-    if list(new_ids_list[: len(full_prefix)]) == list(full_prefix):
-        new_ids_list = new_ids_list[len(full_prefix) :]
-
-    cont_tokens: list[Token] = []
-    for i, tid in enumerate(new_ids_list[:max_tokens]):
-        cont_tokens.append(
-            Token(
-                idx=i,
-                id=int(tid),
-                text=_decode_token(tokenizer, int(tid)),
-                targetIds=[int(tid)],
-            )
+    cont_ids = _greedy_continuation_token_ids(state, model, prefix_text, max_tokens)
+    cont_tokens = [
+        Token(
+            idx=i,
+            id=int(tid),
+            text=_decode_token(tokenizer, int(tid)),
+            targetIds=[int(tid)],
         )
-    per_position_top_k = [
-        _top_k_at_step(s, tokenizer, top_k) for s in per_step_logits[: len(cont_tokens)]
+        for i, tid in enumerate(cont_ids)
     ]
+    # Per-position top-K via teacher-forced trace on the continuation.
+    per_position_top_k = _per_position_top_k(state, model, prefix_text, cont_ids, top_k)
     continuation_text = tokenizer.decode([tok.id for tok in cont_tokens])
 
     return BranchingContinueData(

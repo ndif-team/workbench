@@ -19,8 +19,9 @@ function generateSessionId(): string {
 }
 
 /**
- * Get-or-create the anonymous workshop session id from a cookie. Workshop mode
- * has no auth — this cookie is the only identity for participant annotations.
+ * Get-or-create the anonymous workshop session id. Cookies can only be set
+ * inside Server Actions or Route Handlers (NOT inside server-component
+ * renders), so this is the write-path entry point used by the save actions.
  */
 export async function getOrCreateWorkshopSessionId(): Promise<string> {
     const store = await cookies();
@@ -37,6 +38,16 @@ export async function getOrCreateWorkshopSessionId(): Promise<string> {
         maxAge: 60 * 60 * 24 * 90,
     });
     return fresh;
+}
+
+/**
+ * Read-only view of the session id — safe to call from server components
+ * (page renders). Returns null if the participant hasn't yet performed any
+ * write action that would have created the cookie.
+ */
+export async function getWorkshopSessionIdReadOnly(): Promise<string | null> {
+    const store = await cookies();
+    return store.get(WORKSHOP_SESSION_COOKIE)?.value ?? null;
 }
 
 export async function saveWorkshopAnnotation(input: {
@@ -58,11 +69,13 @@ export async function saveWorkshopAnnotation(input: {
 export async function loadWorkshopAnnotation(
     exampleId: string,
 ): Promise<WorkshopAnnotation | null> {
-    const sessionId = await getOrCreateWorkshopSessionId();
+    const sessionId = await getWorkshopSessionIdReadOnly();
+    if (!sessionId) return null;
     return await getWorkshopAnnotation(sessionId, exampleId);
 }
 
 export async function loadSessionAnnotations(): Promise<WorkshopAnnotation[]> {
-    const sessionId = await getOrCreateWorkshopSessionId();
+    const sessionId = await getWorkshopSessionIdReadOnly();
+    if (!sessionId) return [];
     return await getSessionAnnotations(sessionId);
 }
