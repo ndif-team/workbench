@@ -62,3 +62,6 @@ cdk.out
 
 local.db
 .test.db
+
+# Per-user Claude Code settings (skills + CLAUDE.md ARE committed)
+.claude/settings.local.json
