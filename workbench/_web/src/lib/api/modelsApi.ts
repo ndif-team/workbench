@@ -33,10 +33,14 @@ export const usePrediction = () => {
     });
 };
 
-interface Completion {
+export interface Completion {
     prompt: string;
     max_new_tokens: number;
     model: string;
+    temperature?: number;
+    top_p?: number;
+    top_k?: number;
+    stop_strings?: string[];
 }
 
 export interface GenerationResponse {
@@ -44,7 +48,7 @@ export interface GenerationResponse {
     last_token_prediction: Prediction;
 }
 
-const generate = async (request: Completion): Promise<GenerationResponse> => {
+export const generateCompletion = async (request: Completion): Promise<GenerationResponse> => {
     const headers = await createUserHeadersAction();
     return await startAndPoll<GenerationResponse>(
         config.endpoints.startGenerate,
@@ -56,7 +60,7 @@ const generate = async (request: Completion): Promise<GenerationResponse> => {
 
 export const useGenerate = () => {
     return useMutation({
-        mutationFn: generate,
+        mutationFn: generateCompletion,
         onError: (error, variables, context) => {
             toast.error(`Error: ${error}`);
         },

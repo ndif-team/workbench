@@ -248,6 +248,10 @@ class Completion(BaseModel):
     prompt: str
     max_new_tokens: int
     model: str
+    temperature: float | None = None
+    top_p: float | None = None
+    top_k: int | None = None
+    stop_strings: list[str] | None = None
 
 
 class Generation(BaseModel):
@@ -259,6 +263,32 @@ class GenerationResponse(NDIFResponse):
     data: Generation | None = None
 
 
+def _sampling_kwargs(req: Completion) -> dict:
+    """Build the optional sampling kwargs forwarded to model.generate(...).
+
+    Only includes keys the caller explicitly set so we don't override
+    the defaults baked into the underlying generate() implementation.
+    Setting any of temperature/top_p/top_k flips do_sample on, matching
+    transformers' standard behavior.
+    """
+    kwargs: dict = {}
+    sample = False
+    if req.temperature is not None:
+        kwargs["temperature"] = req.temperature
+        sample = True
+    if req.top_p is not None:
+        kwargs["top_p"] = req.top_p
+        sample = True
+    if req.top_k is not None:
+        kwargs["top_k"] = req.top_k
+        sample = True
+    if sample:
+        kwargs["do_sample"] = True
+    if req.stop_strings:
+        kwargs["stop_strings"] = req.stop_strings
+    return kwargs
+
+
 def generate(req: Completion, state: AppState):
     model = state[req.model]
     last_iter = req.max_new_tokens - 1
@@ -267,6 +297,7 @@ def generate(req: Completion, state: AppState):
         max_new_tokens=req.max_new_tokens,
         remote=state.remote,
         backend=state.make_backend(model=model),
+        **_sampling_kwargs(req),
     ) as tracer:
 
         with tracer.iter[last_iter]:

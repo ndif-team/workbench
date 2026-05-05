@@ -9,10 +9,29 @@ import { MobileSidebarDrawer } from "../../components/MobileSidebarDrawer";
 import { MobileCollapsibleControls } from "../../components/MobileCollapsibleControls";
 import { GitBranch } from "lucide-react";
 import { useIsMutating } from "@tanstack/react-query";
+import { GenerationRail } from "../../components/generation/GenerationRail";
+import { CollapsedRailButton } from "../../components/generation/CollapsedRailButton";
+import { MobileGenerationDrawer } from "../../components/generation/MobileGenerationDrawer";
+import { useGenerationPanel } from "@/stores/useGenerationPanel";
+import { useParams } from "next/navigation";
+import { useWorkspace } from "@/stores/useWorkspace";
+import { useQuery } from "@tanstack/react-query";
+import { getModels } from "@/lib/api/modelsApi";
 
 export default function ActivationPatchingPage() {
     const isMobile = useIsMobile();
     const isRunning = useIsMutating({ mutationKey: ["activationPatching"] }) > 0;
+    const collapsed = useGenerationPanel((s) => s.collapsed);
+    const setCollapsed = useGenerationPanel((s) => s.setCollapsed);
+    const buckets = useGenerationPanel((s) => s.buckets);
+    const { workspaceId } = useParams<{ workspaceId: string }>();
+    const { selectedModelIdx } = useWorkspace();
+    const { data: models } = useQuery({ queryKey: ["models"], queryFn: getModels });
+    const modelName = models?.[selectedModelIdx]?.name;
+    const railCount =
+        workspaceId && modelName
+            ? (buckets[`${workspaceId}::${modelName}`]?.items.length ?? 0)
+            : 0;
 
     if (isMobile === undefined) return null;
 
@@ -26,6 +45,7 @@ export default function ActivationPatchingPage() {
                     <ActivationPatchingDisplay />
                 </div>
                 <MobileSidebarDrawer />
+                <MobileGenerationDrawer />
             </div>
         );
     }
@@ -38,13 +58,26 @@ export default function ActivationPatchingPage() {
                     direction="horizontal"
                     className="flex size-full rounded dark:bg-secondary/50 bg-secondary/80 border"
                 >
-                    <ResizablePanel className="h-full" defaultSize={30} minSize={25}>
+                    <ResizablePanel className="h-full" defaultSize={26} minSize={22}>
                         <ActivationPatchingArea />
                     </ResizablePanel>
                     <ResizableHandle className="w-[0.8px]" />
-                    <ResizablePanel defaultSize={70} minSize={40}>
+                    <ResizablePanel defaultSize={collapsed ? 70 : 52} minSize={32}>
                         <ActivationPatchingDisplay />
                     </ResizablePanel>
+                    {collapsed ? (
+                        <CollapsedRailButton
+                            onExpand={() => setCollapsed(false)}
+                            count={railCount}
+                        />
+                    ) : (
+                        <>
+                            <ResizableHandle className="w-[0.8px]" />
+                            <ResizablePanel defaultSize={22} minSize={18} maxSize={40}>
+                                <GenerationRail onCollapse={() => setCollapsed(true)} />
+                            </ResizablePanel>
+                        </>
+                    )}
                 </ResizablePanelGroup>
             </div>
         </div>
