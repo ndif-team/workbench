@@ -506,13 +506,16 @@ The contract between workbench and nnsightful is: **workbench wires tools to UI;
 4. **Widgets are self-contained.** `LogitLensWidget` and `ActivationPatchingWidget` render their full UI given `data` and a small UI-state prop. Workbench supplies theme via `next-themes` (`useTheme().resolvedTheme`) and lets the widget handle internal interactions.
 5. **viz/charts.js path is stable.** `actions/notebook.ts` reads `node_modules/nnsightful/src/nnsightful/viz/charts.js` directly. If nnsightful restructures its viz folder, this path needs updating in `notebook.ts` AND in `next.config.js`'s `outputFileTracingIncludes`.
 
-### When nnsightful changes
+### When nnsightful or nnsight changes
 
-If nnsightful publishes a new version with a changed type or added tool:
-1. Bump the git ref in `pyproject.toml` and `workbench/_web/package.json`.
-2. `uv sync` and `bun install`.
-3. `bunx tsc --noEmit` in `_web/` will surface frontend type drift.
-4. Run the dev server and exercise both lens2 and activation-patching displays — the widgets are the most likely place to break first.
+To bump either dependency, use the **`update-nnsight-deps` skill** (`.claude/skills/update-nnsight-deps/SKILL.md`). It runs the right uv/bun commands, refreshes both lockfiles, and points at the most likely break sites.
+
+Manual recipe summary (skill has the full version):
+
+- **nnsight** (PyPI, Python only): `uv lock --upgrade-package nnsight && uv sync`
+- **nnsightful** (git, both langs): `uv lock --upgrade-package nnsightful` and (inside `workbench/_web`) `bun update nnsightful`, then `uv sync` from the repo root.
+- Verify with `bunx tsc --noEmit` in `workbench/_web/`. Do **not** run `next build` while the dev server is up.
+- Most likely break sites after a nnsightful bump: `_api/routes/{logit_lens,activation_patching}.py` and `_web/src/app/workbench/[workspaceId]/{lens2,activation-patching}/[chartId]/components/*.tsx`.
 
 ---
 
