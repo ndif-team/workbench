@@ -35,7 +35,7 @@
         "d3-delaunay": "^6.0.4",
         "dotenv": "^17.2.1",
         "drizzle-orm": "^0.44.4",
-        "edulogitlens": "github:skysneakers/edulogitlens#4184af3a17da917c62aef80ff4502ee9465c3ab1",
+        "edulogitlens": "github:skysneakers/edulogitlens#8ccb422403a394a094b969a3fb2ce05fb0095a7e",
         "framer-motion": "^12.23.22",
         "html-to-image": "^1.11.13",
         "lexical": "^0.34.0",
@@ -1081,7 +1081,7 @@
 
     "easy-table": ["easy-table@1.1.0", "", { "optionalDependencies": { "wcwidth": ">=1.0.1" } }, "sha512-oq33hWOSSnl2Hoh00tZWaIPi1ievrD9aFG82/IgjlycAnW9hHx5PkJiXpxPsgEE+H7BsbVQXFVFST8TEXS6/pA=="],
 
-    "edulogitlens": ["edulogitlens@github:skysneakers/edulogitlens#4184af3", { "dependencies": { "lucide-react": "^0.487.0", "motion": "^12.23.24", "react-dnd": "^16.0.1", "react-dnd-html5-backend": "^16.0.1" }, "peerDependencies": { "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" } }, "skysneakers-edulogitlens-4184af3"],
+    "edulogitlens": ["edulogitlens@github:skysneakers/edulogitlens#8ccb422", { "dependencies": { "lucide-react": "^0.487.0", "motion": "^12.23.24", "react-dnd": "^16.0.1", "react-dnd-html5-backend": "^16.0.1" }, "peerDependencies": { "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" } }, "skysneakers-edulogitlens-8ccb422"],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.200", "", {}, "sha512-rFCxROw7aOe4uPTfIAx+rXv9cEcGx+buAF4npnhtTqCJk5KDFRnh3+KYj7rdVh6lsFt5/aPs+Irj9rZ33WMA7w=="],
 
