@@ -11,7 +11,6 @@ from ..data_models import NDIFResponse
 from ..state import AppState, get_state
 
 from nnsightful.types import LogitLensData
-from nnsightful.tools.logit_lens import logit_lens as logit_lens_tool
 
 router = APIRouter()
 
@@ -34,6 +33,68 @@ class CausalMediationResponse(NDIFResponse):
     data: LogitLensData | None = None
 
 
+def _format_lens(
+    logits: torch.Tensor,
+    tokenizer,
+    model_name: str,
+    input_tokens: list[str],
+    n_layers: int,
+    *,
+    top_k: int = 5,
+    include_entropy: bool = True,
+) -> dict[str, Any]:
+    """Inlined mirror of the local `format()` inside
+    `nnsightful.tools.logit_lens._run`. Turns a [L, T, V] logits tensor into
+    the dict shape consumed by `LogitLensData(**...)`.
+
+    Why: `LogitLensTool` doesn't override `_format`, so calling
+    `logit_lens_tool._format(...)` falls through to the abstract `Tool._format`
+    in `nnsightful/tools/_base.py` whose body is `...` — i.e. returns `None`.
+    """
+    layers = list(range(n_layers))
+    positions = list(range(len(input_tokens)))
+
+    if include_entropy:
+        log_p = torch.nn.functional.log_softmax(logits, dim=-1)
+        p = log_p.exp()
+        entropy = torch.round(-(p * log_p).sum(dim=-1), decimals=3).tolist()
+    else:
+        entropy = None
+
+    probs = torch.nn.functional.softmax(logits, dim=-1)
+    logits.to("cpu")  # free memory
+
+    _, top_indices = torch.topk(probs, k=top_k, dim=-1)
+
+    topks = [
+        [tokenizer.batch_decode(torch.tensor(pos).unsqueeze(dim=1)) for pos in layer]
+        for layer in top_indices.tolist()
+    ]
+
+    unique_indices = [
+        torch.unique(top_indices[:, pi, :].flatten(), sorted=False).tolist()
+        for pi in range(top_indices.shape[1])
+    ]
+    probs = probs.permute(1, 2, 0)
+    trajectories = [
+        {
+            tokenizer.decode(token): torch.round(probs[pos_idx][token], decimals=3).tolist()
+            for token in pos
+        }
+        for pos_idx, pos in enumerate(unique_indices)
+    ]
+
+    return {
+        "meta": {"version": 2, "timestamp": "3h", "model": model_name},
+        "layers": layers,
+        "input": input_tokens,
+        "tracked": trajectories,
+        "topk": topks,
+        "entropy": entropy,
+        "positions": positions,
+    }
+
+
 def _run_causal_mediation(
     model,
     src_prompt: str,
@@ -42,79 +103,45 @@ def _run_causal_mediation(
     src_layer: int,
     tgt_token_pos: int,
     tgt_layer: int,
-    model_name: str,
     *,
     remote: bool = False,
     backend=None,
 ) -> dict[str, Any]:
-    """Single-location activation patching followed by a full logit lens over
-    the patched forward pass.
+    """Capture the source residual at (src_layer, src_token_pos), patch it
+    into the target prompt at (tgt_layer, tgt_token_pos), then run a logit
+    lens over the *patched* forward pass.
 
-    Execution layout (mirrors nnsightful.tools.activation_patching._run which
-    works for both local and remote/NDIF backends):
-
-        with model.session(remote=..., backend=...) as session:
-            with model.trace(src_prompt):
-                src_hidden = model.layers[src_layer].output[0][:, src_token_pos].clone().save()
-            with model.trace(tgt_prompt):
-                model.layers[tgt_layer].output[0][:, tgt_token_pos][:] = src_hidden
-                for i in range(num_layers):
-                    all_logits.append(model.project_on_vocab(model.layers_output[i]))
-
-    Returned dict is in the exact shape that
-    ``nnsightful.tools.logit_lens.logit_lens._format`` consumes.
+    Patching pattern mirrors `nnsightful.tools.activation_patching._run`:
+    a slice-assign on `model.layers_output[i]` is sufficient to register the
+    intervention and have it propagate through subsequent layers — no
+    explicit `model.layers[i].output = (...)` reassignment is needed.
     """
     n_layers = model.num_layers
-    layer_indices = list(range(n_layers))
-
-    input_tokens: list[str] = [
-        str(model.tokenizer.decode(token))
-        for token in model.tokenizer.encode(tgt_prompt)
-    ]
-
-    all_logits = None
-    session = None
 
     with torch.no_grad():
-        with model.session(remote=remote, backend=backend) as session:
-            # 1) Source trace: capture the hidden state at (src_layer, src_token_pos).
-            #    Access via model.layers_output[src_layer] (same envoy the lens
-            #    loop below uses) rather than model.layers[...].output, so we
-            #    don't touch the layer output envoy out of order.
+        with model.session(remote=remote, backend=backend):
+            # 1) Source pass — capture the residual at (src_layer, src_token_pos).
             with model.trace(src_prompt):
                 src_hidden = model.layers_output[src_layer][0, src_token_pos].save()
 
-            # 2) Target trace: walk layers in order via model.layers[i].output
-            #    (transformer blocks return a tuple `(hidden_state, ...)`). At
-            #    tgt_layer, slice-assign the source activation AND reassign
-            #    `model.layers[i].output = (patched_hs, ...)`. The explicit
-            #    re-assignment is what registers the intervention in nnsight so
-            #    the patched residual flows into subsequent layers; without it
-            #    the slice-assign only mutates the local proxy and the patch
-            #    has no downstream effect. This mirrors patch.py:277-288.
+            # 2) Target pass — at tgt_layer, slice-assign the source residual
+            #    into the target's tgt_token_pos. project_on_vocab at every
+            #    layer gives us a logit-lens grid over the patched pass.
             with model.trace(tgt_prompt):
-                all_logits = list().save()
-                for i in layer_indices:
-                    layer_output = model.layers[i].output
-                    hs = layer_output[0]
+                per_layer_logits = []
+                for i in range(n_layers):
+                    hs = model.layers_output[i]
                     if i == tgt_layer:
                         hs[0, tgt_token_pos][:] = src_hidden
-                        model.layers[i].output = (hs, layer_output[1])
-                    logits = model.project_on_vocab(hs)
-                    all_logits.append(logits)
-
-    raw: dict[str, Any] = {
-        "input_tokens": input_tokens,
-        "all_logits": all_logits,
-        "tokenizer": model.tokenizer,
-        "layer_indices": layer_indices,
-        "model_name": model_name,
-    }
+                    per_layer_logits.append(model.project_on_vocab(hs))
+                # Stack to a single [L, T, V] tensor so backend() returns a
+                # known shape on the remote path (one saved key: "logits").
+                logits = torch.cat(per_layer_logits, dim=0).save()
 
     if remote and backend is not None:
-        raw["job_id"] = session.backend.job_id
+        return {"job_id": backend.job_id}
 
-    return raw
+    return {"logits": logits}
 
 
 @router.post("/start", response_model=CausalMediationResponse)
@@ -134,7 +161,6 @@ async def start_causal_mediation(
         req.src_layer,
         req.tgt_token_pos,
         req.tgt_layer,
-        req.model,
         remote=state.remote,
         backend=backend,
     )
@@ -142,8 +168,16 @@ async def start_causal_mediation(
     if "job_id" in raw:
         return {"job_id": raw["job_id"]}
 
-    data = logit_lens_tool._format(
-        raw,
+    input_tokens = [
+        str(model.tokenizer.decode(token))
+        for token in model.tokenizer.encode(req.tgt_prompt)
+    ]
+    data = _format_lens(
+        raw["logits"],
+        tokenizer=model.tokenizer,
+        model_name=req.model,
+        input_tokens=input_tokens,
+        n_layers=model.num_layers,
         top_k=req.topk,
         include_entropy=req.include_entropy,
     )
@@ -160,23 +194,19 @@ async def collect_causal_mediation(
     backend = state.make_backend(job_id=job_id)
     results = backend()
 
-    print(
-        "causal_mediation collect keys:",
-        list(results.keys()) if isinstance(results, dict) else type(results),
-    )
-
-    tokenizer = state[req.model].tokenizer
-    results["tokenizer"] = tokenizer
-    results["model_name"] = req.model
-    # Logit lens is over the *target* forward pass, so the input-token strip
-    # reflects the target prompt.
-    results["input_tokens"] = [
+    model = state[req.model]
+    tokenizer = model.tokenizer
+    input_tokens = [
         str(tokenizer.decode(token))
         for token in tokenizer.encode(req.tgt_prompt)
     ]
 
-    data = logit_lens_tool._format(
-        results,
+    data = _format_lens(
+        results["logits"],
+        tokenizer=tokenizer,
+        model_name=req.model,
+        input_tokens=input_tokens,
+        n_layers=model.num_layers,
         top_k=req.topk,
         include_entropy=req.include_entropy,
     )
