@@ -5,6 +5,7 @@ import {
     deleteChart,
     createLens2ChartPair,
     createLogitLensIntroChartPair,
+    createCMIntroChartPair,
     createPatchChartPair,
     createActivationPatchingChartPair,
     updateChartName,
@@ -291,6 +292,19 @@ export const useCreateLogitLensIntroChartPair = () => {
             config?: LogitLensIntroConfigData;
         }) => {
             return await createLogitLensIntroChartPair(workspaceId, config);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        },
+    });
+};
+
+export const useCreateCMIntroChartPair = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ workspaceId }: { workspaceId: string }) => {
+            return await createCMIntroChartPair(workspaceId);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });

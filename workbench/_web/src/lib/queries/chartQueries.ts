@@ -58,7 +58,8 @@ type ConfigPayload =
     | { type: "lens2"; data: Lens2ConfigData }
     | { type: "patch"; data: PatchingConfig }
     | { type: "activation-patching"; data: ActivationPatchingConfigData }
-    | { type: "logit-lens-intro"; data: LogitLensIntroConfigData };
+    | { type: "logit-lens-intro"; data: LogitLensIntroConfigData }
+    | { type: "cm-intro"; data: Record<string, never> };
 
 // Creates a chart, its config, and the link between them, with the chart
 // positioned at the bottom of the unified sidebar list.
@@ -94,6 +95,10 @@ export const createLogitLensIntroChartPair = async (
     workspaceId: string,
     defaultConfig: LogitLensIntroConfigData,
 ) => createChartConfigPair(workspaceId, { type: "logit-lens-intro", data: defaultConfig });
+
+export const createCMIntroChartPair = async (
+    workspaceId: string,
+) => createChartConfigPair(workspaceId, { type: "cm-intro", data: {} });
 
 export const createPatchChartPair = async (
     workspaceId: string,

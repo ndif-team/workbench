@@ -18,22 +18,49 @@ interface LogitLensIntroChart {
 
 /**
  * Transform the nnsightful LogitLensData format into the edulogitlens format.
- * nnsightful stores data as { meta, cells, ... } while edulogitlens expects
- * { tokens, layers, data: LogitCell[][] }.
+ *
+ * nnsightful returns:
+ *   input: string[]                          — input token strings
+ *   layers: number[]                         — layer indices
+ *   tracked: Record<string, number[]>[]      — per-position dict of token → prob-per-layer
+ *   topk: string[][][]                       — topk[layer][position] = top-k token strings
+ *
+ * edulogitlens expects:
+ *   tokens: string[]
+ *   layers: number[]
+ *   data: LogitCell[][]  — data[position][layer]
  */
 function transformToEduFormat(data: LogitLensIntroData): LogitLensData | null {
-    if (!data || !("meta" in data)) return null;
+    if (!data) return null;
 
-    const meta = data.meta as { input_tokens?: string[]; layers?: number[] };
-    const cells = (data as Record<string, unknown>).cells as LogitCell[][] | undefined;
+    const raw = data as Record<string, unknown>;
+    const input = raw.input as string[] | undefined;
+    const layers = raw.layers as number[] | undefined;
+    const tracked = raw.tracked as Record<string, number[]>[] | undefined;
+    const topk = raw.topk as string[][][] | undefined;
 
-    if (!meta?.input_tokens || !meta?.layers || !cells) return null;
+    if (!input || !layers || !tracked || !topk) return null;
 
-    return {
-        tokens: meta.input_tokens,
-        layers: meta.layers,
-        data: cells,
-    };
+    const cellData: LogitCell[][] = input.map((_, posIdx) => {
+        const posTracked = tracked[posIdx] ?? {};
+        return layers.map((_, layerIdx) => {
+            const topTokenStrs = topk[layerIdx]?.[posIdx] ?? [];
+            const topTokens = topTokenStrs.map((t) => ({
+                token: t,
+                prob: posTracked[t]?.[layerIdx] ?? 0,
+            }));
+            topTokens.sort((a, b) => b.prob - a.prob);
+
+            const best = topTokens[0];
+            return {
+                token: best?.token ?? "",
+                probability: best?.prob ?? 0,
+                topTokens,
+            };
+        });
+    });
+
+    return { tokens: input, layers, data: cellData };
 }
 
 function generateMockData(): LogitLensData {
@@ -93,7 +120,7 @@ export function LogitLensIntroDisplay() {
     });
 
     const introChart = chart as LogitLensIntroChart | undefined;
-    const hasData = introChart?.data && "meta" in introChart.data;
+    const hasData = introChart?.data && "input" in introChart.data && "topk" in introChart.data;
 
     const mockData = useMemo(() => generateMockData(), []);
 

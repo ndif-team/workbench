@@ -1,13 +1,17 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import logging
 import os
+import traceback
 import anyio
 
-from .routes import lens, patch, models, logit_lens, activation_patching
+from .routes import lens, patch, models, logit_lens, activation_patching, causal_mediation
 from .state import AppState
 
-from dotenv import load_dotenv; load_dotenv()
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 # Configure logging
 logging.basicConfig(
@@ -48,8 +52,18 @@ def fastapi_app():
     app.include_router(lens, prefix="/lens")
     app.include_router(logit_lens, prefix="/logit_lens")
     app.include_router(activation_patching, prefix="/activation_patching")
+    app.include_router(causal_mediation, prefix="/causal_mediation", tags=["causal_mediation"])
     app.include_router(patch, prefix="/patch")
     app.include_router(models, prefix="/models")
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+        logging.error(f"Unhandled exception: {''.join(tb)}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": str(exc), "traceback": ''.join(tb[-3:])},
+        )
 
     app.state.m = AppState()
 

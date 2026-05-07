@@ -39,6 +39,8 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
             router.push(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
         } else if (chart.toolType === "logit-lens-intro" || chart.chartType === "logit-lens-intro") {
             router.push(`/workbench/${workspaceId}/logit-lens-intro/${chart.id}`);
+        } else if (chart.toolType === "cm-intro" || chart.chartType === "cm-intro") {
+            router.push(`/workbench/${workspaceId}/cm-intro/${chart.id}`);
         } else {
             router.push(`/workbench/${workspaceId}/${chart.id}`);
         }
@@ -98,6 +100,13 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
                 <span className="inline-flex items-center gap-1">
                     <GraduationCap className="h-3 w-3" />
                     <span>LL Intro</span>
+                </span>
+            );
+        if (chartType === "cm-intro")
+            return (
+                <span className="inline-flex items-center gap-1">
+                    <GitBranch className="h-3 w-3" />
+                    <span>CM Intro</span>
                 </span>
             );
         return (

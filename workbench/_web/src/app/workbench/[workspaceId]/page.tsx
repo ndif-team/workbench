@@ -41,6 +41,8 @@ export default async function Page({
         redirect(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
     } else if (chartType === "logit-lens-intro") {
         redirect(`/workbench/${workspaceId}/logit-lens-intro/${chart.id}`);
+    } else if (chartType === "cm-intro") {
+        redirect(`/workbench/${workspaceId}/cm-intro/${chart.id}`);
     } else {
         redirect(`/workbench/${workspaceId}/${chart.id}`);
     }
