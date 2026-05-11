@@ -4,55 +4,75 @@ import {
     argosScreenshot,
     gotoFreshLensWorkspace,
     gotoFreshAPWorkspace,
+    REAL_NDIF_TIMEOUT_MS,
 } from "./fixtures";
 
-test.describe("Activation Patching", () => {
-    test("create chart via sidebar and see controls", async ({ workbenchPage: page }) => {
-        // Start with a lens workspace, then use sidebar to create AP chart
+const SRC_PROMPT = "The Eiffel Tower is in the city of";
+const TGT_PROMPT = "The Colosseum is in the city of";
+
+test.describe("Activation Patching (real NDIF)", () => {
+    test.setTimeout(REAL_NDIF_TIMEOUT_MS * 5);
+
+    test("create chart via sidebar and configure source / target prompts", async ({
+        workbenchPage: page,
+    }) => {
         await gotoFreshLensWorkspace(page);
 
-        // Click the "Activation Patching" button in the sidebar
+        // The sidebar exposes an "Activation Patching" button — clicking it
+        // creates an AP chart in the current workspace.
         const apButton = page.getByRole("button", { name: "Activation Patching" }).first();
-        await expect(apButton).toBeVisible({ timeout: 10_000 });
+        await expect(apButton).toBeVisible({ timeout: 15_000 });
         await apButton.click();
 
-        // Wait for navigation to the activation patching page
-        await page.waitForURL(/\/activation-patching\//, { timeout: 15_000 });
+        await page.waitForURL(/\/activation-patching\//, { timeout: 30_000 });
 
         await expect(page.getByText("Source Prompt", { exact: true })).toBeVisible({
-            timeout: 10_000,
+            timeout: 15_000,
         });
         await expect(page.getByText("Target Prompt", { exact: true })).toBeVisible();
 
-        // Fill in source prompt
         const srcTextarea = page.getByPlaceholder("Enter source prompt...");
-        await srcTextarea.fill("The cat sat on the mat");
+        await srcTextarea.fill(SRC_PROMPT);
         await srcTextarea.blur();
-        await page.waitForTimeout(500);
+        // Source tokenization is local (huggingface tokenizer) — should resolve fast.
+        await page.waitForTimeout(800);
 
-        // After blur, source tokenizes. Fill target prompt.
         const tgtTextarea = page.getByPlaceholder("Enter target prompt...");
-        await tgtTextarea.fill("The dog sat on the mat");
+        await tgtTextarea.fill(TGT_PROMPT);
         await tgtTextarea.blur();
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(800);
 
         await argosScreenshot(page, "activation-patching-controls", { fullPage: false });
     });
 
-    test("run with pre-filled params", async ({ workbenchPage: page }) => {
+    test("run end-to-end with pre-filled params and view the patched chart", async ({
+        workbenchPage: page,
+    }) => {
+        // Source position 4 = "Eiffel"-ish; target position 4 = "Colosseum"-ish.
+        // The exact alignment doesn't matter for the test — we just need a
+        // valid configuration so the auto-run kicks off a real NDIF job.
         await gotoFreshAPWorkspace(page, {
-            srcPrompt: "The cat sat on the mat",
-            tgtPrompt: "The dog sat on the mat",
-            srcPos: [1],
-            tgtPos: [1],
+            srcPrompt: SRC_PROMPT,
+            tgtPrompt: TGT_PROMPT,
+            srcPos: [4],
+            tgtPos: [4],
         });
 
-        await expect(page.getByRole("heading", { name: "Activation Patching" })).toBeVisible({
-            timeout: 10_000,
+        await expect(page.getByText("Source Prompt", { exact: true })).toBeVisible({
+            timeout: 15_000,
         });
 
-        // Wait for auto-run to complete
-        await page.waitForTimeout(3000);
+        // Wait for the auto-run to flip the Run button into its "Computing" state
+        // and back. We assert the Run button becomes enabled and visible at the end.
+        const runButton = page.getByRole("button", { name: /Run|Computing/ });
+        await expect(runButton).toBeVisible({ timeout: 15_000 });
+
+        // Real NDIF activation-patching runs poll a job until completion.
+        // Wait for the chart container to render data — the `Export` button only
+        // appears in the AP display once a chart exists.
+        await expect(page.getByRole("button", { name: /Export/i })).toBeVisible({
+            timeout: REAL_NDIF_TIMEOUT_MS * 2,
+        });
 
         await argosScreenshot(page, "activation-patching-results", { fullPage: false });
     });

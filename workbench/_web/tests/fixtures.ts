@@ -1,136 +1,67 @@
 import { test as base, expect, Page } from "@playwright/test";
 import { argosScreenshot } from "@argos-ci/playwright";
 
-/** Mock all backend API calls so tests don't need a running API server. */
-function mockBackendAPIs(page: Page) {
-    const BACKEND = "http://localhost:8000";
+/**
+ * Fixtures for E2E tests that hit the real workbench API and the real NDIF
+ * service. No mocks — we want the workflow exercised end to end against a
+ * live model deployment.
+ */
 
-    page.route(`${BACKEND}/models/`, (route) =>
-        route.fulfill({
-            json: [
-                {
-                    name: "gpt2",
-                    is_chat: false,
-                    n_layers: 12,
-                    params: "124M",
-                    gated: false,
-                    allowed: true,
-                },
-            ],
-        }),
-    );
+const REAL_NDIF_TIMEOUT_MS = 90_000;
 
-    page.route(`${BACKEND}/models/start-prediction`, (route) =>
-        route.fulfill({
-            json: {
-                job_id: null,
-                data: {
-                    idx: 4,
-                    ids: [262, 318, 373],
-                    probs: [0.08, 0.05, 0.04],
-                    texts: [" the", " is", " to"],
-                },
-            },
-        }),
-    );
-
-    page.route(`${BACKEND}/lens/start-line`, (route) =>
-        route.fulfill({
-            json: {
-                job_id: null,
-                data: [
-                    {
-                        id: " the",
-                        data: Array.from({ length: 12 }, (_, i) => ({
-                            x: i,
-                            y: Math.random() * 0.3,
-                        })),
-                    },
-                    {
-                        id: " is",
-                        data: Array.from({ length: 12 }, (_, i) => ({
-                            x: i,
-                            y: Math.random() * 0.2,
-                        })),
-                    },
-                ],
-            },
-        }),
-    );
-
-    page.route(`${BACKEND}/lens/start-grid`, (route) =>
-        route.fulfill({
-            json: {
-                job_id: null,
-                data: Array.from({ length: 12 }, (_, layer) => ({
-                    id: `Layer ${layer}`,
-                    data: Array.from({ length: 5 }, (_, tok) => ({
-                        x: `tok_${tok}`,
-                        y: Math.random(),
-                        label: ["the", "cat", "sat", "on", "mat"][tok],
-                    })),
-                })),
-            },
-        }),
-    );
-
-    page.route(`${BACKEND}/logit_lens/start`, (route) =>
-        route.fulfill({
-            json: {
-                job_id: null,
-                data: {
-                    tokens: ["The", " cat", " sat"],
-                    layers: Array.from({ length: 12 }, (_, i) => i),
-                    topk: Array.from({ length: 12 }, () =>
-                        Array.from({ length: 3 }, () => ({
-                            tokens: [" the", " cat", " sat", " on", " mat"],
-                            probs: [0.3, 0.2, 0.15, 0.1, 0.05],
-                        })),
-                    ),
-                    entropy: Array.from({ length: 12 }, () =>
-                        Array.from({ length: 3 }, () => 2.5 + Math.random()),
-                    ),
-                },
-            },
-        }),
-    );
-
-    page.route(`${BACKEND}/activation_patching/start`, (route) =>
-        route.fulfill({
-            json: {
-                job_id: null,
-                data: {
-                    lines: Array.from({ length: 3 }, () =>
-                        Array.from({ length: 12 }, () => Math.random()),
-                    ),
-                    ranks: Array.from({ length: 3 }, () =>
-                        Array.from({ length: 12 }, () => Math.floor(Math.random() * 100)),
-                    ),
-                    prob_diffs: Array.from({ length: 3 }, () =>
-                        Array.from({ length: 12 }, () => (Math.random() - 0.5) * 0.2),
-                    ),
-                    tokenLabels: [" the", " cat", " sat"],
-                },
-            },
-        }),
-    );
-
-    page.route("https://api.ndif.us/response/**", (route) =>
-        route.fulfill({ json: { status: "COMPLETED" } }),
-    );
-}
+const DEBUG_NETWORK = !!process.env.DEBUG_TESTS;
 
 export const test = base.extend<{ workbenchPage: Page }>({
     workbenchPage: async ({ page }, use) => {
-        mockBackendAPIs(page);
+        page.on("pageerror", (err) => {
+            console.error("[browser pageerror]", err.message);
+        });
+        page.on("console", (msg) => {
+            if (msg.type() === "error" || msg.type() === "warning") {
+                console.error(`[browser ${msg.type()}]`, msg.text());
+            }
+        });
+        if (DEBUG_NETWORK) {
+            page.on("request", (req) => {
+                const url = req.url();
+                if (url.includes("ndif.us") || url.includes("localhost:8000")) {
+                    console.log(`→ ${req.method()} ${url}`);
+                }
+            });
+            page.on("response", async (resp) => {
+                const url = resp.url();
+                if (url.includes("ndif.us") || url.includes("localhost:8000")) {
+                    console.log(`← ${resp.status()} ${url}`);
+                }
+            });
+            page.on("requestfailed", (req) => {
+                console.error(`✗ ${req.method()} ${req.url()} — ${req.failure()?.errorText}`);
+            });
+        }
         await use(page);
     },
 });
 
+/**
+ * Wait until the model dropdown has been populated by the backend. The
+ * `/models/` endpoint reaches out to NDIF on first call and can be slow,
+ * so we give it a generous timeout.
+ */
+export async function waitForModelsLoaded(page: Page) {
+    await expect
+        .poll(
+            async () =>
+                await page.locator('[role="combobox"]').filter({ hasText: /gpt2/i }).count(),
+            { timeout: REAL_NDIF_TIMEOUT_MS, intervals: [1000] },
+        )
+        .toBeGreaterThan(0);
+}
+
 /** Navigate to a fresh workspace with a lens chart. */
 export async function gotoFreshLensWorkspace(page: Page) {
     await page.goto("/workbench?createNew=true");
-    await page.waitForURL(/\/workbench\/[^/]+\/[^/]+/, { timeout: 20_000 });
+    await page.waitForURL(/\/workbench\/[^/]+\/[^/]+/, { timeout: 30_000 });
+    await waitForModelsLoaded(page);
 }
 
 /** Navigate to a fresh workspace with an activation patching chart. */
@@ -151,10 +82,11 @@ export async function gotoFreshAPWorkspace(
         srcPos: JSON.stringify(opts?.srcPos ?? []),
         tgtPos: JSON.stringify(opts?.tgtPos ?? []),
         tgtFreeze: JSON.stringify([]),
-        model: "gpt2",
+        model: "openai-community/gpt2",
     });
     await page.goto(`/workbench?${params.toString()}`);
-    await page.waitForURL(/\/activation-patching\//, { timeout: 20_000 });
+    await page.waitForURL(/\/activation-patching\//, { timeout: 30_000 });
+    await waitForModelsLoaded(page);
 }
 
-export { expect, argosScreenshot };
+export { expect, argosScreenshot, REAL_NDIF_TIMEOUT_MS };
