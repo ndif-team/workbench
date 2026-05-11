@@ -1,0 +1,47 @@
+name: Preview Teardown
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  PREVIEW_NAMESPACE_PREFIX: ${{ vars.PREVIEW_NAMESPACE_PREFIX || 'preview' }}
+
+jobs:
+  teardown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.15.4
+
+      - uses: azure/setup-kubectl@v4
+
+      - name: Write kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.PREVIEW_KUBECONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Helm uninstall & delete namespace
+        env:
+          PR_NUM: ${{ github.event.pull_request.number }}
+        run: |
+          NS="${PREVIEW_NAMESPACE_PREFIX}-pr-${PR_NUM}"
+          if kubectl get namespace "$NS" >/dev/null 2>&1; then
+            helm uninstall "pr-${PR_NUM}" --namespace "$NS" --ignore-not-found
+            kubectl delete namespace "$NS" --wait=false --ignore-not-found
+          else
+            echo "Namespace $NS not found, nothing to tear down."
+          fi
+
+      - name: Update PR comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-deploy
+          message: |
+            🧹 Preview for PR #${{ github.event.pull_request.number }} torn down.

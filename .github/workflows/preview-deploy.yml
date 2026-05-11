@@ -1,0 +1,111 @@
+name: Preview Deploy
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main, dev]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}/web
+  PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}         # e.g. preview.example.com
+  PREVIEW_NAMESPACE_PREFIX: ${{ vars.PREVIEW_NAMESPACE_PREFIX || 'preview' }}
+  INGRESS_CLASS: ${{ vars.PREVIEW_INGRESS_CLASS || 'nginx' }}
+  CLUSTER_ISSUER: ${{ vars.PREVIEW_CLUSTER_ISSUER || 'letsencrypt' }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate config
+        run: |
+          if [ -z "${PREVIEW_DOMAIN}" ]; then
+            echo "::error::repo variable PREVIEW_DOMAIN is required (e.g. preview.example.com)"
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: workbench/_web/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+            ${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}
+          cache-from: type=gha,scope=preview
+          cache-to: type=gha,mode=max,scope=preview
+
+      - name: Set up kubectl & helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.4
+
+      - uses: azure/setup-kubectl@v4
+
+      - name: Write kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.PREVIEW_KUBECONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Ensure namespace & image pull secret
+        env:
+          PR_NUM: ${{ github.event.pull_request.number }}
+        run: |
+          NS="${PREVIEW_NAMESPACE_PREFIX}-pr-${PR_NUM}"
+          kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n "$NS" create secret docker-registry ghcr-pull \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Helm upgrade --install
+        env:
+          PR_NUM: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          NS="${PREVIEW_NAMESPACE_PREFIX}-pr-${PR_NUM}"
+          HOST="pr-${PR_NUM}.${PREVIEW_DOMAIN}"
+          helm upgrade --install "pr-${PR_NUM}" deploy/preview \
+            --namespace "$NS" \
+            --set image.repository="${IMAGE_NAME}" \
+            --set image.tag="pr-${PR_NUM}-${SHA}" \
+            --set prNumber="${PR_NUM}" \
+            --set commitSha="${SHA}" \
+            --set ingress.host="${HOST}" \
+            --set ingress.className="${INGRESS_CLASS}" \
+            --set ingress.clusterIssuer="${CLUSTER_ISSUER}" \
+            --wait --timeout 5m
+
+      - name: Comment preview URL on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-deploy
+          message: |
+            🚀 **Preview deployed**
+
+            URL: https://pr-${{ github.event.pull_request.number }}.${{ env.PREVIEW_DOMAIN }}
+            Image: `${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}`
+            Namespace: `${{ env.PREVIEW_NAMESPACE_PREFIX }}-pr-${{ github.event.pull_request.number }}`
