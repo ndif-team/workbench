@@ -5,7 +5,7 @@ import type React from "react";
 import { UserDropdown } from "@/components/UserDropdown";
 import Link from "next/link";
 import { ArrowLeft, HelpCircle } from "lucide-react";
-import { WorkbenchStatus } from "@/components/WorkbenchStatus";
+import { ModelControl } from "@/components/ModelControl";
 import { CaptureProvider } from "@/components/providers/CaptureProvider";
 import { Button } from "@/components/ui/button";
 import { WorkspaceNameEditor } from "@/components/WorkspaceNameEditor";
@@ -18,14 +18,15 @@ export default function WorkbenchLayout({
     return (
         <div className="flex flex-col h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
             <header className="p-2 px-3 md:p-3 md:px-5 flex items-center justify-between relative">
-                {/* Left: Back button */}
-                <div className="flex items-center z-10">
+                {/* Left: Back button + Model control */}
+                <div className="flex items-center gap-2 md:gap-3 z-10">
                     <Link href="/workbench">
                         <Button variant="ghost" className="bg-transparent hover:!white/10 border-1">
                             <ArrowLeft className="w-4 h-4" />
                             <span className="text-sm hidden md:inline">workspaces</span>
                         </Button>
                     </Link>
+                    <ModelControl />
                 </div>
 
                 {/* Center: Workspace name */}
@@ -35,9 +36,6 @@ export default function WorkbenchLayout({
 
                 {/* Right: Nav items */}
                 <nav className="flex gap-1 md:gap-3 items-center z-10">
-                    <div className="hidden md:block">
-                        <WorkbenchStatus />
-                    </div>
                     <Link href="https://forms.gle/WsxmZikeLNw34LBV9" target="_blank">
                         <Button variant="ghost" className="hidden md:flex bg-transparent hover:!white/10 border-0">
                             <svg

@@ -14,6 +14,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getModels } from "@/lib/api/modelsApi";
+import { queryKeys } from "@/lib/queryKeys";
 import { getWorkspaces } from "@/lib/queries/workspaceQueries";
 
 type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number];
@@ -151,7 +152,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     });
 
     const { data: models, isLoading: modelsLoading, isError: modelsError } = useQuery({
-        queryKey: ["models"],
+        queryKey: queryKeys.models.all,
         queryFn: getModels,
         refetchInterval: 120000,
     });

@@ -1,6 +1,5 @@
 "use client";
 
-import { ModelSelector } from "@/components/ModelSelector";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
@@ -38,7 +37,7 @@ export default function ActivationPatchingArea() {
     const [configModelUnavailable, setConfigModelUnavailable] = useState<string | null>(null);
 
     const { data: models } = useQuery({
-        queryKey: ["models"],
+        queryKey: queryKeys.models.all,
         queryFn: getModels,
         refetchInterval: 120000,
     });
@@ -74,33 +73,6 @@ export default function ActivationPatchingArea() {
             <div className="h-full flex flex-col md:min-w-64">
                 <div className="p-3 border-b flex items-center justify-between">
                     <h2 className="text-sm pl-2 font-medium">Activation Patching</h2>
-                    <div className="flex items-center gap-2">
-                        {configModelUnavailable && (
-                            <Tooltip>
-                                <TooltipTrigger>
-                                    <AlertCircle className="w-4 h-4 text-yellow-500" />
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom" className="max-w-xs">
-                                    <p>
-                                        Model &quot;{configModelUnavailable}&quot; is not currently available.
-                                        Please select a different model.
-                                    </p>
-                                </TooltipContent>
-                            </Tooltip>
-                        )}
-                        <ModelSelector />
-                    </div>
-                </div>
-                <div className="h-48 animate-pulse bg-muted/50 m-3 rounded" />
-            </div>
-        );
-    }
-
-    return (
-        <div className="h-full flex flex-col md:min-w-64">
-            <div className="p-3 border-b flex items-center justify-between">
-                <h2 className="text-sm pl-2 font-medium">Activation Patching</h2>
-                <div className="flex items-center gap-2">
                     {configModelUnavailable && (
                         <Tooltip>
                             <TooltipTrigger>
@@ -114,8 +86,29 @@ export default function ActivationPatchingArea() {
                             </TooltipContent>
                         </Tooltip>
                     )}
-                    <ModelSelector />
                 </div>
+                <div className="h-48 animate-pulse bg-muted/50 m-3 rounded" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-full flex flex-col md:min-w-64">
+            <div className="p-3 border-b flex items-center justify-between">
+                <h2 className="text-sm pl-2 font-medium">Activation Patching</h2>
+                {configModelUnavailable && (
+                    <Tooltip>
+                        <TooltipTrigger>
+                            <AlertCircle className="w-4 h-4 text-yellow-500" />
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs">
+                            <p>
+                                Model &quot;{configModelUnavailable}&quot; is not currently available.
+                                Please select a different model.
+                            </p>
+                        </TooltipContent>
+                    </Tooltip>
+                )}
             </div>
 
             <div className="p-3 flex-1 overflow-auto">

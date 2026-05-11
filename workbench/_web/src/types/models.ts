@@ -20,6 +20,8 @@ export interface Prediction {
     texts: string[];
 }
 
+export type ModelStatus = "hot" | "warm" | "cold" | "gated" | "unavailable" | "unknown";
+
 export interface Model {
     name: string;
     is_chat: boolean;
@@ -27,4 +29,6 @@ export interface Model {
     params: string;
     gated: boolean;
     allowed: boolean;
+    /** Optional warmth/availability hint from NDIF. Falls back to `allowed`/`gated`. */
+    status?: ModelStatus;
 }

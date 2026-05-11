@@ -9,7 +9,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
-import { WorkbenchStatus } from "@/components/WorkbenchStatus";
 import { Suspense } from "react";
 
 import { redirect } from "next/navigation";
@@ -75,7 +74,6 @@ export default async function WorkbenchPage({
                     </div>
 
                     <nav className="flex gap-1 md:gap-3 items-center">
-                        <div className="hidden md:block"><WorkbenchStatus /></div>
                         <Link href="https://forms.gle/WsxmZikeLNw34LBV9" target="_blank">
                             <Button
                                 variant="ghost"

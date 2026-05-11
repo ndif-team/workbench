@@ -1,4 +1,3 @@
-import { ModelSelector } from "@/components/ModelSelector";
 import { CompletionCard } from "./CompletionCard";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +8,7 @@ import { ChartType } from "@/types/charts";
 import { useMemo, useEffect, useState } from "react";
 import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
-import { Loader2, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function LensArea() {
@@ -31,7 +30,7 @@ export default function LensArea() {
     const [configModelUnavailable, setConfigModelUnavailable] = useState<string | null>(null);
 
     const { data: models } = useQuery({
-        queryKey: ["models"],
+        queryKey: queryKeys.models.all,
         queryFn: getModels,
         refetchInterval: 120000,
     });
@@ -72,34 +71,6 @@ export default function LensArea() {
             <div className="h-full flex flex-col md:min-w-80">
                 <div className="p-3 border-b flex items-center justify-between">
                     <h2 className="text-sm pl-2 font-medium">Lens</h2>
-                    <div className="flex items-center gap-2">
-                        {configModelUnavailable && (
-                            <Tooltip>
-                                <TooltipTrigger>
-                                    <AlertCircle className="w-4 h-4 text-yellow-500" />
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom" className="max-w-xs">
-                                    <p>
-                                        Model "{configModelUnavailable}" is not currently available.
-                                        Please select a different model and retokenize.
-                                    </p>
-                                </TooltipContent>
-                            </Tooltip>
-                        )}
-                        <ModelSelector />
-                    </div>
-                </div>
-
-                <div className="h-48 animate-pulse bg-muted/50 m-3 rounded" />
-            </div>
-        );
-    }
-
-    return (
-        <div className="h-full flex flex-col md:min-w-80">
-            <div className="p-3 border-b flex items-center justify-between">
-                <h2 className="text-sm pl-2 font-medium">Lens</h2>
-                <div className="flex items-center gap-2">
                     {configModelUnavailable && (
                         <Tooltip>
                             <TooltipTrigger>
@@ -113,8 +84,30 @@ export default function LensArea() {
                             </TooltipContent>
                         </Tooltip>
                     )}
-                    <ModelSelector />
                 </div>
+
+                <div className="h-48 animate-pulse bg-muted/50 m-3 rounded" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-full flex flex-col md:min-w-80">
+            <div className="p-3 border-b flex items-center justify-between">
+                <h2 className="text-sm pl-2 font-medium">Lens</h2>
+                {configModelUnavailable && (
+                    <Tooltip>
+                        <TooltipTrigger>
+                            <AlertCircle className="w-4 h-4 text-yellow-500" />
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs">
+                            <p>
+                                Model "{configModelUnavailable}" is not currently available.
+                                Please select a different model and retokenize.
+                            </p>
+                        </TooltipContent>
+                    </Tooltip>
+                )}
             </div>
 
             <div className="p-3">

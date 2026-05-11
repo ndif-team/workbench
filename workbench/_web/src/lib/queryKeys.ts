@@ -18,4 +18,7 @@ export const queryKeys = {
         byWorkspace: (workspaceId: string) => ["documents", workspaceId] as const,
         workspaceDoc: (workspaceId: string) => ["document-workspace", workspaceId] as const,
     },
+    models: {
+        all: ["models"] as const,
+    },
 };

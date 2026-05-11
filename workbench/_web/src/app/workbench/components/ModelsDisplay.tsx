@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getModels } from "@/lib/api/modelsApi";
+import { queryKeys } from "@/lib/queryKeys";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useState } from "react";
 import { Layers, Grip } from "lucide-react";
@@ -138,7 +139,7 @@ export function ModelsDisplay() {
         isLoading,
         error,
     } = useQuery({
-        queryKey: ["models"],
+        queryKey: queryKeys.models.all,
         queryFn: getModels,
         refetchInterval: 120000,
     });

@@ -10,10 +10,6 @@ from ..auth import get_user_email, require_user_email, user_has_model_access
 from ..data_models import NDIFResponse, Token
 from ..telemetry import TelemetryClient, RequestStatus
 from ..state import AppState, get_state
-from ..data_models import Token, NDIFResponse
-from ..auth import require_user_email, get_user_email
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +18,10 @@ router = APIRouter()
 MODELS = list()
 MODELS_LAST_UPDATED = 0
 MODEL_INTERVAL = 60
+
+# Deployment levels we surface to the frontend as model statuses.
+# Anything outside this set is treated as not-deployed and removed from the list.
+SUPPORTED_DEPLOYMENT_LEVELS = {"HOT", "WARM", "COLD"}
 
 def get_remote_models(state: AppState, is_user_signed_in: bool):
 
@@ -44,16 +44,31 @@ def get_remote_models(state: AppState, is_user_signed_in: bool):
 
         data = stats_resp.json()
 
+        # repo_id → ModelStatus, captured at refresh time so we cache it alongside MODELS.
+        deployment_status: dict[str, str] = {}
+
         for deployment_state in data["deployments"].values():
             if deployment_state == {'application_state': 'UNHEALTHY'}:
                 continue
 
-            if deployment_state['deployment_level'] == "HOT" and deployment_state['application_state'] == "RUNNING":
-                state.add_model(deployment_state['repo_id'])
-            else:
-                state.remove_model(deployment_state['repo_id'])
+            repo_id = deployment_state.get('repo_id')
+            level = deployment_state.get('deployment_level')
+            app_state = deployment_state.get('application_state')
 
-        MODELS = state.get_active_model_list()
+            if not repo_id:
+                continue
+
+            if level in SUPPORTED_DEPLOYMENT_LEVELS and app_state == "RUNNING":
+                state.add_model(repo_id)
+                deployment_status[repo_id] = level.lower()
+            else:
+                state.remove_model(repo_id)
+
+        active = state.get_active_model_list()
+        for model in active:
+            model['status'] = deployment_status.get(model['name'], 'unknown')
+
+        MODELS = active
         MODELS_LAST_UPDATED = time.time()
 
     models = [model.copy() for model in MODELS]
@@ -77,7 +92,11 @@ async def get_models(
         return models
 
     else:
-        return state.get_all_model_list()
+        models = state.get_all_model_list()
+        # Local models are fully loaded on the dev backend, so they're effectively hot.
+        for model in models:
+            model['status'] = 'hot'
+        return models
 
 
 class LensCompletion(BaseModel):
@@ -375,7 +394,6 @@ async def start_generate(
             type="NEXT_TOKEN",
             job_id=result
         )
-        print("Hollla")
         return {"job_id": result}
 
     else:
