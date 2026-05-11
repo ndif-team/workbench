@@ -1,0 +1,35 @@
+# Defaults are overridden per-PR by the preview-deploy workflow.
+image:
+  repository: ghcr.io/OWNER/REPO/web
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Identifying labels.
+prNumber: "0"
+commitSha: ""
+
+replicaCount: 1
+
+service:
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: true
+  className: nginx
+  host: ""                    # set by workflow, e.g. pr-123.preview.example.com
+  clusterIssuer: letsencrypt  # cert-manager ClusterIssuer
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# Image pull secret for GHCR (created per-namespace by the workflow).
+imagePullSecret: ghcr-pull
+
+env: []
