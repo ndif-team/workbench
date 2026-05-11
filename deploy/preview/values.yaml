@@ -17,8 +17,8 @@ service:
 ingress:
   enabled: true
   className: nginx
-  host: ""                    # set by workflow, e.g. pr-123.preview.example.com
-  clusterIssuer: letsencrypt  # cert-manager ClusterIssuer
+  host: ""                       # set by workflow, e.g. pr-123.ndif-preview.ripley.cloud
+  clusterIssuer: letsencrypt-prod  # cert-manager ClusterIssuer (DNS-01 on ripley.cloud)
   annotations: {}
 
 resources:
