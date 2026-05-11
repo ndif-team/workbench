@@ -20,6 +20,13 @@ ingress:
   host: ""                       # set by workflow, e.g. pr-123.ndif-preview.ripley.cloud
   clusterIssuer: letsencrypt-prod  # cert-manager ClusterIssuer (DNS-01 on ripley.cloud)
   annotations: {}
+  # Forward-auth gate via oauth2-proxy (GitHub OAuth, ndif-team org-only).
+  # See k8s/apps/workbench-preview-auth/ in the cluster repo. Set
+  # enabled=false to expose a preview publicly (e.g. for an external
+  # collaborator who can't be added to the org).
+  authGate:
+    enabled: true
+    host: auth.ndif-preview.ripley.cloud
 
 resources:
   requests:

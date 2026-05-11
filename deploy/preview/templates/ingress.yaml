@@ -7,6 +7,12 @@ metadata:
     {{- include "preview.labels" . | nindent 4 }}
   annotations:
     cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | quote }}
+    {{- if .Values.ingress.authGate.enabled }}
+    # Forward-auth via oauth2-proxy (ndif-team org-gated). See
+    # k8s/apps/workbench-preview-auth/ in the cluster repo.
+    nginx.ingress.kubernetes.io/auth-url: "https://{{ .Values.ingress.authGate.host }}/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://{{ .Values.ingress.authGate.host }}/oauth2/start?rd=$escaped_request_uri"
+    {{- end }}
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
