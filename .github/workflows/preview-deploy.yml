@@ -4,9 +4,19 @@ on:
   pull_request:
     types: [opened, reopened, synchronize]
     branches: [main, dev]
+  workflow_dispatch:
+    inputs:
+      preview_id:
+        description: "Preview id. URL becomes pr-<id>.${PREVIEW_DOMAIN}. Use a PR number, or any safe slug (lowercase, hyphens, must be DNS-label-safe)."
+        required: true
+        default: "smoke"
+      ref:
+        description: "Git ref to build (branch, tag, or SHA). Defaults to the branch the workflow is dispatched from."
+        required: false
+        default: ""
 
 concurrency:
-  group: preview-${{ github.event.pull_request.number }}
+  group: preview-${{ github.event.pull_request.number || inputs.preview_id }}
   cancel-in-progress: true
 
 permissions:
@@ -31,12 +41,44 @@ jobs:
     # network so no extra apiserver allow-listing is needed.
     runs-on: ripley-cloud-large
     steps:
+      - name: Derive ref + preview id
+        id: pre
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            preview_id="${{ github.event.pull_request.number }}"
+            ref="${{ github.event.pull_request.head.sha }}"
+          else
+            preview_id="${{ inputs.preview_id }}"
+            ref="${{ inputs.ref }}"
+            [ -z "$ref" ] && ref="${{ github.ref_name }}"
+          fi
+          {
+            echo "preview_id=${preview_id}"
+            echo "ref=${ref}"
+          } | tee -a "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pre.outputs.ref }}
+
+      - name: Resolve commit SHA
+        id: meta
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          {
+            echo "preview_id=${{ steps.pre.outputs.preview_id }}"
+            echo "sha=${sha}"
+            echo "tag=pr-${{ steps.pre.outputs.preview_id }}-${sha}"
+            echo "host=pr-${{ steps.pre.outputs.preview_id }}.${PREVIEW_DOMAIN}"
+            echo "namespace=${PREVIEW_NAMESPACE_PREFIX}-pr-${{ steps.pre.outputs.preview_id }}"
+          } | tee -a "$GITHUB_OUTPUT"
 
       - name: Validate config
         run: |
           if [ -z "${PREVIEW_DOMAIN}" ]; then
-            echo "::error::repo variable PREVIEW_DOMAIN is required (e.g. preview.example.com)"
+            echo "::error::repo variable PREVIEW_DOMAIN is required (e.g. ndif-preview.ripley.cloud)"
             exit 1
           fi
 
@@ -57,8 +99,8 @@ jobs:
           file: workbench/_web/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
-            ${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}
+            ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE_NAME }}:pr-${{ steps.meta.outputs.preview_id }}
           cache-from: type=gha,scope=preview
           cache-to: type=gha,mode=max,scope=preview
 
@@ -77,9 +119,8 @@ jobs:
 
       - name: Ensure namespace & image pull secret
         env:
-          PR_NUM: ${{ github.event.pull_request.number }}
+          NS: ${{ steps.meta.outputs.namespace }}
         run: |
-          NS="${PREVIEW_NAMESPACE_PREFIX}-pr-${PR_NUM}"
           kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
           kubectl -n "$NS" create secret docker-registry ghcr-pull \
             --docker-server=ghcr.io \
@@ -89,15 +130,16 @@ jobs:
 
       - name: Helm upgrade --install
         env:
-          PR_NUM: ${{ github.event.pull_request.number }}
-          SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUM: ${{ steps.meta.outputs.preview_id }}
+          SHA: ${{ steps.meta.outputs.sha }}
+          NS: ${{ steps.meta.outputs.namespace }}
+          HOST: ${{ steps.meta.outputs.host }}
+          TAG: ${{ steps.meta.outputs.tag }}
         run: |
-          NS="${PREVIEW_NAMESPACE_PREFIX}-pr-${PR_NUM}"
-          HOST="pr-${PR_NUM}.${PREVIEW_DOMAIN}"
           helm upgrade --install "pr-${PR_NUM}" deploy/preview \
             --namespace "$NS" \
             --set image.repository="${IMAGE_NAME}" \
-            --set image.tag="pr-${PR_NUM}-${SHA}" \
+            --set image.tag="${TAG}" \
             --set prNumber="${PR_NUM}" \
             --set commitSha="${SHA}" \
             --set ingress.host="${HOST}" \
@@ -105,13 +147,24 @@ jobs:
             --set ingress.clusterIssuer="${CLUSTER_ISSUER}" \
             --wait --timeout 5m
 
+      - name: Write job summary
+        run: |
+          {
+            echo "### 🚀 Preview deployed"
+            echo ""
+            echo "- URL: https://${{ steps.meta.outputs.host }}"
+            echo "- Image: \`${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}\`"
+            echo "- Namespace: \`${{ steps.meta.outputs.namespace }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: preview-deploy
           message: |
             🚀 **Preview deployed**
 
-            URL: https://pr-${{ github.event.pull_request.number }}.${{ env.PREVIEW_DOMAIN }}
-            Image: `${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}`
-            Namespace: `${{ env.PREVIEW_NAMESPACE_PREFIX }}-pr-${{ github.event.pull_request.number }}`
+            URL: https://${{ steps.meta.outputs.host }}
+            Image: `${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}`
+            Namespace: `${{ steps.meta.outputs.namespace }}`
