@@ -33,10 +33,15 @@ RUN npm rebuild better-sqlite3 \
 
 FROM node:20-slim AS runner
 WORKDIR /app/workbench/_web
+# NEXT_PUBLIC_* are inlined at build time; the runtime ones must match
+# so drizzle-kit reads the same DB path that the app will query.
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    NEXT_PUBLIC_LOCAL_DB=true \
+    NEXT_PUBLIC_DISABLE_AUTH=true \
+    LOCAL_SQLITE_URL=/data/preview.db
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
@@ -45,4 +50,7 @@ RUN apt-get update \
 COPY --from=builder --chown=next:next /app/workbench/_web ./
 USER next
 EXPOSE 3000
-CMD ["npx", "next", "start", "-p", "3000", "-H", "0.0.0.0"]
+# Each preview pod starts with an empty /data volume, so drizzle-kit
+# pushes the SQLite schema on boot before next start. Idempotent — no-op
+# on container restart since /data is per-pod and re-mounted empty.
+CMD ["sh", "-c", "npx drizzle-kit push --force && exec npx next start -p 3000 -H 0.0.0.0"]
