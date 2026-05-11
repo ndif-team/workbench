@@ -9,11 +9,12 @@ permissions:
   pull-requests: write
 
 env:
-  PREVIEW_NAMESPACE_PREFIX: ${{ vars.PREVIEW_NAMESPACE_PREFIX || 'preview' }}
+  PREVIEW_NAMESPACE_PREFIX: ${{ vars.PREVIEW_NAMESPACE_PREFIX || 'workbench-preview' }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   teardown:
-    runs-on: ubuntu-latest
+    runs-on: ripley-cloud
     steps:
       - uses: azure/setup-helm@v4
         with:

@@ -16,14 +16,20 @@ permissions:
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}/web
-  PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}         # e.g. preview.example.com
-  PREVIEW_NAMESPACE_PREFIX: ${{ vars.PREVIEW_NAMESPACE_PREFIX || 'preview' }}
+  PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}         # e.g. ndif-preview.ripley.cloud
+  PREVIEW_NAMESPACE_PREFIX: ${{ vars.PREVIEW_NAMESPACE_PREFIX || 'workbench-preview' }}
   INGRESS_CLASS: ${{ vars.PREVIEW_INGRESS_CLASS || 'nginx' }}
-  CLUSTER_ISSUER: ${{ vars.PREVIEW_CLUSTER_ISSUER || 'letsencrypt' }}
+  CLUSTER_ISSUER: ${{ vars.PREVIEW_CLUSTER_ISSUER || 'letsencrypt-prod' }}
+  # In-cluster ARC runners use a glibc image; some JS actions still ship
+  # Node 20 binaries that won't load. Force them to Node 24.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    # Org-level self-hosted runner in arc-runners-ndif-team (DinD-enabled,
+    # 4c/16Gi minimum). Builds + helm install run from inside the cluster
+    # network so no extra apiserver allow-listing is needed.
+    runs-on: ripley-cloud-large
     steps:
       - uses: actions/checkout@v4
 
