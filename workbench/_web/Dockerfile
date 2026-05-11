@@ -3,13 +3,13 @@
 # Build context must be the repo root (the Dockerfile path is workbench/_web/Dockerfile)
 # so the build can reach the sibling nnsightful symlink target if/when needed.
 
-FROM oven/bun:1.1 AS deps
+FROM oven/bun:1.2 AS deps
 WORKDIR /app/workbench/_web
 COPY workbench/_web/package.json workbench/_web/bun.lock* ./
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --frozen-lockfile
 
-FROM oven/bun:1.1 AS builder
+FROM oven/bun:1.2 AS builder
 WORKDIR /app/workbench/_web
 COPY --from=deps /app/workbench/_web/node_modules ./node_modules
 COPY workbench/_web ./
