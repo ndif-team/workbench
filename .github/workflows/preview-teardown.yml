@@ -3,6 +3,11 @@ name: Preview Teardown
 on:
   pull_request:
     types: [closed]
+  workflow_dispatch:
+    inputs:
+      preview_id:
+        description: "Preview id of the deployment to tear down (e.g. 113 or 'smoke')."
+        required: true
 
 permissions:
   contents: read
@@ -16,6 +21,20 @@ jobs:
   teardown:
     runs-on: ripley-cloud
     steps:
+      - name: Derive preview id
+        id: meta
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            preview_id="${{ github.event.pull_request.number }}"
+          else
+            preview_id="${{ inputs.preview_id }}"
+          fi
+          {
+            echo "preview_id=${preview_id}"
+            echo "namespace=${PREVIEW_NAMESPACE_PREFIX}-pr-${preview_id}"
+          } | tee -a "$GITHUB_OUTPUT"
+
       - uses: azure/setup-helm@v4
         with:
           version: v3.15.4
@@ -30,9 +49,9 @@ jobs:
 
       - name: Helm uninstall & delete namespace
         env:
-          PR_NUM: ${{ github.event.pull_request.number }}
+          PR_NUM: ${{ steps.meta.outputs.preview_id }}
+          NS: ${{ steps.meta.outputs.namespace }}
         run: |
-          NS="${PREVIEW_NAMESPACE_PREFIX}-pr-${PR_NUM}"
           if kubectl get namespace "$NS" >/dev/null 2>&1; then
             helm uninstall "pr-${PR_NUM}" --namespace "$NS" --ignore-not-found
             kubectl delete namespace "$NS" --wait=false --ignore-not-found
@@ -41,8 +60,9 @@ jobs:
           fi
 
       - name: Update PR comment
+        if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: preview-deploy
           message: |
-            🧹 Preview for PR #${{ github.event.pull_request.number }} torn down.
+            🧹 Preview for PR #${{ steps.meta.outputs.preview_id }} torn down.
