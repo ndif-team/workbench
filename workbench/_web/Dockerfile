@@ -21,12 +21,17 @@ RUN apt-get update \
  && mkdir -p /data
 COPY --from=deps /app/workbench/_web/node_modules ./node_modules
 COPY workbench/_web ./
+# NEXT_PUBLIC_BACKEND_URL is inlined into the JS bundle by Next.js — must
+# be set at build time. Defaults to the dev placeholder so a vanilla
+# `docker build` still produces a working (but offline-backend) image.
+ARG NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 # Preview builds use sqlite + auth disabled, same shape as the E2E job.
 # next build's "Collect page data" step opens LOCAL_SQLITE_URL, so the
 # parent dir must already exist at build time (not only at runtime).
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_PUBLIC_LOCAL_DB=true \
     NEXT_PUBLIC_DISABLE_AUTH=true \
+    NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
     LOCAL_SQLITE_URL=/data/preview.db
 RUN npm rebuild better-sqlite3 \
  && npm run build

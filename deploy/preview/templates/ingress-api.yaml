@@ -1,0 +1,39 @@
+{{- if and .Values.api.enabled .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "preview.api.name" . }}
+  labels:
+    {{- include "preview.api.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | quote }}
+    {{- if .Values.ingress.authGate.enabled }}
+    # Same forward-auth gate as the web ingress — relies on the shared
+    # cookie domain (.ndif-preview.ripley.cloud) so a single login covers
+    # both the web origin and the cross-site fetches to the api host.
+    # CORS preflight (OPTIONS) bypasses auth via the proxy's
+    # --skip-auth-preflight flag.
+    nginx.ingress.kubernetes.io/auth-url: "https://{{ .Values.ingress.authGate.host }}/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://{{ .Values.ingress.authGate.host }}/oauth2/start?rd=$scheme://$best_http_host$escaped_request_uri"
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts:
+        - {{ .Values.api.host | quote }}
+      secretName: {{ include "preview.api.name" . }}-tls
+  rules:
+    - host: {{ .Values.api.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "preview.api.name" . }}
+                port:
+                  number: {{ .Values.api.service.port }}
+{{- end }}

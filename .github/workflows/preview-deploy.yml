@@ -26,6 +26,7 @@ permissions:
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}/web
+  IMAGE_NAME_API: ghcr.io/${{ github.repository }}/api
   PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}         # e.g. ndif-preview.ripley.cloud
   PREVIEW_NAMESPACE_PREFIX: ${{ vars.PREVIEW_NAMESPACE_PREFIX || 'workbench-preview' }}
   INGRESS_CLASS: ${{ vars.PREVIEW_INGRESS_CLASS || 'nginx' }}
@@ -72,6 +73,7 @@ jobs:
             echo "sha=${sha}"
             echo "tag=pr-${{ steps.pre.outputs.preview_id }}-${sha}"
             echo "host=pr-${{ steps.pre.outputs.preview_id }}.${PREVIEW_DOMAIN}"
+            echo "api_host=api.pr-${{ steps.pre.outputs.preview_id }}.${PREVIEW_DOMAIN}"
             echo "namespace=${PREVIEW_NAMESPACE_PREFIX}-pr-${{ steps.pre.outputs.preview_id }}"
           } | tee -a "$GITHUB_OUTPUT"
 
@@ -92,7 +94,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build & push image
+      - name: Build & push web image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -101,8 +103,22 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
             ${{ env.IMAGE_NAME }}:pr-${{ steps.meta.outputs.preview_id }}
-          cache-from: type=gha,scope=preview
-          cache-to: type=gha,mode=max,scope=preview
+          build-args: |
+            NEXT_PUBLIC_BACKEND_URL=https://${{ steps.meta.outputs.api_host }}
+          cache-from: type=gha,scope=preview-web
+          cache-to: type=gha,mode=max,scope=preview-web
+
+      - name: Build & push api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: workbench/_api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME_API }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE_NAME_API }}:pr-${{ steps.meta.outputs.preview_id }}
+          cache-from: type=gha,scope=preview-api
+          cache-to: type=gha,mode=max,scope=preview-api
 
       - name: Set up kubectl & helm
         uses: azure/setup-helm@v4
@@ -128,32 +144,58 @@ jobs:
             --docker-password=${{ secrets.GITHUB_TOKEN }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Provision api secrets
+        env:
+          NS: ${{ steps.meta.outputs.namespace }}
+          NDIF_API_KEY: ${{ secrets.NDIF_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NDIF_API_KEY:-}" ]; then
+            echo "::error::repo secret NDIF_API_KEY is required for the preview api"
+            exit 1
+          fi
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::repo secret HF_TOKEN is required for the preview api"
+            exit 1
+          fi
+          kubectl -n "$NS" create secret generic workbench-api-secrets \
+            --from-literal=NDIF_API_KEY="$NDIF_API_KEY" \
+            --from-literal=HF_TOKEN="$HF_TOKEN" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Helm upgrade --install
         env:
           PR_NUM: ${{ steps.meta.outputs.preview_id }}
           SHA: ${{ steps.meta.outputs.sha }}
           NS: ${{ steps.meta.outputs.namespace }}
           HOST: ${{ steps.meta.outputs.host }}
+          API_HOST: ${{ steps.meta.outputs.api_host }}
           TAG: ${{ steps.meta.outputs.tag }}
         run: |
           helm upgrade --install "pr-${PR_NUM}" deploy/preview \
             --namespace "$NS" \
             --set image.repository="${IMAGE_NAME}" \
             --set image.tag="${TAG}" \
+            --set api.image.repository="${IMAGE_NAME_API}" \
+            --set api.image.tag="${TAG}" \
+            --set api.host="${API_HOST}" \
             --set prNumber="${PR_NUM}" \
             --set commitSha="${SHA}" \
             --set ingress.host="${HOST}" \
             --set ingress.className="${INGRESS_CLASS}" \
             --set ingress.clusterIssuer="${CLUSTER_ISSUER}" \
-            --wait --timeout 5m
+            --wait --timeout 10m
 
       - name: Write job summary
         run: |
           {
             echo "### 🚀 Preview deployed"
             echo ""
-            echo "- URL: https://${{ steps.meta.outputs.host }}"
-            echo "- Image: \`${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}\`"
+            echo "- App: https://${{ steps.meta.outputs.host }}"
+            echo "- API: https://${{ steps.meta.outputs.api_host }}/docs"
+            echo "- Web image: \`${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}\`"
+            echo "- API image: \`${{ env.IMAGE_NAME_API }}:${{ steps.meta.outputs.tag }}\`"
             echo "- Namespace: \`${{ steps.meta.outputs.namespace }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -165,6 +207,8 @@ jobs:
           message: |
             🚀 **Preview deployed**
 
-            URL: https://${{ steps.meta.outputs.host }}
-            Image: `${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}`
-            Namespace: `${{ steps.meta.outputs.namespace }}`
+            - App: https://${{ steps.meta.outputs.host }}
+            - API: https://${{ steps.meta.outputs.api_host }}/docs
+            - Web image: `${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}`
+            - API image: `${{ env.IMAGE_NAME_API }}:${{ steps.meta.outputs.tag }}`
+            - Namespace: `${{ steps.meta.outputs.namespace }}`
