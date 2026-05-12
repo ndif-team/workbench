@@ -5,6 +5,7 @@ import toml
 from fastapi import Request
 
 from huggingface_hub import model_info, get_safetensors_metadata
+from huggingface_hub.utils import GatedRepoError
 from transformers import AutoConfig, AutoTokenizer
 
 from nnsight import CONFIG
@@ -38,17 +39,27 @@ def fetch_model_metadata(model_name: str) -> "ModelMetadata":
     """Derive model metadata from HuggingFace Hub, AutoConfig, and safetensors headers."""
     logger.info(f"Fetching metadata for {model_name}")
 
-    # Gated status from HF Hub
+    # Gated status from HF Hub. A 403/GatedRepoError means the token
+    # *can't* read the repo — which implies it IS gated, not "not gated".
     try:
         info = model_info(model_name)
         gated = info.gated is not None and info.gated is not False
+    except GatedRepoError:
+        gated = True
     except Exception:
         logger.warning(f"Could not fetch Hub info for {model_name}, assuming not gated")
         gated = False
 
-    # Architecture info from config (no weights download)
-    config = AutoConfig.from_pretrained(model_name)
-    n_layers = getattr(config, "num_hidden_layers", None) or getattr(config, "n_layer", 0)
+    # Architecture info from config (no weights download). Same gated-repo
+    # caveat: if the HF token doesn't have license-acceptance for this
+    # model, AutoConfig.from_pretrained raises 403 — surface the model in
+    # /models with unknown layer count rather than 500ing the whole list.
+    try:
+        config = AutoConfig.from_pretrained(model_name)
+        n_layers = getattr(config, "num_hidden_layers", None) or getattr(config, "n_layer", 0)
+    except Exception as e:
+        logger.warning(f"Could not load config for {model_name} ({e.__class__.__name__}); n_layers will show as 0")
+        n_layers = 0
 
     # Parameter count from safetensors header (no weights download)
     try:
