@@ -12,7 +12,7 @@ export default defineConfig({
         ["html"],
         [
             "@argos-ci/playwright/reporter",
-            createArgosReporterOptions({ uploadToArgos: !!process.env.CI }),
+            createArgosReporterOptions({ uploadToArgos: !!process.env.ARGOS_TOKEN }),
         ],
     ],
     use: {
