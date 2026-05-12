@@ -33,6 +33,14 @@ spec:
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          {{- if .Values.api.secretName }}
+          # The Next.js server-side renderer fetches HF tokenizers when
+          # rendering /workbench/[workspaceId]/[chartId]; gated repos
+          # need HF_TOKEN. Same secret as the api Deployment.
+          envFrom:
+            - secretRef:
+                name: {{ .Values.api.secretName }}
+          {{- end }}
           readinessProbe:
             httpGet:
               path: /

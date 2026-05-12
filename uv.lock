@@ -555,7 +555,7 @@ requires-dist = [
     { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.6.1" },
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.6.16" },
     { name = "modal", specifier = ">=0.65.66" },
-    { name = "nnsight", specifier = ">=0.6.3" },
+    { name = "nnsight", specifier = ">=0.7.0" },
     { name = "nnsightful", git = "https://github.com/AdamBelfki3/nnsightful.git" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "toml", specifier = ">=0.10.2" },
@@ -881,7 +881,7 @@ wheels = [
 
 [[package]]
 name = "nnsight"
-version = "0.6.3"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "accelerate" },
@@ -898,12 +898,12 @@ dependencies = [
     { name = "transformers" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a6/75/e2f5c0913b078e08718e92cf51ddf963579dde59485b024052c7d11bd25d/nnsight-0.6.3.tar.gz", hash = "sha256:d9fa2aa0eed3b3335bbe5d7511a5127ccc3c79bafba6275369697b882e2b8249", size = 1263681, upload-time = "2026-03-20T16:46:33.329Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a6/9e/76fd632deef926599d3d16c02fd736cf5f8465f49d708d5be13cd6638484/nnsight-0.7.0.tar.gz", hash = "sha256:5bc6678d567ecc5590b823b7bbab2c310c69f8dda6f4064684c6d488563eebee", size = 1912851, upload-time = "2026-05-05T05:40:50.084Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e4/81/6dacc633467d4b91a7b46871f10be7fa83d1648986b0640fc9946d153c05/nnsight-0.6.3-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:6f8ab8bb002da985bc0ca550f43b9f978d876269953c09709de32afb9c2378ad", size = 176203, upload-time = "2026-03-20T16:46:13.683Z" },
-    { url = "https://files.pythonhosted.org/packages/4d/51/e7d148ca030c7b1ff269268b82c918db88c95a7f378cd26b5d5885345fbf/nnsight-0.6.3-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:4ea008fa818a6a0027a260399f8e921264b85d21cc3e97980a2c3e838068356a", size = 183668, upload-time = "2026-03-20T16:46:14.87Z" },
-    { url = "https://files.pythonhosted.org/packages/0c/0b/57b48373160978dbb37ff0ece06a6d740922deda15745e7afa20659e46a1/nnsight-0.6.3-cp312-cp312-win32.whl", hash = "sha256:2c6be467ac7c5d0ecbb196d251ae07cfc176da9b6b2dbe40f6db887f404d97d7", size = 177888, upload-time = "2026-03-20T16:46:16.138Z" },
-    { url = "https://files.pythonhosted.org/packages/87/8e/a6e739011fe6395c11b5570c2397c5a37c976ad541af820f690489864e7a/nnsight-0.6.3-cp312-cp312-win_amd64.whl", hash = "sha256:ac77ab7717c886412cf022bbd73c7da60e921200f6857255f1779fc40f3a7deb", size = 178305, upload-time = "2026-03-20T16:46:17.082Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/4d/634c1f08e5d34d9d145f81a5b872c5d2a2fcae714c77450e4f14660670b8/nnsight-0.7.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:d988fd477abcc15d413012aa1b6eaef667da81b2d61c86c528b2a154adf259c5", size = 265015, upload-time = "2026-05-05T05:40:30.453Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/fa/aee0a17356528f6cf4e0deaf3af2f0a88f660f793fb1fbb10f363682ef6a/nnsight-0.7.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:000f5285a754d63fafc0a677e4518192f16c5fa3f2af347a46e2f27c793ef2b2", size = 272487, upload-time = "2026-05-05T05:40:31.545Z" },
+    { url = "https://files.pythonhosted.org/packages/85/77/c59d1e983936e77b2d9fcd4694461f78c66d0af95982b42ffc365fa0c224/nnsight-0.7.0-cp312-cp312-win32.whl", hash = "sha256:2601ccc8a352c09f6f17576ea07943ed29eb3c8d1bba2ec174fbb554942a3821", size = 267080, upload-time = "2026-05-05T05:40:32.909Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/1b/d3d60dfbbd1167320ec7f02cf06f4c589a3d2d462c3748f45bba7eaa17eb/nnsight-0.7.0-cp312-cp312-win_amd64.whl", hash = "sha256:408e2ae8b0da3af0b71f3c8dbb2301b671801205f7a3f95ede7f3f6672c5a8a5", size = 267491, upload-time = "2026-05-05T05:40:34.469Z" },
 ]
 
 [[package]]
@@ -1519,7 +1519,7 @@ dependencies = [
     { name = "typing-extensions", marker = "sys_platform == 'darwin'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.9.0-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:4de0ed8cbc457a506dbca40376e206a29efee10756a00f1f3404bf67ad737d04" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.9.0-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:4de0ed8cbc457a506dbca40376e206a29efee10756a00f1f3404bf67ad737d04", upload-time = "2025-10-14T17:26:17Z" },
 ]
 
 [[package]]
@@ -1539,10 +1539,10 @@ dependencies = [
     { name = "typing-extensions", marker = "sys_platform != 'darwin'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:3a651434ae1248b0568c12b5f9e3acc8942eb28378d9d04a79302938b68c6f24" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:28f6eb31b08180a5c5e98d5bc14eef6909c9f5a1dbff9632c3e02a8773449349" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-win_amd64.whl", hash = "sha256:e438061b87ec7dd6018fca9f975219889aa0a3f6cdc3ea10dd0ae2bc7f1c47ce" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-win_arm64.whl", hash = "sha256:eb13ff1c34e338d722e76a4fd83b8d282782505bd1b99af4b3c32da66eba6eb4" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:3a651434ae1248b0568c12b5f9e3acc8942eb28378d9d04a79302938b68c6f24", upload-time = "2025-10-14T17:26:02Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:28f6eb31b08180a5c5e98d5bc14eef6909c9f5a1dbff9632c3e02a8773449349", upload-time = "2025-10-14T17:26:03Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-win_amd64.whl", hash = "sha256:e438061b87ec7dd6018fca9f975219889aa0a3f6cdc3ea10dd0ae2bc7f1c47ce", upload-time = "2025-10-14T17:26:05Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-win_arm64.whl", hash = "sha256:eb13ff1c34e338d722e76a4fd83b8d282782505bd1b99af4b3c32da66eba6eb4", upload-time = "2025-10-14T17:26:06Z" },
 ]
 
 [[package]]
