@@ -8,7 +8,10 @@ on:
 
 jobs:
   e2e:
-    runs-on: ripley-cloud-large
+    # Ramdisk runner: 32 GiB tmpfs workspace, so the uv torch resolve +
+    # bun install + Playwright browser launches all hit RAM instead of
+    # ceph-backed scratch.
+    runs-on: ripley-cloud-ramdisk
     env:
       # Real-NDIF e2e: a restricted model config (gpt2-only) keeps the
       # `/models/` endpoint from probing gated repos at startup.

@@ -37,10 +37,12 @@ env:
 
 jobs:
   build-and-deploy:
-    # Org-level self-hosted runner in arc-runners-ndif-team (DinD-enabled,
-    # 4c/16Gi minimum). Builds + helm install run from inside the cluster
-    # network so no extra apiserver allow-listing is needed.
-    runs-on: ripley-cloud-large
+    # Org-level self-hosted runner in arc-runners-ndif-team. The
+    # ramdisk variant mounts a 32 GiB tmpfs at the runner workspace so
+    # bun install / uv sync / next build / docker layer extraction run
+    # at RAM speed. Trade: 1-8 CPU instead of ripley-cloud-large's 4-32,
+    # but for these I/O-bound builds the wall-clock win is bigger.
+    runs-on: ripley-cloud-ramdisk
     steps:
       - name: Derive ref + preview id
         id: pre
