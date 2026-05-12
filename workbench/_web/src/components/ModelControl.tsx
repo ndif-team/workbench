@@ -48,7 +48,7 @@ const JOB_STATUS: Record<
 > = {
     received: { color: "hsl(270 70% 55%)", label: "received", active: true },
     queued: { color: "hsl(38 92% 50%)", label: "queued", active: true },
-    dispatched: { color: "hsl(48 96% 53%)", label: "dispatched", active: true },
+    dispatched: { color: "hsl(43 95% 45%)", label: "dispatched", active: true },
     running: { color: "hsl(217 91% 60%)", label: "running", active: true },
     completed: { color: "hsl(142 71% 45%)", label: "completed", active: false },
     error: { color: "hsl(0 84% 60%)", label: "error", active: false },
@@ -197,13 +197,27 @@ export function ModelControl({ className }: ModelControlProps) {
     const heat = deriveHeat(selectedModel);
     const display = splitRepo(selectedModel.name);
     const job = parseJobStatus(jobStatus);
+    const isJobActive = job ? JOB_STATUS[job.state].active : false;
+
+    // Close the popover if a job kicks off while it's open.
+    React.useEffect(() => {
+        if (isJobActive && open) {
+            setOpen(false);
+            setQuery("");
+        }
+    }, [isJobActive, open]);
 
     return (
         <Popover open={open} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    aria-label="Select model"
+                    aria-label={
+                        isJobActive
+                            ? "Model selection disabled while a job is running"
+                            : "Select model"
+                    }
+                    disabled={isJobActive}
                     className={cn(TRIGGER_CLASSES, "max-w-[28rem]", className)}
                 >
                     <HeatBadge heat={heat} />
