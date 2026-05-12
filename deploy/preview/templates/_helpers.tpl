@@ -1,5 +1,8 @@
+{{- /* %v (not %s) because helm --set parses numeric strings as ints —
+       a PR number like 113 from the workflow would otherwise render as
+       "pr-%!s(int64=113)" and fail k8s name validation. */ -}}
 {{- define "preview.name" -}}
-{{- printf "pr-%s" .Values.prNumber | trunc 63 | trimSuffix "-" -}}
+{{- printf "pr-%v" .Values.prNumber | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{- define "preview.labels" -}}
@@ -16,7 +19,7 @@ app.kubernetes.io/instance: {{ include "preview.name" . }}
 {{- end -}}
 
 {{- define "preview.api.name" -}}
-{{- printf "pr-%s-api" .Values.prNumber | trunc 63 | trimSuffix "-" -}}
+{{- printf "pr-%v-api" .Values.prNumber | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{- define "preview.api.selectorLabels" -}}
