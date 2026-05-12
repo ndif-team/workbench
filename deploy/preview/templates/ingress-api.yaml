@@ -13,17 +13,17 @@ metadata:
     # both the web origin and the cross-site fetches to the api host.
     nginx.ingress.kubernetes.io/auth-url: "https://{{ .Values.ingress.authGate.host }}/oauth2/auth"
     nginx.ingress.kubernetes.io/auth-signin: "https://{{ .Values.ingress.authGate.host }}/oauth2/start?rd=$scheme://$best_http_host$escaped_request_uri"
-    # CORS preflight (OPTIONS) carries no cookie, so the auth_request
-    # would always redirect it to GitHub OAuth and break browser
-    # fetch() from pr-* → api.pr-*. Short-circuit the auth subrequest
-    # for OPTIONS so nginx forwards the preflight straight to the api
-    # (whose FastAPI CORSMiddleware then responds with the right headers).
-    # Requires allow-snippet-annotations=true on the ingress-nginx cm.
-    nginx.ingress.kubernetes.io/auth-snippet: |
-      if ($request_method = OPTIONS) {
-        return 200;
-      }
     {{- end }}
+    # CORS handled at the ingress, not by FastAPI: nginx-ingress's
+    # enable-cors path returns 204 for OPTIONS *before* firing the
+    # auth_request subrequest, so preflights succeed without a cookie.
+    # The api Deployment sets SKIP_CORS_MIDDLEWARE=true so the FastAPI
+    # CORSMiddleware doesn't also add (now-duplicate) headers.
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://{{ .Values.ingress.host }}"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-User-Email, X-Requested-With"
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

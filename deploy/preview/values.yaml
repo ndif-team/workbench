@@ -63,6 +63,12 @@ api:
     # the real NDIF backend, not in-cluster.
     - name: CONFIG
       value: "dev"
+    # CORS is handled by the api Ingress (enable-cors annotations) so
+    # OPTIONS preflights bypass the oauth2-proxy auth_request without
+    # needing snippet annotations cluster-wide. Disable FastAPI's
+    # CORSMiddleware to avoid emitting duplicate Access-Control-* headers.
+    - name: SKIP_CORS_MIDDLEWARE
+      value: "true"
   # Secret containing NDIF_API_KEY + HF_TOKEN (created per-namespace by the
   # workflow from GitHub repo secrets of the same names).
   secretName: workbench-api-secrets

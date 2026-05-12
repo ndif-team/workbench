@@ -35,16 +35,21 @@ ALLOWED_ORIGIN_REGEX = (
 def fastapi_app():
     app = FastAPI()
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=ALLOWED_ORIGINS,
-        allow_origin_regex=ALLOWED_ORIGIN_REGEX,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["*"],
-        max_age=3600,
-    )
+    # In environments where the fronting ingress handles CORS (e.g. the
+    # ripley preview chart sets enable-cors annotations and needs OPTIONS
+    # to bypass auth_request *before* this app sees it), opt out of the
+    # CORSMiddleware so we don't emit duplicate Access-Control-* headers.
+    if os.environ.get("SKIP_CORS_MIDDLEWARE") != "true":
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=ALLOWED_ORIGINS,
+            allow_origin_regex=ALLOWED_ORIGIN_REGEX,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=["*"],
+            max_age=3600,
+        )
 
     app.include_router(lens, prefix="/lens")
     app.include_router(logit_lens, prefix="/logit_lens")
