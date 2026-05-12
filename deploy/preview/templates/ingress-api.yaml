@@ -11,10 +11,18 @@ metadata:
     # Same forward-auth gate as the web ingress — relies on the shared
     # cookie domain (.ndif-preview.ripley.cloud) so a single login covers
     # both the web origin and the cross-site fetches to the api host.
-    # CORS preflight (OPTIONS) bypasses auth via the proxy's
-    # --skip-auth-preflight flag.
     nginx.ingress.kubernetes.io/auth-url: "https://{{ .Values.ingress.authGate.host }}/oauth2/auth"
     nginx.ingress.kubernetes.io/auth-signin: "https://{{ .Values.ingress.authGate.host }}/oauth2/start?rd=$scheme://$best_http_host$escaped_request_uri"
+    # CORS preflight (OPTIONS) carries no cookie, so the auth_request
+    # would always redirect it to GitHub OAuth and break browser
+    # fetch() from pr-* → api.pr-*. Short-circuit the auth subrequest
+    # for OPTIONS so nginx forwards the preflight straight to the api
+    # (whose FastAPI CORSMiddleware then responds with the right headers).
+    # Requires allow-snippet-annotations=true on the ingress-nginx cm.
+    nginx.ingress.kubernetes.io/auth-snippet: |
+      if ($request_method = OPTIONS) {
+        return 200;
+      }
     {{- end }}
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
