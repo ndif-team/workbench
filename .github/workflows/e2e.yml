@@ -1,10 +1,18 @@
 name: E2E Tests
 on:
   push:
-    branches: [main, dev, ci-setup]
+    # Only post-merge runs on long-lived branches. Feature branches go
+    # via the pull_request trigger so we don't double-fire (push +
+    # pull_request) for every commit on an open PR.
+    branches: [main, dev]
   pull_request:
     branches: [main, dev]
   workflow_dispatch:
+
+# Cancel in-flight runs when a newer commit lands on the same PR/branch.
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   e2e:
