@@ -13,14 +13,14 @@ interface TokenOption {
 
 // Color palette matching LinePlotWidget
 const LINE_COLORS = [
-    "#3b82f6",  // blue
-    "#ef4444",  // red
-    "#22c55e",  // green
-    "#f59e0b",  // amber
-    "#8b5cf6",  // violet
-    "#ec4899",  // pink
-    "#06b6d4",  // cyan
-    "#84cc16",  // lime
+    "#3b82f6", // blue
+    "#ef4444", // red
+    "#22c55e", // green
+    "#f59e0b", // amber
+    "#8b5cf6", // violet
+    "#ec4899", // pink
+    "#06b6d4", // cyan
+    "#84cc16", // lime
 ];
 
 // Helper function to render token text with visual indicators for leading spaces and newlines
@@ -132,11 +132,11 @@ const selectStyles: StylesConfig<TokenOption, true, GroupBase<TokenOption>> = {
     option: (base, state) => ({
         ...base,
         backgroundColor: state.isFocused ? "hsl(var(--accent))" : "transparent",
-        color: state.isSelected 
-            ? "hsl(var(--muted-foreground))" 
-            : state.isFocused 
-                ? "hsl(var(--accent-foreground))" 
-                : "hsl(var(--popover-foreground))",
+        color: state.isSelected
+            ? "hsl(var(--muted-foreground))"
+            : state.isFocused
+              ? "hsl(var(--accent-foreground))"
+              : "hsl(var(--popover-foreground))",
         fontSize: "0.875rem",
         padding: "8px 12px",
         cursor: "pointer",
@@ -154,12 +154,12 @@ const selectStyles: StylesConfig<TokenOption, true, GroupBase<TokenOption>> = {
 // Custom MultiValue component with colored indicator
 const CustomMultiValue = (props: any) => {
     const color = LINE_COLORS[props.data.value % LINE_COLORS.length];
-    
+
     return (
         <div
             className={cn(
                 "inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded text-sm cursor-default transition-colors",
-                "bg-secondary border border-input hover:bg-violet-500/10 hover:border-violet-500/30 group"
+                "bg-secondary border border-input hover:bg-violet-500/10 hover:border-violet-500/30 group",
             )}
         >
             <span className="text-muted-foreground group-hover:text-violet-600">
@@ -187,7 +187,7 @@ const CustomMultiValue = (props: any) => {
 const CustomOption = (props: any) => {
     const tokenIndex = props.data.value;
     const badge = tokenIndex === 0 ? "source pred" : tokenIndex === 1 ? "target pred" : null;
-    
+
     return (
         <components.Option {...props}>
             <div className="flex items-center justify-between w-full gap-2">
@@ -216,7 +216,13 @@ export interface TokenSelectorProps {
     disabled?: boolean;
 }
 
-export function TokenSelector({ allLabels, selectedIndices, onChange, defaultIndices, disabled }: TokenSelectorProps) {
+export function TokenSelector({
+    allLabels,
+    selectedIndices,
+    onChange,
+    defaultIndices,
+    disabled,
+}: TokenSelectorProps) {
     // Build options from all labels
     const options: TokenOption[] = useMemo(() => {
         return allLabels.map((label, index) => ({
@@ -229,7 +235,7 @@ export function TokenSelector({ allLabels, selectedIndices, onChange, defaultInd
     const selectedOptions: TokenOption[] = useMemo(() => {
         return Array.from(selectedIndices)
             .sort((a, b) => a - b)
-            .map(index => ({
+            .map((index) => ({
                 value: index,
                 label: allLabels[index] || `Token ${index}`,
             }));
@@ -237,7 +243,7 @@ export function TokenSelector({ allLabels, selectedIndices, onChange, defaultInd
 
     // Handle change
     const handleChange = (newValue: MultiValue<TokenOption>) => {
-        const newIndices = newValue.map(opt => opt.value);
+        const newIndices = newValue.map((opt) => opt.value);
         onChange(newIndices);
     };
 
@@ -311,11 +317,12 @@ export function TokenSelector({ allLabels, selectedIndices, onChange, defaultInd
                                 const start = input.selectionStart || 0;
                                 const end = input.selectionEnd || 0;
                                 const value = input.value;
-                                const newValue = value.substring(0, start) + " " + value.substring(end);
+                                const newValue =
+                                    value.substring(0, start) + " " + value.substring(end);
                                 // Trigger the input change via native setter
                                 const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
                                     window.HTMLInputElement.prototype,
-                                    "value"
+                                    "value",
                                 )?.set;
                                 if (nativeInputValueSetter) {
                                     nativeInputValueSetter.call(input, newValue);

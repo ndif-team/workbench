@@ -731,7 +731,6 @@ export function ActivationPatchingControls({
                     </>
                 )}
             </Button>
-
         </div>
     );
 }

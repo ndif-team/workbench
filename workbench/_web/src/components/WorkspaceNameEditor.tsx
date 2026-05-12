@@ -21,7 +21,9 @@ export function WorkspaceNameEditor() {
     useEffect(() => {
         const getUser = async () => {
             const supabase = createClient();
-            const { data: { user } } = await supabase.auth.getUser();
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
             setUserId(user?.id ?? null);
         };
         getUser();
@@ -52,29 +54,35 @@ export function WorkspaceNameEditor() {
     }, []);
 
     // The display name: use localName while editing, otherwise use workspace name
-    const displayName = localName !== null ? localName : (workspace?.name || "");
+    const displayName = localName !== null ? localName : workspace?.name || "";
 
     // Save name (debounced)
-    const saveName = useCallback((newName: string) => {
-        if (!workspaceId || !userId) return;
-        
-        if (saveTimeoutRef.current) {
-            clearTimeout(saveTimeoutRef.current);
-        }
+    const saveName = useCallback(
+        (newName: string) => {
+            if (!workspaceId || !userId) return;
 
-        saveTimeoutRef.current = setTimeout(() => {
-            if (newName.trim()) {
-                updateName({ workspaceId, name: newName.trim(), userId });
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
             }
-        }, 500);
-    }, [workspaceId, userId, updateName]);
+
+            saveTimeoutRef.current = setTimeout(() => {
+                if (newName.trim()) {
+                    updateName({ workspaceId, name: newName.trim(), userId });
+                }
+            }, 500);
+        },
+        [workspaceId, userId, updateName],
+    );
 
     // Handle name change
-    const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const newName = e.target.value;
-        setLocalName(newName);
-        saveName(newName);
-    }, [saveName]);
+    const handleNameChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            const newName = e.target.value;
+            setLocalName(newName);
+            saveName(newName);
+        },
+        [saveName],
+    );
 
     // Handle blur - exit editing mode
     const handleBlur = useCallback(() => {

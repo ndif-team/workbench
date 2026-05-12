@@ -66,12 +66,13 @@ export function ActivationPatchingDisplay() {
 
     const patchingChart = chart as ActivationPatchingChart | undefined;
     const patchingConfig = config as ActivationPatchingConfig | undefined;
-    const hasData = patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
+    const hasData =
+        patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
 
     // Get the chart's saved name (treat "Untitled Chart" default as empty)
     const rawChartName = patchingChart?.name || "";
     const chartName = rawChartName === "Untitled Chart" ? "" : rawChartName;
-    
+
     // The display title: use localTitle while editing, otherwise use chart name
     const displayTitle = localTitle !== null ? localTitle : chartName;
     const hasTitle = displayTitle.trim().length > 0 && displayTitle.trim() !== "Untitled Chart";
@@ -83,24 +84,30 @@ export function ActivationPatchingDisplay() {
     }, [chartId]);
 
     // Save title to chart (debounced) - don't reset localTitle here to avoid flickering
-    const saveTitle = useCallback((newTitle: string) => {
-        if (!chartId) return;
-        
-        if (saveTitleTimeoutRef.current) {
-            clearTimeout(saveTitleTimeoutRef.current);
-        }
+    const saveTitle = useCallback(
+        (newTitle: string) => {
+            if (!chartId) return;
 
-        saveTitleTimeoutRef.current = setTimeout(() => {
-            updateChartName({ chartId, name: newTitle });
-        }, 500);
-    }, [chartId, updateChartName]);
+            if (saveTitleTimeoutRef.current) {
+                clearTimeout(saveTitleTimeoutRef.current);
+            }
+
+            saveTitleTimeoutRef.current = setTimeout(() => {
+                updateChartName({ chartId, name: newTitle });
+            }, 500);
+        },
+        [chartId, updateChartName],
+    );
 
     // Handle title change
-    const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const newTitle = e.target.value;
-        setLocalTitle(newTitle);
-        saveTitle(newTitle);
-    }, [saveTitle]);
+    const handleTitleChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            const newTitle = e.target.value;
+            setLocalTitle(newTitle);
+            saveTitle(newTitle);
+        },
+        [saveTitle],
+    );
 
     // Handle title blur - keep local title to avoid flicker, it will sync on chart change
     const handleTitleBlur = useCallback(() => {
@@ -122,41 +129,47 @@ export function ActivationPatchingDisplay() {
     const patchingConfigRef = useRef(patchingConfig);
     patchingConfigRef.current = patchingConfig;
 
-    const handleTokenSelectionChange = useCallback((indices: number[]) => {
-        if (saveTokenTimeoutRef.current) clearTimeout(saveTokenTimeoutRef.current);
-        saveTokenTimeoutRef.current = setTimeout(() => {
-            const cfg = patchingConfigRef.current;
-            if (!cfg?.id) return;
-            updateConfig({
-                configId: cfg.id,
-                chartId,
-                config: {
-                    data: { ...cfg.data, selectedLineIndices: indices },
-                    workspaceId,
-                    type: "activation-patching",
-                },
-            });
-        }, 500);
-    }, [chartId, workspaceId, updateConfig]);
+    const handleTokenSelectionChange = useCallback(
+        (indices: number[]) => {
+            if (saveTokenTimeoutRef.current) clearTimeout(saveTokenTimeoutRef.current);
+            saveTokenTimeoutRef.current = setTimeout(() => {
+                const cfg = patchingConfigRef.current;
+                if (!cfg?.id) return;
+                updateConfig({
+                    configId: cfg.id,
+                    chartId,
+                    config: {
+                        data: { ...cfg.data, selectedLineIndices: indices },
+                        workspaceId,
+                        type: "activation-patching",
+                    },
+                });
+            }, 500);
+        },
+        [chartId, workspaceId, updateConfig],
+    );
 
     // Debounced save of mode to config
     const saveModeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const handleModeChange = useCallback((mode: ActivationPatchingMode) => {
-        if (saveModeTimeoutRef.current) clearTimeout(saveModeTimeoutRef.current);
-        saveModeTimeoutRef.current = setTimeout(() => {
-            const cfg = patchingConfigRef.current;
-            if (!cfg?.id) return;
-            updateConfig({
-                configId: cfg.id,
-                chartId,
-                config: {
-                    data: { ...cfg.data, selectedMode: mode },
-                    workspaceId,
-                    type: "activation-patching",
-                },
-            });
-        }, 300);
-    }, [chartId, workspaceId, updateConfig]);
+    const handleModeChange = useCallback(
+        (mode: ActivationPatchingMode) => {
+            if (saveModeTimeoutRef.current) clearTimeout(saveModeTimeoutRef.current);
+            saveModeTimeoutRef.current = setTimeout(() => {
+                const cfg = patchingConfigRef.current;
+                if (!cfg?.id) return;
+                updateConfig({
+                    configId: cfg.id,
+                    chartId,
+                    config: {
+                        data: { ...cfg.data, selectedMode: mode },
+                        workspaceId,
+                        type: "activation-patching",
+                    },
+                });
+            }, 300);
+        },
+        [chartId, workspaceId, updateConfig],
+    );
 
     // Clear pending saves on unmount
     useEffect(() => {
@@ -193,9 +206,9 @@ export function ActivationPatchingDisplay() {
                 <div className="text-muted-foreground text-center max-w-md">
                     <p className="text-lg font-medium mb-2">No visualization data</p>
                     <p className="text-sm">
-                        Enter source and target prompts, select token positions in each,
-                        then click &quot;Run Activation Patching&quot; to visualize how activations
-                        transfer between prompts across model layers.
+                        Enter source and target prompts, select token positions in each, then click
+                        &quot;Run Activation Patching&quot; to visualize how activations transfer
+                        between prompts across model layers.
                     </p>
                 </div>
             </div>
@@ -254,7 +267,11 @@ export function ActivationPatchingDisplay() {
                     data={patchingChart!.data!}
                     darkMode={isDarkMode}
                     transparentBackground
-                    mode={validModes.has(patchingConfig?.data?.selectedMode ?? "") ? patchingConfig!.data!.selectedMode as ActivationPatchingMode : "probability"}
+                    mode={
+                        validModes.has(patchingConfig?.data?.selectedMode ?? "")
+                            ? (patchingConfig!.data!.selectedMode as ActivationPatchingMode)
+                            : "probability"
+                    }
                     selectedTokens={patchingConfig?.data?.selectedLineIndices}
                     onTokenSelectionChange={handleTokenSelectionChange}
                     onModeChange={handleModeChange}

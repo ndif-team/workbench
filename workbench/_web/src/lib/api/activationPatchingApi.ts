@@ -39,7 +39,7 @@ const getActivationPatching = async (
         src_pos: request.completion.srcPos ?? [],
         tgt_pos: request.completion.tgtPos ?? [],
         tgt_freeze: request.completion.tgtFreeze ?? [],
-        token_ids: [],  // Backend will use src_pred and clean_pred from results
+        token_ids: [], // Backend will use src_pred and clean_pred from results
     };
 
     return await startAndPoll<ActivationPatchingData>(
@@ -58,12 +58,7 @@ export const useActivationPatching = () => {
 
     return useMutation({
         mutationKey: ["activationPatching"],
-        onMutate: async ({
-            request,
-        }: {
-            request: ActivationPatchingRequest;
-            configId: string;
-        }) => {
+        onMutate: async ({ request }: { request: ActivationPatchingRequest; configId: string }) => {
             const chartKey = queryKeys.charts.chart(request.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);

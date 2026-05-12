@@ -169,7 +169,10 @@ function LoginContent() {
                                     <Sparkles className="w-4 h-4 text-purple-500" />
                                     <span>
                                         {" "}
-                                        <strong className="text-foreground">{pendingModel}</strong> is a gated model are requires sign in.
+                                        <strong className="text-foreground">
+                                            {pendingModel}
+                                        </strong>{" "}
+                                        is a gated model are requires sign in.
                                     </span>
                                 </span>
                             ) : (
