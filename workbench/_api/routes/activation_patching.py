@@ -36,7 +36,7 @@ async def start_activation_patching(
     model = state[request.model_name]
     backend = state.make_backend(model=model)
 
-    raw = activation_patching._run(
+    output = activation_patching._run(
         model,
         request.src_prompt,
         request.tgt_prompt,
@@ -45,13 +45,14 @@ async def start_activation_patching(
         request.tgt_freeze,
         remote=state.remote,
         backend=backend,
+        non_blocking=state.remote,
+        raw=False,
     )
 
-    if "job_id" in raw:
-        return {"job_id": raw["job_id"]}
+    if not backend.blocking:
+        return {"job_id": output}
 
-    data = activation_patching._format(raw)
-    return {"data": data}
+    return {"data": activation_patching.to_data_obj(**output)}
 
 
 @router.post("/results/{job_id}", response_model=ActivationPatchingResponse)
@@ -62,10 +63,8 @@ async def collect_results(
     user_email: str = Depends(require_user_email),
 ):
     backend = state.make_backend(job_id=job_id)
-    results = backend()
+    results = backend()['results']
 
-    results["tokenizer"] = state[request.model_name].tokenizer
-
-    data = activation_patching._format(results)
+    data = activation_patching.to_data_obj(**results)
 
     return {"data": data}

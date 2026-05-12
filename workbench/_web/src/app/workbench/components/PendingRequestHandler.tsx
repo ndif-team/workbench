@@ -14,14 +14,15 @@ export function PendingRequestHandler() {
     const [checked, setChecked] = useState(false);
 
     useEffect(() => {
-        // Only check once and only if we don't already have prompt/model in URL
+        // Only check once and only if we don't already have tool context in URL
         if (checked) return;
 
-        const existingPrompt = searchParams.get("prompt");
         const existingModel = searchParams.get("model");
+        const existingPrompt = searchParams.get("prompt");
+        const existingSrcPrompt = searchParams.get("srcPrompt");
 
-        // If we already have params in URL, don't override
-        if (existingPrompt && existingModel) {
+        // If the URL already carries tool context, don't override
+        if (existingModel && (existingPrompt || existingSrcPrompt)) {
             setChecked(true);
             return;
         }
@@ -30,12 +31,17 @@ export function PendingRequestHandler() {
         const pendingRequest = getPendingRequest();
 
         if (pendingRequest) {
-            // Redirect to workbench with the pending request params
             const params = new URLSearchParams({
-                prompt: pendingRequest.prompt,
                 model: pendingRequest.model,
                 createNew: "true",
             });
+            if (pendingRequest.tool) params.set("tool", pendingRequest.tool);
+            if (pendingRequest.prompt) params.set("prompt", pendingRequest.prompt);
+            if (pendingRequest.srcPrompt) params.set("srcPrompt", pendingRequest.srcPrompt);
+            if (pendingRequest.tgtPrompt) params.set("tgtPrompt", pendingRequest.tgtPrompt);
+            if (pendingRequest.srcPos) params.set("srcPos", pendingRequest.srcPos);
+            if (pendingRequest.tgtPos) params.set("tgtPos", pendingRequest.tgtPos);
+            if (pendingRequest.tgtFreeze) params.set("tgtFreeze", pendingRequest.tgtFreeze);
             router.replace(`/workbench?${params.toString()}`);
         }
 

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import type { LensConfigData } from "@/types/lens";
 
 // Helper function to generate UUIDs for SQLite
@@ -31,6 +31,7 @@ export const charts = sqliteTable("charts", {
     data: text("data", { mode: "json" }), // JSON stored as text in SQLite
 
     type: text("type"),
+    position: real("position").default(0).notNull(),
     createdAt: integer("created_at", { mode: "timestamp" })
         .$defaultFn(() => new Date())
         .notNull(),
@@ -68,6 +69,7 @@ export const documents = sqliteTable("documents", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
     workspaceId: text("workspace_id").notNull(),
     content: text("content", { mode: "json" }).notNull(), // JSON stored as text in SQLite
+    position: real("position").default(0).notNull(),
     createdAt: integer("created_at", { mode: "timestamp" })
         .$defaultFn(() => new Date())
         .notNull(),

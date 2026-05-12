@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { uploadThumbnailPublic } from "@/lib/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface CaptureContextValue {
     captureRef: React.RefObject<HTMLDivElement>;
@@ -79,9 +80,8 @@ export function CaptureProvider({ children }: CaptureProviderProps) {
                 const workspaceId = params?.workspaceId as string;
                 const path = `${workspaceId}/${chartId}.png`;
                 await uploadThumbnailPublic(blob, path);
-                // Invalidate sidebar images
                 await queryClient.invalidateQueries({
-                    queryKey: ["chartsForSidebar", workspaceId],
+                    queryKey: queryKeys.charts.sidebar(workspaceId),
                 });
             } catch (e) {
                 console.error("Thumbnail upload failed", e);

@@ -23,6 +23,7 @@ export const useLensCharts = ({ configId }: { configId: string }) => {
 
         await updateChartConfig({
             configId: configId,
+            chartId,
             config: {
                 data: config,
                 workspaceId: workspaceId as string,
@@ -44,6 +45,7 @@ export const useLensCharts = ({ configId }: { configId: string }) => {
 
         await updateChartConfig({
             configId: configId,
+            chartId,
             config: {
                 data: config,
                 workspaceId: workspaceId as string,

@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     setChartData,
     deleteChart,
-    createLensChartPair,
     createLens2ChartPair,
     createPatchChartPair,
     createActivationPatchingChartPair,
@@ -96,15 +95,15 @@ export const useLensLine = () => {
                         captureChartThumbnail(variables.lensRequest.chartId);
                     }, 500);
                 });
-            // Invalidate sidebar to update chart type display
-            // Get the chart to find workspaceId for proper cache invalidation
+            // Do NOT invalidate configByChart here. Lens runs are always
+            // followed by `updateConfig` (see useLensCharts handlers and
+            // GenerateButton), and useUpdateChartConfig owns that invalidation.
+            // Triggering it here races the in-flight config write and can cache
+            // the pre-write (stale) row.
             const chart = queryClient.getQueryData(chartKey) as any;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
-                    queryKey: ["chartsForSidebar", chart.workspaceId],
-                });
-                queryClient.invalidateQueries({
-                    queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId),
+                    queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
             }
         },
@@ -183,15 +182,15 @@ export const useLensGrid = () => {
                         captureChartThumbnail(variables.lensRequest.chartId);
                     }, 500);
                 });
-            // Invalidate sidebar to update chart type display
-            // Get the chart to find workspaceId for proper cache invalidation
+            // Do NOT invalidate configByChart here. Lens runs are always
+            // followed by `updateConfig` (see useLensCharts handlers and
+            // GenerateButton), and useUpdateChartConfig owns that invalidation.
+            // Triggering it here races the in-flight config write and can cache
+            // the pre-write (stale) row.
             const chart = queryClient.getQueryData(chartKey) as any;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
-                    queryKey: ["chartsForSidebar", chart.workspaceId],
-                });
-                queryClient.invalidateQueries({
-                    queryKey: queryKeys.charts.configByChart(variables.lensRequest.chartId),
+                    queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
             }
         },
@@ -213,7 +212,7 @@ export const useUpdateChartName = () => {
             const chart = queryClient.getQueryData(chartKey) as { workspaceId?: string } | undefined;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
-                    queryKey: ["chartsForSidebar", chart.workspaceId],
+                    queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
             }
         },
@@ -237,35 +236,10 @@ export const useDeleteChart = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (chartId: string) => deleteChart(chartId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
-        },
-    });
-};
-
-export const useCreateLensChartPair = () => {
-    const queryClient = useQueryClient();
-
-    const defaultConfig = {
-        prompt: "",
-        model: "",
-        statisticType: "probability" as const,
-        token: { idx: 0, id: 0, text: "", targetIds: [] },
-    } as LensConfigData;
-
-    return useMutation({
-        mutationFn: async ({
-            workspaceId,
-            config = defaultConfig,
-        }: {
-            workspaceId: string;
-            config?: LensConfigData;
-        }) => {
-            return await createLensChartPair(workspaceId, config);
-        },
-        onSuccess: ({ chart }) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        mutationFn: ({ chartId }: { chartId: string; workspaceId: string }) =>
+            deleteChart(chartId),
+        onSuccess: (_, { workspaceId }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
         },
     });
 };
@@ -290,8 +264,8 @@ export const useCreateLens2ChartPair = () => {
         }) => {
             return await createLens2ChartPair(workspaceId, config);
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        onSuccess: (_, { workspaceId }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
         },
     });
 };
@@ -322,10 +296,10 @@ export const useCreatePatchChartPair = () => {
             return await createPatchChartPair(workspaceId, config);
         },
         onSuccess: ({ chart }) => {
-            // Refresh charts and configs
             queryClient.invalidateQueries({ queryKey: ["patchCharts"] });
-            // Note: This invalidates all chart configs - consider if this is needed
-            queryClient.invalidateQueries({ queryKey: ["chartsForSidebar", chart.workspaceId] });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.charts.sidebar(chart.workspaceId),
+            });
         },
     });
 };
@@ -335,8 +309,10 @@ export const useCopyChart = () => {
 
     return useMutation({
         mutationFn: (chartId: string) => copyChart(chartId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        onSuccess: (newChart) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.charts.sidebar(newChart.workspaceId),
+            });
         },
     });
 };
@@ -362,8 +338,8 @@ export const useCreateActivationPatchingChartPair = () => {
         }) => {
             return await createActivationPatchingChartPair(workspaceId, config);
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar() });
+        onSuccess: (_, { workspaceId }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
         },
     });
 };

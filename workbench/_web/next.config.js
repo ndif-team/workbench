@@ -34,6 +34,11 @@ const nextConfig = {
         ignoreDuringBuilds: true,
     },
     serverExternalPackages: ["sharp", "onnxruntime-node"],
+    experimental: {
+        serverActions: {
+            bodySizeLimit: "10mb",
+        },
+    },
     outputFileTracingIncludes: {
         "/workbench/**": [
             "./src/notebook-templates/**/*.ipynb",

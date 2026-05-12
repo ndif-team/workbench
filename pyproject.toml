@@ -1,5 +1,5 @@
 [project]
-name = "interp-workbench"
+name = "workbench"
 version = "0.1.0"
 description = "Interpretability workbench"
 requires-python = "==3.12.*"

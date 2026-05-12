@@ -3,10 +3,9 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
-import { pushTutorialChart } from "@/lib/queries/tutorialChart";
-import { createLensChartPair, createActivationPatchingChartPair } from "@/lib/queries/chartQueries";
-import type { LensConfigData } from "@/types/lens";
-import { Metrics } from "@/types/lens";
+// import { pushTutorialChart } from "@/lib/queries/tutorialChart";
+import { createLens2ChartPair, createActivationPatchingChartPair } from "@/lib/queries/chartQueries";
+import type { Lens2ConfigData } from "@/types/lens2";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 
 interface AutoWorkspaceCreatorProps {
@@ -63,16 +62,17 @@ export function AutoWorkspaceCreator({
                     targetWorkspaceId = newWorkspace.id;
 
                     // Seed with example charts if enabled
-                    if (seedWithExamples) {
-                        console.log("Seeding workspace with example charts...");
-                        await pushTutorialChart(targetWorkspaceId);
-                        console.log("Successfully seeded workspace with examples");
-                    }
+                    // Temporarily disabled — example charts use the legacy Lens v1 format.
+                    // if (seedWithExamples) {
+                    //     console.log("Seeding workspace with example charts...");
+                    //     await pushTutorialChart(targetWorkspaceId);
+                    //     console.log("Successfully seeded workspace with examples");
+                    // }
                 }
 
                 // If user submitted a prompt from landing page, create a chart for it
                 let userChartId: string | null = null;
-                let chartType: string = "lens";
+                let chartType: string = "lens2";
 
                 if (tool === "Activation Patching" && srcPrompt && tgtPrompt && srcPos && tgtPos) {
                     // Create activation patching chart
@@ -95,17 +95,17 @@ export function AutoWorkspaceCreator({
                     chartType = "activation-patching";
                     console.log("Created activation patching chart:", userChartId);
                 } else if (initialPrompt && initialPrompt.trim() && initialModel) {
-                    console.log("Creating chart for user prompt:", initialPrompt);
-                    const userChartConfig: LensConfigData = {
+                    console.log("Creating lens2 chart for user prompt:", initialPrompt);
+                    const userChartConfig: Lens2ConfigData = {
                         prompt: initialPrompt,
                         model: initialModel,
-                        statisticType: Metrics.PROBABILITY,
-                        token: { idx: 0, id: 0, text: "", targetIds: [] },
+                        topk: 5,
+                        includeEntropy: true,
                     };
 
-                    const { chart } = await createLensChartPair(targetWorkspaceId, userChartConfig);
+                    const { chart } = await createLens2ChartPair(targetWorkspaceId, userChartConfig);
                     userChartId = chart.id;
-                    console.log("Created user chart:", userChartId);
+                    console.log("Created user lens2 chart:", userChartId);
                 }
 
                 // Small delay to ensure the workspace is fully created
@@ -114,7 +114,7 @@ export function AutoWorkspaceCreator({
                         if (chartType === "activation-patching") {
                             router.push(`/workbench/${targetWorkspaceId}/activation-patching/${userChartId}`);
                         } else {
-                            router.push(`/workbench/${targetWorkspaceId}/${userChartId}`);
+                            router.push(`/workbench/${targetWorkspaceId}/lens2/${userChartId}`);
                         }
                     } else {
                         router.push(`/workbench/${targetWorkspaceId}`);

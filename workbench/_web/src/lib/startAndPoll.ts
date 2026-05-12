@@ -22,13 +22,18 @@ async function awaitNDIFJob(jobId: string): Promise<void> {
             setJobStatus("Idle");
             return;
         }
+
         if (status === "ERROR" || status === "NNSIGHT_ERROR") {
             setJobStatus("Error");
             console.error(data);
             throw new Error("Job failed");
         }
 
-        if (status) {
+        if (status === "QUEUED") {
+            const match = data?.description?.match(/\d+/);
+            const num = match ? parseInt(match[0], 10) : null;
+            setJobStatus(num !== null ? `${status}: ${num}` : status);
+        } else if (status) {
             setJobStatus(status);
         }
 

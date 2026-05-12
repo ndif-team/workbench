@@ -1,4 +1,4 @@
-import { boolean, jsonb, pgTable, varchar, uuid, timestamp } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgTable, varchar, uuid, timestamp, real } from "drizzle-orm/pg-core";
 import type { ConfigData, ChartData, ChartView } from "@/types/charts";
 import type { LensConfigData } from "@/types/lens";
 
@@ -25,6 +25,7 @@ export const charts = pgTable("charts", {
     data: jsonb("data").$type<ChartData>(),
 
     type: varchar("type", { enum: chartTypes, length: 32 }),
+    position: real("position").default(0).notNull(),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: "date" })
         .defaultNow()
@@ -74,6 +75,7 @@ export const documents = pgTable("documents", {
         .notNull(),
 
     content: jsonb("content").notNull(),
+    position: real("position").default(0).notNull(),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: "date" })
         .defaultNow()

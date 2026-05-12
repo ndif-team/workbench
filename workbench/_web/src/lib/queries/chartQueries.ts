@@ -7,8 +7,8 @@ import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
-import { eq, desc } from "drizzle-orm";
-import { touchWorkspace } from "@/lib/queries/workspaceQueries";
+import { eq, asc, desc } from "drizzle-orm";
+import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
 
 export const setChartData = async (
     chartId: string,
@@ -52,89 +52,51 @@ export const getConfigForChart = async (chartId: string): Promise<Config | null>
     return rows[0].configs as Config;
 };
 
-// Create a new chart and config at once. Used in the ChartDisplay.
+type ConfigPayload =
+    | { type: "lens"; data: LensConfigData }
+    | { type: "lens2"; data: Lens2ConfigData }
+    | { type: "patch"; data: PatchingConfig }
+    | { type: "activation-patching"; data: ActivationPatchingConfigData };
+
+// Creates a chart, its config, and the link between them, with the chart
+// positioned at the bottom of the unified sidebar list.
+const createChartConfigPair = async (
+    workspaceId: string,
+    payload: ConfigPayload,
+): Promise<{ chart: Chart; config: Config }> => {
+    const position = await getNextWorkspaceItemPosition(workspaceId);
+    const [newChart] = await db.insert(charts).values({ workspaceId, position }).returning();
+    const [newConfig] = await db
+        .insert(configs)
+        .values({ workspaceId, type: payload.type, data: payload.data })
+        .returning();
+    await db.insert(chartConfigLinks).values({ chartId: newChart.id, configId: newConfig.id });
+    await touchWorkspace(workspaceId);
+    return { chart: newChart as Chart, config: newConfig as Config };
+};
+
 export const createLensChartPair = async (
     workspaceId: string,
     defaultConfig: LensConfigData,
 ): Promise<{ chart: Chart; config: LensConfig }> => {
-    const [newChart] = await db.insert(charts).values({ workspaceId }).returning();
-    const [newConfig] = await db
-        .insert(configs)
-        .values({ workspaceId, type: "lens", data: defaultConfig })
-        .returning();
-
-    // Create the link between chart and config
-    await db.insert(chartConfigLinks).values({
-        chartId: newChart.id,
-        configId: newConfig.id,
-    });
-
-    await touchWorkspace(workspaceId);
-    return { chart: newChart as Chart, config: newConfig as LensConfig };
+    const result = await createChartConfigPair(workspaceId, { type: "lens", data: defaultConfig });
+    return { chart: result.chart, config: result.config as LensConfig };
 };
 
-// Create a new lens2 chart and config pair
 export const createLens2ChartPair = async (
     workspaceId: string,
     defaultConfig: Lens2ConfigData,
-): Promise<{ chart: Chart; config: Config }> => {
-    const [newChart] = await db.insert(charts).values({ workspaceId }).returning();
-    const [newConfig] = await db
-        .insert(configs)
-        .values({ workspaceId, type: "lens2", data: defaultConfig })
-        .returning();
+) => createChartConfigPair(workspaceId, { type: "lens2", data: defaultConfig });
 
-    // Create the link between chart and config
-    await db.insert(chartConfigLinks).values({
-        chartId: newChart.id,
-        configId: newConfig.id,
-    });
-
-    await touchWorkspace(workspaceId);
-    return { chart: newChart as Chart, config: newConfig as Config };
-};
-
-// Create a new patch chart and config pair
 export const createPatchChartPair = async (
     workspaceId: string,
     defaultConfig: PatchingConfig,
-): Promise<{ chart: Chart; config: Config }> => {
-    const [newChart] = await db.insert(charts).values({ workspaceId }).returning();
-    const [newConfig] = await db
-        .insert(configs)
-        .values({ workspaceId, type: "patch", data: defaultConfig })
-        .returning();
+) => createChartConfigPair(workspaceId, { type: "patch", data: defaultConfig });
 
-    // Create the link between chart and config
-    await db.insert(chartConfigLinks).values({
-        chartId: newChart.id,
-        configId: newConfig.id,
-    });
-
-    await touchWorkspace(workspaceId);
-    return { chart: newChart as Chart, config: newConfig as Config };
-};
-
-// Create a new activation patching chart and config pair
 export const createActivationPatchingChartPair = async (
     workspaceId: string,
     defaultConfig: ActivationPatchingConfigData,
-): Promise<{ chart: Chart; config: Config }> => {
-    const [newChart] = await db.insert(charts).values({ workspaceId }).returning();
-    const [newConfig] = await db
-        .insert(configs)
-        .values({ workspaceId, type: "activation-patching", data: defaultConfig })
-        .returning();
-
-    // Create the link between chart and config
-    await db.insert(chartConfigLinks).values({
-        chartId: newChart.id,
-        configId: newConfig.id,
-    });
-
-    await touchWorkspace(workspaceId);
-    return { chart: newChart as Chart, config: newConfig as Config };
-};
+) => createChartConfigPair(workspaceId, { type: "activation-patching", data: defaultConfig });
 
 export const getAllChartsByType = async (
     workspaceId?: string,
@@ -173,6 +135,7 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
             id: charts.id,
             name: charts.name,
             chartType: charts.type,
+            position: charts.position,
             createdAt: charts.createdAt,
             updatedAt: charts.updatedAt,
             toolType: configs.type,
@@ -181,8 +144,8 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
         .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
         .leftJoin(configs, eq(chartConfigLinks.configId, configs.id))
         .where(eq(charts.workspaceId, workspaceId))
-        .groupBy(charts.id, charts.createdAt, charts.updatedAt, charts.type, configs.type)
-        .orderBy(desc(charts.updatedAt));
+        .groupBy(charts.id, charts.createdAt, charts.updatedAt, charts.position, charts.type, configs.type)
+        .orderBy(asc(charts.position), asc(charts.createdAt));
 
     return rows.map(
         (r) =>
@@ -191,6 +154,7 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
                 name: r.name,
                 chartType: (r.chartType as ChartType | null) ?? null,
                 toolType: (r.toolType as ToolType | null) ?? null,
+                position: r.position as number,
                 createdAt: r.createdAt as Date,
                 updatedAt: r.updatedAt as Date,
             }) as ChartMetadata,
@@ -229,6 +193,7 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
         .where(eq(configs.id, originalLink.configId));
 
     // Create the new chart with copied data
+    const position = await getNextWorkspaceItemPosition(originalChart.workspaceId);
     const [newChart] = await db
         .insert(charts)
         .values({
@@ -237,6 +202,7 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
             data: originalChart.data,
             type: originalChart.type,
             view: originalChart.view,
+            position,
         })
         .returning();
 
