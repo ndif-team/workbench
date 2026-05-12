@@ -36,8 +36,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: workbench/_web/node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('workbench/_web/bun.lockb') }}
-          restore-keys: bun-${{ runner.os }}-
+          # bun.lock (text), not the obsolete bun.lockb (binary). Hashing
+          # the wrong path hashes to "" and every run restored the same
+          # stale node_modules regardless of lockfile changes — broke
+          # @argos-ci/core sharp resolution after a sharp version bump.
+          # Bumped cache prefix to invalidate stragglers from old key.
+          key: bun-v2-${{ runner.os }}-${{ hashFiles('workbench/_web/bun.lock') }}
+          restore-keys: bun-v2-${{ runner.os }}-
 
       - name: Cache uv environment
         uses: actions/cache@v4
@@ -59,7 +64,10 @@ jobs:
         run: uv sync --extra dev
 
       - name: Install frontend dependencies
-        run: bun install
+        # --frozen-lockfile so a stale node_modules cache + drifted
+        # package.json fail loudly instead of silently running with
+        # mismatched deps.
+        run: bun install --frozen-lockfile
         working-directory: workbench/_web
 
       - name: Rebuild native modules for Node
