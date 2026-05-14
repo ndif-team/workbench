@@ -26,6 +26,14 @@ import {
     EnhancedPatchArrows,
     useMouseFollowingArrow,
 } from "@/components/activation-patching/toolkit";
+import {
+    apConfigEqualsExceptModel,
+    tokenTextSequencesEqual,
+} from "@/lib/configModelDiff";
+import { useDraftModel } from "@/hooks/useDraftModel";
+import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
+import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
+import { ToolPanelHeader } from "@/app/workbench/[workspaceId]/components/ToolPanelHeader";
 
 interface ActivationPatchingConfig {
     id: string;
@@ -36,6 +44,11 @@ interface ActivationPatchingConfig {
 interface ActivationPatchingControlsProps {
     initialConfig: ActivationPatchingConfig;
     selectedModel: string;
+    modelsAvailable: boolean;
+    /** True while the models query is in flight. Used to suppress the
+     * "unavailable" banner during a fetch — even if the previous state was
+     * an error. */
+    modelsLoading?: boolean;
     hasExistingData?: boolean;
 }
 
@@ -179,6 +192,8 @@ function PatchConfigTable({
 export function ActivationPatchingControls({
     initialConfig,
     selectedModel,
+    modelsAvailable,
+    modelsLoading = false,
     hasExistingData = false,
 }: ActivationPatchingControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
@@ -189,6 +204,12 @@ export function ActivationPatchingControls({
     const initialSrcPos = initialConfig.data?.srcPos ?? [];
     const initialTgtPos = initialConfig.data?.tgtPos ?? [];
     const initialTgtFreeze = initialConfig.data?.tgtFreeze ?? [];
+    const savedModel = initialConfig.data?.model ?? "";
+
+    const { draftModel, setDraftModel, restoreWorkspaceModel } = useDraftModel(
+        savedModel,
+        initialConfig.id,
+    );
 
     // Source prompt state
     const [srcPrompt, setSrcPrompt] = useState(initialSrcPrompt);
@@ -198,12 +219,16 @@ export function ActivationPatchingControls({
     const [srcTokenizedModel, setSrcTokenizedModel] = useState<string | null>(null);
     const srcTextareaRef = useRef<HTMLTextAreaElement>(null);
     const srcTokenContainerRef = useRef<HTMLDivElement>(null);
+    // Prompt that produced the current srcTokens — used by handleSrcTokenize
+    // to detect a real prompt edit (vs. a passive blur with a swapped model).
+    const lastTokenizedSrcPromptRef = useRef<string>("");
 
     // Target prompt state
     const [tgtPrompt, setTgtPrompt] = useState(initialTgtPrompt);
     const [tgtTokens, setTgtTokens] = useState<Token[]>([]);
     const [tgtPos, setTgtPos] = useState<number[]>(initialTgtPos);
     const [tgtFreeze, setTgtFreeze] = useState<number[]>(initialTgtFreeze);
+    const lastTokenizedTgtPromptRef = useRef<string>("");
     const [tgtEditing, setTgtEditing] = useState(!initialTgtPrompt); // Start in view mode if prompt exists
     const [tgtTokenizedModel, setTgtTokenizedModel] = useState<string | null>(null);
     const tgtTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -217,13 +242,17 @@ export function ActivationPatchingControls({
     // Patch summary table collapsed state
     const [patchTableExpanded, setPatchTableExpanded] = useState(true);
 
-    // Track the prompts from the last successful run (to show predictions)
+    // Track the prompts + model from the last successful run (to show predictions).
+    // Predictions are only meaningful while the prompt AND the tokenization
+    // model still match what produced them; retokenizing under a different
+    // model invalidates them.
     const [lastRunSrcPrompt, setLastRunSrcPrompt] = useState<string | null>(
         initialSrcPrompt || null,
     );
     const [lastRunTgtPrompt, setLastRunTgtPrompt] = useState<string | null>(
         initialTgtPrompt || null,
     );
+    const [lastRunModel, setLastRunModel] = useState<string | null>(savedModel || null);
 
     // Auto-run flags - check if we should auto-run on mount (coming from landing page)
     // Only auto-run if all required data is pre-filled and there's no existing chart data
@@ -280,6 +309,143 @@ export function ActivationPatchingControls({
     // Only track actual computation for the Run button state
     // Config updates (like saving line selection) should not affect the Run button
     const isExecuting = isComputing;
+    const interactive = modelsAvailable && !isExecuting;
+
+    // Background tokenizations of the saved prompts under (saved, selected)
+    // models. Used only by the banner-comparison logic; never written to the
+    // visible srcTokens / tgtTokens.
+    const {
+        underSaved: savedSrcTokensUnderSavedModel,
+        underSelected: savedSrcTokensUnderSelectedModel,
+    } = useBackgroundTokenPair(initialSrcPrompt, savedModel, selectedModel);
+    const {
+        underSaved: savedTgtTokensUnderSavedModel,
+        underSelected: savedTgtTokensUnderSelectedModel,
+    } = useBackgroundTokenPair(initialTgtPrompt, savedModel, selectedModel);
+
+    // Tracks pending auto-tokenizes scheduled by blur handlers so resetDraft
+    // can cancel them. Without this, clicking Reset races with the 100ms-
+    // delayed tokenize call: the stale callback fires with the draft prompt
+    // and overwrites the just-restored state.
+    const srcBlurTokenize = useBlurTokenizeScheduler();
+    const tgtBlurTokenize = useBlurTokenizeScheduler();
+
+    const resetDraft = useCallback(() => {
+        srcBlurTokenize.cancel();
+        tgtBlurTokenize.cancel();
+
+        const savedSrcPrompt = initialConfig.data?.srcPrompt ?? "";
+        const savedTgtPrompt = initialConfig.data?.tgtPrompt ?? "";
+        const m = initialConfig.data?.model ?? "";
+
+        setSrcPrompt(savedSrcPrompt);
+        setTgtPrompt(savedTgtPrompt);
+        setSrcPos(initialConfig.data?.srcPos ?? []);
+        setTgtPos(initialConfig.data?.tgtPos ?? []);
+        setTgtFreeze(initialConfig.data?.tgtFreeze ?? []);
+        setDraftModel(m);
+        restoreWorkspaceModel(m);
+
+        // Re-tokenize the restored prompts under the saved model so the
+        // visible tokens match the restored config (and the arrows align).
+        if (!m) return;
+        if (savedSrcPrompt) {
+            encodeText(savedSrcPrompt, m)
+                .then((tokens) => {
+                    if (tokens.length > 0) {
+                        setSrcTokens(tokens);
+                        setSrcTokenizedModel(m);
+                        setSrcEditing(false);
+                        lastTokenizedSrcPromptRef.current = savedSrcPrompt;
+                    }
+                })
+                .catch(() => {
+                    /* user can manually retokenize */
+                });
+        }
+        if (savedTgtPrompt) {
+            encodeText(savedTgtPrompt, m)
+                .then((tokens) => {
+                    if (tokens.length > 0) {
+                        setTgtTokens(tokens);
+                        setTgtTokenizedModel(m);
+                        setTgtEditing(false);
+                        lastTokenizedTgtPromptRef.current = savedTgtPrompt;
+                    }
+                })
+                .catch(() => {
+                    /* user can manually retokenize */
+                });
+        }
+    }, [
+        initialConfig.data,
+        setSrcPos,
+        setTgtPos,
+        setTgtFreeze,
+        setDraftModel,
+        restoreWorkspaceModel,
+        srcBlurTokenize,
+        tgtBlurTokenize,
+    ]);
+
+    // Acknowledge "use the selected model for this chart". Local-only — the
+    // DB row is unchanged until the user clicks Run. Also re-tokenizes both
+    // visible prompts under the new model so the user can see the difference.
+    // Positions are cleared: they were chosen against the prior tokenization
+    // and aren't meaningful under the new one. Reset restores them if the
+    // user changes their mind.
+    const updateConfigModel = useCallback(() => {
+        if (!selectedModel) return;
+        srcBlurTokenize.cancel();
+        tgtBlurTokenize.cancel();
+        setDraftModel(selectedModel);
+        // Token-indexed positions invalidate under the new tokenization.
+        if (srcPos.length > 0) {
+            setSrcPos([]);
+            setPendingRangeStart(null);
+        }
+        if (tgtPos.length > 0) setTgtPos([]);
+        if (tgtFreeze.length > 0) setTgtFreeze([]);
+        if (srcPrompt) {
+            encodeText(srcPrompt, selectedModel)
+                .then((tokens) => {
+                    if (tokens.length > 0) {
+                        setSrcTokens(tokens);
+                        setSrcTokenizedModel(selectedModel);
+                        setSrcEditing(false);
+                        lastTokenizedSrcPromptRef.current = srcPrompt;
+                    }
+                })
+                .catch(() => {
+                    /* user can manually retokenize */
+                });
+        }
+        if (tgtPrompt) {
+            encodeText(tgtPrompt, selectedModel)
+                .then((tokens) => {
+                    if (tokens.length > 0) {
+                        setTgtTokens(tokens);
+                        setTgtTokenizedModel(selectedModel);
+                        setTgtEditing(false);
+                        lastTokenizedTgtPromptRef.current = tgtPrompt;
+                    }
+                })
+                .catch(() => {
+                    /* user can manually retokenize */
+                });
+        }
+    }, [
+        selectedModel,
+        srcPrompt,
+        tgtPrompt,
+        srcPos,
+        tgtPos,
+        tgtFreeze,
+        setSrcPos,
+        setTgtPos,
+        setTgtFreeze,
+        setPendingRangeStart,
+    ]);
 
     // Fetch chart data for prediction tokens (cached by React Query)
     interface ActivationPatchingChart {
@@ -308,115 +474,252 @@ export function ActivationPatchingControls({
     const srcPrediction = useMemo(() => {
         if (!allLabels.length || allLabels.length < 1) return null;
         if (srcPrompt !== lastRunSrcPrompt) return null;
+        // Hide when retokenization has happened under a different model than
+        // the one that produced the run.
+        if (srcTokenizedModel !== lastRunModel) return null;
         return allLabels[0];
-    }, [allLabels, srcPrompt, lastRunSrcPrompt]);
+    }, [allLabels, srcPrompt, lastRunSrcPrompt, srcTokenizedModel, lastRunModel]);
 
     const tgtPrediction = useMemo(() => {
         if (!allLabels.length || allLabels.length < 2) return null;
         if (tgtPrompt !== lastRunTgtPrompt) return null;
+        if (tgtTokenizedModel !== lastRunModel) return null;
         return allLabels[1];
-    }, [allLabels, tgtPrompt, lastRunTgtPrompt]);
+    }, [allLabels, tgtPrompt, lastRunTgtPrompt, tgtTokenizedModel, lastRunModel]);
 
-    // Tokenize prompts on initial load if they exist
+    // Auto-retokenize on selected-model change when the chart has no data
+    // yet. During initial composition the user has no committed visualization
+    // to protect, so swapping the global model selector should immediately
+    // re-tokenize under the new model and align draftModel — otherwise the
+    // Run button stays disabled and the explicit Sync action is hidden by
+    // its !hasExistingData guard.
     useEffect(() => {
-        const fetchTokens = async () => {
-            if (initialConfig.data?.srcPrompt && selectedModel) {
-                const tokens = await encodeText(initialConfig.data.srcPrompt, selectedModel);
-                if (tokens.length > 0) {
+        if (hasExistingData) return;
+        if (!selectedModel) return;
+        let cancelled = false;
+
+        if (srcPrompt && !srcEditing && srcTokenizedModel !== selectedModel) {
+            encodeText(srcPrompt, selectedModel)
+                .then((tokens) => {
+                    if (cancelled || tokens.length === 0) return;
                     setSrcTokens(tokens);
                     setSrcTokenizedModel(selectedModel);
-                    setSrcEditing(false);
-                }
-            }
-            if (initialConfig.data?.tgtPrompt && selectedModel) {
-                const tokens = await encodeText(initialConfig.data.tgtPrompt, selectedModel);
-                if (tokens.length > 0) {
+                    lastTokenizedSrcPromptRef.current = srcPrompt;
+                    setDraftModel(selectedModel);
+                })
+                .catch(() => {
+                    /* tokenizer failure — leave editor open */
+                });
+        }
+
+        if (tgtPrompt && !tgtEditing && tgtTokenizedModel !== selectedModel) {
+            encodeText(tgtPrompt, selectedModel)
+                .then((tokens) => {
+                    if (cancelled || tokens.length === 0) return;
                     setTgtTokens(tokens);
                     setTgtTokenizedModel(selectedModel);
-                    setTgtEditing(false);
+                    lastTokenizedTgtPromptRef.current = tgtPrompt;
+                    setDraftModel(selectedModel);
+                })
+                .catch(() => {
+                    /* tokenizer failure — leave editor open */
+                });
+        }
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        hasExistingData,
+        selectedModel,
+        srcPrompt,
+        tgtPrompt,
+        srcEditing,
+        tgtEditing,
+        srcTokenizedModel,
+        tgtTokenizedModel,
+    ]);
+
+    // Initial-load tokenization for the visible token view. Uses the SAVED
+    // model so switching the global model selector doesn't silently
+    // re-tokenize what the user is looking at. Only re-fires when the chart
+    // itself changes.
+    useEffect(() => {
+        const fetchTokens = async () => {
+            if (!savedModel) return;
+            try {
+                if (initialConfig.data?.srcPrompt) {
+                    const tokens = await encodeText(initialConfig.data.srcPrompt, savedModel);
+                    if (tokens.length > 0) {
+                        setSrcTokens(tokens);
+                        setSrcTokenizedModel(savedModel);
+                        setSrcEditing(false);
+                        lastTokenizedSrcPromptRef.current = initialConfig.data.srcPrompt;
+                    }
                 }
+                if (initialConfig.data?.tgtPrompt) {
+                    const tokens = await encodeText(initialConfig.data.tgtPrompt, savedModel);
+                    if (tokens.length > 0) {
+                        setTgtTokens(tokens);
+                        setTgtTokenizedModel(savedModel);
+                        setTgtEditing(false);
+                        lastTokenizedTgtPromptRef.current = initialConfig.data.tgtPrompt;
+                    }
+                }
+            } catch {
+                /* swallow; user can retokenize via blur/run */
             }
         };
         fetchTokens();
-    }, [initialConfig.id, selectedModel]);
+    }, [initialConfig.id, savedModel]);
 
     // Handle tokenization for source prompt
     const handleSrcTokenize = useCallback(async () => {
         if (!srcPrompt) return;
         const tokens = await encodeText(srcPrompt, selectedModel);
         if (tokens.length > 0) {
-            // Check if tokens actually changed (prompt was modified)
             const tokensChanged =
                 tokens.length !== srcTokens.length ||
                 tokens.some((t, i) => t.text !== srcTokens[i]?.text);
+            // Real edit = the prompt text differs from what produced the
+            // current srcTokens. A passive blur (no edit) leaves this false
+            // even if the selected model has changed since.
+            const promptChanged =
+                srcPrompt !== lastTokenizedSrcPromptRef.current;
+            const modelChanged =
+                srcTokenizedModel !== null && srcTokenizedModel !== selectedModel;
 
             setSrcTokens(tokens);
             setSrcTokenizedModel(selectedModel);
             setSrcEditing(false);
+            lastTokenizedSrcPromptRef.current = srcPrompt;
 
-            // Reset positions if tokens changed (prompt was modified)
-            if (tokensChanged && srcPos.length > 0) {
-                setSrcPos([]);
-                setPendingRangeStart(null);
+            // Positions invalidate on any real prompt edit, regardless of
+            // whether the model also changed.
+            if (tokensChanged && promptChanged) {
+                if (srcPos.length > 0) {
+                    setSrcPos([]);
+                    setPendingRangeStart(null);
+                }
+                if (tgtPos.length > 0) setTgtPos([]);
+            }
+
+            // Editing the prompt while a different model is selected is an
+            // implicit commit — mirror the "Update config to selected model"
+            // action so the draft model aligns and the banner state matches.
+            // Also re-tokenize the OTHER prompt so both panels stay under the
+            // same tokenizer; otherwise the user would have to click into the
+            // target textarea and blur back out to bring it in sync.
+            if (promptChanged && modelChanged) {
+                setDraftModel(selectedModel);
+                if (tgtPrompt && !tgtEditing) {
+                    encodeText(tgtPrompt, selectedModel)
+                        .then((tgtToks) => {
+                            if (tgtToks.length === 0) return;
+                            setTgtTokens(tgtToks);
+                            setTgtTokenizedModel(selectedModel);
+                            lastTokenizedTgtPromptRef.current = tgtPrompt;
+                        })
+                        .catch(() => {
+                            /* tgt left as-is; user can manually retokenize */
+                        });
+                }
             }
         }
-    }, [srcPrompt, selectedModel, srcPos, srcTokens, setPendingRangeStart]);
+    }, [
+        srcPrompt,
+        selectedModel,
+        srcPos,
+        tgtPos,
+        srcTokens,
+        srcTokenizedModel,
+        tgtPrompt,
+        tgtEditing,
+        setPendingRangeStart,
+    ]);
 
     // Handle tokenization for target prompt
     const handleTgtTokenize = useCallback(async () => {
         if (!tgtPrompt) return;
         const tokens = await encodeText(tgtPrompt, selectedModel);
         if (tokens.length > 0) {
-            // Check if tokens actually changed (prompt was modified)
             const tokensChanged =
                 tokens.length !== tgtTokens.length ||
                 tokens.some((t, i) => t.text !== tgtTokens[i]?.text);
+            const promptChanged =
+                tgtPrompt !== lastTokenizedTgtPromptRef.current;
+            const modelChanged =
+                tgtTokenizedModel !== null && tgtTokenizedModel !== selectedModel;
 
             setTgtTokens(tokens);
             setTgtTokenizedModel(selectedModel);
             setTgtEditing(false);
+            lastTokenizedTgtPromptRef.current = tgtPrompt;
 
-            // Reset positions if tokens changed (prompt was modified)
-            if (tokensChanged) {
+            // Positions invalidate on any real prompt edit, regardless of
+            // whether the model also changed.
+            if (tokensChanged && promptChanged) {
                 if (tgtPos.length > 0) setTgtPos([]);
                 if (tgtFreeze.length > 0) setTgtFreeze([]);
+                if (srcPos.length > 0) setSrcPos([]);
+            }
+
+            // Implicit commit — same as handleSrcTokenize. Also cascade the
+            // retokenization to the OTHER prompt so both stay under the same
+            // tokenizer.
+            if (promptChanged && modelChanged) {
+                setDraftModel(selectedModel);
+                if (srcPrompt && !srcEditing) {
+                    encodeText(srcPrompt, selectedModel)
+                        .then((srcToks) => {
+                            if (srcToks.length === 0) return;
+                            setSrcTokens(srcToks);
+                            setSrcTokenizedModel(selectedModel);
+                            lastTokenizedSrcPromptRef.current = srcPrompt;
+                        })
+                        .catch(() => {
+                            /* src left as-is; user can manually retokenize */
+                        });
+                }
             }
         }
-    }, [tgtPrompt, selectedModel, tgtPos, tgtFreeze, tgtTokens]);
+    }, [
+        tgtPrompt,
+        selectedModel,
+        srcPos,
+        tgtPos,
+        tgtFreeze,
+        tgtTokens,
+        tgtTokenizedModel,
+        srcPrompt,
+        srcEditing,
+    ]);
 
     // Handle blur for source
     const handleSrcBlur = useCallback(() => {
-        setTimeout(() => {
+        srcBlurTokenize.schedule(() => {
             const activeElement = document.activeElement;
             const withinTextarea = activeElement && srcTextareaRef.current?.contains(activeElement);
             const withinToken =
                 activeElement && srcTokenContainerRef.current?.contains(activeElement);
             const popoverOpen = document.querySelector("[data-radix-popper-content-wrapper]");
-
             if (withinTextarea || withinToken || popoverOpen) return;
-
-            if (srcPrompt) {
-                handleSrcTokenize();
-            }
-        }, 100);
-    }, [srcPrompt, handleSrcTokenize]);
+            if (srcPrompt) handleSrcTokenize();
+        });
+    }, [srcPrompt, handleSrcTokenize, srcBlurTokenize]);
 
     // Handle blur for target
     const handleTgtBlur = useCallback(() => {
-        setTimeout(() => {
+        tgtBlurTokenize.schedule(() => {
             const activeElement = document.activeElement;
             const withinTextarea = activeElement && tgtTextareaRef.current?.contains(activeElement);
             const withinToken =
                 activeElement && tgtTokenContainerRef.current?.contains(activeElement);
             const popoverOpen = document.querySelector("[data-radix-popper-content-wrapper]");
-
             if (withinTextarea || withinToken || popoverOpen) return;
-
-            if (tgtPrompt) {
-                handleTgtTokenize();
-            }
-        }, 100);
-    }, [tgtPrompt, handleTgtTokenize]);
+            if (tgtPrompt) handleTgtTokenize();
+        });
+    }, [tgtPrompt, handleTgtTokenize, tgtBlurTokenize]);
 
     // Handle form submission
     const handleSubmit = useCallback(async () => {
@@ -461,6 +764,8 @@ export function ActivationPatchingControls({
         setTgtTokens(tgtToks);
         setSrcTokenizedModel(selectedModel);
         setTgtTokenizedModel(selectedModel);
+        lastTokenizedSrcPromptRef.current = srcPrompt;
+        lastTokenizedTgtPromptRef.current = tgtPrompt;
 
         const config: ActivationPatchingConfigData = {
             ...initialConfig.data,
@@ -494,9 +799,13 @@ export function ActivationPatchingControls({
                 configId: initialConfig.id,
             });
 
+            // Land draftModel on the model that just persisted so the banner
+            // doesn't flash between the run completing and the refetch arriving.
+            setDraftModel(selectedModel);
             setPatchTableExpanded(false);
             setLastRunSrcPrompt(srcPrompt);
             setLastRunTgtPrompt(tgtPrompt);
+            setLastRunModel(selectedModel);
             setSrcEditing(false);
             setTgtEditing(false);
         } catch (error) {
@@ -547,6 +856,8 @@ export function ActivationPatchingControls({
                     setTgtTokenizedModel(selectedModel);
                     setSrcEditing(false);
                     setTgtEditing(false);
+                    lastTokenizedSrcPromptRef.current = initialSrcPrompt;
+                    lastTokenizedTgtPromptRef.current = initialTgtPrompt;
 
                     const config: ActivationPatchingConfigData = {
                         ...initialConfig.data,
@@ -580,6 +891,7 @@ export function ActivationPatchingControls({
                     setPatchTableExpanded(false);
                     setLastRunSrcPrompt(initialSrcPrompt);
                     setLastRunTgtPrompt(initialTgtPrompt);
+                    setLastRunModel(selectedModel);
                 } catch (error) {
                     // Don't reset flags - we only try once
                 }
@@ -604,6 +916,17 @@ export function ActivationPatchingControls({
         updateConfig,
     ]);
 
+    // Both prompts must be tokenized under the selected model AND the
+    // tokenizations must reflect the current prompt text (no pending edits).
+    const srcTokensInSync =
+        srcTokens.length > 0 &&
+        srcTokenizedModel === selectedModel &&
+        lastTokenizedSrcPromptRef.current === srcPrompt;
+    const tgtTokensInSync =
+        tgtTokens.length > 0 &&
+        tgtTokenizedModel === selectedModel &&
+        lastTokenizedTgtPromptRef.current === tgtPrompt;
+
     // Check if ready to run - requires equal number of source and target positions
     const canRun =
         srcPrompt &&
@@ -611,15 +934,78 @@ export function ActivationPatchingControls({
         srcPos.length > 0 &&
         tgtPos.length > 0 &&
         srcPos.length === tgtPos.length &&
-        !isExecuting;
+        srcTokensInSync &&
+        tgtTokensInSync &&
+        interactive;
+
+    // --- diff state -----------------------------------------------------------
+
+    const draftMatchesSaved = useMemo(
+        () =>
+            apConfigEqualsExceptModel(initialConfig.data, {
+                srcPrompt,
+                tgtPrompt,
+                srcPos,
+                tgtPos,
+                tgtFreeze,
+            }),
+        [initialConfig.data, srcPrompt, tgtPrompt, srcPos, tgtPos, tgtFreeze],
+    );
+
+    // Draft is dirty if any non-model field differs OR the draft model differs
+    // from the saved model. Either case surfaces the Unsaved-changes banner.
+    const draftDirty = !draftMatchesSaved || draftModel !== savedModel;
+    const modelMismatchVsConfig =
+        modelsAvailable && !!draftModel && draftModel !== selectedModel;
+
+    const tokenizationDiffers = useMemo(() => {
+        if (!modelMismatchVsConfig) return false;
+        const srcDiffers =
+            savedSrcTokensUnderSavedModel && savedSrcTokensUnderSelectedModel
+                ? !tokenTextSequencesEqual(
+                      savedSrcTokensUnderSavedModel,
+                      savedSrcTokensUnderSelectedModel,
+                  )
+                : false;
+        const tgtDiffers =
+            savedTgtTokensUnderSavedModel && savedTgtTokensUnderSelectedModel
+                ? !tokenTextSequencesEqual(
+                      savedTgtTokensUnderSavedModel,
+                      savedTgtTokensUnderSelectedModel,
+                  )
+                : false;
+        return srcDiffers || tgtDiffers;
+    }, [
+        modelMismatchVsConfig,
+        savedSrcTokensUnderSavedModel,
+        savedSrcTokensUnderSelectedModel,
+        savedTgtTokensUnderSavedModel,
+        savedTgtTokensUnderSelectedModel,
+    ]);
+
+    // Title-row action visibility (see handoff §3).
+    const showReset = draftDirty && hasExistingData;
+    const showSync = modelMismatchVsConfig;
+    const viewMode = !modelsAvailable && !modelsLoading;
 
     return (
-        <div
-            ref={controlsContainerRef}
-            className="relative flex flex-col gap-4"
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-        >
+        <>
+            <ToolPanelHeader
+                title="Activation Patching"
+                viewMode={viewMode}
+                showReset={showReset}
+                showSync={showSync}
+                isExecuting={isExecuting}
+                onReset={resetDraft}
+                onSync={updateConfigModel}
+                syncClassName="bg-violet-500 hover:bg-violet-600 text-white"
+            />
+            <div
+                ref={controlsContainerRef}
+                className="relative flex flex-col gap-4 p-3 flex-1 overflow-auto"
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+            >
             {/* Arrow SVG overlay */}
             {showArrows && (
                 <EnhancedPatchArrows
@@ -649,13 +1035,14 @@ export function ActivationPatchingControls({
                     isEditing={srcEditing}
                     setIsEditing={setSrcEditing}
                     isExecuting={isExecuting}
+                    disabled={!modelsAvailable}
                     tokenizedModel={srcTokenizedModel}
                     textareaRef={srcTextareaRef}
                     tokenContainerRef={srcTokenContainerRef}
                     onBlur={handleSrcBlur}
                     selectedPositions={srcPos}
                     pendingRangeStart={pendingRangeStart}
-                    onSrcTokenClick={handleSrcTokenClick}
+                    onSrcTokenClick={interactive ? handleSrcTokenClick : undefined}
                     predictionToken={srcPrediction}
                 />
                 {!srcEditing && srcTokens.length > 0 && (
@@ -678,18 +1065,21 @@ export function ActivationPatchingControls({
                     isEditing={tgtEditing}
                     setIsEditing={setTgtEditing}
                     isExecuting={isExecuting}
+                    disabled={!modelsAvailable}
                     tokenizedModel={tgtTokenizedModel}
                     textareaRef={tgtTextareaRef}
                     tokenContainerRef={tgtTokenContainerRef}
                     onBlur={handleTgtBlur}
                     tgtSelectedPositions={tgtPos}
                     frozenPositions={tgtFreeze}
-                    onTgtTokenClick={handleTgtTokenClick}
+                    onTgtTokenClick={interactive ? handleTgtTokenClick : undefined}
                     onTokenHover={
-                        isConnecting && !srcEditing && !tgtEditing ? setHoverTgtIdx : undefined
+                        interactive && isConnecting && !srcEditing && !tgtEditing
+                            ? setHoverTgtIdx
+                            : undefined
                     }
                     onTokenLeave={
-                        isConnecting && !srcEditing && !tgtEditing
+                        interactive && isConnecting && !srcEditing && !tgtEditing
                             ? () => setHoverTgtIdx(null)
                             : undefined
                     }
@@ -710,7 +1100,7 @@ export function ActivationPatchingControls({
                 expanded={patchTableExpanded}
                 onToggleExpanded={() => setPatchTableExpanded(!patchTableExpanded)}
                 onClear={clearAll}
-                disabled={isExecuting}
+                disabled={!interactive}
             />
 
             {/* Run Button */}
@@ -732,6 +1122,7 @@ export function ActivationPatchingControls({
                 )}
             </Button>
 
-        </div>
+            </div>
+        </>
     );
 }

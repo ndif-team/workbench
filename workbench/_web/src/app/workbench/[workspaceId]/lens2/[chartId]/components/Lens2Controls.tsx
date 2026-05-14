@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Play, TriangleAlert } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
 import { useLens2 } from "@/lib/api/lensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { Lens2ConfigData } from "@/types/lens2";
@@ -15,8 +15,15 @@ import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import {
+    lens2ConfigEqualsExceptModel,
+    tokenTextSequencesEqual,
+} from "@/lib/configModelDiff";
+import { useDraftModel } from "@/hooks/useDraftModel";
+import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
+import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
+import { ToolPanelHeader } from "@/app/workbench/[workspaceId]/components/ToolPanelHeader";
 
 interface Lens2Config {
     id: string;
@@ -27,16 +34,19 @@ interface Lens2Config {
 interface Lens2ControlsProps {
     initialConfig: Lens2Config;
     selectedModel: string;
+    modelsAvailable: boolean;
+    /** True while the models query is in flight. Used to suppress the
+     * "unavailable" banner during a fetch — even if the previous state was
+     * an error. */
+    modelsLoading?: boolean;
     hasExistingData?: boolean;
 }
 
-// Token styling constants (matching the original lens)
 const TOKEN_STYLES = {
     base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative",
     hover: "hover:bg-primary/20 hover:ring-1 hover:ring-primary/30 hover:ring-inset",
 } as const;
 
-// Helper to fix newlines for display
 const fixTokenText = (text: string) => {
     const numNewlines = (text.match(/\n/g) || []).length;
     const result = text
@@ -47,7 +57,6 @@ const fixTokenText = (text: string) => {
     return { result, numNewlines };
 };
 
-// Simple TokenDisplay component for lens2 (no selection needed)
 function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }) {
     return (
         <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
@@ -78,131 +87,156 @@ function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }
 export function Lens2Controls({
     initialConfig,
     selectedModel,
+    modelsAvailable,
+    modelsLoading = false,
     hasExistingData = false,
 }: Lens2ControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
-    // Local state for the form
-    const initialPrompt = initialConfig.data?.prompt || "";
-    const initialTopk = initialConfig.data?.topk ?? 5;
-    const initialIncludeEntropy = initialConfig.data?.includeEntropy ?? true;
+    const savedPrompt = initialConfig.data?.prompt || "";
+    const savedTopk = initialConfig.data?.topk ?? 5;
+    const savedIncludeEntropy = initialConfig.data?.includeEntropy ?? true;
+    const savedModel = initialConfig.data?.model ?? "";
 
-    const [prompt, setPrompt] = useState(initialPrompt);
-    const [topk, setTopk] = useState(initialTopk);
-    const [includeEntropy, setIncludeEntropy] = useState(initialIncludeEntropy);
+    const [prompt, setPrompt] = useState(savedPrompt);
+    const [topk, setTopk] = useState(savedTopk);
+    const [includeEntropy, setIncludeEntropy] = useState(savedIncludeEntropy);
+    const { draftModel, setDraftModel, restoreWorkspaceModel } = useDraftModel(
+        savedModel,
+        initialConfig.id,
+    );
 
-    // Auto-run flags - check if we should auto-run on mount (coming from landing page)
-    // Only auto-run if a prompt is pre-filled and there's no existing chart data
-    const shouldAutoRunRef = useRef(initialPrompt.trim().length > 0 && !hasExistingData);
+    const shouldAutoRunRef = useRef(savedPrompt.trim().length > 0 && !hasExistingData);
     const hasAutoRunRef = useRef(false);
 
-    // Token state
     const [tokenData, setTokenData] = useState<Token[]>([]);
     const [editingText, setEditingText] = useState(true);
     const [tokenizedModel, setTokenizedModel] = useState<string | null>(null);
 
-    // Track the last prompt we successfully submitted/tokenized
-    const lastSyncedPromptRef = useRef<string>(initialConfig.data?.prompt || "");
+    // Tokens of the saved prompt under (saved model, selected model). Both run
+    // in the background and are used only by the tokenization-differs banner.
+    // They never replace the visible `tokenData` — that change is gated by the
+    // banner's explicit "Update config to selected model" action.
+    const {
+        underSaved: savedPromptTokensUnderSavedModel,
+        underSelected: savedPromptTokensUnderSelectedModel,
+    } = useBackgroundTokenPair(savedPrompt, savedModel, selectedModel);
 
-    // Refs
+    const lastSyncedPromptRef = useRef<string>(savedPrompt);
+    // The prompt that produced the current `tokenData`. Used by handleTokenize
+    // to detect a real prompt edit (vs. a passive blur that just re-tokenizes
+    // under a swapped model).
+    const lastTokenizedPromptRef = useRef<string>("");
+
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const tokenContainerRef = useRef<HTMLDivElement>(null);
 
-    // Mutations
     const { mutateAsync: computeLens2, isPending: isComputing } = useLens2();
     const { mutateAsync: updateConfig, isPending: isUpdatingConfig } = useUpdateChartConfig();
 
     const isExecuting = isComputing || isUpdatingConfig;
+    const interactive = modelsAvailable && !isExecuting;
 
-    // Sync prompt when config changes - but only if it's a genuinely new value from the server
-    // (not our own update being echoed back)
     useEffect(() => {
         const configPrompt = initialConfig.data?.prompt || "";
-        // Only sync if the config prompt differs from what we last synced
-        // This prevents overwriting local edits when our own mutation is echoed back
         if (configPrompt && configPrompt !== lastSyncedPromptRef.current) {
             setPrompt(configPrompt);
             lastSyncedPromptRef.current = configPrompt;
         }
     }, [initialConfig.data?.prompt]);
 
-    // Tokenize when we have existing data on initial load
+    // Auto-retokenize on selected-model change when the chart has no data
+    // yet. During initial composition the user has no committed visualization
+    // to protect, so swapping the global model selector should immediately
+    // re-tokenize under the new model and align draftModel — otherwise the
+    // Run button stays disabled and the explicit Sync action is hidden by
+    // its !hasExistingData guard.
+    useEffect(() => {
+        if (hasExistingData) return;
+        if (editingText) return; // user is mid-typing; blur will handle it
+        if (!prompt || !selectedModel) return;
+        if (tokenizedModel === selectedModel) return;
+        let cancelled = false;
+        encodeText(prompt, selectedModel)
+            .then((tokens) => {
+                if (cancelled || tokens.length === 0) return;
+                setTokenData(tokens);
+                setTokenizedModel(selectedModel);
+                lastTokenizedPromptRef.current = prompt;
+                setDraftModel(selectedModel);
+            })
+            .catch(() => {
+                /* tokenizer failure — leave editor open */
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedModel, hasExistingData, editingText, prompt, tokenizedModel]);
+
+    // Initial-load tokenization for the visible token view. Uses the SAVED
+    // model — the one that produced the existing visualization — so switching
+    // the global model selector doesn't silently re-tokenize what the user is
+    // looking at. Only re-fires when the chart itself changes.
     useEffect(() => {
         const fetchTokens = async () => {
-            if (initialConfig.data?.prompt && selectedModel) {
-                const tokens = await encodeText(initialConfig.data.prompt, selectedModel);
+            if (!savedPrompt || !savedModel) return;
+            try {
+                const tokens = await encodeText(savedPrompt, savedModel);
                 if (tokens.length > 0) {
                     setTokenData(tokens);
-                    setTokenizedModel(selectedModel);
+                    setTokenizedModel(savedModel);
                     setEditingText(false);
+                    lastTokenizedPromptRef.current = savedPrompt;
                 }
+            } catch {
+                /* tokenizer load failure surfaces elsewhere; keep editor open */
             }
         };
         fetchTokens();
-    }, [initialConfig.id, selectedModel]);
+    }, [initialConfig.id, savedPrompt, savedModel]);
 
-    // Auto-run effect for when coming from landing page.
-    // isExecuting is intentionally NOT in deps — hasAutoRunRef already guards against
-    // re-firing, and adding isExecuting would schedule a redundant timer each time
-    // the mutation state flips.
     useEffect(() => {
         let isCancelled = false;
-
         const autoRunLens2 = async () => {
             if (
                 !shouldAutoRunRef.current ||
                 hasAutoRunRef.current ||
                 !selectedModel ||
-                selectedModel.length === 0
+                !modelsAvailable
             ) {
                 return;
             }
-
             hasAutoRunRef.current = true;
             shouldAutoRunRef.current = false;
-
             try {
-                const tokens = await encodeText(initialPrompt, selectedModel);
+                const tokens = await encodeText(savedPrompt, selectedModel);
                 if (isCancelled || tokens.length <= 1) return;
-
                 setTokenData(tokens);
                 setTokenizedModel(selectedModel);
                 setEditingText(false);
-
+                lastTokenizedPromptRef.current = savedPrompt;
                 const config: Lens2ConfigData = {
                     model: selectedModel,
-                    prompt: initialPrompt,
-                    topk: initialTopk,
-                    includeEntropy: initialIncludeEntropy,
+                    prompt: savedPrompt,
+                    topk: savedTopk,
+                    includeEntropy: savedIncludeEntropy,
                 };
-
                 await computeLens2({
-                    lensRequest: {
-                        completion: config,
-                        chartId,
-                    },
+                    lensRequest: { completion: config, chartId },
                     configId: initialConfig.id,
                 });
                 if (isCancelled) return;
-
                 await updateConfig({
                     configId: initialConfig.id,
                     chartId,
-                    config: {
-                        data: config,
-                        workspaceId,
-                        type: "lens2",
-                    },
+                    config: { data: config, workspaceId, type: "lens2" },
                 });
                 if (isCancelled) return;
-
-                lastSyncedPromptRef.current = initialPrompt;
-            } catch (error) {
-                // Don't reset flags - we only try once
+                lastSyncedPromptRef.current = savedPrompt;
+            } catch {
+                /* one-shot auto-run; swallow */
             }
         };
-
-        // Small delay to ensure all dependencies are ready
         const timer = setTimeout(autoRunLens2, 800);
         return () => {
             isCancelled = true;
@@ -210,9 +244,10 @@ export function Lens2Controls({
         };
     }, [
         selectedModel,
-        initialPrompt,
-        initialTopk,
-        initialIncludeEntropy,
+        modelsAvailable,
+        savedPrompt,
+        savedTopk,
+        savedIncludeEntropy,
         chartId,
         initialConfig.id,
         workspaceId,
@@ -220,7 +255,6 @@ export function Lens2Controls({
         updateConfig,
     ]);
 
-    // Auto-resize the textarea to fit its content
     const autoResizeTextarea = useCallback(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = "auto";
@@ -232,7 +266,6 @@ export function Lens2Controls({
         if (editingText) autoResizeTextarea();
     }, [prompt, editingText, autoResizeTextarea]);
 
-    // Handle switching from token view to edit view
     const escapeTokenArea = useCallback(() => {
         setEditingText(true);
         setTimeout(() => {
@@ -244,13 +277,11 @@ export function Lens2Controls({
         }, 0);
     }, []);
 
-    // Tokenize the prompt
     const handleTokenize = useCallback(async () => {
         if (!prompt.trim()) {
             toast.error("Please enter a prompt.");
             return;
         }
-
         let tokens: Token[];
         try {
             tokens = await encodeText(prompt, selectedModel);
@@ -268,17 +299,23 @@ export function Lens2Controls({
             toast.error("Please enter a longer prompt.");
             return;
         }
-
+        const promptChanged = prompt !== lastTokenizedPromptRef.current;
+        const modelChanged = tokenizedModel !== null && tokenizedModel !== selectedModel;
         setTokenData(tokens);
         setTokenizedModel(selectedModel);
         setEditingText(false);
-    }, [prompt, selectedModel]);
+        lastTokenizedPromptRef.current = prompt;
+        // Editing the prompt under a different selected model implicitly
+        // commits the draft to that model — same effect as the explicit
+        // "Update config to selected model" action. topk/includeEntropy are
+        // intentionally NOT touched here; only the Reset button resets them.
+        if (promptChanged && modelChanged) {
+            setDraftModel(selectedModel);
+        }
+    }, [prompt, selectedModel, tokenizedModel]);
 
-    // Handle form submission (tokenize + run)
     const handleSubmit = useCallback(async () => {
         if (!prompt.trim()) return;
-
-        // Always tokenize with the current prompt to ensure tokens are in sync
         let tokens: Token[];
         try {
             tokens = await encodeText(prompt, selectedModel);
@@ -298,6 +335,7 @@ export function Lens2Controls({
         }
         setTokenData(tokens);
         setTokenizedModel(selectedModel);
+        lastTokenizedPromptRef.current = prompt;
 
         const config: Lens2ConfigData = {
             model: selectedModel,
@@ -306,27 +344,18 @@ export function Lens2Controls({
             includeEntropy,
         };
 
-        // Compute the lens2 visualization
         await computeLens2({
-            lensRequest: {
-                completion: config,
-                chartId,
-            },
+            lensRequest: { completion: config, chartId },
             configId: initialConfig.id,
         });
-
-        // Update the config in the database
         await updateConfig({
             configId: initialConfig.id,
             chartId,
-            config: {
-                data: config,
-                workspaceId,
-                type: "lens2",
-            },
+            config: { data: config, workspaceId, type: "lens2" },
         });
-
-        // Update our sync ref so the useEffect doesn't overwrite our prompt
+        // Land draftModel on the model that just persisted so the banner
+        // doesn't flash between the run completing and the refetch arriving.
+        setDraftModel(selectedModel);
         lastSyncedPromptRef.current = prompt;
         setEditingText(false);
     }, [
@@ -341,15 +370,12 @@ export function Lens2Controls({
         updateConfig,
     ]);
 
-    // Handle prompt change
     const handlePromptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setPrompt(e.target.value);
     }, []);
 
-    // Handle keyboard shortcuts
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
-            // Cmd/Ctrl + Enter to run
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                 e.preventDefault();
                 handleSubmit();
@@ -358,33 +384,138 @@ export function Lens2Controls({
         [handleSubmit],
     );
 
-    // Handle textarea blur - automatically tokenize when user clicks away
+    const blurTokenize = useBlurTokenizeScheduler();
+
     const handleTextareaBlur = useCallback(() => {
-        setTimeout(() => {
+        blurTokenize.schedule(() => {
             const activeElement = document.activeElement;
             const withinTextarea = activeElement && textareaRef.current?.contains(activeElement);
             const withinToken = activeElement && tokenContainerRef.current?.contains(activeElement);
             const popoverOpen = document.querySelector("[data-radix-popper-content-wrapper]");
-
-            // Don't tokenize if still focused in the prompt area or a popover is open
             if (withinTextarea || withinToken || popoverOpen) return;
+            if (prompt.trim()) handleTokenize();
+        });
+    }, [prompt, handleTokenize, blurTokenize]);
 
-            // Auto-tokenize if there's a prompt
-            if (prompt.trim()) {
-                handleTokenize();
-            }
-        }, 100);
-    }, [prompt, handleTokenize]);
+    const resetDraft = useCallback(() => {
+        blurTokenize.cancel();
+        setPrompt(savedPrompt);
+        setTopk(savedTopk);
+        setIncludeEntropy(savedIncludeEntropy);
+        setDraftModel(savedModel);
+        restoreWorkspaceModel(savedModel);
+        lastSyncedPromptRef.current = savedPrompt;
 
-    // Check if tokenization is out of sync with selected model
-    const modelMismatch =
-        tokenizedModel && tokenizedModel !== selectedModel && tokenData.length > 0;
+        // Re-tokenize the restored prompt under the saved model so the
+        // visible token view matches the restored config.
+        if (!savedPrompt || !savedModel) return;
+        encodeText(savedPrompt, savedModel)
+            .then((tokens) => {
+                if (tokens.length > 0) {
+                    setTokenData(tokens);
+                    setTokenizedModel(savedModel);
+                    setEditingText(false);
+                    lastTokenizedPromptRef.current = savedPrompt;
+                }
+            })
+            .catch(() => {
+                /* user can manually retokenize */
+            });
+    }, [
+        savedPrompt,
+        savedTopk,
+        savedIncludeEntropy,
+        savedModel,
+        blurTokenize,
+        setDraftModel,
+        restoreWorkspaceModel,
+    ]);
+
+    // Acknowledge "use the selected model for this chart". Local-only — the
+    // DB row is unchanged until the user clicks Run. Also re-tokenizes the
+    // visible prompt under the new model so the user can see the difference.
+    const updateConfigModel = useCallback(() => {
+        if (!selectedModel) return;
+        blurTokenize.cancel();
+        setDraftModel(selectedModel);
+        if (!prompt) return;
+        encodeText(prompt, selectedModel)
+            .then((tokens) => {
+                if (tokens.length > 0) {
+                    setTokenData(tokens);
+                    setTokenizedModel(selectedModel);
+                    setEditingText(false);
+                    lastTokenizedPromptRef.current = prompt;
+                }
+            })
+            .catch(() => {
+                /* user can manually retokenize */
+            });
+    }, [selectedModel, prompt, blurTokenize, setDraftModel]);
+
+    // --- diff state -----------------------------------------------------------
+
+    const draftMatchesSaved = useMemo(
+        () =>
+            lens2ConfigEqualsExceptModel(initialConfig.data, {
+                prompt,
+                topk,
+                includeEntropy,
+            }),
+        [initialConfig.data, prompt, topk, includeEntropy],
+    );
+
+    // Draft is dirty if any non-model field differs OR the draft model differs
+    // from the saved model. Either way, the Unsaved-changes banner fires.
+    const draftDirty = !draftMatchesSaved || draftModel !== savedModel;
+
+    // The "use selected model?" banner is about the gap between the user's
+    // current intent for this chart (draftModel) and the workspace selection.
+    const modelMismatchVsConfig =
+        modelsAvailable && !!draftModel && draftModel !== selectedModel;
+
+    const tokenizationDiffers = useMemo(() => {
+        if (!modelMismatchVsConfig) return false;
+        if (!savedPromptTokensUnderSavedModel || !savedPromptTokensUnderSelectedModel) {
+            return false;
+        }
+        return !tokenTextSequencesEqual(
+            savedPromptTokensUnderSavedModel,
+            savedPromptTokensUnderSelectedModel,
+        );
+    }, [
+        modelMismatchVsConfig,
+        savedPromptTokensUnderSavedModel,
+        savedPromptTokensUnderSelectedModel,
+    ]);
+
+    // Title-row action visibility (see handoff §3).
+    const showReset = draftDirty && hasExistingData;
+    const showSync = modelMismatchVsConfig;
+    const viewMode = !modelsAvailable && !modelsLoading;
+
+    // Run is only enabled when the visible tokens (a) were produced by the
+    // selected model and (b) correspond to the current prompt — i.e. there
+    // are no pending edits or model swaps waiting on retokenization.
+    const tokensInSync =
+        tokenData.length > 0 &&
+        tokenizedModel === selectedModel &&
+        lastTokenizedPromptRef.current === prompt;
 
     return (
-        <div className="flex flex-col gap-4">
-            {/* Prompt Input / Token Display */}
-            <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Prompt</Label>
+        <>
+            <ToolPanelHeader
+                title="Logit Lens"
+                viewMode={viewMode}
+                showReset={showReset}
+                showSync={showSync}
+                isExecuting={isExecuting}
+                onReset={resetDraft}
+                onSync={updateConfigModel}
+            />
+            <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-medium">Prompt</Label>
                 <div className="relative">
                     {editingText ? (
                         <Textarea
@@ -398,7 +529,7 @@ export function Lens2Controls({
                             onBlur={handleTextareaBlur}
                             className="w-full !text-sm bg-input/30 min-h-32 !leading-5"
                             placeholder="Enter your prompt here..."
-                            disabled={isExecuting}
+                            disabled={!interactive}
                         />
                     ) : (
                         <div
@@ -408,31 +539,16 @@ export function Lens2Controls({
                                 isExecuting ? "cursor-progress" : "cursor-text",
                             )}
                             onClick={() => {
-                                if (!isExecuting) escapeTokenArea();
+                                if (interactive) escapeTokenArea();
                             }}
                         >
                             <TokenDisplay tokens={tokenData} loading={isExecuting} />
                         </div>
                     )}
 
-                    {/* Model mismatch warning */}
-                    {modelMismatch && !isExecuting && !editingText && (
-                        <Tooltip>
-                            <TooltipTrigger className="absolute bottom-2 right-2">
-                                <TriangleAlert className="w-4 h-4 text-destructive/70" />
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                                <p className="w-36 text-wrap text-center">
-                                    Tokenization does not match the selected model. Please
-                                    retokenize.
-                                </p>
-                            </TooltipContent>
-                        </Tooltip>
-                    )}
                 </div>
             </div>
 
-            {/* Top-K Slider */}
             <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                     <Label htmlFor="topk" className="text-sm font-medium">
@@ -447,28 +563,26 @@ export function Lens2Controls({
                     step={1}
                     value={[topk]}
                     onValueChange={([value]) => setTopk(value)}
-                    disabled={isExecuting}
+                    disabled={!interactive}
                     className="w-full"
                 />
             </div>
 
-            {/* Include Entropy Toggle */}
             <div className="flex items-center gap-2">
                 <Checkbox
                     id="entropy"
                     checked={includeEntropy}
                     onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
-                    disabled={isExecuting}
+                    disabled={!interactive}
                 />
                 <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">
                     Include Entropy
                 </Label>
             </div>
 
-            {/* Run Button */}
             <Button
                 onClick={handleSubmit}
-                disabled={isExecuting || !prompt.trim()}
+                disabled={!interactive || !prompt.trim() || !tokensInSync}
                 className="w-full"
             >
                 {isExecuting ? (
@@ -484,11 +598,11 @@ export function Lens2Controls({
                 )}
             </Button>
 
-            {/* Keyboard shortcut hint */}
             <p className="text-xs text-muted-foreground text-center">
                 <kbd className="px-1 py-0.5 bg-muted rounded text-xs">⌘</kbd> +{" "}
                 <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd> to run
             </p>
-        </div>
+            </div>
+        </>
     );
 }

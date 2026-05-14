@@ -6,7 +6,7 @@ import { LensConfig } from "@/db/schema";
 import { queryKeys } from "@/lib/queryKeys";
 import { ChartType } from "@/types/charts";
 import { useMemo, useEffect, useState } from "react";
-import { getModels } from "@/lib/api/modelsApi";
+import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -29,11 +29,7 @@ export default function LensArea() {
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
     const [configModelUnavailable, setConfigModelUnavailable] = useState<string | null>(null);
 
-    const { data: models } = useQuery({
-        queryKey: queryKeys.models.all,
-        queryFn: getModels,
-        refetchInterval: 120000,
-    });
+    const { data: models } = useModelsQuery();
 
     // Sync the model selector with the model stored in the config when chart loads
     useEffect(() => {

@@ -1,17 +1,11 @@
 "use client";
 
-import { getModels } from "@/lib/api/modelsApi";
+import { useModelsQuery } from "@/lib/api/modelsApi";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/stores/useWorkspace";
-import { queryKeys } from "@/lib/queryKeys";
 
 export function WorkbenchStatus() {
-    const { isLoading, isError } = useQuery({
-        queryKey: queryKeys.models.all,
-        queryFn: getModels,
-        refetchInterval: 120000,
-    });
+    const { isLoading, isError } = useModelsQuery();
 
     const { jobStatus } = useWorkspace();
 

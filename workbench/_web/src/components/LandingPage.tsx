@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { getModels } from "@/lib/api/modelsApi";
+import { useModelsQuery } from "@/lib/api/modelsApi";
 import { queryKeys } from "@/lib/queryKeys";
 import { getWorkspaces } from "@/lib/queries/workspaceQueries";
 
@@ -151,11 +151,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
         enabled: !!isSignedInUser,
     });
 
-    const { data: models, isLoading: modelsLoading, isError: modelsError } = useQuery({
-        queryKey: queryKeys.models.all,
-        queryFn: getModels,
-        refetchInterval: 120000,
-    });
+    const { data: models, isLoading: modelsLoading, isError: modelsError } = useModelsQuery();
     const modelsToSelect: Model[] = models && models.length > 0 ? models : [];
     const hasModels = modelsToSelect.length > 0;
 

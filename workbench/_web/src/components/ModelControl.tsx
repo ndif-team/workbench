@@ -2,14 +2,12 @@
 
 import * as React from "react";
 import { Check, ChevronDown, Loader2, Search } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/stores/useWorkspace";
-import { getModels } from "@/lib/api/modelsApi";
-import { queryKeys } from "@/lib/queryKeys";
+import { useModelsQuery } from "@/lib/api/modelsApi";
 import type { Model, ModelStatus } from "@/types/models";
 
 // ----- status vocabularies ----------------------------------------------------------
@@ -120,14 +118,23 @@ export function ModelControl({ className }: ModelControlProps) {
         data: models,
         isLoading: modelsLoading,
         isError: modelsError,
-    } = useQuery({
-        queryKey: queryKeys.models.all,
-        queryFn: getModels,
-        refetchInterval: 120000,
-    });
+    } = useModelsQuery();
 
     const [open, setOpen] = React.useState(false);
     const [query, setQuery] = React.useState("");
+
+    // Computed before the early returns so the useEffect below is called on
+    // every render (Rules of Hooks).
+    const job = parseJobStatus(jobStatus);
+    const isJobActive = job ? JOB_STATUS[job.state].active : false;
+
+    // Close the popover if a job kicks off while it's open.
+    React.useEffect(() => {
+        if (isJobActive && open) {
+            setOpen(false);
+            setQuery("");
+        }
+    }, [isJobActive, open]);
 
     const handleOpenChange = (next: boolean) => {
         setOpen(next);
@@ -196,16 +203,6 @@ export function ModelControl({ className }: ModelControlProps) {
     const selectedModel = models[selectedModelIdx] ?? models[0];
     const heat = deriveHeat(selectedModel);
     const display = splitRepo(selectedModel.name);
-    const job = parseJobStatus(jobStatus);
-    const isJobActive = job ? JOB_STATUS[job.state].active : false;
-
-    // Close the popover if a job kicks off while it's open.
-    React.useEffect(() => {
-        if (isJobActive && open) {
-            setOpen(false);
-            setQuery("");
-        }
-    }, [isJobActive, open]);
 
     return (
         <Popover open={open} onOpenChange={handleOpenChange}>

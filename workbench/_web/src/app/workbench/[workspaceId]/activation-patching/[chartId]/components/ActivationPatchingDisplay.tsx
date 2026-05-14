@@ -14,6 +14,10 @@ import { useTheme } from "next-themes";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { NotebookExporter } from "@/components/NotebookExporter";
+import { ChartModelPill } from "@/components/charts/ChartModelPill";
+import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
+import { useModelsQuery } from "@/lib/api/modelsApi";
+import { useWorkspace } from "@/stores/useWorkspace";
 
 const validModes = new Set<string>(["probability", "rank", "prob_diff"]);
 
@@ -60,6 +64,12 @@ export function ActivationPatchingDisplay() {
         queryFn: () => getWorkspaceById(workspaceId),
         enabled: !!workspaceId,
     });
+
+    const { data: models } = useModelsQuery();
+
+    const { selectedModelIdx } = useWorkspace();
+    const selectedModel = models?.[selectedModelIdx]?.name ?? models?.[0]?.name ?? null;
+    const modelsAvailable = !!models && models.length > 0;
 
     const { mutate: updateChartName } = useUpdateChartName();
     const { mutateAsync: updateConfig } = useUpdateChartConfig();
@@ -202,11 +212,15 @@ export function ActivationPatchingDisplay() {
         );
     }
 
+    const chartModel = chartModelFromConfig(patchingConfig);
+    const stale = isChartStale(chartModel, selectedModel, modelsAvailable);
+
     return (
         <div className="size-full overflow-auto flex flex-col">
             {/* Title + export */}
             <div className="px-4 pt-4 pb-2 flex items-center gap-2">
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
                     {isEditingTitle ? (
                         <input
                             ref={titleInputRef}
@@ -236,6 +250,10 @@ export function ActivationPatchingDisplay() {
                         >
                             Untitled Chart
                         </h2>
+                    )}
+                    </div>
+                    {stale && chartModel && (
+                        <ChartModelPill modelName={chartModel} />
                     )}
                 </div>
                 <NotebookExporter
