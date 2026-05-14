@@ -6,9 +6,19 @@ import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
 import { useQuery } from "@tanstack/react-query";
 import { useDeleteWorkspace } from "@/lib/api/workspaceApi";
 import { Button } from "@/components/ui/button";
-import { Trash2, BarChart3, FileText } from "lucide-react";
-import { useState } from "react";
+import {
+    Trash2,
+    BarChart3,
+    FileText,
+    ChevronLeft,
+    ChevronRight,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useIsDark } from "@/hooks/useIsDark";
+import { useModelsSection } from "@/stores/useModelsSection";
+
+const PAGE_SIZE_EXPANDED = 8; // 2 rows × 4 cols at lg+, 4 rows × 2 cols at sm
+const PAGE_SIZE_COLLAPSED = 16; // 4 rows × 4 cols at lg+ — uses the freed vertical space
 
 interface WorkspaceListProps {
     userId: string;
@@ -84,25 +94,6 @@ function WorkspaceCard({
                         </Button>
                     </div>
 
-                    {/* <div className="flex items-center justify-between gap-2">
-            <div 
-              className="text-[10px] font-mono truncate"
-              style={{ color: isDark ? '#94a3b8' : '#475569' }}
-            >
-              {workspace.id}
-            </div>
-            {workspace.public && (
-              <span 
-                className="text-[10px] font-medium uppercase tracking-wide px-2 py-1 rounded-full flex-shrink-0"
-                style={{
-                  backgroundColor: isDark ? 'rgba(52, 211, 153, 0.2)' : 'rgba(100, 116, 139, 0.15)',
-                  color: isDark ? '#a7f3d0' : '#1e293b'
-                }}
-              >
-                Public
-              </span>
-            )}
-          </div> */}
 
                     {/* Charts and Reports Count */}
                     <div className="flex items-center gap-3 pt-1">
@@ -148,6 +139,25 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
         staleTime: 0,
     });
 
+    const modelsCollapsed = useModelsSection((s) => s.collapsed);
+    const pageSize = modelsCollapsed ? PAGE_SIZE_COLLAPSED : PAGE_SIZE_EXPANDED;
+
+    const [page, setPage] = useState(0);
+    const totalPages = Math.max(1, Math.ceil((workspaces?.length ?? 0) / pageSize));
+
+    // If a deletion (or a page-size shrink from the models section expanding)
+    // leaves the current page past the end, bounce back to the last page.
+    useEffect(() => {
+        if (page > 0 && page >= totalPages) {
+            setPage(Math.max(0, totalPages - 1));
+        }
+    }, [page, totalPages]);
+
+    const pageWorkspaces = useMemo(
+        () => (workspaces ?? []).slice(page * pageSize, (page + 1) * pageSize),
+        [workspaces, page, pageSize],
+    );
+
     const handleDeleteWorkspace = (e: React.MouseEvent, workspaceId: string) => {
         e.preventDefault();
         e.stopPropagation();
@@ -181,15 +191,49 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {workspaces.map((workspace) => (
-                        <WorkspaceCard
-                            key={workspace.id}
-                            workspace={workspace}
-                            onDelete={handleDeleteWorkspace}
-                        />
-                    ))}
-                </div>
+                <>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {pageWorkspaces.map((workspace) => (
+                            <WorkspaceCard
+                                key={workspace.id}
+                                workspace={workspace}
+                                onDelete={handleDeleteWorkspace}
+                            />
+                        ))}
+                    </div>
+
+                    {totalPages > 1 && (
+                        <div className="mt-6 flex items-center justify-center gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                                disabled={page === 0}
+                                aria-label="Previous page"
+                            >
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                            </Button>
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                                Page {page + 1} of {totalPages}
+                            </span>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() =>
+                                    setPage((p) => Math.min(totalPages - 1, p + 1))
+                                }
+                                disabled={page >= totalPages - 1}
+                                aria-label="Next page"
+                            >
+                                <ChevronRight className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    )}
+                </>
             )}
         </>
     );
