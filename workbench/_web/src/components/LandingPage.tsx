@@ -292,13 +292,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     };
 
     return (
-        <div className="h-screen w-screen bg-gradient-to-br from-background via-background to-primary/5 dark:to-primary/10 relative overflow-hidden flex flex-col">
-            {/* Animated background elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-3xl" />
-                <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-purple-500/10 to-transparent rounded-full blur-3xl" />
-            </div>
-
+        <div className="h-screen w-screen aurora-bg relative overflow-hidden flex flex-col">
             {/* Header */}
             <header className="relative z-10 flex justify-between items-center p-6 w-full shrink-0">
                 <motion.div

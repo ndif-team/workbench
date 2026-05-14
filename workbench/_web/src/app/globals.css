@@ -139,15 +139,15 @@
 .aurora-bg {
     background:
         radial-gradient(ellipse 600px 400px at 12% 8%, hsl(217 91% 60% / 0.22), transparent 60%),
-        radial-gradient(ellipse 500px 380px at 88% 18%, hsl(270 91% 65% / 0.18), transparent 60%),
-        radial-gradient(ellipse 700px 420px at 50% 100%, hsl(190 90% 60% / 0.14), transparent 60%),
+        radial-gradient(ellipse 540px 420px at 92% 68%, hsl(270 91% 65% / 0.18), transparent 60%),
+        radial-gradient(ellipse 700px 420px at 30% 100%, hsl(190 90% 60% / 0.14), transparent 60%),
         hsl(220 25% 97%);
 }
 .dark .aurora-bg {
     background:
         radial-gradient(ellipse 600px 400px at 12% 8%, hsl(217 91% 60% / 0.16), transparent 60%),
-        radial-gradient(ellipse 500px 380px at 88% 18%, hsl(270 91% 65% / 0.13), transparent 60%),
-        radial-gradient(ellipse 700px 420px at 50% 100%, hsl(190 90% 60% / 0.10), transparent 60%),
+        radial-gradient(ellipse 540px 420px at 92% 68%, hsl(270 91% 65% / 0.13), transparent 60%),
+        radial-gradient(ellipse 700px 420px at 30% 100%, hsl(190 90% 60% / 0.10), transparent 60%),
         hsl(220 22% 7%);
 }
 
