@@ -9,28 +9,9 @@ import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import type { Model, ModelStatus } from "@/types/models";
+import { MODEL_STATUS, deriveHeat as deriveHeatShared } from "@/components/model-selector/status";
 
 // ----- status vocabularies ----------------------------------------------------------
-
-const MODEL_STATUS: Record<
-    ModelStatus,
-    { color: string; label: string; detail: string }
-> = {
-    hot: { color: "hsl(142 71% 45%)", label: "hot", detail: "loaded · ready to run" },
-    warm: { color: "hsl(38 92% 50%)", label: "warm", detail: "cached · warming up" },
-    cold: { color: "hsl(217 91% 60%)", label: "cold", detail: "on disk · cold start" },
-    gated: { color: "hsl(270 70% 55%)", label: "gated", detail: "sign in to access" },
-    unavailable: {
-        color: "hsl(0 84% 60%)",
-        label: "unavailable",
-        detail: "not deployed",
-    },
-    unknown: {
-        color: "hsl(var(--muted-foreground))",
-        label: "unknown",
-        detail: "status unavailable",
-    },
-};
 
 type JobState =
     | "received"
@@ -62,13 +43,7 @@ const splitRepo = (
     return { org: name.slice(0, slash), label: name.slice(slash + 1) };
 };
 
-const deriveHeat = (model: Model | undefined): ModelStatus => {
-    if (!model) return "unknown";
-    if (model.status) return model.status;
-    if (!model.allowed && model.gated) return "gated";
-    if (!model.allowed) return "unavailable";
-    return "unknown";
-};
+const deriveHeat = deriveHeatShared;
 
 interface ParsedJob {
     state: JobState;

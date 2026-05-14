@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
-import { ModelsDisplay } from "@/app/workbench/components/ModelsDisplay";
+import { ModelsSection } from "@/components/models/ModelsSection";
 import { WorkspaceList } from "@/app/workbench/components/WorkspaceList";
 import { getWorkspaces, createWorkspace } from "@/lib/queries/workspaceQueries";
 import { AutoWorkspaceCreator } from "@/app/workbench/components/AutoWorkspaceCreator";
@@ -65,7 +65,7 @@ export default async function WorkbenchPage({
             <Suspense fallback={null}>
                 <PendingRequestHandler />
             </Suspense>
-            <div className="min-h-screen px-3 md:px-6 pb-6 bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
+            <div className="min-h-screen px-3 md:px-6 pb-6 aurora-bg">
                 <header className="py-2 px-3 md:py-3 md:px-5 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Link href="/" className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
@@ -117,7 +117,7 @@ export default async function WorkbenchPage({
                 </header>
 
                 <main>
-                    <ModelsDisplay />
+                    <ModelsSection />
 
                     {useExistingWorkspace ? (
                         <AutoWorkspaceCreator
