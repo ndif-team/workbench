@@ -39,7 +39,12 @@ def fastapi_app():
     # ripley preview chart sets enable-cors annotations and needs OPTIONS
     # to bypass auth_request *before* this app sees it), opt out of the
     # CORSMiddleware so we don't emit duplicate Access-Control-* headers.
-    if os.environ.get("SKIP_CORS_MIDDLEWARE") != "true":
+    # Normalize the env var so a stray "TRUE" / " true" / "1" doesn't
+    # silently re-enable CORS and break the preview ingress.
+    skip_cors = os.environ.get("SKIP_CORS_MIDDLEWARE", "").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+    if not skip_cors:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=ALLOWED_ORIGINS,

@@ -61,7 +61,10 @@ export default function ActivationPatchingArea() {
                 setConfigModelUnavailable(null);
             }
         }
-    }, [config?.id, models, setSelectedModelIdx]);
+        // Track the full config reference (not just config?.id) so the
+        // effect re-runs when config.data.model changes — the value the
+        // effect actually reads.
+    }, [config, models, setSelectedModelIdx]);
 
     const selectedModel = useMemo(() => {
         if (!models || models.length === 0) return undefined;

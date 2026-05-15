@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const DEV_USER = {
     id: "local-dev-user",
@@ -9,12 +10,20 @@ const DEV_USER = {
     created_at: new Date(0).toISOString(),
 };
 
-export function createClient() {
+// Minimum surface that the workbench actually touches on the browser
+// Supabase client — matches the callers in
+// app/{provider,login,workbench}/page.tsx and components/{UserDropdown,
+// WorkspaceNameEditor,LandingPage,providers/CaptureProvider}.tsx.
+// Defining the shape here lets us avoid `as any` while still being a
+// drop-in replacement for createBrowserClient under DISABLE_AUTH.
+type MockBrowserClient = Pick<SupabaseClient, "auth" | "storage" | "from">;
+
+export function createClient(): SupabaseClient {
     // Mirror the server-side mock in ./server.ts so the browser doesn't
     // try to construct a real Supabase client (which logs noisy
     // "URL and API key are required" pageerrors in E2E / local-dev).
     if (process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
-        return {
+        const mock: MockBrowserClient = {
             auth: {
                 getUser: async () => ({ data: { user: DEV_USER }, error: null }),
                 signOut: async () => ({ error: null }),
@@ -26,15 +35,16 @@ export function createClient() {
                 onAuthStateChange: () => ({
                     data: { subscription: { unsubscribe: () => {} } },
                 }),
-            },
+            } as unknown as SupabaseClient["auth"],
             storage: {
                 from: () => ({
                     upload: async () => ({ data: { path: "" }, error: null }),
                     getPublicUrl: () => ({ data: { publicUrl: "" } }),
                 }),
-            },
-            from: () => ({}),
-        } as any;
+            } as unknown as SupabaseClient["storage"],
+            from: () => ({}) as unknown as ReturnType<SupabaseClient["from"]>,
+        };
+        return mock as SupabaseClient;
     }
 
     return createBrowserClient(

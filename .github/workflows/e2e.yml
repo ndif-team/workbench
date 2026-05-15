@@ -126,12 +126,14 @@ jobs:
             --host 0.0.0.0 --port 8000 --log-level info \
             > /tmp/wb-logs/api.log 2>&1 &
           echo $! > /tmp/wb-logs/api.pid
-          # Wait until /models/ returns a non-empty response — this also
-          # acts as a smoke test against NDIF before tests run.
+          # Wait until /models/ returns a non-empty JSON array. Use jq
+          # rather than grepping for a specific model name so the probe
+          # doesn't break if e2e.toml gains/loses models.
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:8000/models/ -m 30 \
-                | grep -q openai-community; then
-              echo "backend ready"
+            body=$(curl -sf http://localhost:8000/models/ -m 30 || true)
+            if [ -n "$body" ] \
+                && echo "$body" | jq -e 'type == "array" and length > 0' >/dev/null 2>&1; then
+              echo "backend ready ($(echo "$body" | jq 'length') model(s))"
               exit 0
             fi
             sleep 2

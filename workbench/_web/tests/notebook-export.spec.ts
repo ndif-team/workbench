@@ -29,7 +29,11 @@ test.describe("Notebook export (real NDIF)", () => {
 
         // The Export button triggers a server-action that returns a
         // notebook JSON string and then a client-side anchor download.
-        const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
+        // Align with the rest of the real-NDIF suite — the server action
+        // can take noticeably longer under CI load than a fixed 30s.
+        const downloadPromise = page.waitForEvent("download", {
+            timeout: REAL_NDIF_TIMEOUT_MS,
+        });
         await exportButton.click();
         const download = await downloadPromise;
 
@@ -48,13 +52,27 @@ test.describe("Notebook export (real NDIF)", () => {
         expect(Array.isArray(notebook.cells)).toBe(true);
         expect(notebook.cells.length).toBeGreaterThan(0);
 
-        // Notebook cells should mention activation patching somewhere.
-        const allSource = notebook.cells
-            .map((cell: { source?: string | string[] }) =>
-                Array.isArray(cell.source) ? cell.source.join("") : (cell.source ?? ""),
-            )
-            .join("\n");
-        expect(allSource.toLowerCase()).toContain("activation");
+        // The notebook should embed the nnsightful viz JS bundle plus the
+        // widget invocation — that's the actual export contract. See
+        // src/actions/notebook.ts > buildVisualizationHtml. Checking the
+        // widget call site is the tightest signal that the standalone
+        // charts.js was inlined (a stub or failed embed would still
+        // mention "activation" in template prose but wouldn't produce
+        // the invocation).
+        const cellSources = notebook.cells.map((cell: { source?: string | string[] }) =>
+            Array.isArray(cell.source) ? cell.source.join("") : (cell.source ?? ""),
+        );
+        const htmlOutputs = notebook.cells.flatMap(
+            (cell: { outputs?: Array<{ data?: Record<string, string | string[]> }> }) =>
+                (cell.outputs ?? []).flatMap((out) => {
+                    const html = out.data?.["text/html"];
+                    return html ? [Array.isArray(html) ? html.join("") : html] : [];
+                }),
+        );
+        const allText = [...cellSources, ...htmlOutputs].join("\n");
+        expect(allText.toLowerCase()).toContain("activation");
+        expect(allText).toMatch(/ActivationPatchingWidget\s*\(\s*container/);
+        expect(allText).toMatch(/<div id="lp_/);
 
         await argosScreenshot(page, "notebook-export-after", { fullPage: false });
     });

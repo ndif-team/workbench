@@ -28,13 +28,16 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.api.service.targetPort }}
+          {{- with .Values.api.env }}
           env:
-            {{- with .Values.api.env }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
+          {{- end }}
           envFrom:
             - secretRef:
-                name: {{ .Values.api.secretName }}
+                # Fail-fast at render time if the workflow forgot to set
+                # secretName; an empty value would produce a Pod that
+                # crash-loops on missing env vars.
+                name: {{ required "api.secretName is required when api.enabled=true" .Values.api.secretName }}
           readinessProbe:
             httpGet: { path: /docs, port: http }
             initialDelaySeconds: 15

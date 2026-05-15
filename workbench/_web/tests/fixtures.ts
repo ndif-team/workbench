@@ -12,7 +12,10 @@ const REAL_NDIF_TIMEOUT_MS = 90_000;
 const DEBUG_NETWORK = !!process.env.DEBUG_TESTS;
 
 export const test = base.extend<{ workbenchPage: Page }>({
-    workbenchPage: async ({ page }, use) => {
+    // Playwright fixtures receive a "use" callback by convention, but that
+    // name triggers react-hooks/rules-of-hooks (the lint rule treats any
+    // identifier starting with "use" as a Hook). Rename to runFixture.
+    workbenchPage: async ({ page }, runFixture) => {
         page.on("pageerror", (err) => {
             console.error("[browser pageerror]", err.message);
         });
@@ -38,7 +41,7 @@ export const test = base.extend<{ workbenchPage: Page }>({
                 console.error(`✗ ${req.method()} ${req.url()} — ${req.failure()?.errorText}`);
             });
         }
-        await use(page);
+        await runFixture(page);
     },
 });
 

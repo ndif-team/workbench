@@ -172,7 +172,7 @@ function LoginContent() {
                                         <strong className="text-foreground">
                                             {pendingModel}
                                         </strong>{" "}
-                                        is a gated model are requires sign in.
+                                        is a gated model and requires sign-in.
                                     </span>
                                 </span>
                             ) : (

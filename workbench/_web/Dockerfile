@@ -57,5 +57,7 @@ USER next
 EXPOSE 3000
 # Each preview pod starts with an empty /data volume, so drizzle-kit
 # pushes the SQLite schema on boot before next start. Idempotent — no-op
-# on container restart since /data is per-pod and re-mounted empty.
-CMD ["sh", "-c", "npx drizzle-kit push --force && exec npx next start -p 3000 -H 0.0.0.0"]
+# on container restart since /data is per-pod and re-mounted empty. Log
+# bracketing the push so a failing pod's logs say *why* it never
+# reached `next start`.
+CMD ["sh", "-c", "echo '[boot] drizzle-kit push…' && npx drizzle-kit push --force && echo '[boot] schema ready, starting next' && exec npx next start -p 3000 -H 0.0.0.0"]
