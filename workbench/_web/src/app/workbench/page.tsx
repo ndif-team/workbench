@@ -69,13 +69,18 @@ export default async function WorkbenchPage({
             <div className="min-h-screen px-3 md:px-6 pb-6 bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
                 <header className="py-2 px-3 md:py-3 md:px-5 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Link href="/" className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
+                        <Link
+                            href="/"
+                            className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent"
+                        >
                             <h1 className="text-2xl font-bold">Workbench</h1>
                         </Link>
                     </div>
 
                     <nav className="flex gap-1 md:gap-3 items-center">
-                        <div className="hidden md:block"><WorkbenchStatus /></div>
+                        <div className="hidden md:block">
+                            <WorkbenchStatus />
+                        </div>
                         <Link href="https://forms.gle/WsxmZikeLNw34LBV9" target="_blank">
                             <Button
                                 variant="ghost"

@@ -77,10 +77,7 @@ export const getNextWorkspaceItemPosition = async (workspaceId: string): Promise
             .from(documents)
             .where(eq(documents.workspaceId, workspaceId)),
     ]);
-    const maxPos = Math.max(
-        Number(chartRows[0]?.max ?? -1),
-        Number(docRows[0]?.max ?? -1),
-    );
+    const maxPos = Math.max(Number(chartRows[0]?.max ?? -1), Number(docRows[0]?.max ?? -1));
     return maxPos + 1;
 };
 

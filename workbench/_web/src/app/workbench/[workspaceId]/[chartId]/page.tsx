@@ -14,7 +14,10 @@ import { useIsMutating } from "@tanstack/react-query";
 
 export default function ChartPage() {
     const isMobile = useIsMobile();
-    const isRunning = useIsMutating({ mutationKey: ["lensLine"] }) + useIsMutating({ mutationKey: ["lensGrid"] }) > 0;
+    const isRunning =
+        useIsMutating({ mutationKey: ["lensLine"] }) +
+            useIsMutating({ mutationKey: ["lensGrid"] }) >
+        0;
 
     if (isMobile === undefined) return null;
 

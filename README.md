@@ -14,6 +14,9 @@ AI Interpretability Research Platform
 <a href="https://github.com/ndif-team/workbench"><b>GitHub</b></a> | <a href="https://discord.gg/6uFJmCSwW7"><b>Discord</b></a> | <a href="https://discuss.ndif.us/"><b>Forum</b></a> | <a href="https://x.com/ndif_team"><b>Twitter</b></a>
 </p>
 
+[![Covered by Argos Visual Testing](https://argos-ci.com/badge.svg)](https://app.argos-ci.com/jon-bell/workbench/reference?utm_source=ndif&utm_campaign=oss)
+
+
 ---
 
 ## About

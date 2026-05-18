@@ -25,7 +25,8 @@ if os.environ.get('CONFIG') != "prod":
     ALLOWED_ORIGINS.append("http://localhost:3000")
 
 ALLOWED_ORIGIN_REGEX = (
-    r"^https://workbench-[a-z0-9\-]*-ndif\.vercel\.app$"  # dev/staging previews
+    # Vercel dev/staging previews + ripley-cluster PR previews.
+    r"^https://(workbench-[a-z0-9\-]*-ndif\.vercel\.app|pr-[a-z0-9\-]+\.ndif-preview\.ripley\.cloud)$"
     if os.environ.get('CONFIG') != "prod"
     else None  # in prod, rely on the fixed list above
 )
@@ -34,16 +35,26 @@ ALLOWED_ORIGIN_REGEX = (
 def fastapi_app():
     app = FastAPI()
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=ALLOWED_ORIGINS,
-        allow_origin_regex=ALLOWED_ORIGIN_REGEX,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["*"],
-        max_age=3600,
+    # In environments where the fronting ingress handles CORS (e.g. the
+    # ripley preview chart sets enable-cors annotations and needs OPTIONS
+    # to bypass auth_request *before* this app sees it), opt out of the
+    # CORSMiddleware so we don't emit duplicate Access-Control-* headers.
+    # Normalize the env var so a stray "TRUE" / " true" / "1" doesn't
+    # silently re-enable CORS and break the preview ingress.
+    skip_cors = os.environ.get("SKIP_CORS_MIDDLEWARE", "").strip().lower() in (
+        "1", "true", "yes", "on",
     )
+    if not skip_cors:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=ALLOWED_ORIGINS,
+            allow_origin_regex=ALLOWED_ORIGIN_REGEX,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=["*"],
+            max_age=3600,
+        )
 
     app.include_router(lens, prefix="/lens")
     app.include_router(logit_lens, prefix="/logit_lens")

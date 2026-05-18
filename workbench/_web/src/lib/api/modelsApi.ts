@@ -66,6 +66,9 @@ export const useGenerate = () => {
 export const getModels = async (): Promise<Model[]> => {
     const headers = await createUserHeadersAction();
     const response = await fetch(config.getApiUrl(config.endpoints.models), {
+        // Send cookies cross-origin so the oauth2-proxy session set by
+        // pr-*.ndif-preview.ripley.cloud is carried to api.pr-*.ndif-preview…
+        credentials: "include",
         headers: {
             "Content-Type": "application/json",
             ...headers,

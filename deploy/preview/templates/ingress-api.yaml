@@ -1,0 +1,47 @@
+{{- if and .Values.api.enabled .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "preview.api.name" . }}
+  labels:
+    {{- include "preview.api.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | quote }}
+    {{- if .Values.ingress.authGate.enabled }}
+    # Same forward-auth gate as the web ingress — relies on the shared
+    # cookie domain (.ndif-preview.ripley.cloud) so a single login covers
+    # both the web origin and the cross-site fetches to the api host.
+    nginx.ingress.kubernetes.io/auth-url: "https://{{ .Values.ingress.authGate.host }}/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://{{ .Values.ingress.authGate.host }}/oauth2/start?rd=$scheme://$best_http_host$escaped_request_uri"
+    {{- end }}
+    # CORS handled at the ingress, not by FastAPI: nginx-ingress's
+    # enable-cors path returns 204 for OPTIONS *before* firing the
+    # auth_request subrequest, so preflights succeed without a cookie.
+    # The api Deployment sets SKIP_CORS_MIDDLEWARE=true so the FastAPI
+    # CORSMiddleware doesn't also add (now-duplicate) headers.
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://{{ .Values.ingress.host }}"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-User-Email, X-Requested-With"
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts:
+        - {{ .Values.api.host | quote }}
+      secretName: {{ include "preview.api.name" . }}-tls
+  rules:
+    - host: {{ .Values.api.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "preview.api.name" . }}
+                port:
+                  number: {{ .Values.api.service.port }}
+{{- end }}

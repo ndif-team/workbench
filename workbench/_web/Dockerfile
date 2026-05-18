@@ -3,30 +3,50 @@
 # Build context must be the repo root (the Dockerfile path is workbench/_web/Dockerfile)
 # so the build can reach the sibling nnsightful symlink target if/when needed.
 
-FROM oven/bun:1.1 AS deps
+FROM oven/bun:1.2 AS deps
 WORKDIR /app/workbench/_web
 COPY workbench/_web/package.json workbench/_web/bun.lock* ./
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --frozen-lockfile
 
-FROM oven/bun:1.1 AS builder
+# Build under Node 20 (matches the runner stage) so the better-sqlite3
+# native module rebuild produces a binary the runtime can actually load.
+# bun's image has no npm, and the binding installed by bun is linked to
+# bun's runtime — both reasons to do the build in node:20.
+FROM node:20-slim AS builder
 WORKDIR /app/workbench/_web
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /data
 COPY --from=deps /app/workbench/_web/node_modules ./node_modules
 COPY workbench/_web ./
+# NEXT_PUBLIC_BACKEND_URL is inlined into the JS bundle by Next.js — must
+# be set at build time. Defaults to the dev placeholder so a vanilla
+# `docker build` still produces a working (but offline-backend) image.
+ARG NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 # Preview builds use sqlite + auth disabled, same shape as the E2E job.
+# next build's "Collect page data" step opens LOCAL_SQLITE_URL, so the
+# parent dir must already exist at build time (not only at runtime).
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_PUBLIC_LOCAL_DB=true \
     NEXT_PUBLIC_DISABLE_AUTH=true \
+    NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
     LOCAL_SQLITE_URL=/data/preview.db
 RUN npm rebuild better-sqlite3 \
- && bun run build
+ && npm run build
 
 FROM node:20-slim AS runner
 WORKDIR /app/workbench/_web
+# NEXT_PUBLIC_* are inlined at build time; the runtime ones must match
+# so drizzle-kit reads the same DB path that the app will query.
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    NEXT_PUBLIC_LOCAL_DB=true \
+    NEXT_PUBLIC_DISABLE_AUTH=true \
+    LOCAL_SQLITE_URL=/data/preview.db
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
@@ -35,4 +55,9 @@ RUN apt-get update \
 COPY --from=builder --chown=next:next /app/workbench/_web ./
 USER next
 EXPOSE 3000
-CMD ["npx", "next", "start", "-p", "3000", "-H", "0.0.0.0"]
+# Each preview pod starts with an empty /data volume, so drizzle-kit
+# pushes the SQLite schema on boot before next start. Idempotent — no-op
+# on container restart since /data is per-pod and re-mounted empty. Log
+# bracketing the push so a failing pod's logs say *why* it never
+# reached `next start`.
+CMD ["sh", "-c", "echo '[boot] drizzle-kit push…' && npx drizzle-kit push --force && echo '[boot] schema ready, starting next' && exec npx next start -p 3000 -H 0.0.0.0"]

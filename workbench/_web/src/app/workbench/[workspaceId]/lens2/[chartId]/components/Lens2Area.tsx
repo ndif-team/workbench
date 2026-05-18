@@ -61,7 +61,10 @@ export default function Lens2Area() {
                 setConfigModelUnavailable(null);
             }
         }
-    }, [config?.id, models, setSelectedModelIdx]);
+        // Track the full config reference (not just config?.id) so the
+        // effect re-runs when config.data.model changes — the value the
+        // effect actually reads.
+    }, [config, models, setSelectedModelIdx]);
 
     const selectedModel = useMemo(() => {
         if (!models || models.length === 0) return undefined;
@@ -81,8 +84,8 @@ export default function Lens2Area() {
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom" className="max-w-xs">
                                     <p>
-                                        Model &quot;{configModelUnavailable}&quot; is not currently available.
-                                        Please select a different model.
+                                        Model &quot;{configModelUnavailable}&quot; is not currently
+                                        available. Please select a different model.
                                     </p>
                                 </TooltipContent>
                             </Tooltip>
@@ -107,8 +110,8 @@ export default function Lens2Area() {
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="max-w-xs">
                                 <p>
-                                    Model &quot;{configModelUnavailable}&quot; is not currently available.
-                                    Please select a different model.
+                                    Model &quot;{configModelUnavailable}&quot; is not currently
+                                    available. Please select a different model.
                                 </p>
                             </TooltipContent>
                         </Tooltip>

@@ -49,12 +49,7 @@ export const useLens2 = () => {
 
     return useMutation({
         mutationKey: ["lens2"],
-        onMutate: async ({
-            lensRequest,
-        }: {
-            lensRequest: Lens2Request;
-            configId: string;
-        }) => {
+        onMutate: async ({ lensRequest }: { lensRequest: Lens2Request; configId: string }) => {
             const chartKey = queryKeys.charts.chart(lensRequest.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
@@ -67,12 +62,7 @@ export const useLens2 = () => {
                 chartKey: ReturnType<typeof queryKeys.charts.chart>;
             };
         },
-        mutationFn: async ({
-            lensRequest,
-        }: {
-            lensRequest: Lens2Request;
-            configId: string;
-        }) => {
+        mutationFn: async ({ lensRequest }: { lensRequest: Lens2Request; configId: string }) => {
             const response = await getLens2(lensRequest);
             // Store the lens2 data as chart data (in V2 format)
             await setChartData(lensRequest.chartId, response, "lens2");
@@ -93,7 +83,9 @@ export const useLens2 = () => {
             // and the auto-run effect), and useUpdateChartConfig owns that
             // invalidation. Triggering it here races the in-flight config write
             // and can cache the pre-write (stale) row.
-            const chart = queryClient.getQueryData(chartKey) as { workspaceId?: string } | undefined;
+            const chart = queryClient.getQueryData(chartKey) as
+                | { workspaceId?: string }
+                | undefined;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.sidebar(chart.workspaceId),
