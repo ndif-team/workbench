@@ -99,7 +99,7 @@ export function ActivationPatchingLandingInput({
         setPendingRangeStart(null);
         // Also clear target pairings since they depend on source positions
         setTgtPos([]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [srcTokens]);
 
     useEffect(() => {
@@ -109,7 +109,7 @@ export function ActivationPatchingLandingInput({
 
         setTgtPos([]);
         setTgtFreeze([]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tgtTokens]);
 
     // Clear stale hover when source selections change (e.g. new source added after pairing)
@@ -180,8 +180,14 @@ export function ActivationPatchingLandingInput({
                 tgtSelectedPositions={tgtPos}
                 frozenPositions={tgtFreeze}
                 onTgtTokenClick={handleTgtTokenClick}
-                onTokenHover={isConnecting && !srcEditing && !tgtEditing ? setHoverTgtIdx : undefined}
-                onTokenLeave={isConnecting && !srcEditing && !tgtEditing ? () => setHoverTgtIdx(null) : undefined}
+                onTokenHover={
+                    isConnecting && !srcEditing && !tgtEditing ? setHoverTgtIdx : undefined
+                }
+                onTokenLeave={
+                    isConnecting && !srcEditing && !tgtEditing
+                        ? () => setHoverTgtIdx(null)
+                        : undefined
+                }
             />
 
             {/* Status row - compact hints and status in one line */}
@@ -189,10 +195,14 @@ export function ActivationPatchingLandingInput({
                 {/* Hints */}
                 <div className="flex items-center gap-3 text-muted-foreground/70">
                     {!srcEditing && srcTokens.length > 0 && (
-                        <span><span className="font-medium">Shift</span> for range</span>
+                        <span>
+                            <span className="font-medium">Shift</span> for range
+                        </span>
                     )}
                     {!tgtEditing && tgtTokens.length > 0 && (
-                        <span><span className="font-medium">⌘/Ctrl</span> to freeze</span>
+                        <span>
+                            <span className="font-medium">⌘/Ctrl</span> to freeze
+                        </span>
                     )}
                 </div>
 
@@ -204,15 +214,16 @@ export function ActivationPatchingLandingInput({
                         </span>
                     )}
                     {srcPos.length > 0 && (
-                        <span className={cn(
-                            srcPos.length === tgtPos.length 
-                                ? "text-emerald-600 dark:text-emerald-400" 
-                                : "text-amber-600 dark:text-amber-400"
-                        )}>
+                        <span
+                            className={cn(
+                                srcPos.length === tgtPos.length
+                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    : "text-amber-600 dark:text-amber-400",
+                            )}
+                        >
                             {srcPos.length === tgtPos.length
                                 ? `✓ ${srcPos.length} patch${srcPos.length > 1 ? "es" : ""}`
-                                : `${srcPos.length - tgtPos.length} more target${srcPos.length - tgtPos.length > 1 ? "s" : ""}`
-                            }
+                                : `${srcPos.length - tgtPos.length} more target${srcPos.length - tgtPos.length > 1 ? "s" : ""}`}
                         </span>
                     )}
                 </div>

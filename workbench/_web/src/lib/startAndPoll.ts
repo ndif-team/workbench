@@ -51,6 +51,8 @@ async function startJob<T>(
 ): Promise<JobStartResponse<T>> {
     const response = await fetch(url, {
         method: "POST",
+        // See modelsApi.ts: send oauth2-proxy cookies cross-origin.
+        credentials: "include",
         headers: {
             "Content-Type": "application/json",
             ...headers,
@@ -68,6 +70,7 @@ async function fetchResults<T>(
 ): Promise<T> {
     const resp = await fetch(url, {
         method: "POST",
+        credentials: "include",
         headers: {
             "Content-Type": "application/json",
             ...headers,

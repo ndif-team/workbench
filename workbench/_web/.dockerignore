@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+playwright-report
+test-results
+screenshots
+e2e.db
+.env
+.env.local
+.env.*.local
+*.log

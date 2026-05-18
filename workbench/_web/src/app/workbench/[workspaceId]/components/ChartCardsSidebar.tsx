@@ -23,7 +23,16 @@ import ReportCard from "./ReportCard";
 import { SortableEntry, entryKey, type SidebarEntry } from "./SortableEntry";
 import { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
-import { Loader2, Plus, PanelLeftClose, PanelLeft, Search, FileText, Layers, GitBranch, GraduationCap } from "lucide-react";
+import {
+    Loader2,
+    Plus,
+    PanelLeftClose,
+    PanelLeft,
+    FileText,
+    Layers,
+    GitBranch,
+    GraduationCap,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -81,10 +90,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         ].sort((a, b) => {
             const posDiff = a.item.position - b.item.position;
             if (posDiff !== 0) return posDiff;
-            return (
-                new Date(a.item.createdAt).getTime() -
-                new Date(b.item.createdAt).getTime()
-            );
+            return new Date(a.item.createdAt).getTime() - new Date(b.item.createdAt).getTime();
         });
     }, [charts, reports]);
 
@@ -265,7 +271,13 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         );
     };
 
-    const isCreatingAny = isCreatingLens2 || isCreatingLogitLensIntro || isCreatingCMIntro || isCreatingPatch || isCreatingActivationPatching || isCreatingDocument;
+    const isCreatingAny =
+        isCreatingLens2 ||
+        isCreatingLogitLensIntro ||
+        isCreatingCMIntro ||
+        isCreatingPatch ||
+        isCreatingActivationPatching ||
+        isCreatingDocument;
 
     const actionButtons = (
         <div className="flex flex-col w-full gap-2 text-sm">
@@ -440,7 +452,9 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     }
 
     return (
-        <div className={`relative flex h-full flex-col ${fillWidth ? "w-full" : "w-[20vw]"} p-3 pt-3 transition-all duration-300 ease-in-out`}>
+        <div
+            className={`relative flex h-full flex-col ${fillWidth ? "w-full" : "w-[20vw]"} p-3 pt-3 transition-all duration-300 ease-in-out`}
+        >
             {/* Collapse button - centered vertically on the right edge */}
             {!fillWidth && (
                 <Button
@@ -509,17 +523,9 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                         </DndContext>
                     )}
                 </div>
-                {canInlineButtons && (
-                    <div className="pt-3">
-                        {actionButtons}
-                    </div>
-                )}
+                {canInlineButtons && <div className="pt-3">{actionButtons}</div>}
             </div>
-            {!canInlineButtons && (
-                <div className="pt-3 shrink-0">
-                    {actionButtons}
-                </div>
-            )}
+            {!canInlineButtons && <div className="pt-3 shrink-0">{actionButtons}</div>}
             {/* Hidden measure for buttons height to avoid layout feedback */}
             <div className="absolute opacity-0 -z-10 pointer-events-none" ref={buttonsMeasureRef}>
                 {actionButtons}

@@ -11,7 +11,7 @@ const isBun = typeof globalThis.Bun !== "undefined";
 
 if (process.env.NEXT_PUBLIC_LOCAL_DB === "true") {
     const sqliteUrl = process.env.LOCAL_SQLITE_URL;
-    
+
     if (isBun) {
         // Use Bun's native SQLite for better compatibility in tests
         const { Database } = require("bun:sqlite");
@@ -40,7 +40,7 @@ export const db = database;
 // Schema is created by drizzle-kit push in the test setup
 export const clearDatabase = async () => {
     if (process.env.NEXT_PUBLIC_LOCAL_DB !== "true" || !sqliteClient) return;
-    
+
     const clearStatements = `
         DELETE FROM chart_config_links;
         DELETE FROM views;
@@ -49,6 +49,6 @@ export const clearDatabase = async () => {
         DELETE FROM charts;
         DELETE FROM workspaces;
     `;
-    
+
     sqliteClient.exec(clearStatements);
 };

@@ -35,7 +35,10 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
         // Route based on tool type
         if (chart.toolType === "lens2" || chart.chartType === "lens2") {
             router.push(`/workbench/${workspaceId}/lens2/${chart.id}`);
-        } else if (chart.toolType === "activation-patching" || chart.chartType === "activation-patching") {
+        } else if (
+            chart.toolType === "activation-patching" ||
+            chart.chartType === "activation-patching"
+        ) {
             router.push(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
         } else if (chart.toolType === "logit-lens-intro" || chart.chartType === "logit-lens-intro") {
             router.push(`/workbench/${workspaceId}/logit-lens-intro/${chart.id}`);

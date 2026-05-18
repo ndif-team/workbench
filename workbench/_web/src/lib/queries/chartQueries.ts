@@ -11,12 +11,12 @@ import { LogitLensIntroConfigData } from "@/types/logitLensIntro";
 import { eq, asc, desc } from "drizzle-orm";
 import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
 
-export const setChartData = async (
-    chartId: string,
-    chartData: ChartData,
-    chartType: ChartType,
-) => {
-    const [chart] = await db.update(charts).set({ data: chartData, type: chartType }).where(eq(charts.id, chartId)).returning();
+export const setChartData = async (chartId: string, chartData: ChartData, chartType: ChartType) => {
+    const [chart] = await db
+        .update(charts)
+        .set({ data: chartData, type: chartType })
+        .where(eq(charts.id, chartId))
+        .returning();
     if (chart) await touchWorkspace(chart.workspaceId);
 };
 
@@ -86,24 +86,19 @@ export const createLensChartPair = async (
     return { chart: result.chart, config: result.config as LensConfig };
 };
 
-export const createLens2ChartPair = async (
-    workspaceId: string,
-    defaultConfig: Lens2ConfigData,
-) => createChartConfigPair(workspaceId, { type: "lens2", data: defaultConfig });
+export const createLens2ChartPair = async (workspaceId: string, defaultConfig: Lens2ConfigData) =>
+    createChartConfigPair(workspaceId, { type: "lens2", data: defaultConfig });
 
 export const createLogitLensIntroChartPair = async (
     workspaceId: string,
     defaultConfig: LogitLensIntroConfigData,
 ) => createChartConfigPair(workspaceId, { type: "logit-lens-intro", data: defaultConfig });
 
-export const createCMIntroChartPair = async (
-    workspaceId: string,
-) => createChartConfigPair(workspaceId, { type: "cm-intro", data: {} });
+export const createCMIntroChartPair = async (workspaceId: string) =>
+    createChartConfigPair(workspaceId, { type: "cm-intro", data: {} });
 
-export const createPatchChartPair = async (
-    workspaceId: string,
-    defaultConfig: PatchingConfig,
-) => createChartConfigPair(workspaceId, { type: "patch", data: defaultConfig });
+export const createPatchChartPair = async (workspaceId: string, defaultConfig: PatchingConfig) =>
+    createChartConfigPair(workspaceId, { type: "patch", data: defaultConfig });
 
 export const createActivationPatchingChartPair = async (
     workspaceId: string,
@@ -156,7 +151,14 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
         .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
         .leftJoin(configs, eq(chartConfigLinks.configId, configs.id))
         .where(eq(charts.workspaceId, workspaceId))
-        .groupBy(charts.id, charts.createdAt, charts.updatedAt, charts.position, charts.type, configs.type)
+        .groupBy(
+            charts.id,
+            charts.createdAt,
+            charts.updatedAt,
+            charts.position,
+            charts.type,
+            configs.type,
+        )
         .orderBy(asc(charts.position), asc(charts.createdAt));
 
     return rows.map(

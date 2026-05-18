@@ -1,7 +1,7 @@
 /**
  * Test setup file for database tests.
  * Sets environment variables for local SQLite testing.
- * 
+ *
  * Note: The test database schema is created by drizzle-kit push
  * which runs in the test.sh script before tests start.
  */

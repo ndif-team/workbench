@@ -39,7 +39,10 @@ export default function WorkbenchLayout({
                         <WorkbenchStatus />
                     </div>
                     <Link href="https://forms.gle/WsxmZikeLNw34LBV9" target="_blank">
-                        <Button variant="ghost" className="hidden md:flex bg-transparent hover:!white/10 border-0">
+                        <Button
+                            variant="ghost"
+                            className="hidden md:flex bg-transparent hover:!white/10 border-0"
+                        >
                             <svg
                                 width="15"
                                 height="15"

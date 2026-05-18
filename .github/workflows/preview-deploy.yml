@@ -1,0 +1,216 @@
+name: Preview Deploy
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main, dev]
+  workflow_dispatch:
+    inputs:
+      preview_id:
+        description: "Preview id. URL becomes pr-<id>.${PREVIEW_DOMAIN}. Use a PR number, or any safe slug (lowercase, hyphens, must be DNS-label-safe)."
+        required: true
+        default: "smoke"
+      ref:
+        description: "Git ref to build (branch, tag, or SHA). Defaults to the branch the workflow is dispatched from."
+        required: false
+        default: ""
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number || inputs.preview_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}/web
+  IMAGE_NAME_API: ghcr.io/${{ github.repository }}/api
+  PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}         # e.g. ndif-preview.ripley.cloud
+  PREVIEW_NAMESPACE_PREFIX: ${{ vars.PREVIEW_NAMESPACE_PREFIX || 'workbench-preview' }}
+  INGRESS_CLASS: ${{ vars.PREVIEW_INGRESS_CLASS || 'nginx' }}
+  CLUSTER_ISSUER: ${{ vars.PREVIEW_CLUSTER_ISSUER || 'letsencrypt-prod' }}
+  # In-cluster ARC runners use a glibc image; some JS actions still ship
+  # Node 20 binaries that won't load. Force them to Node 24.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build-and-deploy:
+    # Org-level self-hosted runner in arc-runners-ndif-team. The
+    # ramdisk variant mounts a 32 GiB tmpfs at the runner workspace so
+    # bun install / uv sync / next build / docker layer extraction run
+    # at RAM speed. Trade: 1-8 CPU instead of ripley-cloud-large's 4-32,
+    # but for these I/O-bound builds the wall-clock win is bigger.
+    runs-on: ripley-cloud-ramdisk
+    steps:
+      - name: Derive ref + preview id
+        id: pre
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            preview_id="${{ github.event.pull_request.number }}"
+            ref="${{ github.event.pull_request.head.sha }}"
+          else
+            preview_id="${{ inputs.preview_id }}"
+            ref="${{ inputs.ref }}"
+            [ -z "$ref" ] && ref="${{ github.ref_name }}"
+          fi
+          {
+            echo "preview_id=${preview_id}"
+            echo "ref=${ref}"
+          } | tee -a "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pre.outputs.ref }}
+
+      - name: Resolve commit SHA
+        id: meta
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          {
+            echo "preview_id=${{ steps.pre.outputs.preview_id }}"
+            echo "sha=${sha}"
+            echo "tag=pr-${{ steps.pre.outputs.preview_id }}-${sha}"
+            echo "host=pr-${{ steps.pre.outputs.preview_id }}.${PREVIEW_DOMAIN}"
+            echo "api_host=api.pr-${{ steps.pre.outputs.preview_id }}.${PREVIEW_DOMAIN}"
+            echo "namespace=${PREVIEW_NAMESPACE_PREFIX}-pr-${{ steps.pre.outputs.preview_id }}"
+          } | tee -a "$GITHUB_OUTPUT"
+
+      - name: Validate config
+        run: |
+          if [ -z "${PREVIEW_DOMAIN}" ]; then
+            echo "::error::repo variable PREVIEW_DOMAIN is required (e.g. ndif-preview.ripley.cloud)"
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: workbench/_web/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE_NAME }}:pr-${{ steps.meta.outputs.preview_id }}
+          build-args: |
+            NEXT_PUBLIC_BACKEND_URL=https://${{ steps.meta.outputs.api_host }}
+          cache-from: type=gha,scope=preview-web
+          cache-to: type=gha,mode=max,scope=preview-web
+
+      - name: Build & push api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: workbench/_api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME_API }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE_NAME_API }}:pr-${{ steps.meta.outputs.preview_id }}
+          cache-from: type=gha,scope=preview-api
+          cache-to: type=gha,mode=max,scope=preview-api
+
+      - name: Set up kubectl & helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.4
+
+      - uses: azure/setup-kubectl@v4
+
+      - name: Write kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.PREVIEW_KUBECONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Ensure namespace & image pull secret
+        env:
+          NS: ${{ steps.meta.outputs.namespace }}
+        run: |
+          kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n "$NS" create secret docker-registry ghcr-pull \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Provision api secrets
+        env:
+          NS: ${{ steps.meta.outputs.namespace }}
+          NDIF_API_KEY: ${{ secrets.NDIF_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NDIF_API_KEY:-}" ]; then
+            echo "::error::repo secret NDIF_API_KEY is required for the preview api"
+            exit 1
+          fi
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::repo secret HF_TOKEN is required for the preview api"
+            exit 1
+          fi
+          kubectl -n "$NS" create secret generic workbench-api-secrets \
+            --from-literal=NDIF_API_KEY="$NDIF_API_KEY" \
+            --from-literal=HF_TOKEN="$HF_TOKEN" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Helm upgrade --install
+        env:
+          PR_NUM: ${{ steps.meta.outputs.preview_id }}
+          SHA: ${{ steps.meta.outputs.sha }}
+          NS: ${{ steps.meta.outputs.namespace }}
+          HOST: ${{ steps.meta.outputs.host }}
+          API_HOST: ${{ steps.meta.outputs.api_host }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          helm upgrade --install "pr-${PR_NUM}" deploy/preview \
+            --namespace "$NS" \
+            --set image.repository="${IMAGE_NAME}" \
+            --set image.tag="${TAG}" \
+            --set api.image.repository="${IMAGE_NAME_API}" \
+            --set api.image.tag="${TAG}" \
+            --set api.host="${API_HOST}" \
+            --set prNumber="${PR_NUM}" \
+            --set commitSha="${SHA}" \
+            --set ingress.host="${HOST}" \
+            --set ingress.className="${INGRESS_CLASS}" \
+            --set ingress.clusterIssuer="${CLUSTER_ISSUER}" \
+            --wait --timeout 10m
+
+      - name: Write job summary
+        run: |
+          {
+            echo "### 🚀 Preview deployed"
+            echo ""
+            echo "- App: https://${{ steps.meta.outputs.host }}"
+            echo "- API: https://${{ steps.meta.outputs.api_host }}/docs"
+            echo "- Web image: \`${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}\`"
+            echo "- API image: \`${{ env.IMAGE_NAME_API }}:${{ steps.meta.outputs.tag }}\`"
+            echo "- Namespace: \`${{ steps.meta.outputs.namespace }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-deploy
+          message: |
+            🚀 **Preview deployed**
+
+            - App: https://${{ steps.meta.outputs.host }}
+            - API: https://${{ steps.meta.outputs.api_host }}/docs
+            - Web image: `${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}`
+            - API image: `${{ env.IMAGE_NAME_API }}:${{ steps.meta.outputs.tag }}`
+            - Namespace: `${{ steps.meta.outputs.namespace }}`

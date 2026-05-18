@@ -1,0 +1,68 @@
+name: Preview Teardown
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      preview_id:
+        description: "Preview id of the deployment to tear down (e.g. 113 or 'smoke')."
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  PREVIEW_NAMESPACE_PREFIX: ${{ vars.PREVIEW_NAMESPACE_PREFIX || 'workbench-preview' }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  teardown:
+    runs-on: ripley-cloud
+    steps:
+      - name: Derive preview id
+        id: meta
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            preview_id="${{ github.event.pull_request.number }}"
+          else
+            preview_id="${{ inputs.preview_id }}"
+          fi
+          {
+            echo "preview_id=${preview_id}"
+            echo "namespace=${PREVIEW_NAMESPACE_PREFIX}-pr-${preview_id}"
+          } | tee -a "$GITHUB_OUTPUT"
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.15.4
+
+      - uses: azure/setup-kubectl@v4
+
+      - name: Write kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.PREVIEW_KUBECONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Helm uninstall & delete namespace
+        env:
+          PR_NUM: ${{ steps.meta.outputs.preview_id }}
+          NS: ${{ steps.meta.outputs.namespace }}
+        run: |
+          if kubectl get namespace "$NS" >/dev/null 2>&1; then
+            helm uninstall "pr-${PR_NUM}" --namespace "$NS" --ignore-not-found
+            kubectl delete namespace "$NS" --wait=false --ignore-not-found
+          else
+            echo "Namespace $NS not found, nothing to tear down."
+          fi
+
+      - name: Update PR comment
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-deploy
+          message: |
+            🧹 Preview for PR #${{ steps.meta.outputs.preview_id }} torn down.

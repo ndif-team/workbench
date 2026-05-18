@@ -1,0 +1,13 @@
+**
+!pyproject.toml
+!uv.lock
+!workbench/**
+workbench/_web/node_modules
+workbench/_web/.next
+workbench/_web/local.db
+workbench/_web/*.db
+**/__pycache__
+**/.pytest_cache
+**/.venv
+**/.env
+**/.env.local
