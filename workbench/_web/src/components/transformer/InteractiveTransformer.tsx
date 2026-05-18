@@ -226,7 +226,7 @@ export default function LensTransformer({
 
         // Function to add event handlers to components
         const addComponentHandlers = (
-            element: d3.Selection<any, unknown, null, undefined>,
+            element: d3.Selection<d3.BaseType, unknown, null, undefined>,
             tokenIndex: number,
             layerIndex: number,
             componentType: "resid" | "attn" | "mlp" | "embed" | "unembed",

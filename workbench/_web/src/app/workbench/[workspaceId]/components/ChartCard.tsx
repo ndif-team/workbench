@@ -2,7 +2,15 @@
 
 import React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Grid3X3, ChartLine, Trash2, Copy, MoreVertical, GitBranch, GraduationCap } from "lucide-react";
+import {
+    Grid3X3,
+    ChartLine,
+    Trash2,
+    Copy,
+    MoreVertical,
+    GitBranch,
+    GraduationCap,
+} from "lucide-react";
 import Image from "next/image";
 import { ChartMetadata } from "@/types/charts";
 import { cn } from "@/lib/utils";
@@ -40,7 +48,10 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
             chart.chartType === "activation-patching"
         ) {
             router.push(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
-        } else if (chart.toolType === "logit-lens-intro" || chart.chartType === "logit-lens-intro") {
+        } else if (
+            chart.toolType === "logit-lens-intro" ||
+            chart.chartType === "logit-lens-intro"
+        ) {
             router.push(`/workbench/${workspaceId}/logit-lens-intro/${chart.id}`);
         } else if (chart.toolType === "cm-intro" || chart.chartType === "cm-intro") {
             router.push(`/workbench/${workspaceId}/cm-intro/${chart.id}`);

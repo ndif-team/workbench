@@ -60,7 +60,7 @@ export const useLensLine = () => {
             const chartKey = queryKeys.charts.chart(lensRequest.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
-            queryClient.setQueryData(chartKey, (old: any) => {
+            queryClient.setQueryData(chartKey, (old: Record<string, unknown> | undefined) => {
                 if (!old) return old;
                 return { ...old, type: "line" };
             });
@@ -82,7 +82,7 @@ export const useLensLine = () => {
         },
         onError: (error, variables, context) => {
             if (context?.previousChart) {
-                queryClient.setQueryData(context.chartKey, context.previousChart as any);
+                queryClient.setQueryData(context.chartKey, context.previousChart);
             }
             toast.error("Failed to compute lens line (timeout or error)");
         },
@@ -103,7 +103,9 @@ export const useLensLine = () => {
             // GenerateButton), and useUpdateChartConfig owns that invalidation.
             // Triggering it here races the in-flight config write and can cache
             // the pre-write (stale) row.
-            const chart = queryClient.getQueryData(chartKey) as any;
+            const chart = queryClient.getQueryData(chartKey) as
+                | { workspaceId?: string }
+                | undefined;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.sidebar(chart.workspaceId),
@@ -147,7 +149,7 @@ export const useLensGrid = () => {
             const chartKey = queryKeys.charts.chart(lensRequest.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
-            queryClient.setQueryData(chartKey, (old: any) => {
+            queryClient.setQueryData(chartKey, (old: Record<string, unknown> | undefined) => {
                 if (!old) return old;
                 return { ...old, type: "heatmap" };
             });
@@ -169,7 +171,7 @@ export const useLensGrid = () => {
         },
         onError: (error, variables, context) => {
             if (context?.previousChart) {
-                queryClient.setQueryData(context.chartKey, context.previousChart as any);
+                queryClient.setQueryData(context.chartKey, context.previousChart);
             }
             toast.error("Failed to compute grid lens (timeout or error)");
         },
@@ -190,7 +192,9 @@ export const useLensGrid = () => {
             // GenerateButton), and useUpdateChartConfig owns that invalidation.
             // Triggering it here races the in-flight config write and can cache
             // the pre-write (stale) row.
-            const chart = queryClient.getQueryData(chartKey) as any;
+            const chart = queryClient.getQueryData(chartKey) as
+                | { workspaceId?: string }
+                | undefined;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.sidebar(chart.workspaceId),

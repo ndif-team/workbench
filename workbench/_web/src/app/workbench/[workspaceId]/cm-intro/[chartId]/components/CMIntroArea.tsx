@@ -91,23 +91,20 @@ export default function CMIntroArea({
     const tgtTextareaRef = useRef<HTMLTextAreaElement>(null);
     const tgtTokenContainerRef = useRef<HTMLDivElement>(null);
 
-    const tokenize = useCallback(
-        async (text: string, model: string): Promise<Token[] | null> => {
-            try {
-                return await encodeText(text, model);
-            } catch (error) {
-                if (error instanceof TokenizerLoadError) {
-                    toast.error(
-                        `Could not load tokenizer for ${model}. The model may be gated and require authentication.`,
-                    );
-                } else {
-                    toast.error("Failed to tokenize prompt.");
-                }
-                return null;
+    const tokenize = useCallback(async (text: string, model: string): Promise<Token[] | null> => {
+        try {
+            return await encodeText(text, model);
+        } catch (error) {
+            if (error instanceof TokenizerLoadError) {
+                toast.error(
+                    `Could not load tokenizer for ${model}. The model may be gated and require authentication.`,
+                );
+            } else {
+                toast.error("Failed to tokenize prompt.");
             }
-        },
-        [],
-    );
+            return null;
+        }
+    }, []);
 
     // Initial tokenize on mount when a model becomes available
     useEffect(() => {
@@ -138,8 +135,7 @@ export default function CMIntroArea({
     const handleSrcBlur = useCallback(() => {
         setTimeout(async () => {
             const activeElement = document.activeElement;
-            const withinTextarea =
-                activeElement && srcTextareaRef.current?.contains(activeElement);
+            const withinTextarea = activeElement && srcTextareaRef.current?.contains(activeElement);
             const withinToken =
                 activeElement && srcTokenContainerRef.current?.contains(activeElement);
             if (withinTextarea || withinToken) return;
@@ -160,8 +156,7 @@ export default function CMIntroArea({
     const handleTgtBlur = useCallback(() => {
         setTimeout(async () => {
             const activeElement = document.activeElement;
-            const withinTextarea =
-                activeElement && tgtTextareaRef.current?.contains(activeElement);
+            const withinTextarea = activeElement && tgtTextareaRef.current?.contains(activeElement);
             const withinToken =
                 activeElement && tgtTokenContainerRef.current?.contains(activeElement);
             if (withinTextarea || withinToken) return;
@@ -200,11 +195,7 @@ export default function CMIntroArea({
 
     const { mutateAsync: runLogitLens, isPending: isRunning } = useCMIntroLogitLens();
 
-    const canRun =
-        !!selectedModel &&
-        !!sourcePrompt.trim() &&
-        !!targetPrompt.trim() &&
-        !isRunning;
+    const canRun = !!selectedModel && !!sourcePrompt.trim() && !!targetPrompt.trim() && !isRunning;
 
     const handleRun = useCallback(async () => {
         if (!selectedModel) {

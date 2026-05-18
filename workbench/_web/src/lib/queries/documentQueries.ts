@@ -38,7 +38,16 @@ export const updateDocument = async (
 // Extract plain text from a Lexical SerializedEditorState
 function extractPlainTextFromLexical(content: SerializedEditorState): string {
     try {
-        const visit = (node: any, lines: string[], currentLine: string[]) => {
+        type LexicalNode = {
+            type?: string;
+            text?: unknown;
+            children?: LexicalNode[];
+        };
+        const visit = (
+            node: LexicalNode | null | undefined,
+            lines: string[],
+            currentLine: string[],
+        ) => {
             if (!node) return;
             const type = node.type;
             if (type === "text" && typeof node.text === "string") {
@@ -54,7 +63,10 @@ function extractPlainTextFromLexical(content: SerializedEditorState): string {
                 currentLine.length = 0;
             }
             // For block-level nodes, terminate the line
-            if (["paragraph", "heading", "quote", "list", "listitem", "code"].includes(type)) {
+            if (
+                typeof type === "string" &&
+                ["paragraph", "heading", "quote", "list", "listitem", "code"].includes(type)
+            ) {
                 if (currentLine.length > 0) {
                     lines.push(currentLine.join(""));
                     currentLine.length = 0;
@@ -65,7 +77,7 @@ function extractPlainTextFromLexical(content: SerializedEditorState): string {
             }
         };
         const lines: string[] = [];
-        visit((content as any).root, lines, []);
+        visit((content as { root?: LexicalNode }).root, lines, []);
         return lines.join("\n");
     } catch {
         return "";

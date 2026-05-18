@@ -16,7 +16,9 @@ interface LogitLensIntroRequest {
     chartId: string;
 }
 
-const getLogitLensIntro = async (lensRequest: LogitLensIntroRequest): Promise<LogitLensIntroData> => {
+const getLogitLensIntro = async (
+    lensRequest: LogitLensIntroRequest,
+): Promise<LogitLensIntroData> => {
     const headers = await createUserHeadersAction();
 
     const request = {
@@ -77,7 +79,9 @@ export const useLogitLensIntro = () => {
             const chartKey = queryKeys.charts.chart(variables.lensRequest.chartId);
             await queryClient.invalidateQueries({ queryKey: chartKey });
 
-            const chart = queryClient.getQueryData(chartKey) as { workspaceId?: string } | undefined;
+            const chart = queryClient.getQueryData(chartKey) as
+                | { workspaceId?: string }
+                | undefined;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
                     queryKey: ["chartsForSidebar", chart.workspaceId],

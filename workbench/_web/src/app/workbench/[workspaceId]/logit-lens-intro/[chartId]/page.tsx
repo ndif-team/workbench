@@ -19,7 +19,11 @@ export default function LogitLensIntroChartPage() {
     if (isMobile) {
         return (
             <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pb-20 gap-2">
-                <MobileCollapsibleControls label="Logit Lens Intro" icon={GraduationCap} isRunning={isRunning}>
+                <MobileCollapsibleControls
+                    label="Logit Lens Intro"
+                    icon={GraduationCap}
+                    isRunning={isRunning}
+                >
                     <LogitLensIntroArea />
                 </MobileCollapsibleControls>
                 <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">

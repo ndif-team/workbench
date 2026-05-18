@@ -65,7 +65,13 @@ export interface LineViewData {
 
 // Combined Types
 
-export type ChartData = Line[] | HeatmapRow[] | Lens2Data | ActivationPatchingData | LogitLensIntroData | CMIntroChartData;
+export type ChartData =
+    | Line[]
+    | HeatmapRow[]
+    | Lens2Data
+    | ActivationPatchingData
+    | LogitLensIntroData
+    | CMIntroChartData;
 export type ChartView = HeatmapViewData | LineViewData;
 export type ConfigData =
     | LensConfigData
@@ -74,8 +80,20 @@ export type ConfigData =
     | ActivationPatchingConfigData
     | LogitLensIntroConfigData;
 
-export type ChartType = "line" | "heatmap" | "lens2" | "activation-patching" | "logit-lens-intro" | "cm-intro";
-export type ToolType = "lens" | "lens2" | "patch" | "activation-patching" | "logit-lens-intro" | "cm-intro";
+export type ChartType =
+    | "line"
+    | "heatmap"
+    | "lens2"
+    | "activation-patching"
+    | "logit-lens-intro"
+    | "cm-intro";
+export type ToolType =
+    | "lens"
+    | "lens2"
+    | "patch"
+    | "activation-patching"
+    | "logit-lens-intro"
+    | "cm-intro";
 
 export type ChartMetadata = {
     id: string;

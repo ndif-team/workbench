@@ -67,7 +67,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     );
 
     const { mutate: createLens2Pair, isPending: isCreatingLens2 } = useCreateLens2ChartPair();
-    const { mutate: createLogitLensIntroPair, isPending: isCreatingLogitLensIntro } = useCreateLogitLensIntroChartPair();
+    const { mutate: createLogitLensIntroPair, isPending: isCreatingLogitLensIntro } =
+        useCreateLogitLensIntroChartPair();
     const { mutate: createCMIntroPair, isPending: isCreatingCMIntro } = useCreateCMIntroChartPair();
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
     const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
@@ -179,7 +180,9 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (toolType: "lens2" | "patch" | "activation-patching" | "logit-lens-intro" | "cm-intro") => {
+    const handleCreate = (
+        toolType: "lens2" | "patch" | "activation-patching" | "logit-lens-intro" | "cm-intro",
+    ) => {
         if (toolType === "lens2") {
             createLens2Pair(
                 { workspaceId: workspaceId as string },

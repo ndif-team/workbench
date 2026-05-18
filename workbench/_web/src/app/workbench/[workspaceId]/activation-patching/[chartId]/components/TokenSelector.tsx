@@ -3,7 +3,14 @@
 import { useMemo } from "react";
 import { X, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Select, { MultiValue, StylesConfig, GroupBase, components } from "react-select";
+import Select, {
+    MultiValue,
+    StylesConfig,
+    GroupBase,
+    components,
+    type MultiValueProps,
+    type OptionProps,
+} from "react-select";
 
 // Option type for react-select
 interface TokenOption {
@@ -152,7 +159,7 @@ const selectStyles: StylesConfig<TokenOption, true, GroupBase<TokenOption>> = {
 };
 
 // Custom MultiValue component with colored indicator
-const CustomMultiValue = (props: any) => {
+const CustomMultiValue = (props: MultiValueProps<TokenOption, true, GroupBase<TokenOption>>) => {
     const color = LINE_COLORS[props.data.value % LINE_COLORS.length];
 
     return (
@@ -169,7 +176,9 @@ const CustomMultiValue = (props: any) => {
                 onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    props.removeProps.onClick(e);
+                    props.removeProps.onClick?.(
+                        e as unknown as React.MouseEvent<HTMLDivElement, MouseEvent>,
+                    );
                 }}
                 onMouseDown={(e) => {
                     e.preventDefault();
@@ -184,7 +193,7 @@ const CustomMultiValue = (props: any) => {
 };
 
 // Custom Option component with badges for source/target predictions
-const CustomOption = (props: any) => {
+const CustomOption = (props: OptionProps<TokenOption, true, GroupBase<TokenOption>>) => {
     const tokenIndex = props.data.value;
     const badge = tokenIndex === 0 ? "source pred" : tokenIndex === 1 ? "target pred" : null;
 

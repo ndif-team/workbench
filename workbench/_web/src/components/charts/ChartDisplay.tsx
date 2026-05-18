@@ -46,10 +46,12 @@ export function ChartDisplay() {
     const isHeatmapData =
         Array.isArray(chart?.data) &&
         chart.data.some(
-            (row: any) =>
+            (row: { data?: unknown }) =>
                 row.data &&
                 Array.isArray(row.data) &&
-                row.data.some((cell: any) => "label" in cell),
+                row.data.some(
+                    (cell: unknown) => typeof cell === "object" && cell !== null && "label" in cell,
+                ),
         );
 
     return (

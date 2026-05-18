@@ -6,7 +6,7 @@ export function register() {
 
 export const onRequestError = async (err: Error, request: NextRequest, context: NextResponse) => {
     if (process.env.NEXT_RUNTIME === "nodejs") {
-        const { getPostHogServer } = require("./src/lib/posthog-server");
+        const { getPostHogServer } = await import("./src/lib/posthog-server");
         const posthog = await getPostHogServer();
 
         // Only capture exception if PostHog is enabled

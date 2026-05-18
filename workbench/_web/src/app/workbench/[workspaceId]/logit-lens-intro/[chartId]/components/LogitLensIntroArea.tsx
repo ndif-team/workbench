@@ -80,8 +80,8 @@ export default function LogitLensIntroArea() {
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom" className="max-w-xs">
                                     <p>
-                                        Model &quot;{configModelUnavailable}&quot; is not currently available.
-                                        Please select a different model.
+                                        Model &quot;{configModelUnavailable}&quot; is not currently
+                                        available. Please select a different model.
                                     </p>
                                 </TooltipContent>
                             </Tooltip>
@@ -106,8 +106,8 @@ export default function LogitLensIntroArea() {
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="max-w-xs">
                                 <p>
-                                    Model &quot;{configModelUnavailable}&quot; is not currently available.
-                                    Please select a different model.
+                                    Model &quot;{configModelUnavailable}&quot; is not currently
+                                    available. Please select a different model.
                                 </p>
                             </TooltipContent>
                         </Tooltip>

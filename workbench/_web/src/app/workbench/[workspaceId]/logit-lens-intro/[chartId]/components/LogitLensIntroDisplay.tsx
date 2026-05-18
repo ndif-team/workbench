@@ -65,15 +65,52 @@ function transformToEduFormat(data: LogitLensIntroData): LogitLensData | null {
 
 function generateMockData(): LogitLensData {
     const tokens = [
-        "The", "E", "iff", "el", "Tower", "is", "in", "the",
-        "city", "of", "Paris", ",", "France", ".",
+        "The",
+        "E",
+        "iff",
+        "el",
+        "Tower",
+        "is",
+        "in",
+        "the",
+        "city",
+        "of",
+        "Paris",
+        ",",
+        "France",
+        ".",
     ];
     const layers = Array.from({ length: 12 }, (_, i) => i);
     const vocab = [
-        "t", "bow", "illi", "Tower", "el", "France", "Paris",
-        "tower", "city", "of", "the", "in", "is", "a", "and",
-        "Eiff", "to", "built", "was", "meters", "at", "by",
-        "from", "with", "on", "for", "an", "stands", "tall",
+        "t",
+        "bow",
+        "illi",
+        "Tower",
+        "el",
+        "France",
+        "Paris",
+        "tower",
+        "city",
+        "of",
+        "the",
+        "in",
+        "is",
+        "a",
+        "and",
+        "Eiff",
+        "to",
+        "built",
+        "was",
+        "meters",
+        "at",
+        "by",
+        "from",
+        "with",
+        "on",
+        "for",
+        "an",
+        "stands",
+        "tall",
     ];
 
     const data: LogitCell[][] = tokens.map((token) => {
@@ -86,7 +123,8 @@ function generateMockData(): LogitLensData {
                 primaryToken = vocab[Math.floor(Math.random() * vocab.length)];
                 prob = 0.05 + Math.random() * 0.15;
             } else if (convergence < 0.6) {
-                primaryToken = Math.random() > 0.5 ? token : vocab[Math.floor(Math.random() * vocab.length)];
+                primaryToken =
+                    Math.random() > 0.5 ? token : vocab[Math.floor(Math.random() * vocab.length)];
                 prob = 0.2 + Math.random() * 0.3;
             } else {
                 primaryToken = token;
@@ -97,7 +135,10 @@ function generateMockData(): LogitLensData {
             const topTokens: { token: string; prob: number }[] = [{ token: primaryToken, prob }];
             let remaining = (1 - prob) * 0.4;
             for (let i = 0; i < 14; i++) {
-                topTokens.push({ token: vocab[Math.floor(Math.random() * vocab.length)], prob: remaining });
+                topTokens.push({
+                    token: vocab[Math.floor(Math.random() * vocab.length)],
+                    prob: remaining,
+                });
                 remaining *= 0.7;
             }
 

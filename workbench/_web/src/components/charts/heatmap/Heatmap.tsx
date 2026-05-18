@@ -17,7 +17,7 @@ interface HeatmapProps {
     useTooltip?: boolean;
     onMouseMove?: (e: React.MouseEvent) => void;
     onMouseLeave?: () => void;
-    onMouseDown?: (e: React.MouseEvent<any>) => void;
+    onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void;
     statisticType?: Metrics;
 }
 

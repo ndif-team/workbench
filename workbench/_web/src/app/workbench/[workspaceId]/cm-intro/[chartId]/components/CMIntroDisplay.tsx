@@ -108,7 +108,8 @@ export function CMIntroDisplay({ sourcePrompt, targetPrompt, lensResult }: CMInt
         return transformToEduFormat(persistedData.result);
     }, [persistedData]);
 
-    const { mutateAsync: runIntervention, isPending: isInterventionPending } = useCMIntroIntervention();
+    const { mutateAsync: runIntervention, isPending: isInterventionPending } =
+        useCMIntroIntervention();
 
     const handleIntervention = useCallback(
         async (i: Intervention): Promise<LogitLensData | null> => {

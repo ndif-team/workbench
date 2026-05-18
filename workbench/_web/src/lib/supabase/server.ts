@@ -28,7 +28,7 @@ export async function createClient() {
             storage: {
                 from: () => ({}),
             },
-        } as any;
+        } as unknown as ReturnType<typeof createServerClient>;
     }
 
     return createServerClient(

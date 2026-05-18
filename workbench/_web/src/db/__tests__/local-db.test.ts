@@ -191,7 +191,7 @@ describe("Chart Queries", () => {
             patches: [{ layer: 1, position: 0, value: 0.5 }],
         };
 
-        const { chart, config } = await createPatchChartPair(workspaceId, patchConfig as any);
+        const { chart, config } = await createPatchChartPair(workspaceId, patchConfig as never);
 
         expect(chart).toBeDefined();
         expect(config.type).toBe("patch");
@@ -224,7 +224,7 @@ describe("Chart Queries", () => {
             labels: ["a", "b", "c"],
         };
 
-        await setChartData(chart.id, chartData as any, "line");
+        await setChartData(chart.id, chartData as never, "line");
         const updated = await getChartById(chart.id);
 
         expect(updated!.data).toEqual(chartData);
@@ -278,7 +278,7 @@ describe("Chart Queries", () => {
             createTestLensConfig("original"),
         );
         await updateChartName(original.id, "Original Chart");
-        await setChartData(original.id, { test: "data" } as any, "heatmap");
+        await setChartData(original.id, { test: "data" } as never, "heatmap");
 
         const copy = await copyChart(original.id);
 
@@ -394,7 +394,7 @@ describe("View Queries", () => {
     it("should update view data", async () => {
         const view = await createView({ chartId, data: { original: true } });
 
-        const updated = await updateView(view.id, { updated: true, zoom: 2 } as any);
+        const updated = await updateView(view.id, { updated: true, zoom: 2 } as never);
 
         expect(updated.data).toEqual({ updated: true, zoom: 2 });
     });
@@ -424,7 +424,9 @@ describe("Document Queries", () => {
         expect(doc.workspaceId).toBe(workspaceId);
         expect(doc.content).toBeDefined();
         // Default content has a heading "Overview"
-        expect((doc.content as any).root.children[0].type).toBe("heading");
+        expect(
+            (doc.content as { root: { children: { type: string }[] } }).root.children[0].type,
+        ).toBe("heading");
     });
 
     it("should get document by ID", async () => {
@@ -458,7 +460,7 @@ describe("Document Queries", () => {
             },
         };
 
-        const updated = await updateDocument(doc.id, newContent as any);
+        const updated = await updateDocument(doc.id, newContent as never);
 
         expect(updated.content).toEqual(newContent);
     });
@@ -509,7 +511,7 @@ describe("JSON Storage in SQLite", () => {
             booleanFalse: false,
         };
 
-        await setChartData(chart.id, complexData as any, "heatmap");
+        await setChartData(chart.id, complexData as never, "heatmap");
         const retrieved = await getChartById(chart.id);
 
         expect(retrieved!.data).toEqual(complexData);
@@ -523,7 +525,7 @@ describe("JSON Storage in SQLite", () => {
             unicode: "Unicode: 日本語, émojis 🎉",
         };
 
-        await setChartData(chart.id, specialData as any, "line");
+        await setChartData(chart.id, specialData as never, "line");
         const retrieved = await getChartById(chart.id);
 
         expect(retrieved!.data).toEqual(specialData);
@@ -558,7 +560,7 @@ describe("Cross-Table Relationships", () => {
         );
         const { chart: chart2 } = await createPatchChartPair(workspace.id, {
             patches: [],
-        } as any);
+        } as never);
 
         // Verify charts belong to workspace
         const metadata = await getChartsMetadata(workspace.id);

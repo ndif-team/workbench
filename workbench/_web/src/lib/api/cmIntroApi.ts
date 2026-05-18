@@ -106,9 +106,7 @@ export const useCMIntroIntervention = () => {
 
     return useMutation({
         mutationKey: ["cmIntroIntervention"],
-        mutationFn: async (
-            request: CMIntroInterventionRequest,
-        ): Promise<LogitLensIntroData> => {
+        mutationFn: async (request: CMIntroInterventionRequest): Promise<LogitLensIntroData> => {
             const headers = await createUserHeadersAction();
             const topk = request.topk ?? 5;
             const includeEntropy = request.includeEntropy ?? true;

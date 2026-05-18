@@ -19,27 +19,27 @@ export function hslFromCssVar(name: string, fallback = "#000000"): string {
  * Recursively processes a theme object, converting CSS variable strings to concrete colors
  * for Canvas compatibility. Only processes strings that match the pattern "hsl(var(--...))"
  */
-export function resolveThemeCssVars(obj: any): any {
+export function resolveThemeCssVars<T>(obj: T): T {
     if (typeof obj === "string") {
         // Match CSS variable pattern: hsl(var(--variable-name))
         const cssVarMatch = obj.match(/^hsl\(var\((--.+?)\)\)$/);
         if (cssVarMatch) {
             const varName = cssVarMatch[1];
-            return hslFromCssVar(varName, obj); // fallback to original if resolution fails
+            return hslFromCssVar(varName, obj) as T; // fallback to original if resolution fails
         }
         return obj;
     }
 
     if (Array.isArray(obj)) {
-        return obj.map(resolveThemeCssVars);
+        return obj.map(resolveThemeCssVars) as T;
     }
 
     if (obj !== null && typeof obj === "object") {
-        const result: any = {};
+        const result: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(obj)) {
             result[key] = resolveThemeCssVars(value);
         }
-        return result;
+        return result as T;
     }
 
     return obj;

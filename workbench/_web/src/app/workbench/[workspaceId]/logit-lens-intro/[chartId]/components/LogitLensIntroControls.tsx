@@ -71,7 +71,10 @@ function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }
     );
 }
 
-export function LogitLensIntroControls({ initialConfig, selectedModel }: LogitLensIntroControlsProps) {
+export function LogitLensIntroControls({
+    initialConfig,
+    selectedModel,
+}: LogitLensIntroControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
     const [prompt, setPrompt] = useState(initialConfig.data?.prompt || "");

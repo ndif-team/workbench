@@ -19,7 +19,7 @@ const config = {
 interface JobStartResponse<T> {
     job_id: string | null;
     data?: T;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 function awaitNDIFJob(jobId: string): void {
@@ -52,7 +52,7 @@ function awaitNDIFJob(jobId: string): void {
     }
 }
 
-function startJob<T>(url: string, body: any): JobStartResponse<T> {
+function startJob<T>(url: string, body: unknown): JobStartResponse<T> {
     const response = http.post(url, JSON.stringify(body), {
         headers: { "Content-Type": "application/json" },
     });
@@ -64,7 +64,7 @@ function startJob<T>(url: string, body: any): JobStartResponse<T> {
     return JSON.parse(response.body as string) as JobStartResponse<T>;
 }
 
-function fetchResults<T>(url: string, body: any): T {
+function fetchResults<T>(url: string, body: unknown): T {
     const resp = http.post(url, JSON.stringify(body), {
         headers: { "Content-Type": "application/json" },
     });
@@ -83,7 +83,7 @@ export interface PollResult<T> {
 
 export function startAndPoll<T>(
     startEndpoint: string,
-    body: any,
+    body: unknown,
     resultsEndpoint: (jobId: string) => string,
 ): PollResult<T> {
     const startTime = Date.now();
@@ -95,7 +95,7 @@ export function startAndPoll<T>(
         awaitNDIFJob(jobId);
 
         const resultsUrl = config.getApiUrl(resultsEndpoint(jobId));
-        const results = fetchResults<any>(resultsUrl, body);
+        const results = fetchResults<unknown>(resultsUrl, body);
 
         const pollDuration = Date.now() - startTime;
 
