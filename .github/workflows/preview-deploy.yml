@@ -1,8 +1,21 @@
 name: Preview Deploy
 
+# Uses `pull_request_target` (not `pull_request`) so that PRs from forks
+# can deploy previews. With `pull_request_target` the workflow file runs
+# in the context of the BASE repo — secrets are available and the YAML
+# itself comes from the default branch, so a fork can't tamper with the
+# pipeline. We still check out the fork's HEAD to build their code, and
+# we gate fork PRs behind a maintainer-applied label so a hostile fork
+# can't drain cluster resources / GHCR storage just by opening a PR.
+#
+# Security model:
+#   - Same-repo PR: deploys automatically (existing behavior).
+#   - Fork PR: a maintainer adds the `preview-deploy` label. From that
+#     point, pushes to the PR redeploy automatically while the label is
+#     present. Removing the label tears down (see preview-teardown.yml).
 on:
-  pull_request:
-    types: [opened, reopened, synchronize]
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled]
     branches: [main, dev]
   workflow_dispatch:
     inputs:
@@ -36,7 +49,35 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  # Fork PRs without the `preview-deploy` label get a one-time sticky
+  # comment explaining the gate, so the contributor isn't left
+  # wondering why no preview appeared. The sticky-comment header is
+  # shared with the deploy job so once a maintainer labels the PR, the
+  # next deploy overwrites this message with the preview URL.
+  gate-message:
+    if: |
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name != github.repository &&
+      !contains(github.event.pull_request.labels.*.name, 'preview-deploy')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-deploy
+          message: |
+            🔒 **Preview deploy gated.**
+
+            Preview deploys are off by default for PRs from forks — they would otherwise expose this repo's deploy secrets to untrusted code. A maintainer will add the `preview-deploy` label after reviewing the changes; once labeled, every push will redeploy a preview automatically.
+
   build-and-deploy:
+    # Skip fork PRs that haven't been blessed by a maintainer. Same-repo
+    # PRs (head.repo == base repo) always run; fork PRs require the
+    # `preview-deploy` label. Manual workflow_dispatch is always allowed
+    # (maintainer-initiated).
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository ||
+      contains(github.event.pull_request.labels.*.name, 'preview-deploy')
     # Org-level self-hosted runner in arc-runners-ndif-team. The
     # ramdisk variant mounts a 32 GiB tmpfs at the runner workspace so
     # bun install / uv sync / next build / docker layer extraction run
@@ -48,8 +89,12 @@ jobs:
         id: pre
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
             preview_id="${{ github.event.pull_request.number }}"
+            # head.sha is correct for both same-repo and fork PRs; the
+            # base repo mirrors fork heads to refs/pull/<n>/head, so the
+            # SHA is fetchable in the base-repo context that
+            # pull_request_target runs in.
             ref="${{ github.event.pull_request.head.sha }}"
           else
             preview_id="${{ inputs.preview_id }}"
@@ -61,9 +106,14 @@ jobs:
             echo "ref=${ref}"
           } | tee -a "$GITHUB_OUTPUT"
 
+      # Explicitly check out the PR head — pull_request_target defaults
+      # to the base branch, which would build the wrong code. We pass
+      # `persist-credentials: false` so the fork's build steps don't
+      # have a base-repo-scoped git token sitting in .git/config.
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.pre.outputs.ref }}
+          persist-credentials: false
 
       - name: Resolve commit SHA
         id: meta
@@ -202,7 +252,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Comment preview URL on PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: preview-deploy

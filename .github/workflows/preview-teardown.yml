@@ -1,8 +1,12 @@
 name: Preview Teardown
 
+# Mirror preview-deploy.yml's use of pull_request_target so we can tear
+# down fork-PR previews too (which `pull_request` couldn't, since it
+# has no secrets on fork PRs). Also fires on `unlabeled` so removing
+# the `preview-deploy` label from a fork PR cleans up its preview.
 on:
-  pull_request:
-    types: [closed]
+  pull_request_target:
+    types: [closed, unlabeled]
   workflow_dispatch:
     inputs:
       preview_id:
@@ -19,13 +23,28 @@ env:
 
 jobs:
   teardown:
+    # Run when:
+    #   - workflow_dispatch (maintainer-initiated)
+    #   - PR closed AND we actually deployed a preview for it: either
+    #     same-repo (always deploys) or fork PR that had the
+    #     `preview-deploy` label at close time
+    #   - `preview-deploy` label was just removed (regardless of close
+    #     state) — that's the explicit "stop previewing this fork PR"
+    #     gesture
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.action == 'closed' && (
+        github.event.pull_request.head.repo.full_name == github.repository ||
+        contains(github.event.pull_request.labels.*.name, 'preview-deploy')
+      )) ||
+      (github.event.action == 'unlabeled' && github.event.label.name == 'preview-deploy')
     runs-on: ripley-cloud
     steps:
       - name: Derive preview id
         id: meta
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
             preview_id="${{ github.event.pull_request.number }}"
           else
             preview_id="${{ inputs.preview_id }}"
@@ -60,7 +79,7 @@ jobs:
           fi
 
       - name: Update PR comment
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: preview-deploy
