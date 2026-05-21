@@ -25,7 +25,9 @@ export interface CMIntroLensRequest {
 
 export interface CMIntroLensResult {
     source: LogitLensIntroData;
-    target: LogitLensIntroData;
+    // Optional: when the user runs CM Intro in single-prompt mode (target blank)
+    // we only compute the source lens.
+    target: LogitLensIntroData | null;
 }
 
 export interface CMIntroInterventionRequest {
@@ -67,10 +69,19 @@ export const useCMIntroLogitLens = () => {
             const headers = await createUserHeadersAction();
             const topk = request.topk ?? 5;
             const includeEntropy = request.includeEntropy ?? true;
+            const hasTarget = !!request.targetPrompt && request.targetPrompt.trim().length > 0;
 
             const [source, target] = await Promise.all([
                 runLogitLens(request.sourcePrompt, request.model, topk, includeEntropy, headers),
-                runLogitLens(request.targetPrompt, request.model, topk, includeEntropy, headers),
+                hasTarget
+                    ? runLogitLens(
+                          request.targetPrompt,
+                          request.model,
+                          topk,
+                          includeEntropy,
+                          headers,
+                      )
+                    : Promise.resolve(null as unknown as LogitLensIntroData | null),
             ]);
 
             // Running the base lens invalidates any prior intervention/result,
@@ -85,7 +96,7 @@ export const useCMIntroLogitLens = () => {
                 lastRunSourcePrompt: request.sourcePrompt,
                 lastRunTargetPrompt: request.targetPrompt,
                 source,
-                target,
+                ...(target ? { target } : {}),
             };
             await setChartData(request.chartId, persisted, "cm-intro");
 

@@ -212,7 +212,10 @@ export default function CMIntroArea({
 
     const { mutateAsync: runLogitLens, isPending: isRunning } = useCMIntroLogitLens();
 
-    const canRun = !!selectedModel && !!sourcePrompt.trim() && !!targetPrompt.trim() && !isRunning;
+    // Target is optional: when blank, CM Intro runs in single-prompt mode and
+    // only computes the source lens. The widget hides the target heatmap and
+    // disables drag-and-drop patching in that mode.
+    const canRun = !!selectedModel && !!sourcePrompt.trim() && !isRunning;
 
     const handleRun = useCallback(async () => {
         if (!selectedModel) {
@@ -221,8 +224,8 @@ export default function CMIntroArea({
         }
         const src = sourcePrompt.trim();
         const tgt = targetPrompt.trim();
-        if (!src || !tgt) {
-            toast.error("Please enter both source and target prompts.");
+        if (!src) {
+            toast.error("Please enter a source prompt.");
             return;
         }
 
@@ -234,12 +237,12 @@ export default function CMIntroArea({
         try {
             const result = await runLogitLens({
                 sourcePrompt: src,
-                targetPrompt: tgt,
+                targetPrompt: tgt, // empty string is fine — mutation skips the call
                 model: selectedModel,
                 chartId,
             });
             onLensResult?.(result, src, tgt);
-            toast.success("Logit lens computed for both prompts.");
+            toast.success(tgt ? "Logit lens computed for both prompts." : "Logit lens computed.");
         } catch (error) {
             // Error toast handled by the mutation's onError.
         }
