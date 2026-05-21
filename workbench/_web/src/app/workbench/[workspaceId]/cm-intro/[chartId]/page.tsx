@@ -119,6 +119,8 @@ export default function CMIntroChartPage() {
                         sourcePrompt={sourcePrompt}
                         targetPrompt={targetPrompt}
                         lensResult={lensResult}
+                        lastRunSrcPrompt={lastRunSrcPrompt}
+                        lastRunTgtPrompt={lastRunTgtPrompt}
                     />
                 </div>
                 <MobileSidebarDrawer />

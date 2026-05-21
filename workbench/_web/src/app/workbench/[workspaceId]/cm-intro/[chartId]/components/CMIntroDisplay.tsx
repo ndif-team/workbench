@@ -13,10 +13,53 @@ import { CMIntroLensResult, useCMIntroIntervention } from "@/lib/api/cmIntroApi"
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
 import type { CMIntroChartData } from "@/types/cmIntro";
 
+function CMSkeleton({ message, showTarget }: { message: string; showTarget: boolean }) {
+    const SkeletonGrid = () => (
+        <div className="rounded-lg border bg-secondary/30 p-4 animate-pulse">
+            <div className="h-3 w-32 mb-3 rounded bg-muted-foreground/20" />
+            <div
+                className="grid gap-1"
+                style={{
+                    gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
+                    gridTemplateRows: "repeat(5, minmax(0, 1fr))",
+                }}
+            >
+                {Array.from({ length: 40 }).map((_, i) => (
+                    <div key={i} className="h-6 w-full rounded-sm bg-muted-foreground/15" />
+                ))}
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="flex flex-col gap-4">
+            <div className="rounded-md border border-dashed border-border bg-secondary/50 px-4 py-3 text-sm text-muted-foreground text-center">
+                {message}
+            </div>
+            <div
+                className="grid gap-4"
+                style={{
+                    gridTemplateColumns: showTarget
+                        ? "minmax(0, 1fr) minmax(0, 1fr)"
+                        : "minmax(0, 1fr)",
+                }}
+            >
+                <SkeletonGrid />
+                {showTarget && <SkeletonGrid />}
+            </div>
+        </div>
+    );
+}
+
 interface CMIntroDisplayProps {
     sourcePrompt: string;
     targetPrompt: string;
     lensResult?: CMIntroLensResult | null;
+    // Snapshots of the prompts the ephemeral lensResult was actually computed
+    // for. Used to detect "user edited the prompts after the last run" so we
+    // can show a placeholder instead of a stale heatmap.
+    lastRunSrcPrompt?: string | null;
+    lastRunTgtPrompt?: string | null;
 }
 
 /**
@@ -61,7 +104,13 @@ function transformToEduFormat(data: LogitLensIntroData): LogitLensData | undefin
     return { tokens: input, layers, data: cellData };
 }
 
-export function CMIntroDisplay({ sourcePrompt, targetPrompt, lensResult }: CMIntroDisplayProps) {
+export function CMIntroDisplay({
+    sourcePrompt,
+    targetPrompt,
+    lensResult,
+    lastRunSrcPrompt,
+    lastRunTgtPrompt,
+}: CMIntroDisplayProps) {
     const { chartId } = useParams<{ chartId: string }>();
     const { selectedModelIdx } = useWorkspace();
 
@@ -83,26 +132,50 @@ export function CMIntroDisplay({ sourcePrompt, targetPrompt, lensResult }: CMInt
         enabled: !!chartId,
     });
 
+    // Source is always required; target may be absent in single-prompt mode.
     const persistedData = useMemo<CMIntroChartData | null>(() => {
         const raw = chart?.data as unknown;
         if (!raw || typeof raw !== "object") return null;
         const maybe = raw as Partial<CMIntroChartData>;
-        if (!maybe.source || !maybe.target) return null;
+        if (!maybe.source) return null;
         return maybe as CMIntroChartData;
     }, [chart]);
 
-    // Prefer the ephemeral prop result (just-computed this session), otherwise fall back to persisted.
-    const sourceData = useMemo(() => {
-        if (lensResult?.source) return transformToEduFormat(lensResult.source);
-        if (persistedData?.source) return transformToEduFormat(persistedData.source);
-        return undefined;
-    }, [lensResult, persistedData]);
+    const trimmedTarget = targetPrompt.trim();
+    const targetExpected = trimmedTarget.length > 0;
 
-    const targetData = useMemo(() => {
-        if (lensResult?.target) return transformToEduFormat(lensResult.target);
-        if (persistedData?.target) return transformToEduFormat(persistedData.target);
-        return undefined;
-    }, [lensResult, persistedData]);
+    // "Live" data with its provenance (what prompts produced it). The ephemeral
+    // lensResult wins over persisted; we use the *RunPrompt snapshots to decide
+    // whether the current textareas still match what was run.
+    const liveSourceRaw = lensResult?.source ?? persistedData?.source;
+    const liveTargetRaw = lensResult?.target ?? persistedData?.target;
+    const liveSrcRun =
+        lensResult?.source != null
+            ? lastRunSrcPrompt ?? null
+            : persistedData?.lastRunSourcePrompt ?? null;
+    const liveTgtRun =
+        lensResult?.source != null
+            ? lastRunTgtPrompt ?? null
+            : persistedData?.lastRunTargetPrompt ?? null;
+
+    const hasAnyData = !!liveSourceRaw;
+    const isStale =
+        hasAnyData &&
+        ((liveSrcRun !== null && liveSrcRun !== sourcePrompt) ||
+            (liveTgtRun !== null && liveTgtRun !== targetPrompt));
+    // No source data yet, OR target was expected (two-prompt mode) but is missing.
+    const isMissingExpectedData = !liveSourceRaw || (targetExpected && !liveTargetRaw);
+
+    const showPlaceholder = isStale || isMissingExpectedData;
+
+    const sourceData = useMemo(
+        () => (showPlaceholder || !liveSourceRaw ? undefined : transformToEduFormat(liveSourceRaw)),
+        [showPlaceholder, liveSourceRaw],
+    );
+    const targetData = useMemo(
+        () => (showPlaceholder || !liveTargetRaw ? undefined : transformToEduFormat(liveTargetRaw)),
+        [showPlaceholder, liveTargetRaw],
+    );
 
     // Undefined (not null) when absent, so CausalMediationExplorer treats the
     // result as uncontrolled and falls back to internal state populated by the
@@ -139,6 +212,17 @@ export function CMIntroDisplay({ sourcePrompt, targetPrompt, lensResult }: CMInt
         },
         [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention],
     );
+
+    if (showPlaceholder) {
+        const message = isStale
+            ? "Prompts changed since the last run. Click Run to recompute the lens."
+            : "No analysis yet. Enter a prompt and click Run to compute the lens.";
+        return (
+            <div className="size-full overflow-auto p-6">
+                <CMSkeleton message={message} showTarget={targetExpected} />
+            </div>
+        );
+    }
 
     return (
         <div className="size-full overflow-auto">
