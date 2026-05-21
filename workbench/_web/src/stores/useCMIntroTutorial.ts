@@ -1,0 +1,38 @@
+import { create } from "zustand";
+
+const STORAGE_KEY = "workbench:cm-intro-tutorial-completed:v1";
+
+interface CMIntroTutorialState {
+    completed: boolean;
+    markCompleted: () => void;
+    reset: () => void;
+}
+
+function readCompleted(): boolean {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(STORAGE_KEY) === "true";
+}
+
+export const useCMIntroTutorial = create<CMIntroTutorialState>()((set) => ({
+    completed: false,
+    markCompleted: () => {
+        if (typeof window !== "undefined") {
+            localStorage.setItem(STORAGE_KEY, "true");
+        }
+        set({ completed: true });
+    },
+    reset: () => {
+        if (typeof window !== "undefined") {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+        set({ completed: false });
+    },
+}));
+
+/**
+ * Hydrate from localStorage on the client. Call once at mount in a client
+ * component.
+ */
+export function hydrateCMIntroTutorial() {
+    useCMIntroTutorial.setState({ completed: readCompleted() });
+}

@@ -225,7 +225,7 @@ export function CMIntroDisplay({
     }
 
     return (
-        <div className="size-full overflow-auto">
+        <div id="cm-intro-display" className="size-full overflow-auto">
             <CausalMediationExplorer
                 sourcePromptText={sourcePrompt}
                 targetPromptText={targetPrompt}

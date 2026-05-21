@@ -7,6 +7,9 @@ import { ModelSelector } from "@/components/ModelSelector";
 import { AlertCircle, Loader2, Play } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { useTour } from "@reactour/tour";
+import { CMIntroTutorial } from "@/tutorials/cmIntro";
+import { useCMIntroTutorial, hydrateCMIntroTutorial } from "@/stores/useCMIntroTutorial";
 import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { encodeText } from "@/actions/tok";
@@ -55,6 +58,40 @@ interface CMIntroAreaProps {
     lensResult?: CMIntroLensResult | null;
     lastRunSrcPrompt?: string | null;
     lastRunTgtPrompt?: string | null;
+}
+
+function useTutorialAutoStart() {
+    const { setSteps, setIsOpen, isOpen } = useTour();
+    const { completed, markCompleted } = useCMIntroTutorial();
+    // Auto-start fires at most once per mount; dismissing then resaving the
+    // localStorage flag prevents a popup loop (same pattern as lens-intro).
+    const autoStartedRef = useRef(false);
+
+    useEffect(() => {
+        hydrateCMIntroTutorial();
+    }, []);
+
+    useEffect(() => {
+        if (autoStartedRef.current || completed || isOpen) return;
+        if (!setSteps || !setIsOpen) return;
+        autoStartedRef.current = true;
+        const steps = CMIntroTutorial.chapters[0]?.steps ?? [];
+        setSteps(steps);
+        const id = setTimeout(() => {
+            setIsOpen(true);
+            markCompleted();
+        }, 600);
+        return () => clearTimeout(id);
+    }, [completed, isOpen, setSteps, setIsOpen, markCompleted]);
+
+    const startTutorial = () => {
+        if (!setSteps || !setIsOpen) return;
+        const steps = CMIntroTutorial.chapters[0]?.steps ?? [];
+        setSteps(steps);
+        setIsOpen(true);
+    };
+
+    return { startTutorial };
 }
 
 export default function CMIntroArea({
@@ -248,9 +285,11 @@ export default function CMIntroArea({
         }
     }, [selectedModel, sourcePrompt, targetPrompt, runLogitLens, onLensResult, chartId]);
 
+    const { startTutorial } = useTutorialAutoStart();
+
     return (
         <div className="h-full flex flex-col md:min-w-64">
-            <div className="p-3 border-b flex items-center justify-between">
+            <div id="cm-intro-welcome" className="p-3 border-b flex items-center justify-between">
                 <h2 className="text-sm pl-2 font-medium">CM Intro</h2>
                 <div className="flex items-center gap-2">
                     {configModelUnavailable && (
@@ -266,11 +305,20 @@ export default function CMIntroArea({
                             </TooltipContent>
                         </Tooltip>
                     )}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-muted-foreground"
+                        onClick={startTutorial}
+                    >
+                        Tutorial
+                    </Button>
                     <ModelSelector />
                 </div>
             </div>
 
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
+                <div id="cm-intro-source-prompt">
                 <PatchPromptSection
                     variant="source"
                     mode="full"
@@ -290,7 +338,9 @@ export default function CMIntroArea({
                     onSrcTokenClick={() => {}}
                     predictionToken={srcPrediction}
                 />
+                </div>
 
+                <div id="cm-intro-target-prompt">
                 <PatchPromptSection
                     variant="target"
                     mode="full"
@@ -310,8 +360,10 @@ export default function CMIntroArea({
                     onTgtTokenClick={() => {}}
                     predictionToken={tgtPrediction}
                 />
+                </div>
 
                 <Button
+                    id="cm-intro-run"
                     onClick={handleRun}
                     disabled={!canRun}
                     className="w-full bg-violet-500 hover:bg-violet-600 text-white"
