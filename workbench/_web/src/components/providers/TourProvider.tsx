@@ -12,21 +12,68 @@ function ContentComponent({
     steps,
     setIsOpen,
     setCurrentStep,
-    ...props
 }: PopoverContentProps) {
-    const content = steps[currentStep].content;
+    const step = steps[currentStep];
+    const content = step.content;
 
     if (typeof content === "function") {
         return <div>Unsupported content type</div>;
     }
 
-    if (steps[currentStep].selector === "sidebar") {
+    if (step.selector === "sidebar") {
         return <></>;
     }
 
+    const isFirst = currentStep === 0;
+    const isLast = currentStep === steps.length - 1;
+
     return (
-        <div className="bg-card border w-full h-full p-4 rounded">
-            {renderTextWithBackticks(content as string)}
+        <div className="bg-card border rounded flex flex-col gap-3 p-4 w-full h-full min-w-[280px] max-w-[420px]">
+            <div className="flex-1 overflow-auto text-sm leading-relaxed">
+                {renderTextWithBackticks(content as string)}
+            </div>
+            <div className="flex items-center justify-between gap-2 border-t pt-2">
+                <span className="text-xs text-muted-foreground">
+                    {currentStep + 1} / {steps.length}
+                </span>
+                <div className="flex items-center gap-2">
+                    {!isFirst && (
+                        <button
+                            type="button"
+                            onClick={() => setCurrentStep(currentStep - 1)}
+                            className="text-xs px-2 py-1 rounded border hover:bg-muted transition-colors"
+                        >
+                            Prev
+                        </button>
+                    )}
+                    {!isLast ? (
+                        <button
+                            type="button"
+                            onClick={() => setCurrentStep(currentStep + 1)}
+                            className="text-xs px-3 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                        >
+                            Next
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => setIsOpen(false)}
+                            className="text-xs px-3 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                        >
+                            Done
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => setIsOpen(false)}
+                        aria-label="Close tour"
+                        title="Close tour"
+                        className="text-xs px-2 py-1 rounded border hover:bg-muted transition-colors"
+                    >
+                        ×
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
