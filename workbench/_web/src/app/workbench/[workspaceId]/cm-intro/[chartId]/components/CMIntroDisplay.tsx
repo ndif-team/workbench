@@ -34,6 +34,11 @@ function transformToEduFormat(data: LogitLensIntroData): LogitLensData | undefin
 
     if (!input || !layers || !tracked || !topk) return undefined;
 
+    // NOTE: do NOT strip the BOS token here. CM interventions send the clicked
+    // cell's token position to the backend, which indexes the BOS-inclusive
+    // tokenization absolutely (causal_mediation.py). Dropping position 0 would
+    // patch the wrong token. BOS-hiding for CM must happen in the widget while
+    // preserving absolute positions.
     const cellData: LogitCell[][] = input.map((_, posIdx) => {
         const posTracked = tracked[posIdx] ?? {};
         return layers.map((_, layerIdx) => {

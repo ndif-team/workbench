@@ -42,6 +42,10 @@ function getNextTokenPrediction(data: LogitLensIntroData | undefined): string | 
     return bestToken;
 }
 
+// Default model for the CM intro. 32 layers reads as a manageable heatmap;
+// index 0 in the model list is the 70B (80 layers), far too many for a primer.
+const DEFAULT_INTRO_MODEL = "meta-llama/Llama-3.1-8B";
+
 interface CMIntroAreaProps {
     sourcePrompt: string;
     targetPrompt: string;
@@ -64,13 +68,26 @@ export default function CMIntroArea({
     lastRunTgtPrompt,
 }: CMIntroAreaProps) {
     const { chartId } = useParams<{ chartId: string }>();
-    const { selectedModelIdx } = useWorkspace();
+    const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
 
     const { data: models } = useQuery({
         queryKey: ["models"],
         queryFn: getModels,
         refetchInterval: 120000,
     });
+
+    // Default to Llama-3.1-8B once when models load, rather than leaving the
+    // workspace default at index 0 (the 70B, 80 layers). Guarded so a later
+    // manual model choice is not overridden.
+    const didDefaultModel = useRef(false);
+    useEffect(() => {
+        if (didDefaultModel.current || !models || models.length === 0) return;
+        didDefaultModel.current = true;
+        const idx = models.findIndex((m) => m.name === DEFAULT_INTRO_MODEL);
+        if (idx !== -1 && idx !== selectedModelIdx) {
+            setSelectedModelIdx(idx);
+        }
+    }, [models, selectedModelIdx, setSelectedModelIdx]);
 
     const selectedModel = useMemo(() => {
         if (!models || models.length === 0) return undefined;
