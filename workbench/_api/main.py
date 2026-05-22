@@ -25,8 +25,9 @@ if os.environ.get('CONFIG') != "prod":
     ALLOWED_ORIGINS.append("http://localhost:3000")
 
 ALLOWED_ORIGIN_REGEX = (
-    # Vercel dev/staging previews + ripley-cluster PR previews.
-    r"^https://(workbench-[a-z0-9\-]*-ndif\.vercel\.app|pr-[a-z0-9\-]+\.ndif-preview\.ripley\.cloud)$"
+    # Vercel dev/staging previews + ripley-cluster PR previews + any
+    # *.trycloudflare.com (ad-hoc tunnels used for local dev).
+    r"^https://(workbench-[a-z0-9\-]*-ndif\.vercel\.app|pr-[a-z0-9\-]+\.ndif-preview\.ripley\.cloud|[a-z0-9\-]+\.trycloudflare\.com)$"
     if os.environ.get('CONFIG') != "prod"
     else None  # in prod, rely on the fixed list above
 )
