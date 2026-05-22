@@ -145,6 +145,19 @@ export default function CMIntroArea({
     const tgtTextareaRef = useRef<HTMLTextAreaElement>(null);
     const tgtTokenContainerRef = useRef<HTMLDivElement>(null);
 
+    // Auto-focus the source prompt textarea on first mount so new users
+    // can start typing immediately. Only if it's empty (don't steal focus
+    // when revisiting a chart that already has prompts).
+    const didFocusRef = useRef(false);
+    useEffect(() => {
+        if (didFocusRef.current) return;
+        if (!sourcePrompt) {
+            srcTextareaRef.current?.focus();
+            didFocusRef.current = true;
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const tokenize = useCallback(async (text: string, model: string): Promise<Token[] | null> => {
         try {
             return await encodeText(text, model);
@@ -318,48 +331,59 @@ export default function CMIntroArea({
             </div>
 
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
-                <div id="cm-intro-source-prompt">
-                <PatchPromptSection
-                    variant="source"
-                    mode="full"
-                    label="Source Prompt"
-                    prompt={sourcePrompt}
-                    setPrompt={onSourcePromptChange}
-                    tokens={srcTokens}
-                    selectedModel={selectedModel ?? ""}
-                    isEditing={srcEditing}
-                    setIsEditing={setSrcEditing}
-                    tokenizedModel={srcTokenizedModel}
-                    textareaRef={srcTextareaRef}
-                    tokenContainerRef={srcTokenContainerRef}
-                    onBlur={handleSrcBlur}
-                    selectedPositions={[]}
-                    pendingRangeStart={null}
-                    onSrcTokenClick={() => {}}
-                    predictionToken={srcPrediction}
-                />
+                <div id="cm-intro-source-prompt" className="flex flex-col gap-1.5">
+                    <PatchPromptSection
+                        variant="source"
+                        mode="full"
+                        label="Source Prompt"
+                        prompt={sourcePrompt}
+                        setPrompt={onSourcePromptChange}
+                        tokens={srcTokens}
+                        selectedModel={selectedModel ?? ""}
+                        isEditing={srcEditing}
+                        setIsEditing={setSrcEditing}
+                        tokenizedModel={srcTokenizedModel}
+                        textareaRef={srcTextareaRef}
+                        tokenContainerRef={srcTokenContainerRef}
+                        onBlur={handleSrcBlur}
+                        selectedPositions={[]}
+                        pendingRangeStart={null}
+                        onSrcTokenClick={() => {}}
+                        predictionToken={srcPrediction}
+                    />
+                    <p className="text-xs text-muted-foreground leading-snug">
+                        The prompt you want to <span className="font-medium">steal state from</span>.
+                        Pick something with a clear, specific prediction — its internal activations
+                        will be the source of the patch.
+                    </p>
                 </div>
 
-                <div id="cm-intro-target-prompt">
-                <PatchPromptSection
-                    variant="target"
-                    mode="full"
-                    label="Target Prompt"
-                    prompt={targetPrompt}
-                    setPrompt={onTargetPromptChange}
-                    tokens={tgtTokens}
-                    selectedModel={selectedModel ?? ""}
-                    isEditing={tgtEditing}
-                    setIsEditing={setTgtEditing}
-                    tokenizedModel={tgtTokenizedModel}
-                    textareaRef={tgtTextareaRef}
-                    tokenContainerRef={tgtTokenContainerRef}
-                    onBlur={handleTgtBlur}
-                    tgtSelectedPositions={[]}
-                    frozenPositions={[]}
-                    onTgtTokenClick={() => {}}
-                    predictionToken={tgtPrediction}
-                />
+                <div id="cm-intro-target-prompt" className="flex flex-col gap-1.5">
+                    <PatchPromptSection
+                        variant="target"
+                        mode="full"
+                        label="Target Prompt"
+                        prompt={targetPrompt}
+                        setPrompt={onTargetPromptChange}
+                        tokens={tgtTokens}
+                        selectedModel={selectedModel ?? ""}
+                        isEditing={tgtEditing}
+                        setIsEditing={setTgtEditing}
+                        tokenizedModel={tgtTokenizedModel}
+                        textareaRef={tgtTextareaRef}
+                        tokenContainerRef={tgtTokenContainerRef}
+                        onBlur={handleTgtBlur}
+                        tgtSelectedPositions={[]}
+                        frozenPositions={[]}
+                        onTgtTokenClick={() => {}}
+                        predictionToken={tgtPrediction}
+                    />
+                    <p className="text-xs text-muted-foreground leading-snug">
+                        The prompt you want to <span className="font-medium">patch into</span>.
+                        Usually similar grammar but a different answer — any change in its
+                        prediction after a patch reveals what the source state carried. Leave blank
+                        to view the source prompt alone (no patching).
+                    </p>
                 </div>
 
                 <Button
