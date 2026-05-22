@@ -2,10 +2,12 @@
 
 const config = {
     backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000",
+    // Explicit URL > localhost-flag > prod default.
     ndifUrl:
-        process.env.NEXT_PUBLIC_LOCAL_NDIF === "true"
+        process.env.NEXT_PUBLIC_NDIF_URL ||
+        (process.env.NEXT_PUBLIC_LOCAL_NDIF === "true"
             ? "http://localhost:5001"
-            : "https://api.ndif.us",
+            : "https://api.ndif.us"),
     endpoints: {
         startLensLine: "/lens/start-line",
         resultsLensLine: (jobId: string) => `/lens/results-line/${jobId}`,
@@ -18,6 +20,9 @@ const config = {
 
         startActivationPatching: "/activation_patching/start",
         resultsActivationPatching: (jobId: string) => `/activation_patching/results/${jobId}`,
+
+        startVlmLens: "/vlm_lens/start",
+        resultsVlmLens: (jobId: string) => `/vlm_lens/results/${jobId}`,
 
         startPrediction: "/models/start-prediction",
         resultsPrediction: (jobId: string) => `/models/results-prediction/${jobId}`,

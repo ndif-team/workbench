@@ -13,7 +13,7 @@ export const workspaces = pgTable("workspaces", {
         .$onUpdate(() => new Date()),
 });
 
-export const chartTypes = ["line", "heatmap"] as const;
+export const chartTypes = ["line", "heatmap", "lens2", "activation-patching", "vlm-lens"] as const;
 
 export const charts = pgTable("charts", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -33,7 +33,7 @@ export const charts = pgTable("charts", {
         .$onUpdate(() => new Date()),
 });
 
-export const configTypes = ["lens", "patch"] as const;
+export const configTypes = ["lens", "lens2", "patch", "activation-patching", "vlm-lens"] as const;
 
 export const configs = pgTable("configs", {
     id: uuid("id").primaryKey().defaultRandom(),
