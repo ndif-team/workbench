@@ -6,6 +6,7 @@ import {
     createLens2ChartPair,
     createPatchChartPair,
     createActivationPatchingChartPair,
+    createVlmLensChartPair,
     updateChartName,
     updateChartView,
     copyChart,
@@ -14,6 +15,7 @@ import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
+import { VlmLensConfigData } from "@/types/vlmLens";
 import { useCapture } from "@/components/providers/CaptureProvider";
 import { Line, HeatmapRow, ChartView } from "@/types/charts";
 import { queryKeys } from "../queryKeys";
@@ -338,6 +340,31 @@ export const useCreateActivationPatchingChartPair = () => {
             config?: ActivationPatchingConfigData;
         }) => {
             return await createActivationPatchingChartPair(workspaceId, config);
+        },
+        onSuccess: (_, { workspaceId }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+        },
+    });
+};
+
+export const useCreateVlmLensChartPair = () => {
+    const queryClient = useQueryClient();
+
+    const defaultConfig: VlmLensConfigData = {
+        model: "",
+        prompt: "USER: <image>\nDescribe the image. ASSISTANT:",
+        topK: 5,
+    };
+
+    return useMutation({
+        mutationFn: async ({
+            workspaceId,
+            config = defaultConfig,
+        }: {
+            workspaceId: string;
+            config?: VlmLensConfigData;
+        }) => {
+            return await createVlmLensChartPair(workspaceId, config);
         },
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });

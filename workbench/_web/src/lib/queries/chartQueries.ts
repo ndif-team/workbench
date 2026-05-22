@@ -7,6 +7,7 @@ import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
+import { VlmLensConfigData } from "@/types/vlmLens";
 import { eq, asc, desc } from "drizzle-orm";
 import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
 
@@ -56,7 +57,8 @@ type ConfigPayload =
     | { type: "lens"; data: LensConfigData }
     | { type: "lens2"; data: Lens2ConfigData }
     | { type: "patch"; data: PatchingConfig }
-    | { type: "activation-patching"; data: ActivationPatchingConfigData };
+    | { type: "activation-patching"; data: ActivationPatchingConfigData }
+    | { type: "vlm-lens"; data: VlmLensConfigData };
 
 // Creates a chart, its config, and the link between them, with the chart
 // positioned at the bottom of the unified sidebar list.
@@ -93,6 +95,11 @@ export const createActivationPatchingChartPair = async (
     workspaceId: string,
     defaultConfig: ActivationPatchingConfigData,
 ) => createChartConfigPair(workspaceId, { type: "activation-patching", data: defaultConfig });
+
+export const createVlmLensChartPair = async (
+    workspaceId: string,
+    defaultConfig: VlmLensConfigData,
+) => createChartConfigPair(workspaceId, { type: "vlm-lens", data: defaultConfig });
 
 export const getAllChartsByType = async (
     workspaceId?: string,
