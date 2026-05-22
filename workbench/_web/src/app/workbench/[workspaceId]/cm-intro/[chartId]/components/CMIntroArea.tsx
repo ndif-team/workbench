@@ -390,9 +390,9 @@ export default function CMIntroArea({
                         predictionToken={srcPrediction}
                     />
                     <p className="text-xs text-muted-foreground leading-snug">
-                        The prompt you want to <span className="font-medium">steal state from</span>.
-                        Pick something with a clear, specific prediction — its internal activations
-                        will be the source of the patch.
+                        The prompt you want to <span className="font-medium">steal state from</span>
+                        . Pick something with a clear, specific prediction — its internal
+                        activations will be the source of the patch.
                     </p>
                 </div>
 

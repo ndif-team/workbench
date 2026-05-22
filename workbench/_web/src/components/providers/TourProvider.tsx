@@ -7,12 +7,7 @@ interface TourProviderProps {
     children: ReactNode;
 }
 
-function ContentComponent({
-    currentStep,
-    steps,
-    setIsOpen,
-    setCurrentStep,
-}: PopoverContentProps) {
+function ContentComponent({ currentStep, steps, setIsOpen, setCurrentStep }: PopoverContentProps) {
     const step = steps[currentStep];
     const content = step.content;
 

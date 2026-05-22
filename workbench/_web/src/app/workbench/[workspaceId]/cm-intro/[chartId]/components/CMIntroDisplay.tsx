@@ -151,12 +151,12 @@ export function CMIntroDisplay({
     const liveTargetRaw = lensResult?.target ?? persistedData?.target;
     const liveSrcRun =
         lensResult?.source != null
-            ? lastRunSrcPrompt ?? null
-            : persistedData?.lastRunSourcePrompt ?? null;
+            ? (lastRunSrcPrompt ?? null)
+            : (persistedData?.lastRunSourcePrompt ?? null);
     const liveTgtRun =
         lensResult?.source != null
-            ? lastRunTgtPrompt ?? null
-            : persistedData?.lastRunTargetPrompt ?? null;
+            ? (lastRunTgtPrompt ?? null)
+            : (persistedData?.lastRunTargetPrompt ?? null);
 
     const hasAnyData = !!liveSourceRaw;
     const isStale =
