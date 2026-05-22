@@ -17,6 +17,15 @@ dependencies = [
     "uvicorn>=0.33.0",
     "torch>=2.9.0",
     "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git",
+    # nnsight imports peft transitively in .modeling.transformers (needed
+    # for both LanguageModel and VisionLanguageModel).
+    "peft>=0.10.0",
+    # VisionLanguageModel uses PIL for processor input.
+    "pillow>=10.0.0",
+    # Match NDIF's transformers major version — the LLaVA module layout
+    # changed between 4.x and 5.x (vision_tower.vision_model nesting flattened),
+    # which breaks nnsight's remote persistent-id resolution.
+    "transformers>=5.0,<6.0",
 ]
 
 [project.optional-dependencies]

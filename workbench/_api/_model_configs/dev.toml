@@ -11,3 +11,7 @@ models = [
     "meta-llama/Llama-3.1-405B",
     "meta-llama/Llama-2-7b-hf",
 ]
+
+vlm_models = [
+    "llava-hf/llava-1.5-7b-hf",
+]

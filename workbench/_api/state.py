@@ -8,7 +8,7 @@ from huggingface_hub import model_info, get_safetensors_metadata
 from huggingface_hub.utils import GatedRepoError
 from transformers import AutoConfig, AutoTokenizer
 
-from nnsight import CONFIG
+from nnsight import CONFIG, VisionLanguageModel
 from nnterp import StandardizedTransformer
 from nnsight.intervention.backends.remote import RemoteBackend
 from pydantic import BaseModel
@@ -99,7 +99,10 @@ class ModelsConfig(BaseModel):
     """Root configuration containing model names."""
 
     remote: bool
-    models: list[str]
+    models: list[str] = []
+    # Vision-language models. Loaded via nnsight.VisionLanguageModel rather
+    # than nnterp's StandardizedTransformer (which is text-only).
+    vlm_models: list[str] = []
 
 class AppState:
     def __init__(self):
@@ -108,22 +111,34 @@ class AppState:
 
         # Defaults
         self.models: dict[str, StandardizedTransformer] = {}
+        self.vlm_models: dict[str, VisionLanguageModel] = {}
         self.model_metadata: dict[str, ModelMetadata] = {}
 
         self.config = self._load()
 
         # TelemetryClient.init(self)
 
+    def is_vlm(self, model_name: str) -> bool:
+        return model_name in self.config.vlm_models
+
     def add_model(self, model_name: str) -> dict | None:
-        if model_name in self.config.models and model_name not in self.models:
+        if self.is_vlm(model_name):
+            if model_name not in self.vlm_models:
+                self._load_vlm(model_name)
+                return self.model_metadata[model_name].model_dump()
+        elif model_name in self.config.models and model_name not in self.models:
             self._load_model(model_name)
             return self.model_metadata[model_name].model_dump()
 
     def remove_model(self, model_name: str):
         if model_name in self.models:
             del self.models[model_name]
+        if model_name in self.vlm_models:
+            del self.vlm_models[model_name]
 
-    def get_model(self, model_name: str) -> StandardizedTransformer:
+    def get_model(self, model_name: str):
+        if model_name in self.vlm_models:
+            return self.vlm_models[model_name]
         return self.models[model_name]
 
     def get_model_metadata(self, model_name: str) -> ModelMetadata:
@@ -132,14 +147,14 @@ class AppState:
     def get_active_model_list(self) -> list[dict]:
         return [
             self.model_metadata[name].model_dump()
-            for name in self.models
+            for name in {*self.models, *self.vlm_models}
             if name in self.model_metadata
         ]
 
     def get_all_model_list(self) -> list[dict]:
         return [meta.model_dump() for meta in self.model_metadata.values()]
 
-    def make_backend(self, model: StandardizedTransformer | None = None, job_id: str | None = None):
+    def make_backend(self, model=None, job_id: str | None = None):
         if self.remote:
             return RemoteBackend(
                 job_id=job_id, blocking=False, model_key=model.to_model_key() if model is not None else None
@@ -194,6 +209,8 @@ class AppState:
                     remote=self.remote,
                 )
                 self.models[model_name] = model
+            for model_name in config.vlm_models:
+                self._load_vlm(model_name)
         return config
 
     def _load_model(self, model_name: str):
@@ -210,6 +227,23 @@ class AppState:
             check_renaming=not self.remote,
         )
         self.models[model_name] = model
+
+    def _load_vlm(self, model_name: str):
+        """Load a VLM via nnsight.VisionLanguageModel.
+
+        Remote: weights stay on meta (NDIF holds them); we only need
+        the processor + module structure for tracing.
+        Local: dispatch=True loads weights for in-process execution.
+        """
+        logger.info(f"Loading VLM: {model_name}")
+        self._ensure_metadata(model_name)
+        model = VisionLanguageModel(
+            model_name,
+            device_map="auto",
+            torch_dtype=torch.float16,
+            dispatch=not self.remote,
+        )
+        self.vlm_models[model_name] = model
 
 def get_state(request: Request):
     return request.app.state.m
