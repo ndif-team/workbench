@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ModelSelector } from "@/components/ModelSelector";
-import { AlertCircle, Loader2, Play } from "lucide-react";
+import { AlertCircle, Loader2, Play, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { useTour } from "@reactour/tour";
@@ -208,7 +208,12 @@ export default function CMIntroArea({
             if (withinTextarea || withinToken) return;
 
             if (!sourcePrompt || !selectedModel) {
-                setSrcEditing(false);
+                // Clear any stale tokens so the empty state actually reads as
+                // empty (otherwise the token display would show the previous
+                // tokenization after the user deletes the text).
+                setSrcTokens([]);
+                setSrcTokenizedModel(null);
+                setSrcEditing(true);
                 return;
             }
             const tokens = await tokenize(sourcePrompt, selectedModel);
@@ -229,7 +234,9 @@ export default function CMIntroArea({
             if (withinTextarea || withinToken) return;
 
             if (!targetPrompt || !selectedModel) {
-                setTgtEditing(false);
+                setTgtTokens([]);
+                setTgtTokenizedModel(null);
+                setTgtEditing(true);
                 return;
             }
             const tokens = await tokenize(targetPrompt, selectedModel);
@@ -240,6 +247,25 @@ export default function CMIntroArea({
             }
         }, 100);
     }, [targetPrompt, selectedModel, tokenize]);
+
+    // Explicit clear handlers so the user has a one-click way to reset a
+    // prompt back to empty (deleting characters in the textarea works too,
+    // but a button is more discoverable).
+    const handleClearSrc = useCallback(() => {
+        onSourcePromptChange("");
+        setSrcTokens([]);
+        setSrcTokenizedModel(null);
+        setSrcEditing(true);
+        setTimeout(() => srcTextareaRef.current?.focus(), 0);
+    }, [onSourcePromptChange]);
+
+    const handleClearTgt = useCallback(() => {
+        onTargetPromptChange("");
+        setTgtTokens([]);
+        setTgtTokenizedModel(null);
+        setTgtEditing(true);
+        setTimeout(() => tgtTextareaRef.current?.focus(), 0);
+    }, [onTargetPromptChange]);
 
     const configModelUnavailable =
         srcTokenizedModel && selectedModel && srcTokenizedModel !== selectedModel
@@ -331,7 +357,19 @@ export default function CMIntroArea({
             </div>
 
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
-                <div id="cm-intro-source-prompt" className="flex flex-col gap-1.5">
+                <div id="cm-intro-source-prompt" className="flex flex-col gap-1.5 relative">
+                    {sourcePrompt && (
+                        <button
+                            type="button"
+                            onClick={handleClearSrc}
+                            disabled={isRunning}
+                            className="absolute top-0 right-0 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 flex items-center gap-0.5 h-5 px-1"
+                            title="Clear source prompt"
+                        >
+                            <X className="h-3 w-3" />
+                            <span>Clear</span>
+                        </button>
+                    )}
                     <PatchPromptSection
                         variant="source"
                         mode="full"
@@ -358,7 +396,19 @@ export default function CMIntroArea({
                     </p>
                 </div>
 
-                <div id="cm-intro-target-prompt" className="flex flex-col gap-1.5">
+                <div id="cm-intro-target-prompt" className="flex flex-col gap-1.5 relative">
+                    {targetPrompt && (
+                        <button
+                            type="button"
+                            onClick={handleClearTgt}
+                            disabled={isRunning}
+                            className="absolute top-0 right-0 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 flex items-center gap-0.5 h-5 px-1"
+                            title="Clear target prompt"
+                        >
+                            <X className="h-3 w-3" />
+                            <span>Clear</span>
+                        </button>
+                    )}
                     <PatchPromptSection
                         variant="target"
                         mode="full"
