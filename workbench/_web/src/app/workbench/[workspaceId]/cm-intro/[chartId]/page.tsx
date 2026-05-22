@@ -18,15 +18,12 @@ import type { CMIntroChartData } from "@/types/cmIntro";
 
 const PROMPT_AUTOSAVE_DEBOUNCE_MS = 600;
 
-const DEFAULT_SOURCE_PROMPT = "The capital of France is";
-const DEFAULT_TARGET_PROMPT = "The capital of Germany is";
-
 export default function CMIntroChartPage() {
     const isMobile = useIsMobile();
     const { chartId } = useParams<{ chartId: string }>();
     const queryClient = useQueryClient();
-    const [sourcePrompt, setSourcePrompt] = useState(DEFAULT_SOURCE_PROMPT);
-    const [targetPrompt, setTargetPrompt] = useState(DEFAULT_TARGET_PROMPT);
+    const [sourcePrompt, setSourcePrompt] = useState("");
+    const [targetPrompt, setTargetPrompt] = useState("");
     const [lensResult, setLensResult] = useState<CMIntroLensResult | null>(null);
     // Snapshot of the prompts the current lensResult was computed for. Used by
     // CMIntroArea to gate the predicted-next-token hint so it disappears once
