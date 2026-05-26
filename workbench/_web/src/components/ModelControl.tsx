@@ -322,7 +322,9 @@ function ModelPopover({
     query,
     onQueryChange,
 }: ModelPopoverProps) {
-    // Filter (case-insensitive substring on name + org) and sort alphabetically within each group.
+    // Filter (case-insensitive substring on name + org) and sort by heat
+    // within each group — hot first, then warm, cold, etc. Ties broken
+    // alphabetically so within-heat ordering stays stable.
     const { base, chat, flat } = React.useMemo(() => {
         const q = query.trim().toLowerCase();
         const matches = (m: Model) => {
@@ -332,10 +334,24 @@ function ModelPopover({
                 label.toLowerCase().includes(q) || org.toLowerCase().includes(q)
             );
         };
-        const sortByLabel = (a: Model, b: Model) =>
+        const HEAT_ORDER: ModelStatus[] = [
+            "hot",
+            "warm",
+            "cold",
+            "unknown",
+            "gated",
+            "unavailable",
+        ];
+        const heatRank = (m: Model) => {
+            const h = deriveHeat(m);
+            const i = HEAT_ORDER.indexOf(h);
+            return i === -1 ? HEAT_ORDER.length : i;
+        };
+        const byHeat = (a: Model, b: Model) =>
+            heatRank(a) - heatRank(b) ||
             splitRepo(a.name).label.localeCompare(splitRepo(b.name).label);
-        const base = models.filter((m) => !m.is_chat && matches(m)).sort(sortByLabel);
-        const chat = models.filter((m) => m.is_chat && matches(m)).sort(sortByLabel);
+        const base = models.filter((m) => !m.is_chat && matches(m)).sort(byHeat);
+        const chat = models.filter((m) => m.is_chat && matches(m)).sort(byHeat);
         return { base, chat, flat: [...base, ...chat] };
     }, [models, query]);
 
@@ -403,8 +419,11 @@ function ModelPopover({
                 </kbd>
             </div>
 
-            {/* Groups */}
-            <div role="menu" className="max-h-[60vh] overflow-y-auto">
+            {/* Groups — each scrolls independently inside its own per-section
+                cap, sized to content. A short group doesn't claim space the
+                long group could use; a long group scrolls within its own cap
+                without pushing the other below the fold. */}
+            <div role="menu" className="flex flex-col">
                 {flat.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground text-sm px-3">
                         No models match &ldquo;{query}&rdquo;.
@@ -466,9 +485,19 @@ function Group({
     rowRefs: React.MutableRefObject<(HTMLButtonElement | null)[]>;
     flat: Model[];
 }) {
+    // Visible row budget — keep the popover compact and signal overflow via
+    // a soft bottom mask when there's more below the fold.
+    const VISIBLE_ROWS = 5;
+    const hasOverflow = rows.length > VISIBLE_ROWS;
+    // Inline style for the mask: Tailwind arbitrary values mangle the calc()
+    // and a missing -webkit-mask-image breaks the fade in Safari.
+    const fadeMask = hasOverflow
+        ? "linear-gradient(to bottom, black 0%, black calc(100% - 36px), transparent 100%)"
+        : undefined;
+
     return (
-        <>
-            <div className="flex items-baseline gap-2 pt-2.5 pb-1 px-3">
+        <section className="flex flex-col">
+            <div className="flex items-baseline gap-2 pt-2.5 pb-1 px-3 shrink-0">
                 <span className="text-xs font-medium text-muted-foreground">
                     {title}
                 </span>
@@ -476,23 +505,32 @@ function Group({
                     {count}
                 </span>
             </div>
-            {rows.map((m) => {
-                const flatIdx = flat.findIndex((f) => f.name === m.name);
-                return (
-                    <Row
-                        key={m.name}
-                        model={m}
-                        selected={m.name === selectedName}
-                        active={m.name === activeName}
-                        onSelect={() => onSelect(m.name)}
-                        onHover={() => onHoverByIdx(flatIdx)}
-                        ref={(el) => {
-                            rowRefs.current[flatIdx] = el;
-                        }}
-                    />
-                );
-            })}
-        </>
+            <div
+                className="overflow-y-auto max-h-[180px] pb-1"
+                style={
+                    fadeMask
+                        ? { maskImage: fadeMask, WebkitMaskImage: fadeMask }
+                        : undefined
+                }
+            >
+                {rows.map((m) => {
+                    const flatIdx = flat.findIndex((f) => f.name === m.name);
+                    return (
+                        <Row
+                            key={m.name}
+                            model={m}
+                            selected={m.name === selectedName}
+                            active={m.name === activeName}
+                            onSelect={() => onSelect(m.name)}
+                            onHover={() => onHoverByIdx(flatIdx)}
+                            ref={(el) => {
+                                rowRefs.current[flatIdx] = el;
+                            }}
+                        />
+                    );
+                })}
+            </div>
+        </section>
     );
 }
 
