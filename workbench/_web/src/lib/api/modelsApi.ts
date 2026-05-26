@@ -98,9 +98,18 @@ export const getModels = async (): Promise<Model[]> => {
  * To force a retry after failure: `queryClient.invalidateQueries({
  * queryKey: queryKeys.models.all })` or reload the page.
  */
+/** Background refresh cadence for the model catalog (ms). Matches the
+ * backend's NDIF /status cache TTL — polling faster wastes calls because
+ * the backend would just return its own cached payload. Polling slower
+ * means heat changes (cold → hot) take longer than necessary to surface. */
+const MODELS_REFRESH_INTERVAL_MS = 60_000;
+
 export const useModelsQuery = () => {
     const queryClient = useQueryClient();
 
+    // Initial fetch on first mount (only when the cache is genuinely empty).
+    // Avoids React Query's automatic on-subscribe refetch path, which thrashes
+    // in dev under Strict Mode + Fast Refresh.
     useEffect(() => {
         const state = queryClient.getQueryState<Model[], Error>(
             queryKeys.models.all as unknown as readonly unknown[],
@@ -119,6 +128,27 @@ export const useModelsQuery = () => {
                     /* error lives in the cache; consumers read it via useQuery */
                 });
         }
+    }, [queryClient]);
+
+    // Periodic background refresh so deployment-status changes (cold → hot,
+    // models being added/removed from NDIF) propagate to the UI without a
+    // page reload. `staleTime: 0` here means the call actually hits the
+    // network instead of being short-circuited by the cache. Observers
+    // subscribed to this query re-render when the cache updates.
+    useEffect(() => {
+        const id = setInterval(() => {
+            queryClient
+                .fetchQuery<Model[]>({
+                    queryKey: queryKeys.models.all,
+                    queryFn: getModels,
+                    retry: false,
+                    staleTime: 0,
+                })
+                .catch(() => {
+                    /* keep last known good catalog on transient errors */
+                });
+        }, MODELS_REFRESH_INTERVAL_MS);
+        return () => clearInterval(id);
     }, [queryClient]);
 
     return useQuery({
