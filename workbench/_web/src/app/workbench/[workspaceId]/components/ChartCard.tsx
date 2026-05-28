@@ -2,7 +2,15 @@
 
 import React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Grid3X3, ChartLine, Trash2, Copy, MoreVertical, GitBranch } from "lucide-react";
+import {
+    Grid3X3,
+    ChartLine,
+    Trash2,
+    Copy,
+    MoreVertical,
+    GitBranch,
+    Image as ImageIcon,
+} from "lucide-react";
 import Image from "next/image";
 import { ChartMetadata } from "@/types/charts";
 import { cn } from "@/lib/utils";
@@ -40,6 +48,8 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
             chart.chartType === "activation-patching"
         ) {
             router.push(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
+        } else if (chart.toolType === "vlm-lens" || chart.chartType === "vlm-lens") {
+            router.push(`/workbench/${workspaceId}/vlm-lens/${chart.id}`);
         } else {
             router.push(`/workbench/${workspaceId}/${chart.id}`);
         }
@@ -92,6 +102,13 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
                 <span className="inline-flex items-center gap-1">
                     <GitBranch className="h-3 w-3" />
                     <span>Act. Patching</span>
+                </span>
+            );
+        if (chartType === "vlm-lens")
+            return (
+                <span className="inline-flex items-center gap-1">
+                    <ImageIcon className="h-3 w-3" />
+                    <span>VLM Lens</span>
                 </span>
             );
         return (

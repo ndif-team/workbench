@@ -7,6 +7,7 @@ import {
     useCreateLens2ChartPair,
     useCreatePatchChartPair,
     useCreateActivationPatchingChartPair,
+    useCreateVlmLensChartPair,
     useDeleteChart,
 } from "@/lib/api/chartApi";
 import {
@@ -29,6 +30,7 @@ import {
     FileText,
     Layers,
     GitBranch,
+    Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -67,6 +69,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
     const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
         useCreateActivationPatchingChartPair();
+    const { mutate: createVlmLensPair, isPending: isCreatingVlmLens } =
+        useCreateVlmLensChartPair();
     const { mutate: deleteChart } = useDeleteChart();
     const { mutate: createDocument, isPending: isCreatingDocument } = useCreateDocument();
     const { mutate: deleteDocument } = useDeleteDocument();
@@ -161,6 +165,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             router.push(`/workbench/${workspaceId}/lens2/${chartId}`);
         } else if (toolType === "activation-patching") {
             router.push(`/workbench/${workspaceId}/activation-patching/${chartId}`);
+        } else if (toolType === "vlm-lens") {
+            router.push(`/workbench/${workspaceId}/vlm-lens/${chartId}`);
         } else {
             router.push(`/workbench/${workspaceId}/${chartId}`);
         }
@@ -170,7 +176,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (toolType: "lens2" | "patch" | "activation-patching") => {
+    const handleCreate = (toolType: "lens2" | "patch" | "activation-patching" | "vlm-lens") => {
         if (toolType === "lens2") {
             createLens2Pair(
                 { workspaceId: workspaceId as string },
@@ -185,6 +191,15 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                 { workspaceId: workspaceId as string },
                 {
                     onSuccess: ({ chart }) => navigateToChart(chart.id, "activation-patching"),
+                },
+            );
+            return;
+        }
+        if (toolType === "vlm-lens") {
+            createVlmLensPair(
+                { workspaceId: workspaceId as string },
+                {
+                    onSuccess: ({ chart }) => navigateToChart(chart.id, "vlm-lens"),
                 },
             );
             return;
@@ -245,7 +260,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     };
 
     const isCreatingAny =
-        isCreatingLens2 || isCreatingPatch || isCreatingActivationPatching || isCreatingDocument;
+        isCreatingLens2 ||
+        isCreatingPatch ||
+        isCreatingActivationPatching ||
+        isCreatingVlmLens ||
+        isCreatingDocument;
 
     const actionButtons = (
         <div className="flex flex-col w-full gap-2 text-sm">
@@ -276,6 +295,20 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                     <GitBranch className="w-4 h-4" />
                 )}
                 <span>Activation Patching</span>
+            </Button>
+            <Button
+                variant="outline"
+                onClick={() => handleCreate("vlm-lens")}
+                disabled={isCreatingAny}
+                className="w-full"
+                title="New VLM Logit Lens visualization"
+            >
+                {isCreatingVlmLens ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                    <ImageIcon className="w-4 h-4" />
+                )}
+                <span>VLM Logit Lens</span>
             </Button>
             <Button
                 variant="outline"
@@ -336,6 +369,20 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                             <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                             <GitBranch className="h-4 w-4" />
+                        )}
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleCreate("vlm-lens")}
+                        disabled={isCreatingAny}
+                        className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
+                        title="New VLM Logit Lens"
+                    >
+                        {isCreatingVlmLens ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <ImageIcon className="h-4 w-4" />
                         )}
                     </Button>
                     <Button
