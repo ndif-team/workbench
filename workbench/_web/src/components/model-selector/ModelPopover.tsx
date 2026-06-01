@@ -4,8 +4,13 @@ import * as React from "react";
 import { Check, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { MODEL_STATUS, deriveHeat } from "@/components/model-selector/status";
-import type { Model, ModelStatus } from "@/types/models";
+import {
+    MODEL_STATUS,
+    deriveHeat,
+    splitRepo,
+    heatRank,
+} from "@/components/model-selector/status";
+import type { Model } from "@/types/models";
 
 /**
  * Rich model picker body — search field + heat-sorted Base/Chat groups +
@@ -19,25 +24,17 @@ import type { Model, ModelStatus } from "@/types/models";
  * Caller owns the open/close state; this component is pure content.
  */
 
-const splitRepo = (name: string): { org: string; label: string } => {
-    const slash = name.lastIndexOf("/");
-    if (slash === -1) return { org: "", label: name };
-    return { org: name.slice(0, slash), label: name.slice(slash + 1) };
-};
-
 interface ModelPopoverProps {
     models: Model[];
     selectedName: string;
     onSelect: (name: string) => void;
-    query: string;
-    onQueryChange: (q: string) => void;
     /** Optional content rendered below the model groups, separated by a
      * border. Used on the landing page to point users to the full workspace
      * catalog. */
     footer?: React.ReactNode;
-    /** When false, the search input is hidden — `query` stays empty so the
-     * full list shows. Useful on surfaces with a small pre-filtered model
-     * set (e.g. the landing page only-hot popover). Defaults to true. */
+    /** When false, the search input is hidden. Useful on surfaces with a
+     * small pre-filtered model set (e.g. the landing page only-hot popover).
+     * Defaults to true. */
     showSearch?: boolean;
     /** Tighter dimensions + minimal row chrome (drops org and uppercase
      * heat label; the heat dot still encodes status). Use on the landing
@@ -49,12 +46,14 @@ export function ModelPopover({
     models,
     selectedName,
     onSelect,
-    query,
-    onQueryChange,
     footer,
     showSearch = true,
     compact = false,
 }: ModelPopoverProps) {
+    // Search query is owned internally; consumers that hide the search
+    // (showSearch=false) don't need to thread dead state through.
+    const [query, setQuery] = React.useState("");
+
     // Filter (case-insensitive substring on name + org) and sort by heat
     // within each group — hot first, then warm, cold, etc. The currently
     // selected model is pinned to the top of its group so users always see
@@ -67,19 +66,6 @@ export function ModelPopover({
             return (
                 label.toLowerCase().includes(q) || org.toLowerCase().includes(q)
             );
-        };
-        const HEAT_ORDER: ModelStatus[] = [
-            "hot",
-            "warm",
-            "cold",
-            "unknown",
-            "gated",
-            "unavailable",
-        ];
-        const heatRank = (m: Model) => {
-            const h = deriveHeat(m);
-            const i = HEAT_ORDER.indexOf(h);
-            return i === -1 ? HEAT_ORDER.length : i;
         };
         const compare = (a: Model, b: Model) => {
             if (a.name === selectedName) return -1;
@@ -94,33 +80,48 @@ export function ModelPopover({
         return { base, chat, flat: [...base, ...chat] };
     }, [models, query, selectedName]);
 
-    const [active, setActive] = React.useState(0);
-    const rowRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
+    // Track the highlighted row by model NAME, not index. When the list
+    // re-sorts (e.g. selecting a model pins it to the top), the index of the
+    // highlighted model changes — anchoring on the name keeps the cursor on
+    // the same model rather than jumping to whatever now sits at that index.
+    const [activeName, setActiveName] = React.useState<string | null>(null);
+    const rowRefs = React.useRef<Map<string, HTMLButtonElement | null>>(new Map());
 
-    // Reset highlight whenever the filter changes or models reflow.
+    const active = React.useMemo(() => {
+        const i = flat.findIndex((m) => m.name === activeName);
+        return i === -1 ? 0 : i;
+    }, [flat, activeName]);
+
+    // Reset highlight to the selected model whenever the filter changes.
     React.useEffect(() => {
         if (flat.length === 0) {
-            setActive(0);
+            setActiveName(null);
             return;
         }
-        const selectedIdx = flat.findIndex((m) => m.name === selectedName);
-        setActive(selectedIdx === -1 ? 0 : selectedIdx);
-        // We intentionally only reset on query change, not on selectedName.
+        const selected = flat.find((m) => m.name === selectedName);
+        setActiveName((selected ?? flat[0]).name);
+        // Intentionally only resets on query change.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [query]);
 
     React.useEffect(() => {
-        rowRefs.current[active]?.scrollIntoView({ block: "nearest" });
-    }, [active]);
+        const name = flat[active]?.name;
+        if (name) rowRefs.current.get(name)?.scrollIntoView({ block: "nearest" });
+    }, [active, flat]);
+
+    const moveActive = (delta: number) => {
+        if (flat.length === 0) return;
+        const next = (active + delta + flat.length) % flat.length;
+        setActiveName(flat[next].name);
+    };
 
     const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
         if (e.key === "ArrowDown") {
             e.preventDefault();
-            if (flat.length > 0) setActive((a) => (a + 1) % flat.length);
+            moveActive(1);
         } else if (e.key === "ArrowUp") {
             e.preventDefault();
-            if (flat.length > 0)
-                setActive((a) => (a - 1 + flat.length) % flat.length);
+            moveActive(-1);
         } else if (e.key === "Enter") {
             e.preventDefault();
             const target = flat[active];
@@ -169,7 +170,7 @@ export function ModelPopover({
                     <input
                         autoFocus
                         value={query}
-                        onChange={(e) => onQueryChange(e.target.value)}
+                        onChange={(e) => setQuery(e.target.value)}
                         placeholder="Search models…"
                         aria-label="Search models"
                         className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground min-w-0"
@@ -204,9 +205,8 @@ export function ModelPopover({
                                 selectedName={selectedName}
                                 activeName={flat[active]?.name}
                                 onSelect={onSelect}
-                                onHoverByIdx={setActive}
+                                onHover={setActiveName}
                                 rowRefs={rowRefs}
-                                flat={flat}
                                 compact={compact}
                             />
                         )}
@@ -218,9 +218,8 @@ export function ModelPopover({
                                 selectedName={selectedName}
                                 activeName={flat[active]?.name}
                                 onSelect={onSelect}
-                                onHoverByIdx={setActive}
+                                onHover={setActiveName}
                                 rowRefs={rowRefs}
-                                flat={flat}
                                 compact={compact}
                             />
                         )}
@@ -242,9 +241,8 @@ function Group({
     selectedName,
     activeName,
     onSelect,
-    onHoverByIdx,
+    onHover,
     rowRefs,
-    flat,
     compact,
 }: {
     title: string;
@@ -253,9 +251,8 @@ function Group({
     selectedName: string;
     activeName: string | undefined;
     onSelect: (name: string) => void;
-    onHoverByIdx: (idx: number) => void;
-    rowRefs: React.MutableRefObject<(HTMLButtonElement | null)[]>;
-    flat: Model[];
+    onHover: (name: string) => void;
+    rowRefs: React.MutableRefObject<Map<string, HTMLButtonElement | null>>;
     compact: boolean;
 }) {
     // Visible row budget — keep the popover compact and signal overflow via
@@ -303,23 +300,20 @@ function Group({
                         : undefined
                 }
             >
-                {rows.map((m) => {
-                    const flatIdx = flat.findIndex((f) => f.name === m.name);
-                    return (
-                        <Row
-                            key={m.name}
-                            model={m}
-                            selected={m.name === selectedName}
-                            active={m.name === activeName}
-                            onSelect={() => onSelect(m.name)}
-                            onHover={() => onHoverByIdx(flatIdx)}
-                            compact={compact}
-                            ref={(el) => {
-                                rowRefs.current[flatIdx] = el;
-                            }}
-                        />
-                    );
-                })}
+                {rows.map((m) => (
+                    <Row
+                        key={m.name}
+                        model={m}
+                        selected={m.name === selectedName}
+                        active={m.name === activeName}
+                        onSelect={() => onSelect(m.name)}
+                        onHover={() => onHover(m.name)}
+                        compact={compact}
+                        ref={(el) => {
+                            rowRefs.current.set(m.name, el);
+                        }}
+                    />
+                ))}
             </div>
         </section>
     );
@@ -403,7 +397,7 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
                 style={{ color: selected ? "hsl(var(--primary))" : meta.color }}
             >
                 {selected ? (
-                    <Check className={compact ? "w-3 h-3" : "w-3 h-3"} />
+                    <Check className="w-3 h-3" />
                 ) : compact ? null : (
                     <span className="text-xs font-semibold uppercase tracking-wide">
                         {meta.label}
