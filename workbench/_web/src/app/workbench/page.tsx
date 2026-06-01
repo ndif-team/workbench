@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import { ModelsSection } from "@/components/models/ModelsSection";
+import { ModelsSectionStateController } from "@/app/workbench/components/ModelsSectionStateController";
 import { WorkspaceList } from "@/app/workbench/components/WorkspaceList";
 import { getWorkspaces, createWorkspace } from "@/lib/queries/workspaceQueries";
 import { AutoWorkspaceCreator } from "@/app/workbench/components/AutoWorkspaceCreator";
@@ -117,6 +118,9 @@ export default async function WorkbenchPage({
                 </header>
 
                 <main>
+                    <ModelsSectionStateController
+                        isCreating={!!(useExistingWorkspace || shouldCreateWorkspace)}
+                    />
                     <ModelsSection />
 
                     {useExistingWorkspace ? (
