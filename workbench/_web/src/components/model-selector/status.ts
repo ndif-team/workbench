@@ -33,10 +33,39 @@ export const FILTERABLE_HEAT: ReadonlyArray<ModelHeat> = ["hot", "warm", "cold"]
 
 export const deriveHeat = (model: Model | undefined): ModelHeat => {
     if (!model) return "unknown";
+    // Access control wins over deployment heat: a model the current user
+    // can't run (gated + not allowed, e.g. an anonymous visitor on a >=8B
+    // model) reads as "gated" even if NDIF currently has it hot. Once the
+    // user can access it (allowed === true), we fall through to the real
+    // deployment heat.
+    if (model.gated && !model.allowed) return "gated";
     if (model.status) return model.status;
-    if (!model.allowed && model.gated) return "gated";
     if (!model.allowed) return "unavailable";
     return "unknown";
+};
+
+/** Repo id → { org, label }. `"meta-llama/Llama-3.1-8B"` → org "meta-llama",
+ * label "Llama-3.1-8B". Org is empty for bare names. */
+export const splitRepo = (name: string): { org: string; label: string } => {
+    const slash = name.lastIndexOf("/");
+    if (slash === -1) return { org: "", label: name };
+    return { org: name.slice(0, slash), label: name.slice(slash + 1) };
+};
+
+/** Heat ordering for sorting model lists — hottest first. Unknown/gated/
+ * unavailable sink to the bottom. */
+export const HEAT_ORDER: ReadonlyArray<ModelHeat> = [
+    "hot",
+    "warm",
+    "cold",
+    "unknown",
+    "gated",
+    "unavailable",
+];
+
+export const heatRank = (model: Model): number => {
+    const i = HEAT_ORDER.indexOf(deriveHeat(model));
+    return i === -1 ? HEAT_ORDER.length : i;
 };
 
 /** Group palette — the two model families the catalog currently has. */
