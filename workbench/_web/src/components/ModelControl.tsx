@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import type { ModelStatus } from "@/types/models";
-import { MODEL_STATUS, deriveHeat as deriveHeatShared } from "@/components/model-selector/status";
+import { MODEL_STATUS, deriveHeat, splitRepo } from "@/components/model-selector/status";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
 
 // ----- status vocabularies ----------------------------------------------------------
@@ -35,16 +35,6 @@ const JOB_STATUS: Record<
 };
 
 // ----- helpers --------------------------------------------------------------------
-
-const splitRepo = (
-    name: string,
-): { org: string; label: string } => {
-    const slash = name.lastIndexOf("/");
-    if (slash === -1) return { org: "", label: name };
-    return { org: name.slice(0, slash), label: name.slice(slash + 1) };
-};
-
-const deriveHeat = deriveHeatShared;
 
 interface ParsedJob {
     state: JobState;
@@ -97,7 +87,6 @@ export function ModelControl({ className }: ModelControlProps) {
     } = useModelsQuery();
 
     const [open, setOpen] = React.useState(false);
-    const [query, setQuery] = React.useState("");
 
     // Computed before the early returns so the useEffect below is called on
     // every render (Rules of Hooks).
@@ -106,23 +95,14 @@ export function ModelControl({ className }: ModelControlProps) {
 
     // Close the popover if a job kicks off while it's open.
     React.useEffect(() => {
-        if (isJobActive && open) {
-            setOpen(false);
-            setQuery("");
-        }
+        if (isJobActive && open) setOpen(false);
     }, [isJobActive, open]);
-
-    const handleOpenChange = (next: boolean) => {
-        setOpen(next);
-        if (!next) setQuery("");
-    };
 
     const handleSelect = (name: string) => {
         if (!models) return;
         const idx = models.findIndex((m) => m.name === name);
         if (idx !== -1) setSelectedModelIdx(idx);
         setOpen(false);
-        setQuery("");
     };
 
     // Loading: explicit fetch indicator inside the same brand-wash pill.
@@ -181,7 +161,7 @@ export function ModelControl({ className }: ModelControlProps) {
     const display = splitRepo(selectedModel.name);
 
     return (
-        <Popover open={open} onOpenChange={handleOpenChange}>
+        <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <button
                     type="button"
@@ -221,8 +201,6 @@ export function ModelControl({ className }: ModelControlProps) {
                     models={models}
                     selectedName={selectedModel.name}
                     onSelect={handleSelect}
-                    query={query}
-                    onQueryChange={setQuery}
                 />
             </PopoverContent>
         </Popover>

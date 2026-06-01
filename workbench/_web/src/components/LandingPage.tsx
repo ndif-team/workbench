@@ -86,10 +86,11 @@ function ModelPillOrSelect({
         );
     }
 
-    // Landing-page policy: only surface hot models (ready-to-run on NDIF
-    // right now). Warm/cold and gated models hide behind a "N more models"
-    // link in the popover footer so the landing experience stays fast and
-    // approachable for one-shot prompts.
+    // Landing-page policy: surface every hot model (ready-to-run on NDIF
+    // right now), including gated ones — those render with a purple gated
+    // dot (via deriveHeat → "gated" for an anonymous visitor) so users see
+    // they need to sign in rather than having them silently hidden.
+    // Warm/cold models stay behind the "N more models" footer link.
     const hotModels = modelsToSelect.filter((m) => m.status === "hot");
     const moreCount = modelsToSelect.length - hotModels.length;
 
@@ -129,7 +130,6 @@ function ModelTriggerPopover({
     loggedIn: boolean;
 }) {
     const [open, setOpen] = useState(false);
-    const [query, setQuery] = useState("");
 
     const display = selectedModel || "Select model...";
 
@@ -168,8 +168,6 @@ function ModelTriggerPopover({
                         onModelChange(name);
                         setOpen(false);
                     }}
-                    query={query}
-                    onQueryChange={setQuery}
                     showSearch={false}
                     compact
                     footer={
@@ -245,13 +243,14 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     const modelsToSelect: Model[] = models && models.length > 0 ? models : [];
     const hasModels = modelsToSelect.length > 0;
 
-    // Default to a hot model when models load (the landing popover only
-    // surfaces hot models, so the auto-pick should match). Falls back to
-    // the first available if the catalog has no hot models yet.
+    // Default to a hot model the current user can actually run when models
+    // load — prefer hot+allowed (skips gated models a guest can't use),
+    // then any hot, then the first available.
     useEffect(() => {
         if (models && models.length > 0 && (!selectedModel || !models.some((m) => m.name === selectedModel))) {
+            const firstUsableHot = models.find((m) => m.status === "hot" && m.allowed);
             const firstHot = models.find((m) => m.status === "hot");
-            setSelectedModel((firstHot ?? models[0]).name);
+            setSelectedModel((firstUsableHot ?? firstHot ?? models[0]).name);
         }
     }, [models, selectedModel]);
 
