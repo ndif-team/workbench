@@ -18,18 +18,10 @@ import { queryKeys } from "@/lib/queryKeys";
 import { getWorkspaces } from "@/lib/queries/workspaceQueries";
 
 type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number];
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectTrigger,
-    SelectValue,
-    SelectSeparator,
-} from "@/components/ui/select";
+import { Select, SelectTrigger } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
+import { PillPopover, type PillPopoverOption } from "@/components/ui/pill-popover";
 import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
 import type { Model, Token } from "@/types/models";
@@ -37,6 +29,88 @@ import type { SourcePosition } from "@/types/activationPatching";
 import { ActivationPatchingLandingInput } from "@/components/ActivationPatchingLandingInput";
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
+
+// Shared inline-pill trigger chrome used by every landing-page selector
+// (tool / workspace / model) so they render at identical height. Brand-
+// gradient wash, full-round, with a visible keyboard focus ring.
+const PILL_TRIGGER =
+    "inline-flex items-center h-8 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full px-2.5 disabled:opacity-50 disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background";
+
+const TOOL_OPTIONS: PillPopoverOption[] = [
+    { value: "Logit Lens", label: "Logit Lens", group: "Tools" },
+    { value: "Activation Patching", label: "Activation Patching", group: "Tools" },
+];
+
+function ToolPill({
+    value,
+    onChange,
+    disabled,
+}: {
+    value: string;
+    onChange: (v: string) => void;
+    disabled: boolean;
+}) {
+    return (
+        <PillPopover
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+            ariaLabel="Select tool"
+            triggerClassName={PILL_TRIGGER}
+            trigger={<span className="truncate">{value}</span>}
+            showSearch={false}
+            options={TOOL_OPTIONS}
+        />
+    );
+}
+
+function WorkspacePill({
+    value,
+    onChange,
+    disabled,
+    workspaces,
+}: {
+    value: string;
+    onChange: (v: string) => void;
+    disabled: boolean;
+    workspaces: WorkspaceListItem[];
+}) {
+    const currentLabel =
+        value === "new"
+            ? "New Workspace"
+            : workspaces.find((ws) => ws.id === value)?.name ?? "Workspace";
+
+    const options: PillPopoverOption[] = [
+        {
+            value: "new",
+            label: "New Workspace",
+            icon: <Plus />,
+            tone: "primary",
+        },
+        ...workspaces.map((ws) => ({
+            value: ws.id,
+            label: ws.name,
+            group: "Workspaces",
+        })),
+    ];
+
+    return (
+        <PillPopover
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+            ariaLabel="Select workspace"
+            triggerClassName={cn(PILL_TRIGGER, "max-w-[180px]")}
+            trigger={
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                    <Layers className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{currentLabel}</span>
+                </span>
+            }
+            options={options}
+        />
+    );
+}
 
 function ModelPillOrSelect({
     modelsLoading,
@@ -57,7 +131,7 @@ function ModelPillOrSelect({
     disabled: boolean;
     loggedIn: boolean;
 }) {
-    const triggerClass = "h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2";
+    const triggerClass = PILL_TRIGGER;
 
     if (modelsLoading) {
         return (
@@ -133,26 +207,17 @@ function ModelTriggerPopover({
 
     const display = selectedModel || "Select model...";
 
-    // Exact className + DOM that the current shadcn `SelectTrigger` renders.
-    // Reproducing it verbatim (instead of going through `<Select>` + reading
-    // the name out of registered SelectItems) lets us keep the same visual
-    // pill without any Radix Select machinery getting in the way.
-    const SELECT_TRIGGER_BASE =
-        "border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-8 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
-
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <button
                     type="button"
                     disabled={disabled}
-                    data-slot="select-trigger"
-                    data-size="default"
-                    className={cn(SELECT_TRIGGER_BASE, triggerClass)}
+                    className={cn(triggerClass, "max-w-[16rem]")}
                     aria-label="Select model"
                 >
-                    <span data-slot="select-value">{display}</span>
-                    <ChevronDown className="size-4 opacity-50" />
+                    <span className="truncate">{display}</span>
+                    <ChevronDown className="size-3 opacity-50 shrink-0" />
                 </button>
             </PopoverTrigger>
             <PopoverContent
@@ -539,71 +604,18 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                         {/* Model Selector - Bottom Left */}
                                         <div className="absolute bottom-3 left-[var(--textarea-padding-x,0.75rem)] flex items-center gap-1.5">
                                             {isSignedInUser && workspacesList && workspacesList.length > 0 && (
-                                                <Select
+                                                <WorkspacePill
                                                     value={selectedWorkspace}
-                                                    onValueChange={setSelectedWorkspace}
+                                                    onChange={setSelectedWorkspace}
                                                     disabled={showCaptcha || isSubmitting}
-                                                >
-                                                    <SelectTrigger className="h-5 w-fit max-w-[180px] text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
-                                                        <span className="flex items-center gap-1.5">
-                                                            <Layers className="w-3.5 h-3.5 shrink-0 text-current" />
-                                                            {selectedWorkspace === "new" && (
-                                                                <span className="truncate">New Workspace</span>
-                                                            )}
-                                                            {selectedWorkspace && selectedWorkspace !== "new" && (
-                                                                <span className="truncate">
-                                                                    {workspacesList.find((ws: WorkspaceListItem) => ws.id === selectedWorkspace)?.name}
-                                                                </span>
-                                                            )}
-                                                        </span>
-                                                    </SelectTrigger>
-                                                    <SelectContent className="rounded-xl max-h-60 overflow-y-auto max-w-[220px]">
-                                                        <SelectItem value="new" className="text-xs font-medium text-primary">
-                                                            <span className="flex items-center gap-1.5">
-                                                                <Plus className="w-3 h-3" />
-                                                                New Workspace
-                                                            </span>
-                                                        </SelectItem>
-                                                        <SelectSeparator />
-                                                        <SelectGroup>
-                                                            <SelectLabel>Workspaces</SelectLabel>
-                                                            {workspacesList.map((ws: WorkspaceListItem) => (
-                                                                <SelectItem key={ws.id} value={ws.id} className="text-xs">
-                                                                    <span className="truncate">{ws.name}</span>
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectGroup>
-                                                    </SelectContent>
-                                                </Select>
+                                                    workspaces={workspacesList}
+                                                />
                                             )}
-                                            <Select
+                                            <ToolPill
                                                 value={selectedTool}
-                                                onValueChange={setSelectedTool}
+                                                onChange={setSelectedTool}
                                                 disabled={showCaptcha || isSubmitting}
-                                            >
-                                                <SelectTrigger className="h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
-                                                    <SelectValue placeholder="Select Tool..." />
-                                                </SelectTrigger>
-                                                <SelectContent className="rounded-xl">
-                                                    <SelectGroup>
-                                                        <SelectLabel>Tools</SelectLabel>
-                                                        <SelectItem
-                                                            key="Logit Lens"
-                                                            value="Logit Lens"
-                                                            className="text-xs"
-                                                        >
-                                                            Logit Lens
-                                                        </SelectItem>
-                                                        <SelectItem
-                                                            key="Activation Patching"
-                                                            value="Activation Patching"
-                                                            className="text-xs"
-                                                        >
-                                                            Activation Patching
-                                                        </SelectItem>
-                                                    </SelectGroup>
-                                                </SelectContent>
-                                            </Select>
+                                            />
                                             <ModelPillOrSelect
                                                 modelsLoading={modelsLoading}
                                                 modelsError={modelsError}
@@ -648,63 +660,18 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                             {/* Tool and Model Selectors */}
                                             <div className="flex items-center gap-1.5 pt-1 flex-wrap">
                                                 {isSignedInUser && workspacesList && workspacesList.length > 0 && (
-                                                    <Select
+                                                    <WorkspacePill
                                                         value={selectedWorkspace}
-                                                        onValueChange={setSelectedWorkspace}
+                                                        onChange={setSelectedWorkspace}
                                                         disabled={showCaptcha || isSubmitting}
-                                                    >
-                                                        <SelectTrigger className="h-5 w-fit max-w-[180px] text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
-                                                            <span className="flex items-center gap-1.5">
-                                                            <Layers className="w-3.5 h-3.5 shrink-0 text-current" />
-                                                            {selectedWorkspace === "new" && (
-                                                                <span className="truncate">New Workspace</span>
-                                                            )}
-                                                            {selectedWorkspace && selectedWorkspace !== "new" && (
-                                                                <span className="truncate">
-                                                                    {workspacesList.find((ws: WorkspaceListItem) => ws.id === selectedWorkspace)?.name}
-                                                                </span>
-                                                            )}
-                                                        </span>
-                                                        </SelectTrigger>
-                                                        <SelectContent className="rounded-xl max-h-60 overflow-y-auto max-w-[220px]">
-                                                            <SelectItem value="new" className="text-xs font-medium text-primary">
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <Plus className="w-3 h-3" />
-                                                                    New Workspace
-                                                                </span>
-                                                            </SelectItem>
-                                                            <SelectSeparator />
-                                                            <SelectGroup>
-                                                                <SelectLabel>Workspaces</SelectLabel>
-                                                                {workspacesList.map((ws: WorkspaceListItem) => (
-                                                                    <SelectItem key={ws.id} value={ws.id} className="text-xs">
-                                                                        <span className="truncate">{ws.name}</span>
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectGroup>
-                                                        </SelectContent>
-                                                    </Select>
+                                                        workspaces={workspacesList}
+                                                    />
                                                 )}
-                                                <Select
+                                                <ToolPill
                                                     value={selectedTool}
-                                                    onValueChange={setSelectedTool}
+                                                    onChange={setSelectedTool}
                                                     disabled={showCaptcha || isSubmitting}
-                                                >
-                                                    <SelectTrigger className="h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
-                                                        <SelectValue placeholder="Select Tool..." />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="rounded-xl">
-                                                        <SelectGroup>
-                                                            <SelectLabel>Tools</SelectLabel>
-                                                            <SelectItem key="Logit Lens" value="Logit Lens" className="text-xs">
-                                                                Logit Lens
-                                                            </SelectItem>
-                                                            <SelectItem key="Activation Patching" value="Activation Patching" className="text-xs">
-                                                                Activation Patching
-                                                            </SelectItem>
-                                                        </SelectGroup>
-                                                    </SelectContent>
-                                                </Select>
+                                                />
                                                 <ModelPillOrSelect
                                                     modelsLoading={modelsLoading}
                                                     modelsError={modelsError}

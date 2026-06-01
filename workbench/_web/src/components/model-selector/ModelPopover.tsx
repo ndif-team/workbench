@@ -5,6 +5,10 @@ import { Check, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
+    popoverMenuShellClass,
+    popoverMenuShellStyle,
+} from "@/components/ui/pill-popover";
+import {
     MODEL_STATUS,
     deriveHeat,
     splitRepo,
@@ -130,42 +134,20 @@ export function ModelPopover({
         // esc is handled by the host Popover.
     };
 
-    // Compact-mode background: an opaque brand-tinted gradient (the primary
-    // and purple are *baked* into the popover color via color-mix so each
-    // stop is solid). Done as an inline style to avoid tailwind-merge
-    // collapsing `bg-popover` and `bg-gradient-to-b` into a single class.
-    const compactBg = compact
-        ? {
-              background: [
-                  "linear-gradient(",
-                  "to bottom,",
-                  "color-mix(in oklab, hsl(var(--primary)) 8%, hsl(var(--popover))),",
-                  "color-mix(in oklab, rgb(168 85 247) 8%, hsl(var(--popover)))",
-                  ")",
-              ].join(" "),
-          }
-        : undefined;
-
     return (
         <div
             onKeyDown={onKeyDown}
-            style={compactBg}
-            className={cn(
-                "text-popover-foreground border overflow-hidden text-sm",
-                compact
-                    ? cn(
-                          "w-[260px] rounded-2xl border-primary/15",
-                          "shadow-[0_16px_40px_-12px_hsl(var(--primary)/0.18),0_4px_12px_-2px_hsl(0_0%_0%/0.05)]",
-                      )
-                    : cn(
-                          "w-[380px] rounded-md bg-popover",
-                          "shadow-[0_12px_28px_hsl(0_0%_0%_/_0.10)]",
-                      ),
-            )}
+            style={{ width: compact ? 260 : 380, ...popoverMenuShellStyle(compact) }}
+            className={popoverMenuShellClass(compact)}
         >
             {/* Search */}
             {showSearch && (
-                <div className="flex items-center gap-2 px-3 py-2.5 border-b">
+                <div
+                    className={cn(
+                        "flex items-center gap-2 px-3 py-2.5 border-b",
+                        compact && "border-primary/10",
+                    )}
+                >
                     <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     <input
                         autoFocus
