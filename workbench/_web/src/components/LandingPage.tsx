@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, type ElementRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ModeToggle } from "@/components/ui/mode-toggle";
-import { ArrowRight, Sparkles, Layers, Plus } from "lucide-react";
+import { ArrowRight, Sparkles, Layers, Plus, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { UserDropdown } from "@/components/UserDropdown";
@@ -28,6 +28,9 @@ import {
     SelectValue,
     SelectSeparator,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ModelPopover } from "@/components/model-selector/ModelPopover";
+import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
 import type { Model, Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
@@ -43,6 +46,7 @@ function ModelPillOrSelect({
     selectedModel,
     onModelChange,
     disabled,
+    loggedIn,
 }: {
     modelsLoading: boolean;
     modelsError: boolean;
@@ -51,6 +55,7 @@ function ModelPillOrSelect({
     selectedModel: string;
     onModelChange: (value: string) => void;
     disabled: boolean;
+    loggedIn: boolean;
 }) {
     const triggerClass = "h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2";
 
@@ -81,31 +86,116 @@ function ModelPillOrSelect({
         );
     }
 
+    // Landing-page policy: only surface hot models (ready-to-run on NDIF
+    // right now). Warm/cold and gated models hide behind a "N more models"
+    // link in the popover footer so the landing experience stays fast and
+    // approachable for one-shot prompts.
+    const hotModels = modelsToSelect.filter((m) => m.status === "hot");
+    const moreCount = modelsToSelect.length - hotModels.length;
+
     return (
-        <Select value={selectedModel} onValueChange={onModelChange} disabled={disabled}>
-            <SelectTrigger className={triggerClass}>
-                <SelectValue placeholder="Select model..." />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-                <SelectGroup>
-                    <SelectLabel>Models</SelectLabel>
-                    {modelsToSelect.map((model) =>
-                        model.gated && !model.allowed ? (
-                            <SelectItem key={model.name} value={model.name} className="text-xs">
-                                <div className="flex items-center gap-2">
-                                    {model.name}
-                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500" title="Requires sign-in" />
-                                </div>
-                            </SelectItem>
-                        ) : (
-                            <SelectItem key={model.name} value={model.name} className="text-xs">
-                                {model.name}
-                            </SelectItem>
-                        ),
-                    )}
-                </SelectGroup>
-            </SelectContent>
-        </Select>
+        <ModelTriggerPopover
+            triggerClass={triggerClass}
+            models={hotModels}
+            moreCount={moreCount}
+            selectedModel={selectedModel}
+            onModelChange={onModelChange}
+            disabled={disabled}
+            loggedIn={loggedIn}
+        />
+    );
+}
+
+/**
+ * Landing-page model picker: keeps the existing tiny inline-pill trigger
+ * but opens the same rich Base/Chat/heat-sorted/searchable Popover used in
+ * the workspace `ModelControl`. Single source of truth for the picker UI.
+ */
+function ModelTriggerPopover({
+    triggerClass,
+    models,
+    moreCount,
+    selectedModel,
+    onModelChange,
+    disabled,
+    loggedIn,
+}: {
+    triggerClass: string;
+    models: Model[];
+    moreCount: number;
+    selectedModel: string;
+    onModelChange: (value: string) => void;
+    disabled: boolean;
+    loggedIn: boolean;
+}) {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
+
+    const display = selectedModel || "Select model...";
+
+    // Exact className + DOM that the current shadcn `SelectTrigger` renders.
+    // Reproducing it verbatim (instead of going through `<Select>` + reading
+    // the name out of registered SelectItems) lets us keep the same visual
+    // pill without any Radix Select machinery getting in the way.
+    const SELECT_TRIGGER_BASE =
+        "border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-8 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <button
+                    type="button"
+                    disabled={disabled}
+                    data-slot="select-trigger"
+                    data-size="default"
+                    className={cn(SELECT_TRIGGER_BASE, triggerClass)}
+                    aria-label="Select model"
+                >
+                    <span data-slot="select-value">{display}</span>
+                    <ChevronDown className="size-4 opacity-50" />
+                </button>
+            </PopoverTrigger>
+            <PopoverContent
+                align="start"
+                sideOffset={6}
+                className="p-0 border-0 bg-transparent shadow-none w-auto"
+                onCloseAutoFocus={(e) => e.preventDefault()}
+            >
+                <ModelPopover
+                    models={models}
+                    selectedName={selectedModel}
+                    onSelect={(name) => {
+                        onModelChange(name);
+                        setOpen(false);
+                    }}
+                    query={query}
+                    onQueryChange={setQuery}
+                    showSearch={false}
+                    compact
+                    footer={
+                        moreCount > 0 ? (
+                            <Link
+                                href={loggedIn ? "/workbench?models=open" : "/login"}
+                                className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors group"
+                            >
+                                <span>
+                                    <span className="text-foreground font-medium tabular-nums">
+                                        {moreCount}
+                                    </span>{" "}
+                                    more model{moreCount === 1 ? "" : "s"}
+                                    {!loggedIn && (
+                                        <span className="text-muted-foreground/70">
+                                            {" "}— sign in to use
+                                        </span>
+                                    )}
+                                </span>
+                                <ArrowRight className="size-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+                            </Link>
+                        ) : null
+                    }
+                />
+            </PopoverContent>
+        </Popover>
     );
 }
 
@@ -155,10 +245,13 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     const modelsToSelect: Model[] = models && models.length > 0 ? models : [];
     const hasModels = modelsToSelect.length > 0;
 
-    // Default to first model when models load
+    // Default to a hot model when models load (the landing popover only
+    // surfaces hot models, so the auto-pick should match). Falls back to
+    // the first available if the catalog has no hot models yet.
     useEffect(() => {
         if (models && models.length > 0 && (!selectedModel || !models.some((m) => m.name === selectedModel))) {
-            setSelectedModel(models[0].name);
+            const firstHot = models.find((m) => m.status === "hot");
+            setSelectedModel((firstHot ?? models[0]).name);
         }
     }, [models, selectedModel]);
 
@@ -520,6 +613,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                 selectedModel={selectedModel}
                                                 onModelChange={setSelectedModel}
                                                 disabled={showCaptcha || isSubmitting}
+                                                loggedIn={loggedIn}
                                             />
                                         </div>
 
@@ -620,6 +714,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                     selectedModel={selectedModel}
                                                     onModelChange={setSelectedModel}
                                                     disabled={showCaptcha || isSubmitting}
+                                                    loggedIn={loggedIn}
                                                 />
                                             </div>
                                         </div>
