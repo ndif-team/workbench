@@ -55,7 +55,7 @@ export default async function WorkbenchPage({
     const tgtFreeze = params?.tgtFreeze;
 
     // If no workspaces exist OR createNew flag is set, create a new workspace
-    let shouldCreateWorkspace = !workspaces || workspaces.length === 0 || createNew;
+    const shouldCreateWorkspace = !workspaces || workspaces.length === 0 || createNew;
 
     // If workspaceId is provided, use the existing workspace instead of creating new
     const useExistingWorkspace = workspaceId && !shouldCreateWorkspace;
@@ -118,9 +118,11 @@ export default async function WorkbenchPage({
                 </header>
 
                 <main>
-                    <ModelsSectionStateController
-                        isCreating={!!(useExistingWorkspace || shouldCreateWorkspace)}
-                    />
+                    <Suspense fallback={null}>
+                        <ModelsSectionStateController
+                            isCreating={!!(useExistingWorkspace || shouldCreateWorkspace)}
+                        />
+                    </Suspense>
                     <ModelsSection />
 
                     {useExistingWorkspace ? (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { useModelsSection } from "@/stores/useModelsSection";
 
@@ -18,7 +18,9 @@ interface ModelsSectionStateControllerProps {
  *
  *   - `?models=open` URL hint (set by the landing-page "X more models"
  *     link) → expand the section, then strip the param so refreshes don't
- *     keep re-forcing it.
+ *     keep re-forcing it. This hint takes priority over the `isCreating`
+ *     collapse — a user who clicked "more models" wants to see them even if
+ *     a workspace is being created behind the scenes.
  *   - `isCreating` page state → collapse the section so the workspace
  *     creation flow is the focal point.
  *
@@ -29,26 +31,29 @@ export function ModelsSectionStateController({
     isCreating,
 }: ModelsSectionStateControllerProps) {
     const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const setCollapsed = useModelsSection((s) => s.setCollapsed);
 
-    // Honor the ?models=open hint from the landing page on first paint.
-    // Strip the param afterwards so a manual collapse + refresh stays
-    // collapsed.
+    const wantsOpen = searchParams.get("models") === "open";
+
+    // Honor the ?models=open hint from the landing page on first paint, then
+    // strip the param so a later manual collapse + refresh stays collapsed.
     useEffect(() => {
-        if (searchParams.get("models") !== "open") return;
+        if (!wantsOpen) return;
         setCollapsed(false);
         const params = new URLSearchParams(searchParams.toString());
         params.delete("models");
         const qs = params.toString();
-        router.replace(qs ? `?${qs}` : "?", { scroll: false });
-    }, [searchParams, setCollapsed, router]);
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }, [wantsOpen, searchParams, setCollapsed, router, pathname]);
 
     // Collapse while a workspace is being created so the section doesn't
-    // dominate the loading view.
+    // dominate the loading view — UNLESS the user explicitly asked to see
+    // the models (?models=open), which wins.
     useEffect(() => {
-        if (isCreating) setCollapsed(true);
-    }, [isCreating, setCollapsed]);
+        if (isCreating && !wantsOpen) setCollapsed(true);
+    }, [isCreating, wantsOpen, setCollapsed]);
 
     return null;
 }
