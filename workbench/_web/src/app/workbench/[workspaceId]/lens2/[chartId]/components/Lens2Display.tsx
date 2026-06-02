@@ -9,10 +9,11 @@ import { Lens2Data, Lens2ConfigData } from "@/types/lens2";
 import { useTheme } from "next-themes";
 import { Loader2 } from "lucide-react";
 import { LogitLensWidget } from "nnsightful";
-import type { LogitLensData } from "nnsightful";
+import type { LogitLensData, LogitLensUIState } from "nnsightful";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useUpdateChartName } from "@/lib/api/chartApi";
+import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
 
@@ -30,7 +31,7 @@ interface Lens2Config {
 }
 
 export function Lens2Display() {
-    const { chartId } = useParams<{ chartId: string }>();
+    const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
     const { resolvedTheme } = useTheme();
     const isDarkMode = resolvedTheme === "dark";
 
@@ -60,10 +61,46 @@ export function Lens2Display() {
     const modelsAvailable = !!models && models.length > 0;
 
     const { mutate: updateChartName } = useUpdateChartName();
+    const { mutate: updateChartConfig } = useUpdateChartConfig();
 
     const lens2Chart = chart as Lens2Chart | undefined;
     const lens2Config = config as Lens2Config | undefined;
     const hasData = lens2Chart?.data && "meta" in lens2Chart.data;
+
+    // ── Persist heatmap UI state (pins, selection, layer window, appearance)
+    // into the chart config, mirroring ActivationPatchingDisplay. Debounced
+    // because the widget emits on every interaction; restored on mount via
+    // the `uiState` prop below.
+    const savedUiState = lens2Config?.data?.uiState as LogitLensUIState | undefined;
+    const lens2ConfigRef = useRef(lens2Config);
+    lens2ConfigRef.current = lens2Config;
+    const saveUiStateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const handleStateChange = useCallback(
+        (uiState: LogitLensUIState) => {
+            if (saveUiStateTimeoutRef.current) clearTimeout(saveUiStateTimeoutRef.current);
+            saveUiStateTimeoutRef.current = setTimeout(() => {
+                const cfg = lens2ConfigRef.current;
+                if (!cfg?.id) return;
+                updateChartConfig({
+                    configId: cfg.id,
+                    chartId,
+                    config: {
+                        data: { ...cfg.data, uiState },
+                        workspaceId,
+                        type: "lens2",
+                    },
+                });
+            }, 500);
+        },
+        [chartId, workspaceId, updateChartConfig],
+    );
+
+    useEffect(() => {
+        return () => {
+            if (saveUiStateTimeoutRef.current) clearTimeout(saveUiStateTimeoutRef.current);
+        };
+    }, []);
 
     const chartModel = chartModelFromConfig(lens2Config, lens2Chart);
     const stale = isChartStale(chartModel, selectedModel, modelsAvailable);
@@ -184,6 +221,8 @@ export function Lens2Display() {
             <LogitLensWidget
                 data={lens2Chart.data! as LogitLensData}
                 darkMode={isDarkMode}
+                uiState={savedUiState}
+                onStateChange={handleStateChange}
                 className="w-full min-h-[400px]"
             />
         </div>
