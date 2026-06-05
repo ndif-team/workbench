@@ -1,5 +1,3 @@
-remote = false
-
-models = [
+pinned = [
     "openai-community/gpt2",
 ]

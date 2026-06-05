@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..auth import get_user_email, require_user_email, user_has_model_access
-from ..data_models import NDIFResponse, Token
+from ..data_models import NDIFResponse, Token, ModelHeat
 from ..telemetry import TelemetryClient, RequestStatus
 from ..state import AppState, get_state
 
@@ -15,75 +15,90 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-MODELS = list()
 MODELS_LAST_UPDATED = 0
-MODEL_INTERVAL = 60
+MODEL_INTERVAL = 30
 
-# Deployment levels we surface to the frontend as model statuses.
-# Anything outside this set is treated as not-deployed and removed from the list.
-SUPPORTED_DEPLOYMENT_LEVELS = {"HOT", "WARM", "COLD"}
+
+def _refresh_catalog(state: AppState) -> None:
+    """Hit NDIF /status and rebuild the catalog of deployed models. Caches
+    metadata for any model we haven't seen before; non-pinned models that
+    fell out of the deployment set get unloaded (pinned ones stay loaded)."""
+    
+    ping_resp = requests.get(f"{state.ndif_backend_url}/ping", timeout=30)
+    logger.info(f"Call NDIF_BACKEND/ping: {ping_resp.status_code}")
+    if ping_resp.status_code != 200:
+        raise HTTPException(status_code=500, detail="NDIF backend is not responding")
+
+    status_resp = requests.get(f"{state.ndif_backend_url}/status", timeout=10)
+    logger.info(f"Call NDIF_BACKEND/status: {status_resp.status_code}")
+    if status_resp.status_code != 200:
+        raise HTTPException(status_code=500, detail="Failed to fetch NDIF backend status")
+
+    data = status_resp.json()
+
+    # Pass 1: figure out which models NDIF currently serves, their heat, and
+    # whether each is pinned (per NDIF deployment_state — not config).
+    model_roster: dict[str, tuple[ModelHeat, bool]] = {}
+    for deployment_state in data["deployments"].values():
+        if deployment_state == {"application_state": "UNHEALTHY"}:
+            continue
+
+        repo_id = deployment_state.get("repo_id")
+        level = deployment_state.get("deployment_level")
+        app_state = deployment_state.get("application_state")
+        pinned = app_state == "RUNNING" and bool(deployment_state.get("pinned"))
+
+        if not repo_id:
+            continue
+
+        # A replica whose application is mid-load surfaces as DEPLOYING
+        # regardless of its reported deployment_level, so the UI can show it
+        # warming up. Otherwise fall back to the deployment heat level.
+        if app_state == "DEPLOYING":
+            heat = ModelHeat.DEPLOYING
+        elif level in {"HOT", "WARM", "COLD"}:
+            heat = ModelHeat(level.lower())
+        else:
+            continue
+        if repo_id not in model_roster:
+            model_roster[repo_id] = (heat, pinned)
+        else:
+            existing_heat, existing_pinned = model_roster[repo_id]
+            model_roster[repo_id] = (
+                ModelHeat.hotter(heat, existing_heat),
+                pinned or existing_pinned,
+            )
+
+    # Pass 2: drop any catalog entries NDIF no longer serves.
+    for stale in list(state.catalog.keys()):
+        if stale not in model_roster:
+            state.deregister_catalog_entry(stale)
+
+    # Pass 3: register everything NDIF currently serves. register_catalog_entry
+    # caches metadata on first sight, no-op for already-known models.
+    for repo_id, (heat, pinned) in model_roster.items():
+        state.register_catalog_entry(repo_id, heat, pinned=pinned)
+
 
 def get_remote_models(state: AppState, is_user_signed_in: bool):
+    global MODELS_LAST_UPDATED
 
-    global MODELS, MODELS_LAST_UPDATED
-
-    if MODELS_LAST_UPDATED == 0 or time.time() - MODELS_LAST_UPDATED > 60:
-
-        ping_resp = requests.get(f"{state.ndif_backend_url}/ping", timeout=30)
-        logger.info(f"Call NDIF_BACKEND/ping: {ping_resp.status_code}")
-
-        if ping_resp.status_code != 200:
-            raise HTTPException(status_code=500, detail="NDIF backend is not responding")
-
-        stats_resp = requests.get(f"{state.ndif_backend_url}/status", timeout=10)
-
-        logger.info(f"Call NDIF_BACKEND/status: {stats_resp.status_code}")
-
-        if stats_resp.status_code != 200:
-            raise HTTPException(status_code=500, detail="Failed to fetch NDIF backend status")
-
-        data = stats_resp.json()
-
-        # repo_id → ModelStatus, captured at refresh time so we cache it alongside MODELS.
-        deployment_status: dict[str, str] = {}
-
-        for deployment_state in data["deployments"].values():
-            if deployment_state == {'application_state': 'UNHEALTHY'}:
-                continue
-
-            repo_id = deployment_state.get('repo_id')
-            level = deployment_state.get('deployment_level')
-            app_state = deployment_state.get('application_state')
-
-            if not repo_id:
-                continue
-
-            if level in SUPPORTED_DEPLOYMENT_LEVELS and app_state == "RUNNING":
-                state.add_model(repo_id)
-                deployment_status[repo_id] = level.lower()
-            else:
-                state.remove_model(repo_id)
-
-        active = state.get_active_model_list()
-        for model in active:
-            model['status'] = deployment_status.get(model['name'], 'unknown')
-
-        MODELS = active
+    if MODELS_LAST_UPDATED == 0 or time.time() - MODELS_LAST_UPDATED > MODEL_INTERVAL:
+        _refresh_catalog(state)
         MODELS_LAST_UPDATED = time.time()
 
-    models = [model.copy() for model in MODELS]
+    models = [model.copy() for model in state.get_catalog()]
     for model in models:
-        if not is_user_signed_in and model['gated']:
-            model['allowed'] = False
+        if not is_user_signed_in and model["gated"]:
+            model["allowed"] = False
         else:
-            model['allowed'] = True
-
+            model["allowed"] = True
     return models
 
 @router.get("/")
 async def get_models(
     state: AppState = Depends(get_state),
-    user_email: str = Depends(get_user_email)
+    user_email: str = Depends(get_user_email),
 ):
     if state.remote:
         is_user_signed_in: bool = user_email is not None and user_email != "guest@localhost"
@@ -95,7 +110,7 @@ async def get_models(
         models = state.get_all_model_list()
         # Local models are fully loaded on the dev backend, so they're effectively hot.
         for model in models:
-            model['status'] = 'hot'
+            model['status'] = ModelHeat.HOT.value
         return models
 
 
