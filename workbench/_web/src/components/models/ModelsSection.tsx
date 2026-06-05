@@ -10,13 +10,16 @@ import { cn } from "@/lib/utils";
 import {
     deriveHeat,
     FILTERABLE_HEAT,
+    HEAT_ORDER,
     type ModelGroup,
     type ModelHeat,
 } from "@/components/model-selector/status";
 import { useModelsSection } from "@/stores/useModelsSection";
+import { useModelDeployment } from "@/stores/useModelDeployment";
 import { ModelRowCarousel } from "./ModelRowCarousel";
 import { ModelsSectionHeader } from "./ModelsSectionHeader";
 import { ModelsFetchErrorBanner } from "./ModelsFetchErrorBanner";
+import { ModelLaunchDialog, type ModelLaunchMode } from "./ModelLaunchDialog";
 import type { ModelCardModel } from "./ModelCard";
 
 const URL_STATUS = "models_status";
@@ -24,22 +27,20 @@ const URL_GROUP = "models_group";
 
 const VALID_GROUPS: ReadonlyArray<ModelGroup> = ["base", "chat"];
 
-const HEAT_ORDER: ReadonlyArray<ModelHeat> = [
-    "hot",
-    "warm",
-    "cold",
-    "unknown",
-    "gated",
-    "unavailable",
-];
-
 const heatRank = (h: ModelHeat) => {
     const i = HEAT_ORDER.indexOf(h);
     return i === -1 ? HEAT_ORDER.length : i;
 };
 
-const byHeat = (a: ModelCardModel, b: ModelCardModel) =>
-    heatRank(a.heat) - heatRank(b.heat) || a.name.localeCompare(b.name);
+const byHeat = (a: ModelCardModel, b: ModelCardModel) => {
+    // Models currently deploying sort to the very front (ahead of hot) so the
+    // user can see warmup progress at a glance. This covers both our own
+    // in-flight warmup (the `deploying` flag) and a "deploying" catalog heat.
+    const aDeploying = !!a.deploying || a.heat === "deploying";
+    const bDeploying = !!b.deploying || b.heat === "deploying";
+    if (aDeploying !== bDeploying) return aDeploying ? -1 : 1;
+    return heatRank(a.heat) - heatRank(b.heat) || a.name.localeCompare(b.name);
+};
 
 /** Content-equality for Sets. Used by the URL→state sync effects so they
  * keep the previous Set reference (and skip a re-render) when the URL change
@@ -50,15 +51,21 @@ const setsEqual = <T,>(a: Set<T>, b: Set<T>): boolean => {
     return true;
 };
 
-const toCardModel = (m: Model): ModelCardModel => {
+const toCardModel = (m: Model, isSignedIn: boolean): ModelCardModel => {
     const slash = m.name.lastIndexOf("/");
     const org = slash === -1 ? "" : m.name.slice(0, slash);
     const name = slash === -1 ? m.name : m.name.slice(slash + 1);
+    let heat = deriveHeat(m);
+    // Deploying a cold model requires a real sign-in, so to a signed-out
+    // visitor a cold model is effectively locked. Show it as gated — which
+    // also makes the card non-interactive (see ModelCard), disabling the
+    // deploy entry point entirely.
+    if (!isSignedIn && heat === "cold") heat = "gated";
     return {
         org,
         name,
         group: m.is_chat ? "chat" : "base",
-        heat: deriveHeat(m),
+        heat,
         params: m.params,
         layers: m.n_layers,
     };
@@ -67,15 +74,20 @@ const toCardModel = (m: Model): ModelCardModel => {
 interface ModelsSectionProps {
     cardHref?: (m: ModelCardModel) => string | undefined;
     onCardClick?: (m: ModelCardModel) => void;
+    /** When false, cold models render as gated (locked) and can't be deployed —
+     * deployment requires a real sign-in. Defaults to true. */
+    isSignedIn?: boolean;
 }
 
 export function ModelsSection({
     cardHref = (m) => `https://huggingface.co/${m.org}/${m.name}`,
     onCardClick,
+    isSignedIn = true,
 }: ModelsSectionProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
+    const deployments = useModelDeployment((s) => s.deployments);
 
     const collapsed = useModelsSection((s) => s.collapsed);
     const setCollapsed = useModelsSection((s) => s.setCollapsed);
@@ -108,6 +120,10 @@ export function ModelsSection({
     const [statusFilters, setStatusFilters] = useState<Set<ModelHeat>>(initialStatus);
     const [groupFilters, setGroupFilters] = useState<Set<ModelGroup>>(initialGroup);
     const [query, setQuery] = useState("");
+    const [dialog, setDialog] = useState<{
+        model: ModelCardModel;
+        mode: ModelLaunchMode;
+    } | null>(null);
 
     // Keep filter state mirrored to the URL on every searchParams change.
     // `useState` only seeds from `initialStatus` / `initialGroup` on the
@@ -182,8 +198,15 @@ export function ModelsSection({
     } = useModelsQuery();
 
     const cards = useMemo(
-        () => (rawModels ?? []).map(toCardModel),
-        [rawModels],
+        () =>
+            (rawModels ?? []).map((m) => {
+                const phase = deployments[m.name]?.phase;
+                return {
+                    ...toCardModel(m, isSignedIn),
+                    deploying: phase === "submitting" || phase === "deploying",
+                };
+            }),
+        [rawModels, deployments, isSignedIn],
     );
 
     const filtered = useMemo(() => {
@@ -273,13 +296,6 @@ export function ModelsSection({
             // / screen-reader users use the chevron.
             onClick={collapsed ? () => setCollapsed(false) : undefined}
         >
-            <div
-                aria-hidden
-                className={cn(
-                    "absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-primary to-purple-600 transition-opacity duration-150",
-                    collapsed ? "opacity-15 group-hover/section:opacity-35" : "opacity-35",
-                )}
-            />
             <div className={cn("px-4 transition-[padding] duration-200", collapsed ? "pt-4 pb-10" : "py-4")}>
                 <ModelsSectionHeader
                     collapsed={collapsed}
@@ -344,7 +360,17 @@ export function ModelsSection({
                                             label="Base"
                                             models={baseCards}
                                             cardHref={cardHref}
-                                            onCardClick={onCardClick}
+                                            onCardClick={
+                                                onCardClick ??
+                                                ((m) =>
+                                                    setDialog({
+                                                        model: m,
+                                                        mode:
+                                                            m.heat === "cold"
+                                                                ? "deploy"
+                                                                : "launch",
+                                                    }))
+                                            }
                                         />
                                     )}
                                     {showChat && (
@@ -352,7 +378,17 @@ export function ModelsSection({
                                             label="Chat"
                                             models={chatCards}
                                             cardHref={cardHref}
-                                            onCardClick={onCardClick}
+                                            onCardClick={
+                                                onCardClick ??
+                                                ((m) =>
+                                                    setDialog({
+                                                        model: m,
+                                                        mode:
+                                                            m.heat === "cold"
+                                                                ? "deploy"
+                                                                : "launch",
+                                                    }))
+                                            }
                                         />
                                     )}
                                 </>
@@ -361,6 +397,14 @@ export function ModelsSection({
                     )}
                 </div>
             )}
+
+            <ModelLaunchDialog
+                model={dialog?.model ?? null}
+                mode={dialog?.mode ?? "deploy"}
+                onOpenChange={(open) => {
+                    if (!open) setDialog(null);
+                }}
+            />
         </section>
     );
 }

@@ -93,6 +93,10 @@ interface PillPopoverProps {
     searchPlaceholder?: string;
     /** Compact (landing) styling. Defaults to true. */
     compact?: boolean;
+    /** Make the popover modal. Required when rendered inside a Dialog: the
+     * Dialog's scroll-lock otherwise blocks wheel/touch scrolling on the
+     * body-portaled popover content, so the menu list can't scroll. */
+    modal?: boolean;
     /** Content rendered below the options, separated by a border. */
     footer?: React.ReactNode;
     align?: "start" | "center" | "end";
@@ -111,6 +115,7 @@ export function PillPopover({
     showSearch,
     searchPlaceholder = "Search…",
     compact = true,
+    modal = false,
     footer,
     align = "start",
     widthPx,
@@ -198,7 +203,7 @@ export function PillPopover({
     };
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={setOpen} modal={modal}>
             <PopoverTrigger asChild>
                 <button
                     type="button"

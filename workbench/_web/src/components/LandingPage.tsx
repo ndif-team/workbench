@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, type ElementRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ModeToggle } from "@/components/ui/mode-toggle";
-import { ArrowRight, Sparkles, Layers, Plus, ChevronDown } from "lucide-react";
+import { ArrowRight, Sparkles, Layers, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { UserDropdown } from "@/components/UserDropdown";
@@ -14,14 +14,15 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useModelsQuery } from "@/lib/api/modelsApi";
-import { queryKeys } from "@/lib/queryKeys";
 import { getWorkspaces } from "@/lib/queries/workspaceQueries";
-
-type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number];
 import { Select, SelectTrigger } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
-import { PillPopover, type PillPopoverOption } from "@/components/ui/pill-popover";
+import {
+    ToolPill,
+    WorkspacePill,
+    PILL_TRIGGER as SHARED_PILL_TRIGGER,
+} from "@/components/selectors/LaunchSelectors";
 import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
 import type { Model, Token } from "@/types/models";
@@ -30,87 +31,7 @@ import { ActivationPatchingLandingInput } from "@/components/ActivationPatchingL
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
 
-// Shared inline-pill trigger chrome used by every landing-page selector
-// (tool / workspace / model) so they render at identical height. Brand-
-// gradient wash, full-round, with a visible keyboard focus ring.
-const PILL_TRIGGER =
-    "inline-flex items-center h-8 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full px-2.5 disabled:opacity-50 disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background";
-
-const TOOL_OPTIONS: PillPopoverOption[] = [
-    { value: "Logit Lens", label: "Logit Lens", group: "Tools" },
-    { value: "Activation Patching", label: "Activation Patching", group: "Tools" },
-];
-
-function ToolPill({
-    value,
-    onChange,
-    disabled,
-}: {
-    value: string;
-    onChange: (v: string) => void;
-    disabled: boolean;
-}) {
-    return (
-        <PillPopover
-            value={value}
-            onChange={onChange}
-            disabled={disabled}
-            ariaLabel="Select tool"
-            triggerClassName={PILL_TRIGGER}
-            trigger={<span className="truncate">{value}</span>}
-            showSearch={false}
-            options={TOOL_OPTIONS}
-        />
-    );
-}
-
-function WorkspacePill({
-    value,
-    onChange,
-    disabled,
-    workspaces,
-}: {
-    value: string;
-    onChange: (v: string) => void;
-    disabled: boolean;
-    workspaces: WorkspaceListItem[];
-}) {
-    const currentLabel =
-        value === "new"
-            ? "New Workspace"
-            : workspaces.find((ws) => ws.id === value)?.name ?? "Workspace";
-
-    const options: PillPopoverOption[] = [
-        {
-            value: "new",
-            label: "New Workspace",
-            icon: <Plus />,
-            tone: "primary",
-        },
-        ...workspaces.map((ws) => ({
-            value: ws.id,
-            label: ws.name,
-            group: "Workspaces",
-        })),
-    ];
-
-    return (
-        <PillPopover
-            value={value}
-            onChange={onChange}
-            disabled={disabled}
-            ariaLabel="Select workspace"
-            triggerClassName={cn(PILL_TRIGGER, "max-w-[180px]")}
-            trigger={
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                    <Layers className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{currentLabel}</span>
-                </span>
-            }
-            options={options}
-        />
-    );
-}
+const PILL_TRIGGER = SHARED_PILL_TRIGGER;
 
 function ModelPillOrSelect({
     modelsLoading,
