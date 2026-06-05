@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import config from "@/lib/config";
 import type { LensConfigData } from "@/types/lens";
 import type { Model, Token } from "@/types/models";
@@ -6,6 +6,7 @@ import { startAndPoll } from "../startAndPoll";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useWorkspace } from "@/stores/useWorkspace";
+import { useModelDeployment } from "@/stores/useModelDeployment";
 import { createUserHeadersAction } from "@/actions/auth";
 import { queryKeys } from "@/lib/queryKeys";
 
@@ -98,14 +99,41 @@ export const getModels = async (): Promise<Model[]> => {
  * To force a retry after failure: `queryClient.invalidateQueries({
  * queryKey: queryKeys.models.all })` or reload the page.
  */
-/** Background refresh cadence for the model catalog (ms). Matches the
- * backend's NDIF /status cache TTL — polling faster wastes calls because
- * the backend would just return its own cached payload. Polling slower
- * means heat changes (cold → hot) take longer than necessary to surface. */
+/** Background refresh cadence for the model catalog (ms). Kept at or above the
+ * backend's NDIF /status cache TTL (`MODEL_INTERVAL`, currently 30s) — polling
+ * faster wastes calls because the backend would just return its own cached
+ * payload. Polling slower means heat changes (cold → hot) take longer than
+ * necessary to surface. */
 const MODELS_REFRESH_INTERVAL_MS = 60_000;
 
 export const useModelsQuery = () => {
     const queryClient = useQueryClient();
+    const deployments = useModelDeployment((s) => s.deployments);
+
+    // Once a cold model has been deployed (its warmup job COMPLETED and the
+    // deployment phase is "ready"), force its catalog status to "hot".
+    //
+    // We can't rely on re-fetching to surface this: the heat is cached at
+    // several levels (our backend catalog AND NDIF itself), and NDIF exposes
+    // no way to bust its cache — a refresh can keep reporting COLD for a model
+    // we just warmed up. So the override lives here in the read path and is
+    // re-applied on every fetch, surviving the periodic background refresh
+    // below. It resets naturally on a full reload, when the deployment store
+    // (module-global, not persisted) clears and the backend is truth again.
+    const applyDeployedHeat = useCallback(
+        (models: Model[]): Model[] => {
+            const deployed = new Set(
+                Object.values(deployments)
+                    .filter((d) => d.phase === "ready")
+                    .map((d) => d.model),
+            );
+            if (deployed.size === 0) return models;
+            return models.map((m) =>
+                deployed.has(m.name) ? { ...m, status: "hot" as const } : m,
+            );
+        },
+        [deployments],
+    );
 
     // Initial fetch on first mount (only when the cache is genuinely empty).
     // Avoids React Query's automatic on-subscribe refetch path, which thrashes
@@ -157,5 +185,6 @@ export const useModelsQuery = () => {
         enabled: false,
         retry: false,
         staleTime: Infinity,
+        select: applyDeployedHeat,
     });
 };
