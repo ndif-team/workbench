@@ -24,6 +24,7 @@ export default function Lens2Area() {
         modelsFetching,
         effectiveModel,
         hasExistingData,
+        modelRunnable,
     } = useToolArea<Lens2Config, Lens2Chart>();
 
     if (!config || isChartLoading) {
@@ -43,7 +44,10 @@ export default function Lens2Area() {
                 key={config.id}
                 initialConfig={config}
                 selectedModel={effectiveModel}
-                modelsAvailable={modelsAvailable}
+                // Treat a non-runnable (cold/gone) saved model as read-only,
+                // reusing the existing models-unavailable path. The saved
+                // result still renders read-only in the Display.
+                modelsAvailable={modelsAvailable && modelRunnable}
                 modelsLoading={modelsFetching}
                 hasExistingData={hasExistingData}
             />

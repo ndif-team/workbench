@@ -27,6 +27,7 @@ export default function ActivationPatchingArea() {
         modelsFetching,
         effectiveModel,
         hasExistingData,
+        modelRunnable,
     } = useToolArea<ActivationPatchingConfig, ActivationPatchingChart>();
 
     if (!config || isChartLoading) {
@@ -46,7 +47,9 @@ export default function ActivationPatchingArea() {
                 key={config.id}
                 initialConfig={config}
                 selectedModel={effectiveModel}
-                modelsAvailable={modelsAvailable}
+                // Cold/gone saved model → read-only (reuses the existing
+                // models-unavailable path); the saved result still renders.
+                modelsAvailable={modelsAvailable && modelRunnable}
                 modelsLoading={modelsFetching}
                 hasExistingData={hasExistingData}
             />

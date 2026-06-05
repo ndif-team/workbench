@@ -29,6 +29,7 @@ export default async function WorkbenchPage({
         srcPos?: string;
         tgtPos?: string;
         tgtFreeze?: string;
+        deploy?: string;
     }>;
 }) {
     const supabase = await createClient();
@@ -37,6 +38,12 @@ export default async function WorkbenchPage({
         data: { user },
         error,
     } = await supabase.auth.getUser();
+
+    // A real (non-anonymous) sign-in is required to deploy cold models. When
+    // absent, ModelsSection renders cold models as gated and inert.
+    const isSignedIn =
+        process.env.NEXT_PUBLIC_DISABLE_AUTH === "true" ||
+        (!!user && !user.is_anonymous);
 
     // Check if user has any workspaces
     const workspaces = await getWorkspaces(user.id);
@@ -53,6 +60,7 @@ export default async function WorkbenchPage({
     const srcPos = params?.srcPos;
     const tgtPos = params?.tgtPos;
     const tgtFreeze = params?.tgtFreeze;
+    const deploy = params?.deploy === "true";
 
     // If no workspaces exist OR createNew flag is set, create a new workspace
     const shouldCreateWorkspace = !workspaces || workspaces.length === 0 || createNew;
@@ -123,7 +131,7 @@ export default async function WorkbenchPage({
                             isCreating={!!(useExistingWorkspace || shouldCreateWorkspace)}
                         />
                     </Suspense>
-                    <ModelsSection />
+                    <ModelsSection isSignedIn={isSignedIn} />
 
                     {useExistingWorkspace ? (
                         <AutoWorkspaceCreator
@@ -137,6 +145,7 @@ export default async function WorkbenchPage({
                             srcPos={srcPos}
                             tgtPos={tgtPos}
                             tgtFreeze={tgtFreeze}
+                            deploy={deploy}
                         />
                     ) : shouldCreateWorkspace ? (
                         <AutoWorkspaceCreator
@@ -151,6 +160,7 @@ export default async function WorkbenchPage({
                             srcPos={srcPos}
                             tgtPos={tgtPos}
                             tgtFreeze={tgtFreeze}
+                            deploy={deploy}
                         />
                     ) : (
                         <WorkspaceList userId={user.id} />

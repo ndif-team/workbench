@@ -21,6 +21,9 @@ interface AutoWorkspaceCreatorProps {
     srcPos?: string; // JSON-encoded source positions
     tgtPos?: string; // JSON-encoded target positions
     tgtFreeze?: string; // JSON-encoded frozen positions
+    deploy?: boolean; // Cold-model deploy: create an empty chart (no prompt) so
+    // the chart renders its deploying state and, once hot, ready controls —
+    // without auto-running anything.
 }
 
 export function AutoWorkspaceCreator({
@@ -36,6 +39,7 @@ export function AutoWorkspaceCreator({
     srcPos,
     tgtPos,
     tgtFreeze,
+    deploy = false,
 }: AutoWorkspaceCreatorProps) {
     const [error, setError] = useState<string | null>(null);
     const hasStartedRef = useRef(false);
@@ -74,7 +78,40 @@ export function AutoWorkspaceCreator({
                 let userChartId: string | null = null;
                 let chartType: string = "lens2";
 
-                if (tool === "Activation Patching" && srcPrompt && tgtPrompt && srcPos && tgtPos) {
+                if (deploy) {
+                    // Cold-model deploy: create an EMPTY chart of the chosen
+                    // tool so the user lands in the chart's deploying state and,
+                    // once the model is hot, ready (un-run) controls.
+                    const model = initialModel || "openai-community/gpt2";
+                    if (tool === "Activation Patching") {
+                        const apConfig: ActivationPatchingConfigData = {
+                            model,
+                            srcPrompt: "",
+                            tgtPrompt: "",
+                            srcPos: [],
+                            tgtPos: [],
+                            tgtFreeze: [],
+                        };
+                        const { chart } = await createActivationPatchingChartPair(
+                            targetWorkspaceId,
+                            apConfig,
+                        );
+                        userChartId = chart.id;
+                        chartType = "activation-patching";
+                    } else {
+                        const lensConfig: Lens2ConfigData = {
+                            model,
+                            prompt: "",
+                            topk: 5,
+                            includeEntropy: true,
+                        };
+                        const { chart } = await createLens2ChartPair(
+                            targetWorkspaceId,
+                            lensConfig,
+                        );
+                        userChartId = chart.id;
+                    }
+                } else if (tool === "Activation Patching" && srcPrompt && tgtPrompt && srcPos && tgtPos) {
                     // Create activation patching chart
                     console.log("Creating activation patching chart");
                     const parsedSrcPos: SourcePosition[] = JSON.parse(srcPos);
@@ -128,7 +165,7 @@ export function AutoWorkspaceCreator({
         };
 
         createAndRedirect();
-    }, [userId, router, initialPrompt, initialModel, seedWithExamples, workspaceName, existingWorkspaceId, tool, srcPrompt, tgtPrompt, srcPos, tgtPos, tgtFreeze]);
+    }, [userId, router, initialPrompt, initialModel, seedWithExamples, workspaceName, existingWorkspaceId, tool, srcPrompt, tgtPrompt, srcPos, tgtPos, tgtFreeze, deploy]);
 
     if (error) {
         return (

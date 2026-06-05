@@ -5,6 +5,7 @@ import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useModelsQuery } from "@/lib/api/modelsApi";
+import { isModelRunnable } from "@/components/model-selector/status";
 
 interface ConfigWithModel {
     id: string;
@@ -31,6 +32,10 @@ interface UseToolAreaResult<TConfig extends ConfigWithModel, TChart extends Char
      * shape in read-only mode. */
     effectiveModel: string;
     hasExistingData: boolean;
+    /** Whether `effectiveModel` is currently runnable (hot/warm). False when
+     * the model has gone cold or left the catalog — the Controls should be
+     * read-only in that case (the saved chart still renders via the Display). */
+    modelRunnable: boolean;
 }
 
 /**
@@ -87,6 +92,11 @@ export function useToolArea<
 
     const hasExistingData = !!typedChart?.data;
 
+    const modelRunnable = useMemo(
+        () => isModelRunnable(models?.find((m) => m.name === effectiveModel)),
+        [models, effectiveModel],
+    );
+
     return {
         config: typedConfig,
         chart: typedChart,
@@ -96,5 +106,6 @@ export function useToolArea<
         modelsAvailable,
         effectiveModel,
         hasExistingData,
+        modelRunnable,
     };
 }
