@@ -13,6 +13,7 @@ import {
     deriveHeat,
     splitRepo,
     heatRank,
+    isModelRunnable,
 } from "@/components/model-selector/status";
 import type { Model } from "@/types/models";
 
@@ -44,6 +45,11 @@ interface ModelPopoverProps {
      * heat label; the heat dot still encodes status). Use on the landing
      * popover where the model set is already small and pre-filtered. */
     compact?: boolean;
+    /** When true, only runnable (hot/warm) models are listed — cold models
+     * must be deployed first and aren't offered as active choices. The
+     * currently-selected model is always kept visible so the selection never
+     * vanishes (e.g. a saved chart whose model has since gone cold). */
+    selectableOnly?: boolean;
 }
 
 export function ModelPopover({
@@ -53,6 +59,7 @@ export function ModelPopover({
     footer,
     showSearch = true,
     compact = false,
+    selectableOnly = false,
 }: ModelPopoverProps) {
     // Search query is owned internally; consumers that hide the search
     // (showSearch=false) don't need to thread dead state through.
@@ -65,6 +72,11 @@ export function ModelPopover({
     const { base, chat, flat } = React.useMemo(() => {
         const q = query.trim().toLowerCase();
         const matches = (m: Model) => {
+            // Hide non-runnable (cold) models when the host asks for
+            // selectable-only, but never hide the current selection.
+            if (selectableOnly && !isModelRunnable(m) && m.name !== selectedName) {
+                return false;
+            }
             if (!q) return true;
             const { org, label } = splitRepo(m.name);
             return (
@@ -82,7 +94,7 @@ export function ModelPopover({
         const base = models.filter((m) => !m.is_chat && matches(m)).sort(compare);
         const chat = models.filter((m) => m.is_chat && matches(m)).sort(compare);
         return { base, chat, flat: [...base, ...chat] };
-    }, [models, query, selectedName]);
+    }, [models, query, selectedName, selectableOnly]);
 
     // Track the highlighted row by model NAME, not index. When the list
     // re-sorts (e.g. selecting a model pins it to the top), the index of the

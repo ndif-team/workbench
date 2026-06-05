@@ -13,6 +13,11 @@ export const MODEL_STATUS: Record<
 > = {
     hot: { color: "hsl(142 71% 45%)", label: "hot", detail: "loaded · ready to run" },
     warm: { color: "hsl(38 92% 50%)", label: "warm", detail: "cached · warming up" },
+    deploying: {
+        color: "hsl(38 92% 50%)",
+        label: "deploying",
+        detail: "loading onto backend",
+    },
     cold: { color: "hsl(217 91% 60%)", label: "cold", detail: "on disk · cold start" },
     gated: { color: "hsl(270 70% 55%)", label: "gated", detail: "sign in to access" },
     unavailable: {
@@ -28,8 +33,28 @@ export const MODEL_STATUS: Record<
 };
 
 /** Status keys the user can filter by — gated/unavailable/unknown still appear on cards
- * but aren't filterable; they're outcomes, not preferences. */
+ * but aren't filterable; they're outcomes, not preferences. "deploying" is also
+ * omitted on purpose: it's a transient mid-load state, not a stable preference. */
 export const FILTERABLE_HEAT: ReadonlyArray<ModelHeat> = ["hot", "warm", "cold"];
+
+/** Heats a user can run right now. COLD models must be deployed (warmed up
+ * via the deploy flow) before they become runnable. Centralized here so cold
+ * checks don't get scattered across the selector, cards, and chart panels. */
+export const SELECTABLE_HEATS: ReadonlyArray<ModelHeat> = ["hot", "warm"];
+
+/** True when the model is deployed and immediately runnable (hot or warm). */
+export const isModelRunnable = (model: Model | undefined): boolean =>
+    !!model && model.status !== undefined && SELECTABLE_HEATS.includes(model.status);
+
+/** True when the model is in the catalog but not currently deployed (cold). */
+export const isModelCold = (model: Model | undefined): boolean =>
+    !!model && model.status === "cold";
+
+/** True when NDIF is mid-load for this model (application_state DEPLOYING) —
+ * not yet runnable, but warming up. May reflect another user's deploy or our
+ * own in-flight warmup as the catalog catches up. */
+export const isModelDeploying = (model: Model | undefined): boolean =>
+    !!model && model.status === "deploying";
 
 export const deriveHeat = (model: Model | undefined): ModelHeat => {
     if (!model) return "unknown";
@@ -57,6 +82,7 @@ export const splitRepo = (name: string): { org: string; label: string } => {
 export const HEAT_ORDER: ReadonlyArray<ModelHeat> = [
     "hot",
     "warm",
+    "deploying",
     "cold",
     "unknown",
     "gated",

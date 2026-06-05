@@ -201,6 +201,7 @@ export function ModelControl({ className }: ModelControlProps) {
                     models={models}
                     selectedName={selectedModel.name}
                     onSelect={handleSelect}
+                    selectableOnly
                 />
             </PopoverContent>
         </Popover>

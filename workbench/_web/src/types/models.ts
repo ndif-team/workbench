@@ -20,7 +20,14 @@ export interface Prediction {
     texts: string[];
 }
 
-export type ModelStatus = "hot" | "warm" | "cold" | "gated" | "unavailable" | "unknown";
+export type ModelStatus =
+    | "hot"
+    | "warm"
+    | "deploying"
+    | "cold"
+    | "gated"
+    | "unavailable"
+    | "unknown";
 
 export interface Model {
     name: string;
