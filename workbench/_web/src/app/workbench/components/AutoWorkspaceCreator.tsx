@@ -4,7 +4,10 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 // import { pushTutorialChart } from "@/lib/queries/tutorialChart";
-import { createLens2ChartPair, createActivationPatchingChartPair } from "@/lib/queries/chartQueries";
+import {
+    createLens2ChartPair,
+    createActivationPatchingChartPair,
+} from "@/lib/queries/chartQueries";
 import type { Lens2ConfigData } from "@/types/lens2";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 
@@ -60,7 +63,12 @@ export function AutoWorkspaceCreator({
                     console.log("Using existing workspace:", existingWorkspaceId);
                     targetWorkspaceId = existingWorkspaceId;
                 } else {
-                    console.log("Creating workspace for user:", userId, "with name:", workspaceName);
+                    console.log(
+                        "Creating workspace for user:",
+                        userId,
+                        "with name:",
+                        workspaceName,
+                    );
                     const newWorkspace = await createWorkspace(userId, workspaceName);
                     console.log("Created workspace:", newWorkspace);
                     targetWorkspaceId = newWorkspace.id;
@@ -105,13 +113,16 @@ export function AutoWorkspaceCreator({
                             topk: 5,
                             includeEntropy: true,
                         };
-                        const { chart } = await createLens2ChartPair(
-                            targetWorkspaceId,
-                            lensConfig,
-                        );
+                        const { chart } = await createLens2ChartPair(targetWorkspaceId, lensConfig);
                         userChartId = chart.id;
                     }
-                } else if (tool === "Activation Patching" && srcPrompt && tgtPrompt && srcPos && tgtPos) {
+                } else if (
+                    tool === "Activation Patching" &&
+                    srcPrompt &&
+                    tgtPrompt &&
+                    srcPos &&
+                    tgtPos
+                ) {
                     // Create activation patching chart
                     console.log("Creating activation patching chart");
                     const parsedSrcPos: SourcePosition[] = JSON.parse(srcPos);
@@ -127,7 +138,10 @@ export function AutoWorkspaceCreator({
                         tgtFreeze: parsedTgtFreeze,
                     };
 
-                    const { chart } = await createActivationPatchingChartPair(targetWorkspaceId, apConfig);
+                    const { chart } = await createActivationPatchingChartPair(
+                        targetWorkspaceId,
+                        apConfig,
+                    );
                     userChartId = chart.id;
                     chartType = "activation-patching";
                     console.log("Created activation patching chart:", userChartId);
@@ -140,7 +154,10 @@ export function AutoWorkspaceCreator({
                         includeEntropy: true,
                     };
 
-                    const { chart } = await createLens2ChartPair(targetWorkspaceId, userChartConfig);
+                    const { chart } = await createLens2ChartPair(
+                        targetWorkspaceId,
+                        userChartConfig,
+                    );
                     userChartId = chart.id;
                     console.log("Created user lens2 chart:", userChartId);
                 }
@@ -149,7 +166,9 @@ export function AutoWorkspaceCreator({
                 setTimeout(() => {
                     if (userChartId) {
                         if (chartType === "activation-patching") {
-                            router.push(`/workbench/${targetWorkspaceId}/activation-patching/${userChartId}`);
+                            router.push(
+                                `/workbench/${targetWorkspaceId}/activation-patching/${userChartId}`,
+                            );
                         } else {
                             router.push(`/workbench/${targetWorkspaceId}/lens2/${userChartId}`);
                         }
@@ -165,7 +184,22 @@ export function AutoWorkspaceCreator({
         };
 
         createAndRedirect();
-    }, [userId, router, initialPrompt, initialModel, seedWithExamples, workspaceName, existingWorkspaceId, tool, srcPrompt, tgtPrompt, srcPos, tgtPos, tgtFreeze, deploy]);
+    }, [
+        userId,
+        router,
+        initialPrompt,
+        initialModel,
+        seedWithExamples,
+        workspaceName,
+        existingWorkspaceId,
+        tool,
+        srcPrompt,
+        tgtPrompt,
+        srcPos,
+        tgtPos,
+        tgtFreeze,
+        deploy,
+    ]);
 
     if (error) {
         return (

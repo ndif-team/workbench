@@ -37,7 +37,11 @@ export default function ActivationPatchingPage() {
                     </div>
                 ) : (
                     <>
-                        <MobileCollapsibleControls label="Activation Patching" icon={GitBranch} isRunning={isRunning}>
+                        <MobileCollapsibleControls
+                            label="Activation Patching"
+                            icon={GitBranch}
+                            isRunning={isRunning}
+                        >
                             <ActivationPatchingArea />
                         </MobileCollapsibleControls>
                         <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">

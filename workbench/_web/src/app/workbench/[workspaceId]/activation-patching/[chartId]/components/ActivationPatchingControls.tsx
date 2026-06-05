@@ -26,10 +26,7 @@ import {
     EnhancedPatchArrows,
     useMouseFollowingArrow,
 } from "@/components/activation-patching/toolkit";
-import {
-    apConfigEqualsExceptModel,
-    tokenTextSequencesEqual,
-} from "@/lib/configModelDiff";
+import { apConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
 import { useDraftModel } from "@/hooks/useDraftModel";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
@@ -584,10 +581,8 @@ export function ActivationPatchingControls({
             // Real edit = the prompt text differs from what produced the
             // current srcTokens. A passive blur (no edit) leaves this false
             // even if the selected model has changed since.
-            const promptChanged =
-                srcPrompt !== lastTokenizedSrcPromptRef.current;
-            const modelChanged =
-                srcTokenizedModel !== null && srcTokenizedModel !== selectedModel;
+            const promptChanged = srcPrompt !== lastTokenizedSrcPromptRef.current;
+            const modelChanged = srcTokenizedModel !== null && srcTokenizedModel !== selectedModel;
 
             setSrcTokens(tokens);
             setSrcTokenizedModel(selectedModel);
@@ -646,10 +641,8 @@ export function ActivationPatchingControls({
             const tokensChanged =
                 tokens.length !== tgtTokens.length ||
                 tokens.some((t, i) => t.text !== tgtTokens[i]?.text);
-            const promptChanged =
-                tgtPrompt !== lastTokenizedTgtPromptRef.current;
-            const modelChanged =
-                tgtTokenizedModel !== null && tgtTokenizedModel !== selectedModel;
+            const promptChanged = tgtPrompt !== lastTokenizedTgtPromptRef.current;
+            const modelChanged = tgtTokenizedModel !== null && tgtTokenizedModel !== selectedModel;
 
             setTgtTokens(tokens);
             setTgtTokenizedModel(selectedModel);
@@ -955,8 +948,7 @@ export function ActivationPatchingControls({
     // Draft is dirty if any non-model field differs OR the draft model differs
     // from the saved model. Either case surfaces the Unsaved-changes banner.
     const draftDirty = !draftMatchesSaved || draftModel !== savedModel;
-    const modelMismatchVsConfig =
-        modelsAvailable && !!draftModel && draftModel !== selectedModel;
+    const modelMismatchVsConfig = modelsAvailable && !!draftModel && draftModel !== selectedModel;
 
     const tokenizationDiffers = useMemo(() => {
         if (!modelMismatchVsConfig) return false;
@@ -1006,122 +998,122 @@ export function ActivationPatchingControls({
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
             >
-            {/* Arrow SVG overlay */}
-            {showArrows && (
-                <EnhancedPatchArrows
-                    containerRef={controlsContainerRef}
+                {/* Arrow SVG overlay */}
+                {showArrows && (
+                    <EnhancedPatchArrows
+                        containerRef={controlsContainerRef}
+                        srcPos={srcPos}
+                        tgtPos={tgtPos}
+                        srcEditing={srcEditing}
+                        tgtEditing={tgtEditing}
+                        hoverTgtIdx={hoverTgtIdx}
+                        isConnecting={isConnecting && !srcEditing && !tgtEditing}
+                        enableGlow={true}
+                        enableMouseFollowing={true}
+                        connectingArrowRef={connectingArrowRef}
+                    />
+                )}
+
+                {/* Source Prompt - with range selection support */}
+                <div className="flex flex-col gap-1">
+                    <PatchPromptSection
+                        variant="source"
+                        mode="full"
+                        label="Source Prompt"
+                        prompt={srcPrompt}
+                        setPrompt={setSrcPrompt}
+                        tokens={srcTokens}
+                        selectedModel={selectedModel}
+                        isEditing={srcEditing}
+                        setIsEditing={setSrcEditing}
+                        isExecuting={isExecuting}
+                        disabled={!modelsAvailable}
+                        tokenizedModel={srcTokenizedModel}
+                        textareaRef={srcTextareaRef}
+                        tokenContainerRef={srcTokenContainerRef}
+                        onBlur={handleSrcBlur}
+                        selectedPositions={srcPos}
+                        pendingRangeStart={pendingRangeStart}
+                        onSrcTokenClick={interactive ? handleSrcTokenClick : undefined}
+                        predictionToken={srcPrediction}
+                    />
+                    {!srcEditing && srcTokens.length > 0 && (
+                        <p className="text-[11px] text-muted-foreground/70">
+                            <span className="font-medium">Shift+click</span> to select a range of
+                            tokens
+                        </p>
+                    )}
+                </div>
+
+                {/* Target Prompt */}
+                <div className="flex flex-col gap-1">
+                    <PatchPromptSection
+                        variant="target"
+                        mode="full"
+                        label="Target Prompt"
+                        prompt={tgtPrompt}
+                        setPrompt={setTgtPrompt}
+                        tokens={tgtTokens}
+                        selectedModel={selectedModel}
+                        isEditing={tgtEditing}
+                        setIsEditing={setTgtEditing}
+                        isExecuting={isExecuting}
+                        disabled={!modelsAvailable}
+                        tokenizedModel={tgtTokenizedModel}
+                        textareaRef={tgtTextareaRef}
+                        tokenContainerRef={tgtTokenContainerRef}
+                        onBlur={handleTgtBlur}
+                        tgtSelectedPositions={tgtPos}
+                        frozenPositions={tgtFreeze}
+                        onTgtTokenClick={interactive ? handleTgtTokenClick : undefined}
+                        onTokenHover={
+                            interactive && isConnecting && !srcEditing && !tgtEditing
+                                ? setHoverTgtIdx
+                                : undefined
+                        }
+                        onTokenLeave={
+                            interactive && isConnecting && !srcEditing && !tgtEditing
+                                ? () => setHoverTgtIdx(null)
+                                : undefined
+                        }
+                        predictionToken={tgtPrediction}
+                    />
+                    {!tgtEditing && tgtTokens.length > 0 && (
+                        <p className="text-[11px] text-muted-foreground/70">
+                            <span className="font-medium">⌘/Ctrl+click</span> to freeze tokens
+                        </p>
+                    )}
+                </div>
+
+                {/* Collapsible Patch Summary Table */}
+                <PatchConfigTable
                     srcPos={srcPos}
                     tgtPos={tgtPos}
-                    srcEditing={srcEditing}
-                    tgtEditing={tgtEditing}
-                    hoverTgtIdx={hoverTgtIdx}
-                    isConnecting={isConnecting && !srcEditing && !tgtEditing}
-                    enableGlow={true}
-                    enableMouseFollowing={true}
-                    connectingArrowRef={connectingArrowRef}
+                    tgtFreeze={tgtFreeze}
+                    expanded={patchTableExpanded}
+                    onToggleExpanded={() => setPatchTableExpanded(!patchTableExpanded)}
+                    onClear={clearAll}
+                    disabled={!interactive}
                 />
-            )}
 
-            {/* Source Prompt - with range selection support */}
-            <div className="flex flex-col gap-1">
-                <PatchPromptSection
-                    variant="source"
-                    mode="full"
-                    label="Source Prompt"
-                    prompt={srcPrompt}
-                    setPrompt={setSrcPrompt}
-                    tokens={srcTokens}
-                    selectedModel={selectedModel}
-                    isEditing={srcEditing}
-                    setIsEditing={setSrcEditing}
-                    isExecuting={isExecuting}
-                    disabled={!modelsAvailable}
-                    tokenizedModel={srcTokenizedModel}
-                    textareaRef={srcTextareaRef}
-                    tokenContainerRef={srcTokenContainerRef}
-                    onBlur={handleSrcBlur}
-                    selectedPositions={srcPos}
-                    pendingRangeStart={pendingRangeStart}
-                    onSrcTokenClick={interactive ? handleSrcTokenClick : undefined}
-                    predictionToken={srcPrediction}
-                />
-                {!srcEditing && srcTokens.length > 0 && (
-                    <p className="text-[11px] text-muted-foreground/70">
-                        <span className="font-medium">Shift+click</span> to select a range of tokens
-                    </p>
-                )}
-            </div>
-
-            {/* Target Prompt */}
-            <div className="flex flex-col gap-1">
-                <PatchPromptSection
-                    variant="target"
-                    mode="full"
-                    label="Target Prompt"
-                    prompt={tgtPrompt}
-                    setPrompt={setTgtPrompt}
-                    tokens={tgtTokens}
-                    selectedModel={selectedModel}
-                    isEditing={tgtEditing}
-                    setIsEditing={setTgtEditing}
-                    isExecuting={isExecuting}
-                    disabled={!modelsAvailable}
-                    tokenizedModel={tgtTokenizedModel}
-                    textareaRef={tgtTextareaRef}
-                    tokenContainerRef={tgtTokenContainerRef}
-                    onBlur={handleTgtBlur}
-                    tgtSelectedPositions={tgtPos}
-                    frozenPositions={tgtFreeze}
-                    onTgtTokenClick={interactive ? handleTgtTokenClick : undefined}
-                    onTokenHover={
-                        interactive && isConnecting && !srcEditing && !tgtEditing
-                            ? setHoverTgtIdx
-                            : undefined
-                    }
-                    onTokenLeave={
-                        interactive && isConnecting && !srcEditing && !tgtEditing
-                            ? () => setHoverTgtIdx(null)
-                            : undefined
-                    }
-                    predictionToken={tgtPrediction}
-                />
-                {!tgtEditing && tgtTokens.length > 0 && (
-                    <p className="text-[11px] text-muted-foreground/70">
-                        <span className="font-medium">⌘/Ctrl+click</span> to freeze tokens
-                    </p>
-                )}
-            </div>
-
-            {/* Collapsible Patch Summary Table */}
-            <PatchConfigTable
-                srcPos={srcPos}
-                tgtPos={tgtPos}
-                tgtFreeze={tgtFreeze}
-                expanded={patchTableExpanded}
-                onToggleExpanded={() => setPatchTableExpanded(!patchTableExpanded)}
-                onClear={clearAll}
-                disabled={!interactive}
-            />
-
-            {/* Run Button */}
-            <Button
-                onClick={handleSubmit}
-                disabled={!canRun}
-                className="w-full bg-violet-500 hover:bg-violet-600 text-white"
-            >
-                {isExecuting ? (
-                    <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Computing...
-                    </>
-                ) : (
-                    <>
-                        <Play className="mr-2 h-4 w-4" />
-                        Run
-                    </>
-                )}
-            </Button>
-
+                {/* Run Button */}
+                <Button
+                    onClick={handleSubmit}
+                    disabled={!canRun}
+                    className="w-full bg-violet-500 hover:bg-violet-600 text-white"
+                >
+                    {isExecuting ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Computing...
+                        </>
+                    ) : (
+                        <>
+                            <Play className="mr-2 h-4 w-4" />
+                            Run
+                        </>
+                    )}
+                </Button>
             </div>
         </>
     );

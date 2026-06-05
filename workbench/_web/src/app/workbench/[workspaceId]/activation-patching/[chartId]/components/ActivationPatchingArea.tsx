@@ -2,10 +2,7 @@
 
 import { useToolArea } from "@/hooks/useToolArea";
 import { ActivationPatchingControls } from "./ActivationPatchingControls";
-import {
-    ActivationPatchingConfigData,
-    ActivationPatchingData,
-} from "@/types/activationPatching";
+import { ActivationPatchingConfigData, ActivationPatchingData } from "@/types/activationPatching";
 
 interface ActivationPatchingConfig {
     id: string;

@@ -52,7 +52,9 @@ export function MobileSidebarDrawer() {
                         className="fixed inset-y-0 left-0 z-50 w-[80vw] max-w-sm flex flex-col animate-in slide-in-from-left duration-200 shadow-2xl border-r border-border/40 bg-gradient-to-b from-card to-background dark:from-card dark:to-background [animation-timing-function:cubic-bezier(0.25,1,0.5,1)] outline-none"
                     >
                         <div className="flex items-center justify-between px-4 py-4 border-b border-border/40">
-                            <span className="text-sm font-medium text-muted-foreground">Charts</span>
+                            <span className="text-sm font-medium text-muted-foreground">
+                                Charts
+                            </span>
                             <Button
                                 variant="ghost"
                                 size="icon"

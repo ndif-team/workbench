@@ -42,8 +42,7 @@ export default async function WorkbenchPage({
     // A real (non-anonymous) sign-in is required to deploy cold models. When
     // absent, ModelsSection renders cold models as gated and inert.
     const isSignedIn =
-        process.env.NEXT_PUBLIC_DISABLE_AUTH === "true" ||
-        (!!user && !user.is_anonymous);
+        process.env.NEXT_PUBLIC_DISABLE_AUTH === "true" || (!!user && !user.is_anonymous);
 
     // Check if user has any workspaces
     const workspaces = await getWorkspaces(user.id);
@@ -77,7 +76,10 @@ export default async function WorkbenchPage({
             <div className="min-h-screen px-3 md:px-6 pb-6 aurora-bg">
                 <header className="py-2 px-3 md:py-3 md:px-5 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Link href="/" className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
+                        <Link
+                            href="/"
+                            className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent"
+                        >
                             <h1 className="text-2xl font-bold">Workbench</h1>
                         </Link>
                     </div>

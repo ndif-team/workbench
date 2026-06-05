@@ -60,9 +60,17 @@ function ModelPillOrSelect({
                 <div className="spinning-border-ring">
                     <div className="spinning-border-gradient" />
                 </div>
-                <div className="spinning-border-content" style={{ background: "linear-gradient(to right, hsl(var(--primary) / 0.05), rgb(168 85 247 / 0.05)), hsl(var(--card))" }}>
+                <div
+                    className="spinning-border-content"
+                    style={{
+                        background:
+                            "linear-gradient(to right, hsl(var(--primary) / 0.05), rgb(168 85 247 / 0.05)), hsl(var(--card))",
+                    }}
+                >
                     <Select disabled>
-                        <SelectTrigger className={`${triggerClass} !border-0 !shadow-none [&_svg]:hidden`}>
+                        <SelectTrigger
+                            className={`${triggerClass} !border-0 !shadow-none [&_svg]:hidden`}
+                        >
                             <span>Fetching Models...</span>
                         </SelectTrigger>
                     </Select>
@@ -74,7 +82,9 @@ function ModelPillOrSelect({
     if (modelsError || !hasModels) {
         return (
             <Select disabled>
-                <SelectTrigger className={`${triggerClass} !from-red-500/10 !to-red-400/15 !border-red-500/25 text-destructive [&_svg]:hidden`}>
+                <SelectTrigger
+                    className={`${triggerClass} !from-red-500/10 !to-red-400/15 !border-red-500/25 text-destructive [&_svg]:hidden`}
+                >
                     <span>Models Unavailable</span>
                 </SelectTrigger>
             </Select>
@@ -169,7 +179,8 @@ function ModelTriggerPopover({
                                     more model{moreCount === 1 ? "" : "s"}
                                     {!loggedIn && (
                                         <span className="text-muted-foreground/70">
-                                            {" "}— sign in to use
+                                            {" "}
+                                            — sign in to use
                                         </span>
                                     )}
                                 </span>
@@ -233,7 +244,11 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     // load — prefer hot+allowed (skips gated models a guest can't use),
     // then any hot, then the first available.
     useEffect(() => {
-        if (models && models.length > 0 && (!selectedModel || !models.some((m) => m.name === selectedModel))) {
+        if (
+            models &&
+            models.length > 0 &&
+            (!selectedModel || !models.some((m) => m.name === selectedModel))
+        ) {
             const firstUsableHot = models.find((m) => m.status === "hot" && m.allowed);
             const firstHot = models.find((m) => m.status === "hot");
             setSelectedModel((firstUsableHot ?? firstHot ?? models[0]).name);
@@ -296,10 +311,15 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Validate based on tool type
         if (selectedTool === "Activation Patching") {
-            if (!srcPrompt.trim() || !tgtPrompt.trim() || srcPos.length === 0 || srcPos.length !== tgtPos.length) {
+            if (
+                !srcPrompt.trim() ||
+                !tgtPrompt.trim() ||
+                srcPos.length === 0 ||
+                srcPos.length !== tgtPos.length
+            ) {
                 return;
             }
         } else {
@@ -522,40 +542,42 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                 disabled={showCaptcha || isSubmitting}
                                             />
 
-                                        {/* Model Selector - Bottom Left */}
-                                        <div className="absolute bottom-3 left-[var(--textarea-padding-x,0.75rem)] flex items-center gap-1.5">
-                                            {isSignedInUser && workspacesList && workspacesList.length > 0 && (
-                                                <WorkspacePill
-                                                    value={selectedWorkspace}
-                                                    onChange={setSelectedWorkspace}
+                                            {/* Model Selector - Bottom Left */}
+                                            <div className="absolute bottom-3 left-[var(--textarea-padding-x,0.75rem)] flex items-center gap-1.5">
+                                                {isSignedInUser &&
+                                                    workspacesList &&
+                                                    workspacesList.length > 0 && (
+                                                        <WorkspacePill
+                                                            value={selectedWorkspace}
+                                                            onChange={setSelectedWorkspace}
+                                                            disabled={showCaptcha || isSubmitting}
+                                                            workspaces={workspacesList}
+                                                        />
+                                                    )}
+                                                <ToolPill
+                                                    value={selectedTool}
+                                                    onChange={setSelectedTool}
                                                     disabled={showCaptcha || isSubmitting}
-                                                    workspaces={workspacesList}
                                                 />
-                                            )}
-                                            <ToolPill
-                                                value={selectedTool}
-                                                onChange={setSelectedTool}
-                                                disabled={showCaptcha || isSubmitting}
-                                            />
-                                            <ModelPillOrSelect
-                                                modelsLoading={modelsLoading}
-                                                modelsError={modelsError}
-                                                hasModels={hasModels}
-                                                modelsToSelect={modelsToSelect}
-                                                selectedModel={selectedModel}
-                                                onModelChange={setSelectedModel}
-                                                disabled={showCaptcha || isSubmitting}
-                                                loggedIn={loggedIn}
-                                            />
-                                        </div>
-
-                                        {/* Press Enter hint - Bottom Right */}
-                                        {prompt.trim() && !showCaptcha && (
-                                            <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
-                                                Press Enter to submit
+                                                <ModelPillOrSelect
+                                                    modelsLoading={modelsLoading}
+                                                    modelsError={modelsError}
+                                                    hasModels={hasModels}
+                                                    modelsToSelect={modelsToSelect}
+                                                    selectedModel={selectedModel}
+                                                    onModelChange={setSelectedModel}
+                                                    disabled={showCaptcha || isSubmitting}
+                                                    loggedIn={loggedIn}
+                                                />
                                             </div>
-                                        )}
-                                    </div>
+
+                                            {/* Press Enter hint - Bottom Right */}
+                                            {prompt.trim() && !showCaptcha && (
+                                                <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
+                                                    Press Enter to submit
+                                                </div>
+                                            )}
+                                        </div>
                                     ) : (
                                         /* Activation Patching - Dual prompt inputs with token selection */
                                         <div className="space-y-3">
@@ -580,14 +602,16 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
 
                                             {/* Tool and Model Selectors */}
                                             <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                                                {isSignedInUser && workspacesList && workspacesList.length > 0 && (
-                                                    <WorkspacePill
-                                                        value={selectedWorkspace}
-                                                        onChange={setSelectedWorkspace}
-                                                        disabled={showCaptcha || isSubmitting}
-                                                        workspaces={workspacesList}
-                                                    />
-                                                )}
+                                                {isSignedInUser &&
+                                                    workspacesList &&
+                                                    workspacesList.length > 0 && (
+                                                        <WorkspacePill
+                                                            value={selectedWorkspace}
+                                                            onChange={setSelectedWorkspace}
+                                                            disabled={showCaptcha || isSubmitting}
+                                                            workspaces={workspacesList}
+                                                        />
+                                                    )}
                                                 <ToolPill
                                                     value={selectedTool}
                                                     onChange={setSelectedTool}
@@ -613,9 +637,14 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                             size="lg"
                                             className="w-full text-base h-12 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-lg shadow-primary/25"
                                             disabled={
-                                                isSubmitting || !hasModels ||
-                                                (selectedTool === "Logit Lens" ? !prompt.trim() :
-                                                    !srcPrompt.trim() || !tgtPrompt.trim() || srcPos.length === 0 || srcPos.length !== tgtPos.length)
+                                                isSubmitting ||
+                                                !hasModels ||
+                                                (selectedTool === "Logit Lens"
+                                                    ? !prompt.trim()
+                                                    : !srcPrompt.trim() ||
+                                                      !tgtPrompt.trim() ||
+                                                      srcPos.length === 0 ||
+                                                      srcPos.length !== tgtPos.length)
                                             }
                                         >
                                             <span>Run</span>

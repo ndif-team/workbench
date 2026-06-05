@@ -65,7 +65,11 @@ export interface LineViewData {
 
 export type ChartData = Line[] | HeatmapRow[] | Lens2Data | ActivationPatchingData;
 export type ChartView = HeatmapViewData | LineViewData;
-export type ConfigData = LensConfigData | Lens2ConfigData | PatchingConfig | ActivationPatchingConfigData;
+export type ConfigData =
+    | LensConfigData
+    | Lens2ConfigData
+    | PatchingConfig
+    | ActivationPatchingConfigData;
 
 export type ChartType = "line" | "heatmap" | "lens2" | "activation-patching";
 export type ToolType = "lens" | "lens2" | "patch" | "activation-patching";

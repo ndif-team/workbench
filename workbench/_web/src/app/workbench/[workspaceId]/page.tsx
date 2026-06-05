@@ -1,5 +1,9 @@
 import { redirect } from "next/navigation";
-import { getMostRecentChartForWorkspace, createLens2ChartPair, getConfigForChart } from "@/lib/queries/chartQueries";
+import {
+    getMostRecentChartForWorkspace,
+    createLens2ChartPair,
+    getConfigForChart,
+} from "@/lib/queries/chartQueries";
 import { Lens2ConfigData } from "@/types/lens2";
 
 export default async function Page({

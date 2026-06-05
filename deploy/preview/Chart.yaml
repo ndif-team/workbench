@@ -1,0 +1,6 @@
+apiVersion: v2
+name: workbench-preview
+description: Per-PR preview deployment of workbench/_web
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

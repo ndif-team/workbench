@@ -37,7 +37,10 @@ export default function WorkbenchLayout({
                 {/* Right: Nav items */}
                 <nav className="flex gap-1 md:gap-3 items-center z-10">
                     <Link href="https://forms.gle/WsxmZikeLNw34LBV9" target="_blank">
-                        <Button variant="ghost" className="hidden md:flex bg-transparent hover:!white/10 border-0">
+                        <Button
+                            variant="ghost"
+                            className="hidden md:flex bg-transparent hover:!white/10 border-0"
+                        >
                             <svg
                                 width="15"
                                 height="15"
