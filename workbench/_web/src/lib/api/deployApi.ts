@@ -29,14 +29,26 @@ export async function submitWarmup(model: string): Promise<string | null> {
     const headers = await createUserHeadersAction();
     const resp = await fetch(config.getApiUrl(config.endpoints.startGenerate), {
         method: "POST",
+        // Match startAndPoll/getModels: carry the oauth2-proxy session cookie
+        // cross-origin. Without this, the preview env returns a non-job
+        // response and the warmup silently "succeeds" with no job_id.
+        credentials: "include",
         headers: { "Content-Type": "application/json", ...headers },
         body: JSON.stringify({ model, prompt: "Hello", max_new_tokens: 1 }),
     });
     if (!resp.ok) {
         throw new DeploymentError(`Failed to start deployment (HTTP ${resp.status})`);
     }
-    const data = (await resp.json()) as { job_id?: string | null };
-    return data.job_id ?? null;
+    const data = (await resp.json()) as { job_id?: string | null; data?: unknown };
+    if (data.job_id) return data.job_id;
+    // A local (non-remote) backend returns a synchronous result with no
+    // job_id — the model is genuinely available immediately. `!= null` so a
+    // `{ data: null }` response (no real result) falls through to the throw.
+    if (data.data != null) return null;
+    // 200 OK but neither a job id nor a local result means the request never
+    // reached the model backend (e.g. an auth gateway answered instead).
+    // Surface it as a failure rather than a false "deployed".
+    throw new DeploymentError("Deployment did not start (no job id returned)");
 }
 
 /**

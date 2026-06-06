@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 // import { pushTutorialChart } from "@/lib/queries/tutorialChart";
 import {
     createLens2ChartPair,
     createActivationPatchingChartPair,
 } from "@/lib/queries/chartQueries";
+import { queryKeys } from "@/lib/queryKeys";
 import type { Lens2ConfigData } from "@/types/lens2";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 
@@ -47,6 +49,7 @@ export function AutoWorkspaceCreator({
     const [error, setError] = useState<string | null>(null);
     const hasStartedRef = useRef(false);
     const router = useRouter();
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         const createAndRedirect = async () => {
@@ -162,6 +165,17 @@ export function AutoWorkspaceCreator({
                     console.log("Created user lens2 chart:", userChartId);
                 }
 
+                // The chart was created via the server action directly (not the
+                // mutation hooks), so nothing invalidated the sidebar list.
+                // Refresh it, otherwise the new chart exists but has no card in
+                // the sidebar — unreachable once you navigate away — until a
+                // full reload.
+                if (userChartId) {
+                    queryClient.invalidateQueries({
+                        queryKey: queryKeys.charts.sidebar(targetWorkspaceId),
+                    });
+                }
+
                 // Small delay to ensure the workspace is fully created
                 setTimeout(() => {
                     if (userChartId) {
@@ -199,6 +213,7 @@ export function AutoWorkspaceCreator({
         tgtPos,
         tgtFreeze,
         deploy,
+        queryClient,
     ]);
 
     if (error) {
