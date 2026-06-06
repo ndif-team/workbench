@@ -16,10 +16,7 @@ import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import {
-    lens2ConfigEqualsExceptModel,
-    tokenTextSequencesEqual,
-} from "@/lib/configModelDiff";
+import { lens2ConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
 import { useDraftModel } from "@/hooks/useDraftModel";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
@@ -471,8 +468,7 @@ export function Lens2Controls({
 
     // The "use selected model?" banner is about the gap between the user's
     // current intent for this chart (draftModel) and the workspace selection.
-    const modelMismatchVsConfig =
-        modelsAvailable && !!draftModel && draftModel !== selectedModel;
+    const modelMismatchVsConfig = modelsAvailable && !!draftModel && draftModel !== selectedModel;
 
     const tokenizationDiffers = useMemo(() => {
         if (!modelMismatchVsConfig) return false;
@@ -516,92 +512,91 @@ export function Lens2Controls({
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                     <Label className="text-sm font-medium">Prompt</Label>
-                <div className="relative">
-                    {editingText ? (
-                        <Textarea
-                            ref={textareaRef}
-                            value={prompt}
-                            onChange={(e) => {
-                                handlePromptChange(e);
-                                autoResizeTextarea();
-                            }}
-                            onKeyDown={handleKeyDown}
-                            onBlur={handleTextareaBlur}
-                            className="w-full !text-sm bg-input/30 min-h-32 !leading-5"
-                            placeholder="Enter your prompt here..."
-                            disabled={!interactive}
-                        />
-                    ) : (
-                        <div
-                            ref={tokenContainerRef}
-                            className={cn(
-                                "flex w-full px-3 py-2 bg-input/30 border rounded min-h-32",
-                                isExecuting ? "cursor-progress" : "cursor-text",
-                            )}
-                            onClick={() => {
-                                if (interactive) escapeTokenArea();
-                            }}
-                        >
-                            <TokenDisplay tokens={tokenData} loading={isExecuting} />
-                        </div>
-                    )}
-
+                    <div className="relative">
+                        {editingText ? (
+                            <Textarea
+                                ref={textareaRef}
+                                value={prompt}
+                                onChange={(e) => {
+                                    handlePromptChange(e);
+                                    autoResizeTextarea();
+                                }}
+                                onKeyDown={handleKeyDown}
+                                onBlur={handleTextareaBlur}
+                                className="w-full !text-sm bg-input/30 min-h-32 !leading-5"
+                                placeholder="Enter your prompt here..."
+                                disabled={!interactive}
+                            />
+                        ) : (
+                            <div
+                                ref={tokenContainerRef}
+                                className={cn(
+                                    "flex w-full px-3 py-2 bg-input/30 border rounded min-h-32",
+                                    isExecuting ? "cursor-progress" : "cursor-text",
+                                )}
+                                onClick={() => {
+                                    if (interactive) escapeTokenArea();
+                                }}
+                            >
+                                <TokenDisplay tokens={tokenData} loading={isExecuting} />
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
 
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                    <Label htmlFor="topk" className="text-sm font-medium">
-                        Top-K Predictions
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="topk" className="text-sm font-medium">
+                            Top-K Predictions
+                        </Label>
+                        <span className="text-sm text-muted-foreground">{topk}</span>
+                    </div>
+                    <Slider
+                        id="topk"
+                        min={1}
+                        max={10}
+                        step={1}
+                        value={[topk]}
+                        onValueChange={([value]) => setTopk(value)}
+                        disabled={!interactive}
+                        className="w-full"
+                    />
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        id="entropy"
+                        checked={includeEntropy}
+                        onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
+                        disabled={!interactive}
+                    />
+                    <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">
+                        Include Entropy
                     </Label>
-                    <span className="text-sm text-muted-foreground">{topk}</span>
                 </div>
-                <Slider
-                    id="topk"
-                    min={1}
-                    max={10}
-                    step={1}
-                    value={[topk]}
-                    onValueChange={([value]) => setTopk(value)}
-                    disabled={!interactive}
+
+                <Button
+                    onClick={handleSubmit}
+                    disabled={!interactive || !prompt.trim() || !tokensInSync}
                     className="w-full"
-                />
-            </div>
+                >
+                    {isExecuting ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Computing...
+                        </>
+                    ) : (
+                        <>
+                            <Play className="mr-2 h-4 w-4" />
+                            Run Logit Lens
+                        </>
+                    )}
+                </Button>
 
-            <div className="flex items-center gap-2">
-                <Checkbox
-                    id="entropy"
-                    checked={includeEntropy}
-                    onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
-                    disabled={!interactive}
-                />
-                <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">
-                    Include Entropy
-                </Label>
-            </div>
-
-            <Button
-                onClick={handleSubmit}
-                disabled={!interactive || !prompt.trim() || !tokensInSync}
-                className="w-full"
-            >
-                {isExecuting ? (
-                    <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Computing...
-                    </>
-                ) : (
-                    <>
-                        <Play className="mr-2 h-4 w-4" />
-                        Run Logit Lens
-                    </>
-                )}
-            </Button>
-
-            <p className="text-xs text-muted-foreground text-center">
-                <kbd className="px-1 py-0.5 bg-muted rounded text-xs">⌘</kbd> +{" "}
-                <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd> to run
-            </p>
+                <p className="text-xs text-muted-foreground text-center">
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-xs">⌘</kbd> +{" "}
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd> to run
+                </p>
             </div>
         </>
     );

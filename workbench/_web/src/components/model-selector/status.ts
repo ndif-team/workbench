@@ -7,10 +7,7 @@ import type { Model, ModelStatus } from "@/types/models";
  */
 export type ModelHeat = ModelStatus;
 
-export const MODEL_STATUS: Record<
-    ModelHeat,
-    { color: string; label: string; detail: string }
-> = {
+export const MODEL_STATUS: Record<ModelHeat, { color: string; label: string; detail: string }> = {
     hot: { color: "hsl(142 71% 45%)", label: "hot", detail: "loaded · ready to run" },
     warm: { color: "hsl(38 92% 50%)", label: "warm", detail: "cached · warming up" },
     deploying: {

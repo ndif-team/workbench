@@ -14,18 +14,9 @@ import { ModelPopover } from "@/components/model-selector/ModelPopover";
 
 // ----- status vocabularies ----------------------------------------------------------
 
-type JobState =
-    | "received"
-    | "queued"
-    | "dispatched"
-    | "running"
-    | "completed"
-    | "error";
+type JobState = "received" | "queued" | "dispatched" | "running" | "completed" | "error";
 
-const JOB_STATUS: Record<
-    JobState,
-    { color: string; label: string; active: boolean }
-> = {
+const JOB_STATUS: Record<JobState, { color: string; label: string; active: boolean }> = {
     received: { color: "hsl(270 70% 55%)", label: "received", active: true },
     queued: { color: "hsl(38 92% 50%)", label: "queued", active: true },
     dispatched: { color: "hsl(43 95% 45%)", label: "dispatched", active: true },
@@ -80,11 +71,7 @@ interface ModelControlProps {
 export function ModelControl({ className }: ModelControlProps) {
     const { selectedModelIdx, setSelectedModelIdx, jobStatus } = useWorkspace();
 
-    const {
-        data: models,
-        isLoading: modelsLoading,
-        isError: modelsError,
-    } = useModelsQuery();
+    const { data: models, isLoading: modelsLoading, isError: modelsError } = useModelsQuery();
 
     const [open, setOpen] = React.useState(false);
 
@@ -119,10 +106,7 @@ export function ModelControl({ className }: ModelControlProps) {
                     className,
                 )}
             >
-                <Loader2
-                    className="w-3.5 h-3.5 animate-spin shrink-0"
-                    aria-hidden
-                />
+                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" aria-hidden />
                 <span>Fetching models…</span>
             </div>
         );
@@ -146,9 +130,7 @@ export function ModelControl({ className }: ModelControlProps) {
                         )}
                     >
                         <HeatBadge heat="unavailable" />
-                        <span className="text-xs px-1 text-muted-foreground">
-                            no model
-                        </span>
+                        <span className="text-xs px-1 text-muted-foreground">no model</span>
                     </div>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">{reason}</TooltipContent>
@@ -183,10 +165,7 @@ export function ModelControl({ className }: ModelControlProps) {
                     <ChevronDown className="w-3 h-3 opacity-50 shrink-0" />
                     {job && (
                         <>
-                            <span
-                                aria-hidden
-                                className="w-px h-[18px] bg-border shrink-0"
-                            />
+                            <span aria-hidden className="w-px h-[18px] bg-border shrink-0" />
                             <JobBadge state={job.state} count={job.count} />
                         </>
                     )}
@@ -284,4 +263,3 @@ function JobBadge({ state, count }: { state: JobState; count?: number }) {
         </Tooltip>
     );
 }
-

@@ -31,11 +31,7 @@ export function ModelDeployingPanel({ modelName, phase }: ModelDeployingPanelPro
     const failed = phase === "error";
     const error = useModelDeployment((s) => s.deployments[modelName]?.error);
 
-    const statusLabel = failed
-        ? "Deployment failed"
-        : inProgress
-          ? "Deploying…"
-          : "Not deployed";
+    const statusLabel = failed ? "Deployment failed" : inProgress ? "Deploying…" : "Not deployed";
 
     return (
         <div
@@ -72,20 +68,12 @@ export function ModelDeployingPanel({ modelName, phase }: ModelDeployingPanelPro
 
                 {!inProgress &&
                     (failed ? (
-                        <Button
-                            type="button"
-                            onClick={() => retry(modelName)}
-                            className="gap-1.5"
-                        >
+                        <Button type="button" onClick={() => retry(modelName)} className="gap-1.5">
                             <RotateCcw className="h-4 w-4" />
                             Retry
                         </Button>
                     ) : (
-                        <Button
-                            type="button"
-                            onClick={() => start(modelName)}
-                            className="gap-1.5"
-                        >
+                        <Button type="button" onClick={() => start(modelName)} className="gap-1.5">
                             <Cloud className="h-4 w-4" />
                             Deploy
                         </Button>

@@ -110,8 +110,7 @@ export function Lens2Display() {
     const rawChartName = lens2Chart?.name || "";
     const chartName = rawChartName === "Untitled Chart" ? "" : rawChartName;
     const displayTitle = localTitle !== null ? localTitle : chartName;
-    const hasTitle =
-        displayTitle.trim().length > 0 && displayTitle.trim() !== "Untitled Chart";
+    const hasTitle = displayTitle.trim().length > 0 && displayTitle.trim() !== "Untitled Chart";
 
     // Reset local title when the chart changes.
     useEffect(() => {

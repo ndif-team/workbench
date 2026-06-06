@@ -1,8 +1,5 @@
 import type { Lens2ConfigData } from "@/types/lens2";
-import type {
-    ActivationPatchingConfigData,
-    SourcePosition,
-} from "@/types/activationPatching";
+import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 import type { Token } from "@/types/models";
 
 // ---- chart/config model resolution -------------------------------------------------

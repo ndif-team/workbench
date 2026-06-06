@@ -234,40 +234,38 @@ export function ActivationPatchingDisplay() {
             <div className="px-4 pt-4 pb-2 flex items-center gap-2">
                 <div className="flex-1 min-w-0 flex items-center gap-2">
                     <div className="min-w-0 flex-1">
-                    {isEditingTitle ? (
-                        <input
-                            ref={titleInputRef}
-                            type="text"
-                            value={displayTitle}
-                            onChange={handleTitleChange}
-                            onBlur={handleTitleBlur}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.currentTarget.blur();
-                                }
-                            }}
-                            placeholder="Untitled Chart"
-                            className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
-                        />
-                    ) : hasTitle ? (
-                        <h2
-                            onClick={handleTitleClick}
-                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold truncate"
-                        >
-                            {displayTitle}
-                        </h2>
-                    ) : (
-                        <h2
-                            onClick={handleTitleClick}
-                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
-                        >
-                            Untitled Chart
-                        </h2>
-                    )}
+                        {isEditingTitle ? (
+                            <input
+                                ref={titleInputRef}
+                                type="text"
+                                value={displayTitle}
+                                onChange={handleTitleChange}
+                                onBlur={handleTitleBlur}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                    }
+                                }}
+                                placeholder="Untitled Chart"
+                                className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
+                            />
+                        ) : hasTitle ? (
+                            <h2
+                                onClick={handleTitleClick}
+                                className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold truncate"
+                            >
+                                {displayTitle}
+                            </h2>
+                        ) : (
+                            <h2
+                                onClick={handleTitleClick}
+                                className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
+                            >
+                                Untitled Chart
+                            </h2>
+                        )}
                     </div>
-                    {stale && chartModel && (
-                        <ChartModelPill modelName={chartModel} />
-                    )}
+                    {stale && chartModel && <ChartModelPill modelName={chartModel} />}
                 </div>
                 <NotebookExporter
                     configType="activation-patching"

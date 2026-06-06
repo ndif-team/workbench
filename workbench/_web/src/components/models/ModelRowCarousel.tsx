@@ -20,12 +20,7 @@ interface ModelRowCarouselProps {
  * is reachable by scrolling. Nav buttons + progress + edge fades appear only
  * when there's something to scroll to.
  */
-export function ModelRowCarousel({
-    label,
-    models,
-    onCardClick,
-    cardHref,
-}: ModelRowCarouselProps) {
+export function ModelRowCarousel({ label, models, onCardClick, cardHref }: ModelRowCarouselProps) {
     const ref = useRef<HTMLDivElement>(null);
     const [progress, setProgress] = useState(0);
     const [hasOverflow, setHasOverflow] = useState(false);
@@ -167,4 +162,3 @@ function ScrollProgress({ progress }: { progress: number }) {
         </div>
     );
 }
-

@@ -6,11 +6,7 @@ import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useModelDeployment } from "@/stores/useModelDeployment";
-import {
-    isModelRunnable,
-    isModelCold,
-    isModelDeploying,
-} from "@/components/model-selector/status";
+import { isModelRunnable, isModelCold, isModelDeploying } from "@/components/model-selector/status";
 import type { DeploymentPhase } from "@/types/deployment";
 
 /** Tool-agnostic "does this chart have a renderable result?" check. */
@@ -57,7 +53,7 @@ export function useChartModelReady(chartId: string): ChartModelReadiness {
         (config as { data?: { model?: string } } | undefined)?.data?.model ?? null;
 
     const phase = useModelDeployment((s) =>
-        modelName ? s.deployments[modelName]?.phase ?? "idle" : "idle",
+        modelName ? (s.deployments[modelName]?.phase ?? "idle") : "idle",
     );
 
     if (configLoading || chartLoading || (modelsLoading && !models)) {

@@ -79,8 +79,7 @@ export const useModelDeployment = create<ModelDeploymentStore>()((set, get) => {
                 style: DEPLOY_TOAST_STYLE,
             });
         } catch (e) {
-            const message =
-                e instanceof DeploymentError ? e.message : "Deployment failed";
+            const message = e instanceof DeploymentError ? e.message : "Deployment failed";
             setPhase(model, { phase: "error", error: message });
             toast.error(`Couldn't deploy ${model.split("/").pop()}`, {
                 description: message,
@@ -95,11 +94,7 @@ export const useModelDeployment = create<ModelDeploymentStore>()((set, get) => {
             const current = get().deployments[model]?.phase;
             // Already in-flight or already done — don't kick off a redundant
             // warmup. `retry` is the way back in after a failure.
-            if (
-                current === "submitting" ||
-                current === "deploying" ||
-                current === "ready"
-            ) {
+            if (current === "submitting" || current === "deploying" || current === "ready") {
                 return;
             }
             void run(model);

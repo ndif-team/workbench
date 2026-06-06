@@ -131,9 +131,7 @@ export const useModelsQuery = () => {
                     .map((d) => d.model),
             );
             if (deployed.size === 0) return models;
-            return models.map((m) =>
-                deployed.has(m.name) ? { ...m, status: "hot" as const } : m,
-            );
+            return models.map((m) => (deployed.has(m.name) ? { ...m, status: "hot" as const } : m));
         },
         [deployments],
     );

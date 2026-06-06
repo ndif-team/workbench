@@ -88,7 +88,7 @@ export function WorkspacePill({
     const currentLabel =
         value === "new"
             ? "New Workspace"
-            : workspaces.find((ws) => ws.id === value)?.name ?? "Workspace";
+            : (workspaces.find((ws) => ws.id === value)?.name ?? "Workspace");
 
     const options: PillPopoverOption[] = [
         { value: "new", label: "New Workspace", icon: <Plus />, tone: "primary" },

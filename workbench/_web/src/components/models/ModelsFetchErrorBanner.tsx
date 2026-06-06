@@ -44,9 +44,7 @@ export function ModelsFetchErrorBanner({
                     disabled={isRetrying}
                     className="h-7 px-2.5 text-xs gap-1.5 bg-red-600 hover:bg-red-700 text-white"
                 >
-                    <RefreshCcw
-                        className={isRetrying ? "h-3 w-3 animate-spin" : "h-3 w-3"}
-                    />
+                    <RefreshCcw className={isRetrying ? "h-3 w-3 animate-spin" : "h-3 w-3"} />
                     Retry
                 </Button>
             </div>

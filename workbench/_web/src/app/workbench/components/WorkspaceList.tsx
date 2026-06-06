@@ -6,13 +6,7 @@ import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
 import { useQuery } from "@tanstack/react-query";
 import { useDeleteWorkspace } from "@/lib/api/workspaceApi";
 import { Button } from "@/components/ui/button";
-import {
-    Trash2,
-    BarChart3,
-    FileText,
-    ChevronLeft,
-    ChevronRight,
-} from "lucide-react";
+import { Trash2, BarChart3, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useIsDark } from "@/hooks/useIsDark";
 import { useModelsSection } from "@/stores/useModelsSection";
@@ -93,7 +87,6 @@ function WorkspaceCard({
                             <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                     </div>
-
 
                     {/* Charts and Reports Count */}
                     <div className="flex items-center gap-3 pt-1">
@@ -223,9 +216,7 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7"
-                                onClick={() =>
-                                    setPage((p) => Math.min(totalPages - 1, p + 1))
-                                }
+                                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                                 disabled={page >= totalPages - 1}
                                 aria-label="Next page"
                             >

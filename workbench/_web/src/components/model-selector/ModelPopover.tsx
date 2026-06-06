@@ -4,10 +4,7 @@ import * as React from "react";
 import { Check, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import {
-    popoverMenuShellClass,
-    popoverMenuShellStyle,
-} from "@/components/ui/pill-popover";
+import { popoverMenuShellClass, popoverMenuShellStyle } from "@/components/ui/pill-popover";
 import {
     MODEL_STATUS,
     deriveHeat,
@@ -79,9 +76,7 @@ export function ModelPopover({
             }
             if (!q) return true;
             const { org, label } = splitRepo(m.name);
-            return (
-                label.toLowerCase().includes(q) || org.toLowerCase().includes(q)
-            );
+            return label.toLowerCase().includes(q) || org.toLowerCase().includes(q);
         };
         const compare = (a: Model, b: Model) => {
             if (a.name === selectedName) return -1;
@@ -284,15 +279,8 @@ function Group({
                 </span>
             </div>
             <div
-                className={cn(
-                    "overflow-y-auto pb-1",
-                    compact ? "max-h-[140px]" : "max-h-[180px]",
-                )}
-                style={
-                    fadeMask
-                        ? { maskImage: fadeMask, WebkitMaskImage: fadeMask }
-                        : undefined
-                }
+                className={cn("overflow-y-auto pb-1", compact ? "max-h-[140px]" : "max-h-[180px]")}
+                style={fadeMask ? { maskImage: fadeMask, WebkitMaskImage: fadeMask } : undefined}
             >
                 {rows.map((m) => (
                     <Row
@@ -350,11 +338,7 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
                     ? "gap-2 py-1 grid-cols-[8px_1fr_auto]"
                     : "gap-2.5 py-1.5 grid-cols-[10px_1fr_auto]",
                 selected
-                    ? cn(
-                          "bg-primary/[0.06] border-l-2 border-primary",
-                          selectedPadL,
-                          selectedPadR,
-                      )
+                    ? cn("bg-primary/[0.06] border-l-2 border-primary", selectedPadL, selectedPadR)
                     : cn("border-l-2 border-transparent", padX),
                 muted && "opacity-70",
             )}
@@ -378,9 +362,7 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
                     {label}
                 </span>
                 {!compact && org && (
-                    <span className="text-xs text-muted-foreground truncate">
-                        {org}
-                    </span>
+                    <span className="text-xs text-muted-foreground truncate">{org}</span>
                 )}
             </span>
             {/* Compact mode drops the uppercase heat label; the dot color

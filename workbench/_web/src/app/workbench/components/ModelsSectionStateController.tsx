@@ -27,9 +27,7 @@ interface ModelsSectionStateControllerProps {
  * Renders nothing. The store updates propagate to ModelsSection +
  * WorkspaceList (the latter adapts its pagination based on collapsed state).
  */
-export function ModelsSectionStateController({
-    isCreating,
-}: ModelsSectionStateControllerProps) {
+export function ModelsSectionStateController({ isCreating }: ModelsSectionStateControllerProps) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();

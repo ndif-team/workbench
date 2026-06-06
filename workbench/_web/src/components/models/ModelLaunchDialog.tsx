@@ -119,22 +119,20 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>
-                        Explore {model ? model.name : "model"}
-                    </DialogTitle>
+                    <DialogTitle>Explore {model ? model.name : "model"}</DialogTitle>
                     {isDeploy ? (
                         <DialogDescription className="flex items-start gap-2 rounded-md border border-amber-300/70 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
                             <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                             <span>
-                                This model isn&apos;t currently deployed. Deploying loads
-                                it onto the backend if capacity allows, which can take a
-                                few minutes. The chart is created once the model is HOT.
+                                This model isn&apos;t currently deployed. Deploying loads it onto
+                                the backend if capacity allows, which can take a few minutes. The
+                                chart is created once the model is HOT.
                             </span>
                         </DialogDescription>
                     ) : (
                         <DialogDescription>
-                            Create a chart with this model. Pick a tool and a workspace to
-                            open it in.
+                            Create a chart with this model. Pick a tool and a workspace to open it
+                            in.
                         </DialogDescription>
                     )}
                 </DialogHeader>

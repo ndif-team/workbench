@@ -51,19 +51,14 @@ export function popoverMenuShellClass(compact: boolean): string {
                   "rounded-2xl border-primary/15",
                   "shadow-[0_16px_40px_-12px_hsl(var(--primary)/0.18),0_4px_12px_-2px_hsl(0_0%_0%/0.05)]",
               )
-            : cn(
-                  "rounded-md bg-popover",
-                  "shadow-[0_12px_28px_hsl(0_0%_0%_/_0.10)]",
-              ),
+            : cn("rounded-md bg-popover", "shadow-[0_12px_28px_hsl(0_0%_0%_/_0.10)]"),
     );
 }
 
 /** Inline background for the compact shell — an opaque brand-tinted gradient
  * (color-mix bakes the tint into the popover color so it stays readable).
  * Returns undefined for the standard shell (uses `bg-popover` class). */
-export function popoverMenuShellStyle(
-    compact: boolean,
-): React.CSSProperties | undefined {
+export function popoverMenuShellStyle(compact: boolean): React.CSSProperties | undefined {
     if (!compact) return undefined;
     return {
         background: [
@@ -130,9 +125,7 @@ export function PillPopover({
         const q = query.trim().toLowerCase();
         if (!q) return options;
         return options.filter((o) =>
-            `${o.label} ${o.description ?? ""} ${o.keywords ?? ""}`
-                .toLowerCase()
-                .includes(q),
+            `${o.label} ${o.description ?? ""} ${o.keywords ?? ""}`.toLowerCase().includes(q),
         );
     }, [options, query]);
 
@@ -165,7 +158,7 @@ export function PillPopover({
     // changes — so `activeValue` always points at a row that exists.
     React.useEffect(() => {
         if (!open) return;
-        const target = enabledValues.includes(value) ? value : enabledValues[0] ?? null;
+        const target = enabledValues.includes(value) ? value : (enabledValues[0] ?? null);
         setActiveValue(target);
     }, [open, value, enabledValues]);
 
@@ -277,9 +270,7 @@ export function PillPopover({
                                             active={o.value === activeValue}
                                             compact={compact}
                                             onSelect={() => !o.disabled && select(o.value)}
-                                            onHover={() =>
-                                                !o.disabled && setActiveValue(o.value)
-                                            }
+                                            onHover={() => !o.disabled && setActiveValue(o.value)}
                                             ref={(el) => {
                                                 if (el) rowRefs.current.set(o.value, el);
                                                 else rowRefs.current.delete(o.value);
@@ -331,8 +322,15 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
                 "w-full flex items-center gap-2 text-left cursor-pointer outline-none",
                 compact ? "py-1" : "py-1.5",
                 selected
-                    ? cn("bg-primary/[0.06] border-l-2 border-primary", compact ? "pl-[6px] pr-2" : "pl-[10px] pr-3")
-                    : cn("border-l-2 border-transparent", compact ? "px-2" : "px-3", active && "bg-accent"),
+                    ? cn(
+                          "bg-primary/[0.06] border-l-2 border-primary",
+                          compact ? "pl-[6px] pr-2" : "pl-[10px] pr-3",
+                      )
+                    : cn(
+                          "border-l-2 border-transparent",
+                          compact ? "px-2" : "px-3",
+                          active && "bg-accent",
+                      ),
                 option.disabled && "opacity-50 cursor-not-allowed",
             )}
         >
@@ -353,12 +351,7 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
                 </span>
             )}
             <span className="flex items-baseline gap-2 min-w-0 flex-1">
-                <span
-                    className={cn(
-                        "truncate text-xs font-normal",
-                        primary && "text-primary",
-                    )}
-                >
+                <span className={cn("truncate text-xs font-normal", primary && "text-primary")}>
                     {option.label}
                 </span>
                 {option.description && (

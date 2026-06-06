@@ -98,8 +98,8 @@ export default function LensArea() {
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="max-w-xs">
                             <p>
-                                Model "{configModelUnavailable}" is not currently available.
-                                Please select a different model and retokenize.
+                                Model "{configModelUnavailable}" is not currently available. Please
+                                select a different model and retokenize.
                             </p>
                         </TooltipContent>
                     </Tooltip>

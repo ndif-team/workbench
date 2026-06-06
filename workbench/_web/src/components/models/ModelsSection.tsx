@@ -97,11 +97,7 @@ export function ModelsSection({
         const raw = searchParams.get(URL_STATUS);
         if (!raw) return new Set<ModelHeat>();
         return new Set(
-            raw
-                .split(",")
-                .filter((s): s is ModelHeat =>
-                    FILTERABLE_HEAT.includes(s as ModelHeat),
-                ),
+            raw.split(",").filter((s): s is ModelHeat => FILTERABLE_HEAT.includes(s as ModelHeat)),
         );
     }, [searchParams]);
 
@@ -109,11 +105,7 @@ export function ModelsSection({
         const raw = searchParams.get(URL_GROUP);
         if (!raw) return new Set<ModelGroup>();
         return new Set(
-            raw
-                .split(",")
-                .filter((s): s is ModelGroup =>
-                    VALID_GROUPS.includes(s as ModelGroup),
-                ),
+            raw.split(",").filter((s): s is ModelGroup => VALID_GROUPS.includes(s as ModelGroup)),
         );
     }, [searchParams]);
 
@@ -191,11 +183,7 @@ export function ModelsSection({
         [writeFilterUrl],
     );
 
-    const {
-        data: rawModels,
-        error,
-        isLoading,
-    } = useModelsQuery();
+    const { data: rawModels, error, isLoading } = useModelsQuery();
 
     const cards = useMemo(
         () =>
@@ -296,7 +284,12 @@ export function ModelsSection({
             // / screen-reader users use the chevron.
             onClick={collapsed ? () => setCollapsed(false) : undefined}
         >
-            <div className={cn("px-4 transition-[padding] duration-200", collapsed ? "pt-4 pb-10" : "py-4")}>
+            <div
+                className={cn(
+                    "px-4 transition-[padding] duration-200",
+                    collapsed ? "pt-4 pb-10" : "py-4",
+                )}
+            >
                 <ModelsSectionHeader
                     collapsed={collapsed}
                     onToggle={() => setCollapsed(!collapsed)}
@@ -322,10 +315,7 @@ export function ModelsSection({
                             Loading models…
                         </div>
                     ) : error ? (
-                        <ModelsFetchErrorBanner
-                            onRetry={onRetry}
-                            isRetrying={isRetrying}
-                        />
+                        <ModelsFetchErrorBanner onRetry={onRetry} isRetrying={isRetrying} />
                     ) : cards.length === 0 ? (
                         <div className="py-8 text-center text-xs text-muted-foreground">
                             No models available
@@ -339,12 +329,10 @@ export function ModelsSection({
                             // a single "no matches" message instead of two
                             // empty placeholders.
                             const showBase =
-                                (groupFilters.size === 0 ||
-                                    groupFilters.has("base")) &&
+                                (groupFilters.size === 0 || groupFilters.has("base")) &&
                                 baseCards.length > 0;
                             const showChat =
-                                (groupFilters.size === 0 ||
-                                    groupFilters.has("chat")) &&
+                                (groupFilters.size === 0 || groupFilters.has("chat")) &&
                                 chatCards.length > 0;
                             if (!showBase && !showChat) {
                                 return (
@@ -366,9 +354,7 @@ export function ModelsSection({
                                                     setDialog({
                                                         model: m,
                                                         mode:
-                                                            m.heat === "cold"
-                                                                ? "deploy"
-                                                                : "launch",
+                                                            m.heat === "cold" ? "deploy" : "launch",
                                                     }))
                                             }
                                         />
@@ -384,9 +370,7 @@ export function ModelsSection({
                                                     setDialog({
                                                         model: m,
                                                         mode:
-                                                            m.heat === "cold"
-                                                                ? "deploy"
-                                                                : "launch",
+                                                            m.heat === "cold" ? "deploy" : "launch",
                                                     }))
                                             }
                                         />

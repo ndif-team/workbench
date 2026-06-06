@@ -81,132 +81,130 @@ export function ModelsSectionHeader({
 
     return (
         <div className={cn("flex flex-col", collapsed ? "gap-6" : "gap-4")}>
-        <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-baseline gap-3 mr-auto">
-                <h2 className="text-lg">Models</h2>
-                {!hasError && !isLoading && (
-                    <span className="text-sm text-muted-foreground tabular-nums">
-                        {filtered ? `${filteredTotal} of ${total}` : total}
+            <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-baseline gap-3 mr-auto">
+                    <h2 className="text-lg">Models</h2>
+                    {!hasError && !isLoading && (
+                        <span className="text-sm text-muted-foreground tabular-nums">
+                            {filtered ? `${filteredTotal} of ${total}` : total}
+                        </span>
+                    )}
+                </div>
+
+                {collapsed && isLoading && (
+                    <span
+                        role="status"
+                        aria-label="Loading models"
+                        className={cn(
+                            "inline-flex items-center gap-1.5 shrink-0",
+                            "h-6 px-2 rounded-sm",
+                            "text-xs font-semibold uppercase tracking-wide",
+                            "text-primary",
+                            "bg-primary/[0.10] dark:bg-primary/[0.18]",
+                            "ring-1 ring-inset ring-primary/30",
+                        )}
+                    >
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        loading
                     </span>
                 )}
+
+                {collapsed && hasError && (
+                    <span
+                        role="status"
+                        aria-label="Models unavailable"
+                        className={cn(
+                            "inline-flex items-center gap-1.5 shrink-0",
+                            "h-6 px-2 rounded-sm",
+                            "text-xs font-semibold uppercase tracking-wide",
+                            "text-red-700 dark:text-red-400",
+                            "bg-red-500/[0.12] dark:bg-red-500/[0.18]",
+                            "ring-1 ring-inset ring-red-500/30",
+                        )}
+                    >
+                        <AlertTriangle className="w-3 h-3" />
+                        unavailable
+                    </span>
+                )}
+
+                {!collapsed && (
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="relative">
+                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                            <Input
+                                ref={searchRef}
+                                value={query}
+                                onChange={(e) => onQuery(e.target.value)}
+                                placeholder="search models…"
+                                aria-label="Search models"
+                                className="h-7 w-44 pl-7 pr-7 text-xs"
+                            />
+                            {query && (
+                                <button
+                                    type="button"
+                                    onClick={() => onQuery("")}
+                                    aria-label="Clear search"
+                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground">type</span>
+                            <SegmentedGroup label="Filter by model type">
+                                {GROUPS.map((g) => (
+                                    <FilterChip
+                                        key={g}
+                                        label={g}
+                                        color={GROUP_COLOR[g]}
+                                        active={groupFilters.has(g)}
+                                        onClick={() => onToggleGroup(g)}
+                                    />
+                                ))}
+                            </SegmentedGroup>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground">status</span>
+                            <SegmentedGroup label="Filter by status">
+                                {FILTERABLE_HEAT.map((k) => (
+                                    <FilterChip
+                                        key={k}
+                                        label={k}
+                                        color={MODEL_STATUS[k].color}
+                                        active={statusFilters.has(k)}
+                                        onClick={() => onToggleStatus(k)}
+                                    />
+                                ))}
+                            </SegmentedGroup>
+                        </div>
+                    </div>
+                )}
+
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onToggle();
+                    }}
+                    aria-expanded={!collapsed}
+                    aria-label={collapsed ? "Expand models" : "Collapse models"}
+                >
+                    <ChevronDown
+                        className={cn(
+                            "h-4 w-4 transition-transform duration-200",
+                            !collapsed && "rotate-180",
+                        )}
+                    />
+                </Button>
             </div>
 
-            {collapsed && isLoading && (
-                <span
-                    role="status"
-                    aria-label="Loading models"
-                    className={cn(
-                        "inline-flex items-center gap-1.5 shrink-0",
-                        "h-6 px-2 rounded-sm",
-                        "text-xs font-semibold uppercase tracking-wide",
-                        "text-primary",
-                        "bg-primary/[0.10] dark:bg-primary/[0.18]",
-                        "ring-1 ring-inset ring-primary/30",
-                    )}
-                >
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    loading
-                </span>
-            )}
-
-            {collapsed && hasError && (
-                <span
-                    role="status"
-                    aria-label="Models unavailable"
-                    className={cn(
-                        "inline-flex items-center gap-1.5 shrink-0",
-                        "h-6 px-2 rounded-sm",
-                        "text-xs font-semibold uppercase tracking-wide",
-                        "text-red-700 dark:text-red-400",
-                        "bg-red-500/[0.12] dark:bg-red-500/[0.18]",
-                        "ring-1 ring-inset ring-red-500/30",
-                    )}
-                >
-                    <AlertTriangle className="w-3 h-3" />
-                    unavailable
-                </span>
-            )}
-
-            {!collapsed && (
-                <div className="flex flex-wrap items-center gap-3">
-                    <div className="relative">
-                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                        <Input
-                            ref={searchRef}
-                            value={query}
-                            onChange={(e) => onQuery(e.target.value)}
-                            placeholder="search models…"
-                            aria-label="Search models"
-                            className="h-7 w-44 pl-7 pr-7 text-xs"
-                        />
-                        {query && (
-                            <button
-                                type="button"
-                                onClick={() => onQuery("")}
-                                aria-label="Clear search"
-                                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            >
-                                <X className="h-3 w-3" />
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">type</span>
-                        <SegmentedGroup label="Filter by model type">
-                            {GROUPS.map((g) => (
-                                <FilterChip
-                                    key={g}
-                                    label={g}
-                                    color={GROUP_COLOR[g]}
-                                    active={groupFilters.has(g)}
-                                    onClick={() => onToggleGroup(g)}
-                                />
-                            ))}
-                        </SegmentedGroup>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">status</span>
-                        <SegmentedGroup label="Filter by status">
-                            {FILTERABLE_HEAT.map((k) => (
-                                <FilterChip
-                                    key={k}
-                                    label={k}
-                                    color={MODEL_STATUS[k].color}
-                                    active={statusFilters.has(k)}
-                                    onClick={() => onToggleStatus(k)}
-                                />
-                            ))}
-                        </SegmentedGroup>
-                    </div>
-                </div>
-            )}
-
-            <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onToggle();
-                }}
-                aria-expanded={!collapsed}
-                aria-label={collapsed ? "Expand models" : "Collapse models"}
-            >
-                <ChevronDown
-                    className={cn(
-                        "h-4 w-4 transition-transform duration-200",
-                        !collapsed && "rotate-180",
-                    )}
-                />
-            </Button>
-        </div>
-
-        {collapsed && total > 0 && (
-            <CollapsedGroupTiles groupPreviews={groupPreviews} />
-        )}
+            {collapsed && total > 0 && <CollapsedGroupTiles groupPreviews={groupPreviews} />}
         </div>
     );
 }
@@ -288,13 +286,7 @@ function CollapsedGroupTiles({
     );
 }
 
-function SegmentedGroup({
-    label,
-    children,
-}: {
-    label: string;
-    children: React.ReactNode;
-}) {
+function SegmentedGroup({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div
             role="group"
@@ -365,4 +357,3 @@ function FilterChip({
         </button>
     );
 }
-
