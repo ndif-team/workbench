@@ -2,36 +2,58 @@
 
 import { useEffect, useRef } from "react";
 import { GenerationItem } from "./GenerationItem";
-import type { GenerationItem as GenerationItemType } from "@/types/generation";
+import type { GenerationItem as GenerationItemType, GenerationViewMode } from "@/types/generation";
 
 interface GenerationTimelineProps {
     items: GenerationItemType[];
+    viewMode: GenerationViewMode;
     onRemove: (id: string) => void;
     onRegenerate?: (item: GenerationItemType) => void;
     modelName?: string;
 }
 
-const NEAR_TOP_PX = 120;
+const NEAR_BOTTOM_PX = 120;
 
 export function GenerationTimeline({
     items,
+    viewMode,
     onRemove,
     onRegenerate,
     modelName,
 }: GenerationTimelineProps) {
     const listRef = useRef<HTMLDivElement>(null);
-    const lastTopIdRef = useRef<string | undefined>(undefined);
+    const lastSigRef = useRef<string | null>(null);
+    const initializedRef = useRef(false);
+
+    // Newest item lives at items[0] in the store; it's rendered at the BOTTOM.
+    const newestId = items[0]?.id;
+    const newestStatus = items[0]?.status;
 
     useEffect(() => {
-        const topId = items[0]?.id;
-        if (!topId || topId === lastTopIdRef.current) return;
-        lastTopIdRef.current = topId;
         const el = listRef.current;
-        if (!el) return;
-        if (el.scrollTop <= NEAR_TOP_PX) {
-            el.scrollTo({ top: 0, behavior: "smooth" });
+        if (!el || items.length === 0) return;
+
+        const sig = `${newestId}:${newestStatus}`;
+
+        // First items: jump straight to the bottom (newest), no animation.
+        if (!initializedRef.current) {
+            initializedRef.current = true;
+            lastSigRef.current = sig;
+            el.scrollTop = el.scrollHeight;
+            return;
         }
-    }, [items]);
+
+        // A new generation, or the newest one settling (pending → done), should
+        // follow to the bottom — but only if the user is already near it, so we
+        // never yank them out of older generations they're reading.
+        if (sig === lastSigRef.current) return;
+        lastSigRef.current = sig;
+
+        const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+        if (distanceFromBottom <= NEAR_BOTTOM_PX) {
+            el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+        }
+    }, [items, newestId, newestStatus]);
 
     if (items.length === 0) {
         return <EmptyState modelName={modelName} />;
@@ -40,20 +62,25 @@ export function GenerationTimeline({
     return (
         <div
             ref={listRef}
-            className="flex-1 overflow-y-auto px-3 py-3 scrollbar-hide"
+            className="scrollbar-hide flex-1 overflow-y-auto px-3 py-3"
             aria-label="Generation history"
         >
-            <ul className="flex flex-col gap-4 pb-1">
-                {items.map((item, idx) => (
-                    <li key={item.id}>
-                        <GenerationItem
-                            item={item}
-                            isActive={idx === 0}
-                            onRemove={() => onRemove(item.id)}
-                            onRegenerate={onRegenerate ? () => onRegenerate(item) : undefined}
-                        />
-                    </li>
-                ))}
+            {/* Oldest first, newest at the bottom — chat/composer reading order. */}
+            <ul className="flex flex-col gap-4 pt-1">
+                {items
+                    .slice()
+                    .reverse()
+                    .map((item) => (
+                        <li key={item.id}>
+                            <GenerationItem
+                                item={item}
+                                isActive={item.id === newestId}
+                                viewMode={viewMode}
+                                onRemove={() => onRemove(item.id)}
+                                onRegenerate={onRegenerate ? () => onRegenerate(item) : undefined}
+                            />
+                        </li>
+                    ))}
             </ul>
         </div>
     );

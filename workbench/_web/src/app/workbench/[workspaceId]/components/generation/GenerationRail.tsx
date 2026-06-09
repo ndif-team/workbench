@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useGenerationPanel } from "@/stores/useGenerationPanel";
 import { getModels, generateCompletion } from "@/lib/api/modelsApi";
+import { encodeText } from "@/actions/tok";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,9 +16,11 @@ import {
     DEFAULT_GENERATION_PARAMS,
     type GenerationItem,
     type GenerationParams,
+    type GenerationViewMode,
 } from "@/types/generation";
 import { GenerationTimeline } from "./GenerationTimeline";
 import { GenerationComposer } from "./GenerationComposer";
+import { TokenTextToggle } from "./TokenTextToggle";
 
 interface GenerationRailProps {
     className?: string;
@@ -42,6 +45,8 @@ export function GenerationRail({ className, onCollapse }: GenerationRailProps) {
     const allowed = selectedModel?.allowed ?? true;
 
     const buckets = useGenerationPanel((s) => s.buckets);
+    const viewMode = useGenerationPanel((s) => s.viewMode);
+    const setViewMode = useGenerationPanel((s) => s.setViewMode);
     const addPending = useGenerationPanel((s) => s.addPending);
     const setStatus = useGenerationPanel((s) => s.setStatus);
     const removeItem = useGenerationPanel((s) => s.removeItem);
@@ -59,6 +64,15 @@ export function GenerationRail({ className, onCollapse }: GenerationRailProps) {
             if (!workspaceId || !modelName) return;
             const id = addPending(workspaceId, modelName, prompt, useParams);
             try {
+                // The prompt isn't echoed in the generate response, so tokenize it
+                // in parallel with generation (overlaps the slower call → no added
+                // latency). Saving the full prompt+generation token sequence lets
+                // token view render both — seed and completion — with no tokenize
+                // call at display time. Empty array if tokenization fails.
+                const promptTokensPromise = encodeText(prompt, modelName, false)
+                    .then((toks) => toks.map((t) => t.text))
+                    .catch(() => [] as string[]);
+
                 const response = await generateCompletion({
                     prompt,
                     max_new_tokens: useParams.maxNewTokens,
@@ -73,11 +87,22 @@ export function GenerationRail({ className, onCollapse }: GenerationRailProps) {
                     stop_strings:
                         useParams.stopSequences.length > 0 ? useParams.stopSequences : undefined,
                 });
-                const fullText = response.completion.map((t) => t.text).join("");
-                setStatus(workspaceId, modelName, id, "success", {
-                    output: fullText,
-                    outputTokens: response.completion.length,
-                });
+
+                const promptTokenTexts = await promptTokensPromise;
+                const completionTokenTexts = response.completion.map((t) => t.text);
+
+                const patch: Partial<GenerationItem> = {
+                    output: completionTokenTexts.join(""),
+                    outputTokens: completionTokenTexts.length,
+                    completionTokens: completionTokenTexts,
+                };
+                // Save the prompt's tokens too when available. Missing only if
+                // prompt tokenization failed for a non-empty prompt — then leave
+                // it unsaved so token view tokenizes the prompt on demand.
+                if (promptTokenTexts.length > 0 || prompt.length === 0) {
+                    patch.seedTokens = promptTokenTexts;
+                }
+                setStatus(workspaceId, modelName, id, "success", patch);
             } catch (err) {
                 const message =
                     err instanceof Error ? err.message : "Generation failed. Please try again.";
@@ -96,6 +121,8 @@ export function GenerationRail({ className, onCollapse }: GenerationRailProps) {
         >
             <RailHeader
                 count={items.length}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
                 onClear={
                     items.length > 0 && modelName
                         ? () => clearItems(workspaceId, modelName)
@@ -107,6 +134,7 @@ export function GenerationRail({ className, onCollapse }: GenerationRailProps) {
             <ModelGuard model={modelName} allowed={allowed}>
                 <GenerationTimeline
                     items={items}
+                    viewMode={viewMode}
                     modelName={modelName}
                     onRemove={(id) => modelName && removeItem(workspaceId, modelName, id)}
                     onRegenerate={(item) => modelName && handleSubmit(item.prompt, item.params)}
@@ -133,24 +161,22 @@ export function GenerationRail({ className, onCollapse }: GenerationRailProps) {
 
 function RailHeader({
     count,
+    viewMode,
+    onViewModeChange,
     onClear,
     onCollapse,
 }: {
     count: number;
+    viewMode: GenerationViewMode;
+    onViewModeChange: (viewMode: GenerationViewMode) => void;
     onClear?: () => void;
     onCollapse?: () => void;
 }) {
     return (
-        <div className="p-3 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-                <h2 className="text-sm pl-2 font-medium">Generation</h2>
-                {count > 0 && (
-                    <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground">
-                        {count}
-                    </span>
-                )}
-            </div>
-            <div className="flex items-center gap-1">
+        <div className="p-3 border-b flex items-center justify-between gap-2">
+            <h2 className="text-sm pl-2 font-medium">Generation</h2>
+            <div className="flex items-center gap-1.5">
+                {count > 0 && <TokenTextToggle value={viewMode} onChange={onViewModeChange} />}
                 {onClear && <ClearHistoryButton count={count} onConfirm={onClear} />}
                 {onCollapse && (
                     <Tooltip>

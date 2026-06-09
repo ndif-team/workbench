@@ -15,6 +15,7 @@ import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
+import { fixTokenText, TOKEN_HOVER } from "@/lib/tokenText";
 import { toast } from "sonner";
 import { lens2ConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
 import { useDraftModel } from "@/hooks/useDraftModel";
@@ -41,18 +42,8 @@ interface Lens2ControlsProps {
 
 const TOKEN_STYLES = {
     base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative",
-    hover: "hover:bg-primary/20 hover:ring-1 hover:ring-primary/30 hover:ring-inset",
+    hover: TOKEN_HOVER,
 } as const;
-
-const fixTokenText = (text: string) => {
-    const numNewlines = (text.match(/\n/g) || []).length;
-    const result = text
-        .replace(/\r\n/g, "\\r\\n")
-        .replace(/\n/g, "\\n")
-        .replace(/\r/g, "\\r")
-        .replace(/\t/g, "\\t");
-    return { result, numNewlines };
-};
 
 function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }) {
     return (

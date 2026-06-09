@@ -18,6 +18,9 @@ export const DEFAULT_GENERATION_PARAMS: GenerationParams = {
 
 export type GenerationStatus = "pending" | "success" | "error";
 
+/** Panel-wide reading mode for completions. */
+export type GenerationViewMode = "text" | "tokens";
+
 export interface GenerationItem {
     id: string;
     createdAt: number;
@@ -26,7 +29,12 @@ export interface GenerationItem {
     params: GenerationParams;
     status: GenerationStatus;
     output?: string;
-    promptTokens?: number;
     outputTokens?: number;
+    /** Real per-token text of the prompt (the seed), captured at generation time
+     * (tokenized in parallel) so token view renders it without a tokenize call.
+     * Optional/additive — older items lack it. */
+    seedTokens?: string[];
+    /** Real per-token text of the model's completion. */
+    completionTokens?: string[];
     error?: string;
 }

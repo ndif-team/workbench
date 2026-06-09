@@ -5,20 +5,25 @@ import { Copy, Check, Trash2, AlertTriangle, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-    DEFAULT_GENERATION_PARAMS,
-    type GenerationItem as GenerationItemType,
-    type GenerationParams,
-} from "@/types/generation";
+import type { GenerationItem as GenerationItemType, GenerationViewMode } from "@/types/generation";
+import { GenerationContentView } from "./GenerationContentView";
+import { GenerationParamsInfo } from "./GenerationParamsInfo";
 
 interface GenerationItemProps {
     item: GenerationItemType;
     isActive: boolean;
+    viewMode: GenerationViewMode;
     onRemove: () => void;
     onRegenerate?: () => void;
 }
 
-export function GenerationItem({ item, isActive, onRemove, onRegenerate }: GenerationItemProps) {
+export function GenerationItem({
+    item,
+    isActive,
+    viewMode,
+    onRemove,
+    onRegenerate,
+}: GenerationItemProps) {
     const isPending = item.status === "pending";
     const isError = item.status === "error";
 
@@ -30,22 +35,17 @@ export function GenerationItem({ item, isActive, onRemove, onRegenerate }: Gener
     return (
         <article
             aria-live={isActive ? "polite" : undefined}
-            className="group relative animate-in fade-in duration-200 pl-3"
+            className={cn(
+                "group animate-in fade-in rounded-md border p-2.5 transition-colors duration-200",
+                isPending
+                    ? "border-primary"
+                    : isError
+                      ? "border-destructive/60"
+                      : isActive
+                        ? "border-primary/60"
+                        : "border-border",
+            )}
         >
-            <span
-                aria-hidden
-                className={cn(
-                    "absolute left-0 top-1 bottom-1 w-px transition-colors",
-                    isPending
-                        ? "bg-primary"
-                        : isError
-                          ? "bg-destructive/60"
-                          : isActive
-                            ? "bg-primary/60"
-                            : "bg-border",
-                )}
-            />
-
             <header className="flex items-center justify-between gap-2 pb-1.5">
                 <span
                     className={cn(
@@ -59,8 +59,15 @@ export function GenerationItem({ item, isActive, onRemove, onRegenerate }: Gener
                 >
                     {isPending ? "Running" : isError ? "Error" : "Generation"}
                 </span>
-                <div className="flex items-center gap-0.5 text-muted-foreground/40 transition-colors group-hover:text-muted-foreground focus-within:text-muted-foreground">
+                <div className="flex items-center gap-0.5 text-muted-foreground/40 transition-colors focus-within:text-muted-foreground group-hover:text-muted-foreground">
                     {!isPending && item.output && <CopyButton text={item.output} label="Copy" />}
+                    {!isPending && (
+                        <GenerationParamsInfo
+                            model={item.model}
+                            params={item.params}
+                            createdAt={item.createdAt}
+                        />
+                    )}
                     {!isPending && onRegenerate && (
                         <IconButton label="Regenerate" onClick={onRegenerate}>
                             <RotateCw className="size-3" />
@@ -74,46 +81,37 @@ export function GenerationItem({ item, isActive, onRemove, onRegenerate }: Gener
                 </div>
             </header>
 
-            <PromptBlock text={item.prompt} />
-
-            <div className="mt-1.5">
-                {isPending ? (
+            {isPending ? (
+                <SeedAndOutput prompt={item.prompt}>
                     <PendingOutput />
-                ) : isError ? (
+                </SeedAndOutput>
+            ) : isError ? (
+                <SeedAndOutput prompt={item.prompt}>
                     <ErrorOutput message={item.error ?? "Generation failed."} />
-                ) : (
-                    <OutputBlock generated={generatedText} />
-                )}
-            </div>
-
-            <ParamsFootnote params={item.params} />
+                </SeedAndOutput>
+            ) : (
+                <GenerationContentView
+                    prompt={item.prompt}
+                    generated={generatedText}
+                    model={item.model}
+                    seedTokens={item.seedTokens}
+                    completionTokens={item.completionTokens}
+                    viewMode={viewMode}
+                />
+            )}
         </article>
     );
 }
 
-function PromptBlock({ text }: { text: string }) {
+/** Seed (muted, the start of the text) + a custom output block — shared by
+ * pending/error so the prompt flows straight into its loading/error state. */
+function SeedAndOutput({ prompt, children }: { prompt: string; children: React.ReactNode }) {
     return (
-        <div className="rounded-md bg-muted/40 px-2.5 py-2">
-            <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-5 text-muted-foreground">
-                {text}
+        <div className="min-w-0">
+            <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-5 text-muted-foreground">
+                {prompt}
             </pre>
-        </div>
-    );
-}
-
-function OutputBlock({ generated }: { generated: string }) {
-    if (!generated) {
-        return (
-            <p className="rounded-md border border-dashed px-2.5 py-2 text-xs italic text-muted-foreground">
-                No new tokens.
-            </p>
-        );
-    }
-    return (
-        <div className="rounded-md border bg-card px-2.5 py-2 shadow-xs">
-            <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-5 text-foreground">
-                {generated}
-            </pre>
+            <div className="mt-1.5">{children}</div>
         </div>
     );
 }
@@ -140,43 +138,6 @@ function ErrorOutput({ message }: { message: string }) {
             <p className="text-xs leading-5 text-destructive">{message}</p>
         </div>
     );
-}
-
-function ParamsFootnote({ params }: { params: GenerationParams }) {
-    const diffs = paramDiffs(params);
-    if (diffs.length === 0) return null;
-    return (
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-                Custom
-            </span>
-            {diffs.map((d) => (
-                <span key={d} className="font-mono tabular-nums">
-                    {d}
-                </span>
-            ))}
-        </div>
-    );
-}
-
-function paramDiffs(params: GenerationParams): string[] {
-    const d = DEFAULT_GENERATION_PARAMS;
-    const diffs: string[] = [];
-    if (params.maxNewTokens !== d.maxNewTokens) diffs.push(`max ${params.maxNewTokens}`);
-    if (params.sampling !== d.sampling) {
-        if (!params.sampling) diffs.push("greedy");
-    }
-    if (params.sampling) {
-        if (params.temperature !== d.temperature)
-            diffs.push(`temp ${params.temperature.toFixed(2)}`);
-        if (params.topP !== d.topP) diffs.push(`top-p ${params.topP.toFixed(2)}`);
-        if (params.topK !== d.topK) diffs.push(`top-k ${params.topK === 0 ? "off" : params.topK}`);
-    }
-    if (params.stopSequences.length > 0)
-        diffs.push(
-            `stop ${params.stopSequences.length === 1 ? "×1" : `×${params.stopSequences.length}`}`,
-        );
-    return diffs;
 }
 
 function CopyButton({ text, label }: { text: string; label: string }) {

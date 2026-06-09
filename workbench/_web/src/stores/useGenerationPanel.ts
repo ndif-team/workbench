@@ -5,6 +5,7 @@ import {
     type GenerationItem,
     type GenerationParams,
     type GenerationStatus,
+    type GenerationViewMode,
 } from "@/types/generation";
 
 type Bucket = {
@@ -20,6 +21,9 @@ interface GenerationPanelState {
     setOpen: (open: boolean) => void;
     collapsed: boolean;
     setCollapsed: (collapsed: boolean) => void;
+    /** Panel-wide Text/Tokens reading mode for completions. */
+    viewMode: GenerationViewMode;
+    setViewMode: (viewMode: GenerationViewMode) => void;
 
     getBucket: (workspaceId: string, model: string) => Bucket;
     addPending: (
@@ -60,6 +64,8 @@ export const useGenerationPanel = create<GenerationPanelState>()(
             setOpen: (open) => set({ open }),
             collapsed: false,
             setCollapsed: (collapsed) => set({ collapsed }),
+            viewMode: "text",
+            setViewMode: (viewMode) => set({ viewMode }),
 
             getBucket: (workspaceId, model) => {
                 const key = bucketKey(workspaceId, model);
@@ -166,6 +172,7 @@ export const useGenerationPanel = create<GenerationPanelState>()(
                 buckets: state.buckets,
                 open: state.open,
                 collapsed: state.collapsed,
+                viewMode: state.viewMode,
             }),
             onRehydrateStorage: () => (state) => {
                 if (!state) return;
