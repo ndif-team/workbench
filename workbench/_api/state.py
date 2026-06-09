@@ -2,6 +2,7 @@ import logging
 import os
 import torch
 import toml
+from typing import Literal
 from fastapi import Request
 
 from huggingface_hub import model_info, get_safetensors_metadata
@@ -54,9 +55,32 @@ def fetch_model_metadata(model_name: str) -> "ModelMetadata":
     # caveat: if the HF token doesn't have license-acceptance for this
     # model, AutoConfig.from_pretrained raises 403 — surface the model in
     # /models with unknown layer count rather than 500ing the whole list.
+    n_heads = 0
+    n_kv_heads = 0
+    d_model = 0
+    d_head = 0
+    vocab_size = 0
+    positional_kind: Literal["absolute", "rope"] = "absolute"
+    arch_kind: Literal["gpt2", "llama", "other"] = "other"
     try:
         config = AutoConfig.from_pretrained(model_name)
         n_layers = getattr(config, "num_hidden_layers", None) or getattr(config, "n_layer", 0)
+        n_heads = int(getattr(config, "num_attention_heads", 0) or getattr(config, "n_head", 0))
+        n_kv_heads = int(getattr(config, "num_key_value_heads", n_heads) or n_heads)
+        d_model = int(getattr(config, "hidden_size", 0) or getattr(config, "n_embd", 0))
+        d_head = int(getattr(config, "head_dim", 0) or (d_model // n_heads if n_heads else 0))
+        vocab_size = int(getattr(config, "vocab_size", 0))
+        positional_kind = "rope" if (
+            getattr(config, "rope_theta", None) is not None
+            or getattr(config, "rope_parameters", None) is not None
+        ) else "absolute"
+        model_type = (getattr(config, "model_type", "") or "").lower()
+        if "gpt2" in model_type:
+            arch_kind = "gpt2"
+        elif model_type in ("llama", "mistral", "qwen2"):
+            arch_kind = "llama"
+        else:
+            arch_kind = "other"
     except Exception as e:
         logger.warning(f"Could not load config for {model_name} ({e.__class__.__name__}); n_layers will show as 0")
         n_layers = 0
@@ -82,6 +106,13 @@ def fetch_model_metadata(model_name: str) -> "ModelMetadata":
         n_layers=n_layers,
         params=_format_params(num_params) if num_params > 0 else "unknown",
         gated=gated,
+        n_heads=n_heads,
+        n_kv_heads=n_kv_heads,
+        d_model=d_model,
+        d_head=d_head,
+        vocab_size=vocab_size,
+        positional_kind=positional_kind,
+        arch_kind=arch_kind,
     )
 
 
@@ -93,6 +124,13 @@ class ModelMetadata(BaseModel):
     n_layers: int
     params: str
     gated: bool
+    n_heads: int = 0
+    n_kv_heads: int = 0
+    d_model: int = 0
+    d_head: int = 0
+    vocab_size: int = 0
+    positional_kind: Literal["absolute", "rope"] = "absolute"
+    arch_kind: Literal["gpt2", "llama", "other"] = "other"
 
 
 class ModelsConfig(BaseModel):

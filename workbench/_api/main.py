@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 import logging
 import os
 import anyio
 
-from .routes import lens, patch, models, logit_lens, activation_patching
+from .routes import lens, patch, models, logit_lens, activation_patching, forward_pass
 from .state import AppState
 
 from dotenv import load_dotenv; load_dotenv()
@@ -22,7 +23,11 @@ ALLOWED_ORIGINS = [
 ]
 
 if os.environ.get('CONFIG') != "prod":
-    ALLOWED_ORIGINS.append("http://localhost:3000")
+    ALLOWED_ORIGINS.extend([
+        "http://localhost:3000",
+        "http://localhost:5173",  # vite dev (transformer-explainer)
+        "http://localhost:4173",  # vite preview
+    ])
 
 ALLOWED_ORIGIN_REGEX = (
     # Vercel dev/staging previews + ripley-cluster PR previews.
@@ -56,9 +61,13 @@ def fastapi_app():
             max_age=3600,
         )
 
+    # Compress large forward_pass / logit_lens / activation_patching payloads.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
+
     app.include_router(lens, prefix="/lens")
     app.include_router(logit_lens, prefix="/logit_lens")
     app.include_router(activation_patching, prefix="/activation_patching")
+    app.include_router(forward_pass, prefix="/forward_pass")
     app.include_router(patch, prefix="/patch")
     app.include_router(models, prefix="/models")
 

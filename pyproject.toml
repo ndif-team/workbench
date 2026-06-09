@@ -16,7 +16,7 @@ dependencies = [
     "influxdb-client>=1.49.0",
     "uvicorn>=0.33.0",
     "torch>=2.9.0",
-    "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git",
+    "nnsightful @ git+https://github.com/jon-bell/nnsightful.git@ea17d7b36b17afbe5a0b877ecb373ee1ad3d0644",
 ]
 
 [project.optional-dependencies]

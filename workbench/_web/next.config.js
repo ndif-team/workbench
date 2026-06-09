@@ -45,6 +45,15 @@ const nextConfig = {
             "./node_modules/nnsightful/src/nnsightful/viz/charts.js",
         ],
     },
+    // Transformer-explainer is built as a static SPA into public/transformer-explainer/
+    // by the Dockerfile's te-builder stage. Next.js doesn't auto-serve directory
+    // index files from public/, so rewrite the bare path to the SvelteKit HTML.
+    async rewrites() {
+        return [
+            { source: "/transformer-explainer", destination: "/transformer-explainer/index.html" },
+            { source: "/transformer-explainer/", destination: "/transformer-explainer/index.html" },
+        ];
+    },
     webpack: (config) => {
         // Fallbacks for @huggingface/transformers package
         config.resolve.fallback = {

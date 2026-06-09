@@ -3,6 +3,27 @@
 # Build context must be the repo root (the Dockerfile path is workbench/_web/Dockerfile)
 # so the build can reach the sibling nnsightful symlink target if/when needed.
 
+# Build the transformer-explainer Svelte SPA in a separate stage so its
+# build output can be copied into the Next.js public/ tree. Served at
+# /transformer-explainer/ on the same host as the Next.js app (no CORS
+# in production; the API call goes to api.<host> per ALLOWED_ORIGIN_REGEX).
+FROM node:20-slim AS te-builder
+WORKDIR /app
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+ARG TE_REPO=https://github.com/ndif-team/transformer-explainer.git
+ARG TE_REF=forward-pass
+RUN git clone --depth 1 --branch ${TE_REF} ${TE_REPO} te
+WORKDIR /app/te
+ARG VITE_WORKBENCH_API=http://localhost:8000
+ARG VITE_USER_EMAIL=dev@localhost
+ENV NODE_ENV=production \
+    VITE_WORKBENCH_API=${VITE_WORKBENCH_API} \
+    VITE_USER_EMAIL=${VITE_USER_EMAIL}
+RUN npm install --legacy-peer-deps \
+ && npm run build
+
 FROM oven/bun:1.2 AS deps
 WORKDIR /app/workbench/_web
 COPY workbench/_web/package.json workbench/_web/bun.lock* ./
@@ -21,6 +42,10 @@ RUN apt-get update \
  && mkdir -p /data
 COPY --from=deps /app/workbench/_web/node_modules ./node_modules
 COPY workbench/_web ./
+# Bring transformer-explainer's static build into public/ so Next.js
+# serves it at /transformer-explainer/* (see next.config.js rewrites for
+# the trailing-slash entrypoint).
+COPY --from=te-builder /app/te/build ./public/transformer-explainer
 # NEXT_PUBLIC_BACKEND_URL is inlined into the JS bundle by Next.js — must
 # be set at build time. Defaults to the dev placeholder so a vanilla
 # `docker build` still produces a working (but offline-backend) image.
