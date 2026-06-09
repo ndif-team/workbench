@@ -14,6 +14,10 @@ import { useTheme } from "next-themes";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { NotebookExporter } from "@/components/NotebookExporter";
+import { ChartModelPill } from "@/components/charts/ChartModelPill";
+import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
+import { useModelsQuery } from "@/lib/api/modelsApi";
+import { useWorkspace } from "@/stores/useWorkspace";
 
 const validModes = new Set<string>(["probability", "rank", "prob_diff"]);
 
@@ -61,17 +65,24 @@ export function ActivationPatchingDisplay() {
         enabled: !!workspaceId,
     });
 
+    const { data: models } = useModelsQuery();
+
+    const { selectedModelIdx } = useWorkspace();
+    const selectedModel = models?.[selectedModelIdx]?.name ?? models?.[0]?.name ?? null;
+    const modelsAvailable = !!models && models.length > 0;
+
     const { mutate: updateChartName } = useUpdateChartName();
     const { mutateAsync: updateConfig } = useUpdateChartConfig();
 
     const patchingChart = chart as ActivationPatchingChart | undefined;
     const patchingConfig = config as ActivationPatchingConfig | undefined;
-    const hasData = patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
+    const hasData =
+        patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
 
     // Get the chart's saved name (treat "Untitled Chart" default as empty)
     const rawChartName = patchingChart?.name || "";
     const chartName = rawChartName === "Untitled Chart" ? "" : rawChartName;
-    
+
     // The display title: use localTitle while editing, otherwise use chart name
     const displayTitle = localTitle !== null ? localTitle : chartName;
     const hasTitle = displayTitle.trim().length > 0 && displayTitle.trim() !== "Untitled Chart";
@@ -83,24 +94,30 @@ export function ActivationPatchingDisplay() {
     }, [chartId]);
 
     // Save title to chart (debounced) - don't reset localTitle here to avoid flickering
-    const saveTitle = useCallback((newTitle: string) => {
-        if (!chartId) return;
-        
-        if (saveTitleTimeoutRef.current) {
-            clearTimeout(saveTitleTimeoutRef.current);
-        }
+    const saveTitle = useCallback(
+        (newTitle: string) => {
+            if (!chartId) return;
 
-        saveTitleTimeoutRef.current = setTimeout(() => {
-            updateChartName({ chartId, name: newTitle });
-        }, 500);
-    }, [chartId, updateChartName]);
+            if (saveTitleTimeoutRef.current) {
+                clearTimeout(saveTitleTimeoutRef.current);
+            }
+
+            saveTitleTimeoutRef.current = setTimeout(() => {
+                updateChartName({ chartId, name: newTitle });
+            }, 500);
+        },
+        [chartId, updateChartName],
+    );
 
     // Handle title change
-    const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const newTitle = e.target.value;
-        setLocalTitle(newTitle);
-        saveTitle(newTitle);
-    }, [saveTitle]);
+    const handleTitleChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            const newTitle = e.target.value;
+            setLocalTitle(newTitle);
+            saveTitle(newTitle);
+        },
+        [saveTitle],
+    );
 
     // Handle title blur - keep local title to avoid flicker, it will sync on chart change
     const handleTitleBlur = useCallback(() => {
@@ -122,41 +139,47 @@ export function ActivationPatchingDisplay() {
     const patchingConfigRef = useRef(patchingConfig);
     patchingConfigRef.current = patchingConfig;
 
-    const handleTokenSelectionChange = useCallback((indices: number[]) => {
-        if (saveTokenTimeoutRef.current) clearTimeout(saveTokenTimeoutRef.current);
-        saveTokenTimeoutRef.current = setTimeout(() => {
-            const cfg = patchingConfigRef.current;
-            if (!cfg?.id) return;
-            updateConfig({
-                configId: cfg.id,
-                chartId,
-                config: {
-                    data: { ...cfg.data, selectedLineIndices: indices },
-                    workspaceId,
-                    type: "activation-patching",
-                },
-            });
-        }, 500);
-    }, [chartId, workspaceId, updateConfig]);
+    const handleTokenSelectionChange = useCallback(
+        (indices: number[]) => {
+            if (saveTokenTimeoutRef.current) clearTimeout(saveTokenTimeoutRef.current);
+            saveTokenTimeoutRef.current = setTimeout(() => {
+                const cfg = patchingConfigRef.current;
+                if (!cfg?.id) return;
+                updateConfig({
+                    configId: cfg.id,
+                    chartId,
+                    config: {
+                        data: { ...cfg.data, selectedLineIndices: indices },
+                        workspaceId,
+                        type: "activation-patching",
+                    },
+                });
+            }, 500);
+        },
+        [chartId, workspaceId, updateConfig],
+    );
 
     // Debounced save of mode to config
     const saveModeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const handleModeChange = useCallback((mode: ActivationPatchingMode) => {
-        if (saveModeTimeoutRef.current) clearTimeout(saveModeTimeoutRef.current);
-        saveModeTimeoutRef.current = setTimeout(() => {
-            const cfg = patchingConfigRef.current;
-            if (!cfg?.id) return;
-            updateConfig({
-                configId: cfg.id,
-                chartId,
-                config: {
-                    data: { ...cfg.data, selectedMode: mode },
-                    workspaceId,
-                    type: "activation-patching",
-                },
-            });
-        }, 300);
-    }, [chartId, workspaceId, updateConfig]);
+    const handleModeChange = useCallback(
+        (mode: ActivationPatchingMode) => {
+            if (saveModeTimeoutRef.current) clearTimeout(saveModeTimeoutRef.current);
+            saveModeTimeoutRef.current = setTimeout(() => {
+                const cfg = patchingConfigRef.current;
+                if (!cfg?.id) return;
+                updateConfig({
+                    configId: cfg.id,
+                    chartId,
+                    config: {
+                        data: { ...cfg.data, selectedMode: mode },
+                        workspaceId,
+                        type: "activation-patching",
+                    },
+                });
+            }, 300);
+        },
+        [chartId, workspaceId, updateConfig],
+    );
 
     // Clear pending saves on unmount
     useEffect(() => {
@@ -193,50 +216,56 @@ export function ActivationPatchingDisplay() {
                 <div className="text-muted-foreground text-center max-w-md">
                     <p className="text-lg font-medium mb-2">No visualization data</p>
                     <p className="text-sm">
-                        Enter source and target prompts, select token positions in each,
-                        then click &quot;Run Activation Patching&quot; to visualize how activations
-                        transfer between prompts across model layers.
+                        Enter source and target prompts, select token positions in each, then click
+                        &quot;Run Activation Patching&quot; to visualize how activations transfer
+                        between prompts across model layers.
                     </p>
                 </div>
             </div>
         );
     }
 
+    const chartModel = chartModelFromConfig(patchingConfig);
+    const stale = isChartStale(chartModel, selectedModel, modelsAvailable);
+
     return (
         <div className="size-full overflow-auto flex flex-col">
             {/* Title + export */}
             <div className="px-4 pt-4 pb-2 flex items-center gap-2">
-                <div className="flex-1 min-w-0">
-                    {isEditingTitle ? (
-                        <input
-                            ref={titleInputRef}
-                            type="text"
-                            value={displayTitle}
-                            onChange={handleTitleChange}
-                            onBlur={handleTitleBlur}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.currentTarget.blur();
-                                }
-                            }}
-                            placeholder="Untitled Chart"
-                            className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
-                        />
-                    ) : hasTitle ? (
-                        <h2
-                            onClick={handleTitleClick}
-                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold truncate"
-                        >
-                            {displayTitle}
-                        </h2>
-                    ) : (
-                        <h2
-                            onClick={handleTitleClick}
-                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
-                        >
-                            Untitled Chart
-                        </h2>
-                    )}
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                        {isEditingTitle ? (
+                            <input
+                                ref={titleInputRef}
+                                type="text"
+                                value={displayTitle}
+                                onChange={handleTitleChange}
+                                onBlur={handleTitleBlur}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                    }
+                                }}
+                                placeholder="Untitled Chart"
+                                className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
+                            />
+                        ) : hasTitle ? (
+                            <h2
+                                onClick={handleTitleClick}
+                                className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold truncate"
+                            >
+                                {displayTitle}
+                            </h2>
+                        ) : (
+                            <h2
+                                onClick={handleTitleClick}
+                                className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
+                            >
+                                Untitled Chart
+                            </h2>
+                        )}
+                    </div>
+                    {stale && chartModel && <ChartModelPill modelName={chartModel} />}
                 </div>
                 <NotebookExporter
                     configType="activation-patching"
@@ -254,7 +283,11 @@ export function ActivationPatchingDisplay() {
                     data={patchingChart!.data!}
                     darkMode={isDarkMode}
                     transparentBackground
-                    mode={validModes.has(patchingConfig?.data?.selectedMode ?? "") ? patchingConfig!.data!.selectedMode as ActivationPatchingMode : "probability"}
+                    mode={
+                        validModes.has(patchingConfig?.data?.selectedMode ?? "")
+                            ? (patchingConfig!.data!.selectedMode as ActivationPatchingMode)
+                            : "probability"
+                    }
                     selectedTokens={patchingConfig?.data?.selectedLineIndices}
                     onTokenSelectionChange={handleTokenSelectionChange}
                     onModeChange={handleModeChange}

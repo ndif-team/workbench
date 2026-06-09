@@ -1,0 +1,40 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "preview.name" . }}
+  labels:
+    {{- include "preview.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | quote }}
+    {{- if .Values.ingress.authGate.enabled }}
+    # Forward-auth via oauth2-proxy (ndif-team org-gated). See
+    # k8s/apps/workbench-preview-auth/ in the cluster repo.
+    nginx.ingress.kubernetes.io/auth-url: "https://{{ .Values.ingress.authGate.host }}/oauth2/auth"
+    # rd must be a fully-qualified URL so oauth2-proxy redirects the user
+    # back to the preview host (not to the auth host's /). The
+    # --whitelist-domain=.ndif-preview.ripley.cloud flag on oauth2-proxy
+    # is what authorises the cross-host redirect.
+    nginx.ingress.kubernetes.io/auth-signin: "https://{{ .Values.ingress.authGate.host }}/oauth2/start?rd=$scheme://$best_http_host$escaped_request_uri"
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host | quote }}
+      secretName: {{ include "preview.name" . }}-tls
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "preview.name" . }}
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}

@@ -41,9 +41,7 @@ export function NotebookExporter({
                 darkMode,
             });
 
-            const safeName = (chartName ?? configType)
-                .replace(/[^a-z0-9_\- ]/gi, "_")
-                .trim();
+            const safeName = (chartName ?? configType).replace(/[^a-z0-9_\- ]/gi, "_").trim();
 
             const blob = new Blob([notebookJson], {
                 type: "application/x-ipynb+json;charset=utf-8",

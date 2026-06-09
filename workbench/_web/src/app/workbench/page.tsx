@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
-import { ModelsDisplay } from "@/app/workbench/components/ModelsDisplay";
+import { ModelsSection } from "@/components/models/ModelsSection";
+import { ModelsSectionStateController } from "@/app/workbench/components/ModelsSectionStateController";
 import { WorkspaceList } from "@/app/workbench/components/WorkspaceList";
 import { getWorkspaces, createWorkspace } from "@/lib/queries/workspaceQueries";
 import { AutoWorkspaceCreator } from "@/app/workbench/components/AutoWorkspaceCreator";
@@ -9,7 +10,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
-import { WorkbenchStatus } from "@/components/WorkbenchStatus";
 import { Suspense } from "react";
 
 import { redirect } from "next/navigation";
@@ -29,6 +29,7 @@ export default async function WorkbenchPage({
         srcPos?: string;
         tgtPos?: string;
         tgtFreeze?: string;
+        deploy?: string;
     }>;
 }) {
     const supabase = await createClient();
@@ -37,6 +38,11 @@ export default async function WorkbenchPage({
         data: { user },
         error,
     } = await supabase.auth.getUser();
+
+    // A real (non-anonymous) sign-in is required to deploy cold models. When
+    // absent, ModelsSection renders cold models as gated and inert.
+    const isSignedIn =
+        process.env.NEXT_PUBLIC_DISABLE_AUTH === "true" || (!!user && !user.is_anonymous);
 
     // Check if user has any workspaces
     const workspaces = await getWorkspaces(user.id);
@@ -53,9 +59,10 @@ export default async function WorkbenchPage({
     const srcPos = params?.srcPos;
     const tgtPos = params?.tgtPos;
     const tgtFreeze = params?.tgtFreeze;
+    const deploy = params?.deploy === "true";
 
     // If no workspaces exist OR createNew flag is set, create a new workspace
-    let shouldCreateWorkspace = !workspaces || workspaces.length === 0 || createNew;
+    const shouldCreateWorkspace = !workspaces || workspaces.length === 0 || createNew;
 
     // If workspaceId is provided, use the existing workspace instead of creating new
     const useExistingWorkspace = workspaceId && !shouldCreateWorkspace;
@@ -66,16 +73,18 @@ export default async function WorkbenchPage({
             <Suspense fallback={null}>
                 <PendingRequestHandler />
             </Suspense>
-            <div className="min-h-screen px-3 md:px-6 pb-6 bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
+            <div className="min-h-screen px-3 md:px-6 pb-6 aurora-bg">
                 <header className="py-2 px-3 md:py-3 md:px-5 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Link href="/" className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
+                        <Link
+                            href="/"
+                            className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent"
+                        >
                             <h1 className="text-2xl font-bold">Workbench</h1>
                         </Link>
                     </div>
 
                     <nav className="flex gap-1 md:gap-3 items-center">
-                        <div className="hidden md:block"><WorkbenchStatus /></div>
                         <Link href="https://forms.gle/WsxmZikeLNw34LBV9" target="_blank">
                             <Button
                                 variant="ghost"
@@ -119,7 +128,12 @@ export default async function WorkbenchPage({
                 </header>
 
                 <main>
-                    <ModelsDisplay />
+                    <Suspense fallback={null}>
+                        <ModelsSectionStateController
+                            isCreating={!!(useExistingWorkspace || shouldCreateWorkspace)}
+                        />
+                    </Suspense>
+                    <ModelsSection isSignedIn={isSignedIn} />
 
                     {useExistingWorkspace ? (
                         <AutoWorkspaceCreator
@@ -133,6 +147,7 @@ export default async function WorkbenchPage({
                             srcPos={srcPos}
                             tgtPos={tgtPos}
                             tgtFreeze={tgtFreeze}
+                            deploy={deploy}
                         />
                     ) : shouldCreateWorkspace ? (
                         <AutoWorkspaceCreator
@@ -147,6 +162,7 @@ export default async function WorkbenchPage({
                             srcPos={srcPos}
                             tgtPos={tgtPos}
                             tgtFreeze={tgtFreeze}
+                            deploy={deploy}
                         />
                     ) : (
                         <WorkspaceList userId={user.id} />

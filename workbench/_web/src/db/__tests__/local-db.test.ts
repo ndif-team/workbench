@@ -34,18 +34,9 @@ import {
     copyChart,
 } from "@/lib/queries/chartQueries";
 
-import {
-    getConfigs,
-    setConfig,
-    deleteConfig,
-} from "@/lib/queries/configQueries";
+import { getConfigs, setConfig, deleteConfig } from "@/lib/queries/configQueries";
 
-import {
-    createView,
-    getView,
-    updateView,
-    deleteView,
-} from "@/lib/queries/viewQueries";
+import { createView, getView, updateView, deleteView } from "@/lib/queries/viewQueries";
 
 import {
     createDocument,
@@ -79,7 +70,7 @@ beforeEach(async () => {
 
 describe("Database Client", () => {
     it("should initialize with SQLite when NEXT_PUBLIC_LOCAL_DB is true", () => {
-            expect(db).toBeDefined();
+        expect(db).toBeDefined();
         expect(process.env.NEXT_PUBLIC_LOCAL_DB).toBe("true");
     });
 });
@@ -88,12 +79,12 @@ describe("Workspace Queries", () => {
     it("should create a workspace with auto-generated UUID", async () => {
         const workspace = await createWorkspace(TEST_USER_ID, "Test Workspace");
 
-            expect(workspace).toBeDefined();
+        expect(workspace).toBeDefined();
         expect(workspace.id).toMatch(
-            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
         );
         expect(workspace.userId).toBe(TEST_USER_ID);
-            expect(workspace.name).toBe("Test Workspace");
+        expect(workspace.name).toBe("Test Workspace");
     });
 
     it("should get workspace by ID", async () => {
@@ -124,7 +115,7 @@ describe("Workspace Queries", () => {
         const workspaces = await getWorkspaces(TEST_USER_ID);
 
         expect(workspaces).toHaveLength(2);
-        
+
         const foundWs1 = workspaces.find((w: { id: string }) => w.id === ws1.id);
         const foundWs2 = workspaces.find((w: { id: string }) => w.id === ws2.id);
 
@@ -132,26 +123,26 @@ describe("Workspace Queries", () => {
         expect(foundWs1?.documentCount).toBe(0);
         expect(foundWs2?.chartCount).toBe(0);
         expect(foundWs2?.documentCount).toBe(1);
-        });
+    });
 
-        it("should update a workspace", async () => {
+    it("should update a workspace", async () => {
         const workspace = await createWorkspace(TEST_USER_ID, "Original Name");
 
         const updated = await updateWorkspace(
             workspace.id,
             { name: "Updated Name", public: true },
-            TEST_USER_ID
+            TEST_USER_ID,
         );
 
-            expect(updated.name).toBe("Updated Name");
-            expect(updated.public).toBe(true);
-        });
+        expect(updated.name).toBe("Updated Name");
+        expect(updated.public).toBe(true);
+    });
 
     it("should not update workspace for wrong user", async () => {
         const workspace = await createWorkspace(TEST_USER_ID, "My Workspace");
 
         await expect(
-            updateWorkspace(workspace.id, { name: "Hacked" }, "wrong-user")
+            updateWorkspace(workspace.id, { name: "Hacked" }, "wrong-user"),
         ).rejects.toThrow("Workspace not found or access denied");
     });
 
@@ -169,8 +160,8 @@ describe("Workspace Queries", () => {
 
         const found = await getWorkspaceById(workspace.id);
         expect(found).not.toBeNull();
-            });
-        });
+    });
+});
 
 describe("Chart Queries", () => {
     let workspaceId: string;
@@ -190,22 +181,22 @@ describe("Chart Queries", () => {
         expect(chart.id).toBeDefined();
         expect(chart.workspaceId).toBe(workspaceId);
 
-            expect(config).toBeDefined();
-            expect(config.type).toBe("lens");
-            expect(config.data).toEqual(lensConfig);
-        });
+        expect(config).toBeDefined();
+        expect(config.type).toBe("lens");
+        expect(config.data).toEqual(lensConfig);
+    });
 
     it("should create a patch chart pair", async () => {
-            const patchConfig = {
-                patches: [{ layer: 1, position: 0, value: 0.5 }],
-            };
+        const patchConfig = {
+            patches: [{ layer: 1, position: 0, value: 0.5 }],
+        };
 
         const { chart, config } = await createPatchChartPair(workspaceId, patchConfig as any);
 
         expect(chart).toBeDefined();
-            expect(config.type).toBe("patch");
-            expect(config.data).toEqual(patchConfig);
-        });
+        expect(config.type).toBe("patch");
+        expect(config.data).toEqual(patchConfig);
+    });
 
     it("should get chart by ID", async () => {
         const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
@@ -252,9 +243,15 @@ describe("Chart Queries", () => {
     });
 
     it("should get most recent chart for workspace", async () => {
-        const { chart: chart1 } = await createLensChartPair(workspaceId, createTestLensConfig("first"));
-        
-        const { chart: chart2 } = await createLensChartPair(workspaceId, createTestLensConfig("second"));
+        const { chart: chart1 } = await createLensChartPair(
+            workspaceId,
+            createTestLensConfig("first"),
+        );
+
+        const { chart: chart2 } = await createLensChartPair(
+            workspaceId,
+            createTestLensConfig("second"),
+        );
 
         const mostRecent = await getMostRecentChartForWorkspace(workspaceId);
 
@@ -276,7 +273,10 @@ describe("Chart Queries", () => {
     });
 
     it("should copy a chart", async () => {
-        const { chart: original } = await createLensChartPair(workspaceId, createTestLensConfig("original"));
+        const { chart: original } = await createLensChartPair(
+            workspaceId,
+            createTestLensConfig("original"),
+        );
         await updateChartName(original.id, "Original Chart");
         await setChartData(original.id, { test: "data" } as any, "heatmap");
 
@@ -304,9 +304,9 @@ describe("Chart Queries", () => {
 
 describe("Config Queries", () => {
     let workspaceId: string;
-        let chartId: string;
+    let chartId: string;
 
-        beforeEach(async () => {
+    beforeEach(async () => {
         await clearDatabase();
         const workspace = await createWorkspace(TEST_USER_ID, "Config Test Workspace");
         workspaceId = workspace.id;
@@ -355,9 +355,9 @@ describe("Config Queries", () => {
 
 describe("View Queries", () => {
     let workspaceId: string;
-        let chartId: string;
+    let chartId: string;
 
-        beforeEach(async () => {
+    beforeEach(async () => {
         await clearDatabase();
         const workspace = await createWorkspace(TEST_USER_ID, "View Test Workspace");
         workspaceId = workspace.id;
@@ -366,20 +366,20 @@ describe("View Queries", () => {
     });
 
     it("should create a view for a chart", async () => {
-            const viewData = {
-                zoom: { x: [0, 100], y: [0, 50] },
-                selection: [1, 2, 3],
-            };
+        const viewData = {
+            zoom: { x: [0, 100], y: [0, 50] },
+            selection: [1, 2, 3],
+        };
 
         const view = await createView({
-                    chartId,
-                    data: viewData,
+            chartId,
+            data: viewData,
         });
 
-            expect(view).toBeDefined();
-            expect(view.chartId).toBe(chartId);
-            expect(view.data).toEqual(viewData);
-        });
+        expect(view).toBeDefined();
+        expect(view.chartId).toBe(chartId);
+        expect(view.data).toEqual(viewData);
+    });
 
     it("should get view for a chart", async () => {
         const viewData = { test: "view data" };
@@ -405,8 +405,8 @@ describe("View Queries", () => {
 
         const found = await getView(chartId);
         expect(found).toBeNull();
-            });
-        });
+    });
+});
 
 describe("Document Queries", () => {
     let workspaceId: string;
@@ -447,16 +447,16 @@ describe("Document Queries", () => {
         const doc = await createDocument(workspaceId);
 
         const newContent = {
-                root: {
+            root: {
                 type: "root",
-                    children: [
-                        {
-                            type: "paragraph",
+                children: [
+                    {
+                        type: "paragraph",
                         children: [{ type: "text", text: "Updated content" }],
-                        },
-                    ],
-                },
-            };
+                    },
+                ],
+            },
+        };
 
         const updated = await updateDocument(doc.id, newContent as any);
 
@@ -480,8 +480,8 @@ describe("Document Queries", () => {
 
         const found = await getDocumentById(doc.id);
         expect(found).toBeNull();
-            });
-        });
+    });
+});
 
 describe("JSON Storage in SQLite", () => {
     let workspaceId: string;
@@ -518,10 +518,10 @@ describe("JSON Storage in SQLite", () => {
     it("should handle special characters in JSON strings", async () => {
         const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
 
-            const specialData = {
-                text: 'Special chars: "quotes", \'apostrophes\', \n newlines',
-                unicode: "Unicode: 日本語, émojis 🎉",
-            };
+        const specialData = {
+            text: "Special chars: \"quotes\", 'apostrophes', \n newlines",
+            unicode: "Unicode: 日本語, émojis 🎉",
+        };
 
         await setChartData(chart.id, specialData as any, "line");
         const retrieved = await getChartById(chart.id);
@@ -550,9 +550,12 @@ describe("JSON Storage in SQLite", () => {
 describe("Cross-Table Relationships", () => {
     it("should maintain workspace -> charts -> configs relationship", async () => {
         const workspace = await createWorkspace(TEST_USER_ID, "Relationship Test");
-        
+
         // Create multiple charts with configs
-        const { chart: chart1 } = await createLensChartPair(workspace.id, createTestLensConfig("chart1"));
+        const { chart: chart1 } = await createLensChartPair(
+            workspace.id,
+            createTestLensConfig("chart1"),
+        );
         const { chart: chart2 } = await createPatchChartPair(workspace.id, {
             patches: [],
         } as any);

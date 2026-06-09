@@ -1,0 +1,16 @@
+{{- if .Values.api.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "preview.api.name" . }}
+  labels:
+    {{- include "preview.api.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.api.service.port }}
+      targetPort: http
+  selector:
+    {{- include "preview.api.selectorLabels" . | nindent 4 }}
+{{- end }}

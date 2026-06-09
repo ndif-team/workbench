@@ -207,9 +207,11 @@ export const useUpdateChartName = () => {
         onSuccess: (data, variables) => {
             const chartKey = queryKeys.charts.chart(variables.chartId);
             queryClient.invalidateQueries({ queryKey: chartKey });
-            
+
             // Also invalidate sidebar to update the chart name in the card
-            const chart = queryClient.getQueryData(chartKey) as { workspaceId?: string } | undefined;
+            const chart = queryClient.getQueryData(chartKey) as
+                | { workspaceId?: string }
+                | undefined;
             if (chart?.workspaceId) {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.sidebar(chart.workspaceId),
@@ -236,8 +238,7 @@ export const useDeleteChart = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ chartId }: { chartId: string; workspaceId: string }) =>
-            deleteChart(chartId),
+        mutationFn: ({ chartId }: { chartId: string; workspaceId: string }) => deleteChart(chartId),
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
         },

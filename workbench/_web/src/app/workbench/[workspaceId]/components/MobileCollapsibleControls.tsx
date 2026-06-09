@@ -34,7 +34,9 @@ export function MobileCollapsibleControls({
             >
                 <div className="flex items-center gap-2">
                     <Icon className="h-3.5 w-3.5 text-primary/70 group-hover:text-primary transition-colors" />
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">{label}</span>
+                    <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                        {label}
+                    </span>
                 </div>
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
             </button>
@@ -43,9 +45,7 @@ export function MobileCollapsibleControls({
 
     return (
         <div className="shrink-0 relative pb-3">
-            <div className="rounded dark:bg-secondary/50 bg-secondary/80 border">
-                {children}
-            </div>
+            <div className="rounded dark:bg-secondary/50 bg-secondary/80 border">{children}</div>
             <button
                 aria-label={`Collapse ${label}`}
                 onClick={() => setCollapsed(true)}

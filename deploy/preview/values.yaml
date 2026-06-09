@@ -1,0 +1,74 @@
+# Defaults are overridden per-PR by the preview-deploy workflow.
+image:
+  repository: ghcr.io/OWNER/REPO/web
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Identifying labels.
+prNumber: "0"
+commitSha: ""
+
+replicaCount: 1
+
+service:
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: true
+  className: nginx
+  host: ""                       # set by workflow, e.g. pr-123.ndif-preview.ripley.cloud
+  clusterIssuer: letsencrypt-prod  # cert-manager ClusterIssuer (DNS-01 on ripley.cloud)
+  annotations: {}
+  # Forward-auth gate via oauth2-proxy (GitHub OAuth, ndif-team org-only).
+  # See k8s/apps/workbench-preview-auth/ in the cluster repo. Set
+  # enabled=false to expose a preview publicly (e.g. for an external
+  # collaborator who can't be added to the org).
+  authGate:
+    enabled: true
+    host: auth.ndif-preview.ripley.cloud
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# Image pull secret for GHCR (created per-namespace by the workflow).
+imagePullSecret: ghcr-pull
+
+env: []
+
+# FastAPI backend (workbench/_api) deployed alongside the Next.js frontend.
+# Reachable at api.<ingress.host>, baked into the web build at
+# NEXT_PUBLIC_BACKEND_URL. Shares the same oauth2-proxy auth gate.
+api:
+  enabled: true
+  image:
+    repository: ghcr.io/OWNER/REPO/api
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    port: 80
+    targetPort: 8000
+  host: ""                        # set by workflow, e.g. api.pr-123.ndif-preview.ripley.cloud
+  replicaCount: 1
+  resources:
+    requests: { cpu: 200m, memory: 1Gi }
+    limits:   { cpu: "2",  memory: 4Gi }
+  env:
+    # dev.toml points remote=true at api.ndif.us — model inference runs on
+    # the real NDIF backend, not in-cluster.
+    - name: CONFIG
+      value: "dev"
+    # CORS is handled by the api Ingress (enable-cors annotations) so
+    # OPTIONS preflights bypass the oauth2-proxy auth_request without
+    # needing snippet annotations cluster-wide. Disable FastAPI's
+    # CORSMiddleware to avoid emitting duplicate Access-Control-* headers.
+    - name: SKIP_CORS_MIDDLEWARE
+      value: "true"
+  # Secret containing NDIF_API_KEY + HF_TOKEN (created per-namespace by the
+  # workflow from GitHub repo secrets of the same names).
+  secretName: workbench-api-secrets

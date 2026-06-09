@@ -93,10 +93,7 @@ export const useReorderWorkspaceItems = () => {
         },
         onError: (_err, { workspaceId }, context) => {
             if (!context) return;
-            queryClient.setQueryData(
-                queryKeys.charts.sidebar(workspaceId),
-                context.prevCharts,
-            );
+            queryClient.setQueryData(queryKeys.charts.sidebar(workspaceId), context.prevCharts);
             queryClient.setQueryData(
                 queryKeys.documents.byWorkspace(workspaceId),
                 context.prevReports,
@@ -117,13 +114,23 @@ export const useUpdateWorkspaceName = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ workspaceId, name, userId }: { workspaceId: string; name: string; userId: string }) => {
+        mutationFn: async ({
+            workspaceId,
+            name,
+            userId,
+        }: {
+            workspaceId: string;
+            name: string;
+            userId: string;
+        }) => {
             const updated = await updateWorkspace(workspaceId, { name }, userId);
             return updated;
         },
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
-            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.workspace(variables.workspaceId) });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.workspaces.workspace(variables.workspaceId),
+            });
         },
         onError: (error) => {
             console.error("Error updating workspace name:", error);
