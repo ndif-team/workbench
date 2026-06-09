@@ -18,11 +18,16 @@ RUN git clone --depth 1 --branch ${TE_REF} ${TE_REPO} te
 WORKDIR /app/te
 ARG VITE_WORKBENCH_API=http://localhost:8000
 ARG VITE_USER_EMAIL=dev@localhost
-ENV NODE_ENV=production \
-    VITE_WORKBENCH_API=${VITE_WORKBENCH_API} \
+ENV VITE_WORKBENCH_API=${VITE_WORKBENCH_API} \
     VITE_USER_EMAIL=${VITE_USER_EMAIL}
-RUN npm install --legacy-peer-deps \
- && npm run build
+# `npm install` first without NODE_ENV=production so devDependencies
+# (vite, sveltekit, svelte-check, etc.) actually get installed. Only
+# after the install is complete do we flip NODE_ENV=production so that
+# `vite build` + svelte.config.js's base-path branch produce the
+# /transformer-explainer/ prefixed bundle.
+RUN npm install --legacy-peer-deps
+ENV NODE_ENV=production
+RUN npm run build
 
 FROM oven/bun:1.2 AS deps
 WORKDIR /app/workbench/_web
