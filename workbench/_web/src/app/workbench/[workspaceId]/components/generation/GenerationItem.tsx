@@ -25,7 +25,7 @@ export function GenerationItem({ item, isActive, onRemove, onRegenerate }: Gener
     const generatedText =
         item.output && item.output.startsWith(item.prompt)
             ? item.output.slice(item.prompt.length)
-            : item.output ?? "";
+            : (item.output ?? "");
 
     return (
         <article
@@ -60,9 +60,7 @@ export function GenerationItem({ item, isActive, onRemove, onRegenerate }: Gener
                     {isPending ? "Running" : isError ? "Error" : "Generation"}
                 </span>
                 <div className="flex items-center gap-0.5 text-muted-foreground/40 transition-colors group-hover:text-muted-foreground focus-within:text-muted-foreground">
-                    {!isPending && item.output && (
-                        <CopyButton text={item.output} label="Copy" />
-                    )}
+                    {!isPending && item.output && <CopyButton text={item.output} label="Copy" />}
                     {!isPending && onRegenerate && (
                         <IconButton label="Regenerate" onClick={onRegenerate}>
                             <RotateCw className="size-3" />
@@ -172,8 +170,7 @@ function paramDiffs(params: GenerationParams): string[] {
         if (params.temperature !== d.temperature)
             diffs.push(`temp ${params.temperature.toFixed(2)}`);
         if (params.topP !== d.topP) diffs.push(`top-p ${params.topP.toFixed(2)}`);
-        if (params.topK !== d.topK)
-            diffs.push(`top-k ${params.topK === 0 ? "off" : params.topK}`);
+        if (params.topK !== d.topK) diffs.push(`top-k ${params.topK === 0 ? "off" : params.topK}`);
     }
     if (params.stopSequences.length > 0)
         diffs.push(

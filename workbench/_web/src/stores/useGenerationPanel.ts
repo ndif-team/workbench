@@ -37,11 +37,7 @@ interface GenerationPanelState {
     ) => void;
     removeItem: (workspaceId: string, model: string, id: string) => void;
     clearItems: (workspaceId: string, model: string) => void;
-    updateParams: (
-        workspaceId: string,
-        model: string,
-        patch: Partial<GenerationParams>,
-    ) => void;
+    updateParams: (workspaceId: string, model: string, patch: Partial<GenerationParams>) => void;
 }
 
 const bucketKey = (workspaceId: string, model: string) => `${workspaceId}::${model}`;

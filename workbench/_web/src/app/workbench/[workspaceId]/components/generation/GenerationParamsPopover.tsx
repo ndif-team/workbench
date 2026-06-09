@@ -11,10 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SlidersHorizontal, X, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-    DEFAULT_GENERATION_PARAMS,
-    type GenerationParams,
-} from "@/types/generation";
+import { DEFAULT_GENERATION_PARAMS, type GenerationParams } from "@/types/generation";
 
 interface GenerationParamsPopoverProps {
     params: GenerationParams;
@@ -81,11 +78,7 @@ export function GenerationParamsPopover({
                 <TooltipContent side="top">Parameters</TooltipContent>
             </Tooltip>
 
-            <PopoverContent
-                align="end"
-                sideOffset={8}
-                className="w-80 rounded-md p-0"
-            >
+            <PopoverContent align="end" sideOffset={8} className="w-80 rounded-md p-0">
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="min-w-0">
                         <p className="text-sm font-medium leading-none">Parameters</p>
@@ -132,9 +125,7 @@ export function GenerationParamsPopover({
                                 Sampling
                             </Label>
                             <p className="mt-1 text-xs text-muted-foreground">
-                                {params.sampling
-                                    ? "Stochastic decoding."
-                                    : "Greedy decoding."}
+                                {params.sampling ? "Stochastic decoding." : "Greedy decoding."}
                             </p>
                         </div>
                         <Switch
@@ -180,10 +171,7 @@ export function GenerationParamsPopover({
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label
-                            htmlFor="rail-stop"
-                            className="text-xs font-medium leading-none"
-                        >
+                        <Label htmlFor="rail-stop" className="text-xs font-medium leading-none">
                             Stop sequences
                         </Label>
                         <div className="flex gap-1.5">
@@ -247,10 +235,7 @@ export function isDirty(params: GenerationParams): boolean {
 }
 
 function visibleStop(s: string) {
-    return s
-        .replace(/\n/g, "\\n")
-        .replace(/\r/g, "\\r")
-        .replace(/\t/g, "\\t");
+    return s.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
 }
 
 interface ParamSliderProps {

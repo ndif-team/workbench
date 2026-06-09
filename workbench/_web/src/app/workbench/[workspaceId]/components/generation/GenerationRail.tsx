@@ -71,9 +71,7 @@ export function GenerationRail({ className, onCollapse }: GenerationRailProps) {
                           }
                         : {}),
                     stop_strings:
-                        useParams.stopSequences.length > 0
-                            ? useParams.stopSequences
-                            : undefined,
+                        useParams.stopSequences.length > 0 ? useParams.stopSequences : undefined,
                 });
                 const fullText = response.completion.map((t) => t.text).join("");
                 setStatus(workspaceId, modelName, id, "success", {
@@ -82,9 +80,7 @@ export function GenerationRail({ className, onCollapse }: GenerationRailProps) {
                 });
             } catch (err) {
                 const message =
-                    err instanceof Error
-                        ? err.message
-                        : "Generation failed. Please try again.";
+                    err instanceof Error ? err.message : "Generation failed. Please try again.";
                 setStatus(workspaceId, modelName, id, "error", { error: message });
             }
         },
@@ -113,9 +109,7 @@ export function GenerationRail({ className, onCollapse }: GenerationRailProps) {
                     items={items}
                     modelName={modelName}
                     onRemove={(id) => modelName && removeItem(workspaceId, modelName, id)}
-                    onRegenerate={(item) =>
-                        modelName && handleSubmit(item.prompt, item.params)
-                    }
+                    onRegenerate={(item) => modelName && handleSubmit(item.prompt, item.params)}
                 />
 
                 <div className="border-t bg-background/50 p-3">
@@ -128,9 +122,7 @@ export function GenerationRail({ className, onCollapse }: GenerationRailProps) {
                         isPending={isPending}
                         disabled={!modelName || !allowed}
                         placeholder={
-                            modelName
-                                ? `Prompt ${truncateModel(modelName)}…`
-                                : "Loading model…"
+                            modelName ? `Prompt ${truncateModel(modelName)}…` : "Loading model…"
                         }
                     />
                 </div>
@@ -214,12 +206,7 @@ function ClearHistoryButton({ count, onConfirm }: { count: number; onConfirm: ()
                     This only clears the panel for this model. It can&rsquo;t be undone.
                 </p>
                 <div className="mt-3 flex justify-end gap-1.5">
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setOpen(false)}
-                    >
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
                         Cancel
                     </Button>
                     <Button

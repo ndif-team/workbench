@@ -111,12 +111,7 @@ export function GenerationComposer({
                         </TooltipContent>
                     </Tooltip>
                 </div>
-                <Button
-                    type="submit"
-                    size="sm"
-                    disabled={!canSubmit}
-                    aria-label="Generate"
-                >
+                <Button type="submit" size="sm" disabled={!canSubmit} aria-label="Generate">
                     {isPending ? (
                         <Loader2 className="size-3.5 animate-spin" />
                     ) : (

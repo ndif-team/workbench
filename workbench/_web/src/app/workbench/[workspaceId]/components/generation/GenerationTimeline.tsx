@@ -50,9 +50,7 @@ export function GenerationTimeline({
                             item={item}
                             isActive={idx === 0}
                             onRemove={() => onRemove(item.id)}
-                            onRegenerate={
-                                onRegenerate ? () => onRegenerate(item) : undefined
-                            }
+                            onRegenerate={onRegenerate ? () => onRegenerate(item) : undefined}
                         />
                     </li>
                 ))}
