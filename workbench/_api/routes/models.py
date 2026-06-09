@@ -29,7 +29,7 @@ def _refresh_catalog(state: AppState) -> None:
     if ping_resp.status_code != 200:
         raise HTTPException(status_code=500, detail="NDIF backend is not responding")
 
-    status_resp = requests.get(f"{state.ndif_backend_url}/status", timeout=10)
+    status_resp = requests.get(f"{state.ndif_backend_url}/status", timeout=30)
     logger.info(f"Call NDIF_BACKEND/status: {status_resp.status_code}")
     if status_resp.status_code != 200:
         raise HTTPException(status_code=500, detail="Failed to fetch NDIF backend status")
