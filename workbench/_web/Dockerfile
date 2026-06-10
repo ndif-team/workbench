@@ -18,13 +18,16 @@ RUN git clone --depth 1 --branch ${TE_REF} ${TE_REPO} te
 WORKDIR /app/te
 ARG VITE_WORKBENCH_API=http://localhost:8000
 ARG VITE_USER_EMAIL=dev@localhost
+ARG BASE_PATH=/transformer-explainer
 ENV VITE_WORKBENCH_API=${VITE_WORKBENCH_API} \
-    VITE_USER_EMAIL=${VITE_USER_EMAIL}
+    VITE_USER_EMAIL=${VITE_USER_EMAIL} \
+    BASE_PATH=${BASE_PATH}
 # `npm install` first without NODE_ENV=production so devDependencies
 # (vite, sveltekit, svelte-check, etc.) actually get installed. Only
-# after the install is complete do we flip NODE_ENV=production so that
-# `vite build` + svelte.config.js's base-path branch produce the
-# /transformer-explainer/ prefixed bundle.
+# after the install is complete do we flip NODE_ENV=production. The
+# BASE_PATH env var (read by svelte.config.js) is the source of truth
+# for the deploy prefix — relying on NODE_ENV alone was racy with vite's
+# own mode handling.
 RUN npm install --legacy-peer-deps
 ENV NODE_ENV=production
 RUN npm run build
