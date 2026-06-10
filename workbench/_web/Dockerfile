@@ -14,6 +14,12 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 ARG TE_REPO=https://github.com/ndif-team/transformer-explainer.git
 ARG TE_REF=forward-pass
+# Docker caches RUN layers by their literal command + previous layer
+# hash, so `git clone` is reused across builds even after the branch HEAD
+# moves. ADD a per-ref JSON from the GitHub API so the layer cache busts
+# whenever TE's HEAD changes; the resulting file is referenced only for
+# its checksum effect on the cache key, not its contents.
+ADD https://api.github.com/repos/ndif-team/transformer-explainer/commits/${TE_REF} /tmp/te-ref.json
 RUN git clone --depth 1 --branch ${TE_REF} ${TE_REPO} te
 WORKDIR /app/te
 ARG VITE_WORKBENCH_API=http://localhost:8000
