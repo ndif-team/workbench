@@ -10,6 +10,7 @@ import {
     createActivationPatchingChartPair,
 } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
+import { useModelDeployment } from "@/stores/useModelDeployment";
 import type { Lens2ConfigData } from "@/types/lens2";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 
@@ -50,6 +51,7 @@ export function AutoWorkspaceCreator({
     const hasStartedRef = useRef(false);
     const router = useRouter();
     const queryClient = useQueryClient();
+    const linkChart = useModelDeployment((s) => s.linkChart);
 
     useEffect(() => {
         const createAndRedirect = async () => {
@@ -119,6 +121,10 @@ export function AutoWorkspaceCreator({
                         const { chart } = await createLens2ChartPair(targetWorkspaceId, lensConfig);
                         userChartId = chart.id;
                     }
+                    // Tie this chart to its model's in-flight deploy so the
+                    // sidebar shows *this* chart's row as deploying (one card),
+                    // swapping to the normal chart card once the model is ready.
+                    if (userChartId) linkChart(userChartId, model);
                 } else if (
                     tool === "Activation Patching" &&
                     srcPrompt &&
@@ -214,6 +220,7 @@ export function AutoWorkspaceCreator({
         tgtFreeze,
         deploy,
         queryClient,
+        linkChart,
     ]);
 
     if (error) {

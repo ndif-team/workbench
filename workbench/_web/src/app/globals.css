@@ -205,3 +205,24 @@
         transform: rotate(360deg);
     }
 }
+
+/* Brand conic ring — the single point of brand color on the deploy card.
+ * Reuses the same conic palette as `.spinning-border-gradient`; a radial mask
+ * turns the filled disc into a thin ring. Pair with Tailwind's
+ * `motion-safe:animate-spin` so it respects prefers-reduced-motion. */
+.brand-spinner {
+    border-radius: 9999px;
+    background: conic-gradient(
+        hsl(var(--primary)) 0%,
+        hsl(260 85% 55%) 25%,
+        hsl(300 75% 50%) 50%,
+        hsl(260 85% 55%) 75%,
+        hsl(var(--primary)) 100%
+    );
+    -webkit-mask: radial-gradient(
+        farthest-side,
+        transparent calc(100% - 2px),
+        #000 calc(100% - 1.5px)
+    );
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+}

@@ -35,6 +35,13 @@ const DEPLOY_TOAST_STYLE: CSSProperties = {
 
 interface ModelDeploymentStore {
     deployments: Record<string, DeploymentState>;
+    /** chartId → model, for charts created by a cold-model deploy. Lets the
+     * sidebar render that chart's own row as a deploying card (instead of a
+     * second, independent one) until its model is ready. Ephemeral, like the
+     * deployments themselves — a reload clears both. */
+    chartLinks: Record<string, string>;
+    /** Tie a chart to the model whose deploy created it. */
+    linkChart: (chartId: string, model: string) => void;
     /** Start (or restart) warming up a model. No-op if already in-flight. */
     start: (model: string) => void;
     /** Re-attempt a failed deployment. */
@@ -90,6 +97,9 @@ export const useModelDeployment = create<ModelDeploymentStore>()((set, get) => {
 
     return {
         deployments: {},
+        chartLinks: {},
+        linkChart: (chartId, model) =>
+            set((s) => ({ chartLinks: { ...s.chartLinks, [chartId]: model } })),
         start: (model) => {
             const current = get().deployments[model]?.phase;
             // Already in-flight or already done — don't kick off a redundant
