@@ -8,6 +8,7 @@ import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useModelDeployment } from "@/stores/useModelDeployment";
 import { isModelRunnable, isModelCold, isModelDeploying } from "@/components/model-selector/status";
 import type { DeploymentPhase } from "@/types/deployment";
+import type { Model } from "@/types/models";
 
 /** Tool-agnostic "does this chart have a renderable result?" check. */
 function chartHasData(data: unknown): boolean {
@@ -16,6 +17,26 @@ function chartHasData(data: unknown): boolean {
     if ("meta" in d) return true; // lens2
     if ("lines" in d) return Array.isArray(d.lines) && d.lines.length > 0; // AP
     return false;
+}
+
+/**
+ * The pure "should this chart show its deploying state?" decision, shared by
+ * the chart page (`useChartModelReady`) and the sidebar card. A chart deploys
+ * when its model isn't runnable, it has no saved result to fall back on, and
+ * the model is cold / mid-load / has a warmup in flight. Keeping it here means
+ * the display area and the sidebar row never disagree — the sidebar bug where
+ * a refreshed deploying chart fell back to a normal card came from the two
+ * using different sources of truth.
+ */
+export function isChartModelDeploying(
+    catalogModel: Model | undefined,
+    phase: DeploymentPhase,
+    hasData: boolean,
+): boolean {
+    if (phase === "ready") return false;
+    if (isModelRunnable(catalogModel)) return false;
+    if (hasData) return false;
+    return isModelCold(catalogModel) || isModelDeploying(catalogModel) || phase !== "idle";
 }
 
 export type ChartModelReadiness =
@@ -64,32 +85,21 @@ export function useChartModelReady(chartId: string): ChartModelReadiness {
     // normal UI handle it rather than gating.
     if (!modelName) return { state: "ready", modelName: "" };
 
-    if (phase === "ready") return { state: "ready", modelName };
-
     const catalogModel = models?.find((m) => m.name === modelName);
-
-    if (isModelRunnable(catalogModel)) return { state: "ready", modelName };
-
-    // Fallback: if the chart already has a saved result, always show it
-    // (read-only) rather than hiding it behind the deploying panel — even if
-    // its model has since gone cold or left the catalog. Only charts with no
-    // renderable data get the deploying panel.
+    // Saved result wins: a chart with renderable data always shows it
+    // (read-only), even if its model has since gone cold. Only charts with no
+    // data get the deploying panel.
     const hasData = chartHasData((chart as { data?: unknown } | undefined)?.data);
-    if (hasData) return { state: "ready", modelName };
 
-    // No data + cold model, NDIF mid-load, or a warmup in progress/errored →
-    // deploying panel.
-    if (isModelCold(catalogModel) || isModelDeploying(catalogModel) || phase !== "idle") {
-        // If NDIF already reports the model mid-load but we have no local
-        // warmup tracked (e.g. another user triggered it), surface it as
-        // in-progress so the panel shows "Deploying…" instead of an idle
-        // "Not deployed" with a redundant Deploy button.
-        const effectivePhase: DeploymentPhase =
-            phase === "idle" && isModelDeploying(catalogModel) ? "deploying" : phase;
-        return { state: "deploying", modelName, phase: effectivePhase };
+    if (!isChartModelDeploying(catalogModel, phase, hasData)) {
+        return { state: "ready", modelName };
     }
 
-    // Model isn't cold and isn't in the catalog as runnable (e.g. unknown /
-    // not deployed at all) and there's no data — don't gate.
-    return { state: "ready", modelName };
+    // If NDIF already reports the model mid-load but we have no local warmup
+    // tracked (e.g. another user triggered it), surface it as in-progress so
+    // the panel shows "Deploying…" instead of an idle "Not deployed" with a
+    // redundant Deploy button.
+    const effectivePhase: DeploymentPhase =
+        phase === "idle" && isModelDeploying(catalogModel) ? "deploying" : phase;
+    return { state: "deploying", modelName, phase: effectivePhase };
 }

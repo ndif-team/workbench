@@ -21,6 +21,8 @@ import ReportCard from "./ReportCard";
 import { DeployCard } from "./DeployCard";
 import { SortableEntry, entryKey, type SidebarEntry } from "./SortableEntry";
 import { useModelDeployment } from "@/stores/useModelDeployment";
+import { useModelsQuery } from "@/lib/api/modelsApi";
+import { isChartModelDeploying } from "@/hooks/useChartModelReady";
 import { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
 import {
@@ -91,19 +93,22 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         });
     }, [charts, reports]);
 
-    // A chart created by a cold-model deploy shows *its own* row as a deploying
-    // card until the model is ready, then swaps to the normal chart card. The
-    // link (chartId → model) and the model's phase both live in the deployment
-    // store; `isDeploying` gates the swap per chart.
+    // A chart whose saved model is still warming up shows *its own* row as a
+    // deploying card (instead of a second, independent one), then swaps to the
+    // normal chart card once the model is ready. Derived from the same source
+    // as the chart page's deploying panel — the persisted model + the live
+    // catalog heat + the deployment store — so the sidebar and the display area
+    // never disagree (e.g. after a reload, when the store has been cleared).
     const deployments = useModelDeployment((s) => s.deployments);
-    const chartLinks = useModelDeployment((s) => s.chartLinks);
+    const { data: models } = useModelsQuery();
     const isDeploying = useCallback(
-        (id: string) => {
-            const model = chartLinks[id];
-            const phase = model ? deployments[model]?.phase : undefined;
-            return phase === "submitting" || phase === "deploying";
+        (chart: ChartMetadata) => {
+            if (!chart.model) return false;
+            const phase = deployments[chart.model]?.phase ?? "idle";
+            const catalogModel = models?.find((m) => m.name === chart.model);
+            return isChartModelDeploying(catalogModel, phase, chart.hasData ?? false);
         },
-        [chartLinks, deployments],
+        [deployments, models],
     );
 
     const handleDragEnd = useCallback(
@@ -430,9 +435,9 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                                         const chart = entry.item;
                                         return (
                                             <SortableEntry key={key} id={key}>
-                                                {isDeploying(chart.id) ? (
+                                                {isDeploying(chart) ? (
                                                     <DeployCard
-                                                        model={chartLinks[chart.id] ?? ""}
+                                                        model={chart.model ?? ""}
                                                         selected={chartId === chart.id}
                                                         onClick={() =>
                                                             navigateToChart(
