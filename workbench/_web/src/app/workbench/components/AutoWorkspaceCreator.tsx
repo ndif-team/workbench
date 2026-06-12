@@ -10,6 +10,8 @@ import {
     createActivationPatchingChartPair,
 } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { Lens2ConfigData } from "@/types/lens2";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 
@@ -218,36 +220,39 @@ export function AutoWorkspaceCreator({
 
     if (error) {
         return (
-            <div className="p-4 border rounded bg-red-50 border-red-200">
-                <h2 className="text-lg font-semibold mb-2 text-red-700">
-                    Error Creating Workspace
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
+                <h2 className="mb-2 text-lg font-semibold text-destructive">
+                    Error creating workspace
                 </h2>
-                <p className="mb-4 text-red-600">{error}</p>
-                <button
+                <p className="mb-4 text-sm text-muted-foreground">{error}</p>
+                <Button
+                    type="button"
+                    size="sm"
                     onClick={() => {
                         setError(null);
                         hasStartedRef.current = false;
                         // Force re-render to trigger useEffect
                         window.location.reload();
                     }}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                 >
-                    Try Again
-                </button>
+                    Try again
+                </Button>
             </div>
         );
     }
 
     const statusMessage = existingWorkspaceId
-        ? "Adding new chart to your workspace..."
-        : `Creating ${workspaceName === "Untitled" ? "new" : "default"} workspace...`;
+        ? "Adding new chart to your workspace…"
+        : `Creating ${workspaceName === "Untitled" ? "new" : "default"} workspace…`;
 
     return (
-        <div className="p-4 border rounded bg-blue-50 border-blue-200">
-            <h2 className="text-lg font-semibold mb-2">Setting up your workspace...</h2>
-            <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                <p className="text-gray-600">{statusMessage}</p>
+        <div className="rounded-md border border-primary/20 bg-primary/5 p-4">
+            <h2 className="mb-2 text-lg font-semibold text-foreground">
+                Setting up your workspace…
+            </h2>
+            <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">{statusMessage}</p>
             </div>
         </div>
     );
