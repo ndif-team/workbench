@@ -18,11 +18,12 @@ import { useReorderWorkspaceItems } from "@/lib/api/workspaceApi";
 import { queryKeys } from "@/lib/queryKeys";
 import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
-import { DeployCard } from "./DeployCard";
+import { DeployCard, type DeployCardState } from "./DeployCard";
 import { SortableEntry, entryKey, type SidebarEntry } from "./SortableEntry";
 import { useModelDeployment } from "@/stores/useModelDeployment";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { isChartModelDeploying } from "@/hooks/useChartModelReady";
+import { isModelDeploying } from "@/components/model-selector/status";
 import { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
 import {
@@ -101,14 +102,23 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     // never disagree (e.g. after a reload, when the store has been cleared).
     const deployments = useModelDeployment((s) => s.deployments);
     const { data: models } = useModelsQuery();
-    const isDeploying = useCallback(
-        (chart: ChartMetadata) => {
-            if (!chart.model) return false;
+    const modelByName = useMemo(() => new Map((models ?? []).map((m) => [m.name, m])), [models]);
+    const deployStateOf = useCallback(
+        (chart: ChartMetadata): DeployCardState | null => {
+            if (!chart.model) return null;
             const phase = deployments[chart.model]?.phase ?? "idle";
-            const catalogModel = models?.find((m) => m.name === chart.model);
-            return isChartModelDeploying(catalogModel, phase, chart.hasData ?? false);
+            const catalogModel = modelByName.get(chart.model);
+            if (!isChartModelDeploying(catalogModel, phase, chart.hasData ?? false)) return null;
+            if (phase === "error") return "failed";
+            // In flight either via our own warmup or NDIF reporting it mid-load;
+            // otherwise it's simply cold/not-deployed (matches the chart panel's
+            // "Deploy" state after a reload clears the store).
+            if (phase === "submitting" || phase === "deploying" || isModelDeploying(catalogModel)) {
+                return "deploying";
+            }
+            return "cold";
         },
-        [deployments, models],
+        [deployments, modelByName],
     );
 
     const handleDragEnd = useCallback(
@@ -231,6 +241,26 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             {
                 onSuccess: () => {
                     if (nextChart) navigateToChart(nextChart.id, nextChart.toolType ?? undefined);
+                },
+            },
+        );
+    };
+
+    // Deletes a deploy placeholder (a chart whose model never deployed / failed
+    // to deploy). Unlike handleDelete it isn't blocked when it's the only chart
+    // — a lone failed placeholder is exactly what you'd want to clear — and only
+    // navigates away if you're currently viewing the one being removed.
+    const handleDeletePlaceholder = (e: React.MouseEvent, deletedId: string) => {
+        e.stopPropagation();
+        const remaining = (charts ?? []).filter((c) => c.id !== deletedId);
+        deleteChart(
+            { chartId: deletedId, workspaceId: workspaceId as string },
+            {
+                onSuccess: () => {
+                    if (chartId !== deletedId) return;
+                    const nextChart = remaining[0];
+                    if (nextChart) navigateToChart(nextChart.id, nextChart.toolType ?? undefined);
+                    else router.push(`/workbench/${workspaceId}`);
                 },
             },
         );
@@ -433,17 +463,28 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                                     if (entry.type === "chart") {
                                         const canDelete = (charts?.length || 0) > 1;
                                         const chart = entry.item;
+                                        const deployState = deployStateOf(chart);
                                         return (
                                             <SortableEntry key={key} id={key}>
-                                                {isDeploying(chart) ? (
+                                                {deployState ? (
                                                     <DeployCard
                                                         model={chart.model ?? ""}
+                                                        state={deployState}
                                                         selected={chartId === chart.id}
                                                         onClick={() =>
                                                             navigateToChart(
                                                                 chart.id,
                                                                 chart.toolType ?? undefined,
                                                             )
+                                                        }
+                                                        onDelete={
+                                                            deployState === "deploying"
+                                                                ? undefined
+                                                                : (e) =>
+                                                                      handleDeletePlaceholder(
+                                                                          e,
+                                                                          chart.id,
+                                                                      )
                                                         }
                                                     />
                                                 ) : (
