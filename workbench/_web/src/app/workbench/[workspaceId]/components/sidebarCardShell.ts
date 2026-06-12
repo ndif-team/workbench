@@ -16,7 +16,8 @@ export const sidebarCardBase =
 
 /** The selected edge — a crisp 2px primary border (inset ring, no glow) plus a
  * faint primary fill. Shared so chart/report/deploy cards select identically. */
-export const sidebarCardSelected = "border-primary bg-primary/[0.04] ring-1 ring-inset ring-primary";
+export const sidebarCardSelected =
+    "border-primary bg-primary/[0.04] ring-1 ring-inset ring-primary";
 
 export function sidebarCardShell({ selected }: { selected: boolean }) {
     return cn(
