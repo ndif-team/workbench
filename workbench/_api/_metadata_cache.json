@@ -531,17 +531,62 @@
       "n_layers": 32,
       "params": "4B",
       "gated": false
+    },
+    "deepseek-ai/DeepSeek-R1": {
+      "name": "deepseek-ai/DeepSeek-R1",
+      "is_chat": false,
+      "n_layers": 61,
+      "params": "685B",
+      "gated": true
+    },
+    "allenai/Olmo-3-1025-7B": {
+      "name": "allenai/Olmo-3-1025-7B",
+      "is_chat": false,
+      "n_layers": 32,
+      "params": "7B",
+      "gated": false
+    },
+    "allenai/Olmo-3-1125-32B": {
+      "name": "allenai/Olmo-3-1125-32B",
+      "is_chat": false,
+      "n_layers": 64,
+      "params": "32B",
+      "gated": true
+    },
+    "allenai/Olmo-3-7B-Instruct": {
+      "name": "allenai/Olmo-3-7B-Instruct",
+      "is_chat": true,
+      "n_layers": 32,
+      "params": "7B",
+      "gated": false
+    },
+    "allenai/Olmo-3.1-32B-Instruct": {
+      "name": "allenai/Olmo-3.1-32B-Instruct",
+      "is_chat": true,
+      "n_layers": 64,
+      "params": "32B",
+      "gated": true
+    },
+    "allenai/Olmo-3.1-32B-Think": {
+      "name": "allenai/Olmo-3.1-32B-Think",
+      "is_chat": false,
+      "n_layers": 64,
+      "params": "32B",
+      "gated": true
+    },
+    "yen-av/olmo-3-7b-butterfly-refusal": {
+      "name": "yen-av/olmo-3-7b-butterfly-refusal",
+      "is_chat": false,
+      "n_layers": 32,
+      "params": "7B",
+      "gated": false
     }
   },
   "unsupported": [
     "Qwen/Qwen3.5-27B",
+    "Qwen/Qwen3.5-9B",
     "Qwen/Qwen3.6-35B-A3B",
     "allenai/OLMo-7B",
-    "allenai/Olmo-3-1025-7B",
-    "allenai/Olmo-3-1125-32B",
-    "allenai/Olmo-3-7B-Instruct",
-    "allenai/Olmo-3.1-32B-Instruct",
-    "allenai/Olmo-3.1-32B-Think",
     "deepseek-ai/deepseek-moe-16b-base",
     "facebook/esmfold_v1",
     "google/gemma-3-12b-it",
@@ -560,7 +605,6 @@
     "moonshotai/Kimi-K2.5",
     "mosaicml/mpt-30b",
     "stabilityai/stable-diffusion-xl-base-1.0",
-    "stable-diffusion-v1-5/stable-diffusion-v1-5",
-    "yen-av/olmo-3-7b-butterfly-refusal"
+    "stable-diffusion-v1-5/stable-diffusion-v1-5"
   ]
 }

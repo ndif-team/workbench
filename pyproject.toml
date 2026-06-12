@@ -16,6 +16,9 @@ dependencies = [
     "influxdb-client>=1.49.0",
     "uvicorn>=0.33.0",
     "torch>=2.9.0",
+    # Pulled in transitively by nnsight/nnterp, but pinned here so recent model
+    # architectures land in our env: OLMo 3, recent Gemma, etc.
+    "transformers>=5.11.0",
     "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git",
 ]
 
