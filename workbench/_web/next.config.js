@@ -46,21 +46,16 @@ const nextConfig = {
         ],
     },
     // Transformer-explainer is built as a static SPA into public/transformer-explainer/
-    // by the Dockerfile's te-builder stage. SvelteKit's prerendered HTML uses
-    // relative asset URLs (./_app/immutable/...), so the browser MUST see a
-    // trailing slash on the document URL — otherwise the relative refs resolve
-    // one level above /transformer-explainer/ and land at host root.
-    async redirects() {
-        return [
-            {
-                source: "/transformer-explainer",
-                destination: "/transformer-explainer/",
-                permanent: false,
-            },
-        ];
-    },
+    // by the Dockerfile's te-builder stage. The SvelteKit build emits absolute
+    // asset URLs (/transformer-explainer/_app/immutable/...) thanks to its
+    // paths.base + paths.relative=false config, so we can serve the same
+    // index.html for both /transformer-explainer and /transformer-explainer/
+    // without worrying about how the document URL affects asset resolution.
+    // An earlier attempt to *redirect* the slashless form to the slash form
+    // hit a loop with Next.js's default `trailingSlash: false` behavior.
     async rewrites() {
         return [
+            { source: "/transformer-explainer", destination: "/transformer-explainer/index.html" },
             { source: "/transformer-explainer/", destination: "/transformer-explainer/index.html" },
         ];
     },
