@@ -46,11 +46,21 @@ const nextConfig = {
         ],
     },
     // Transformer-explainer is built as a static SPA into public/transformer-explainer/
-    // by the Dockerfile's te-builder stage. Next.js doesn't auto-serve directory
-    // index files from public/, so rewrite the bare path to the SvelteKit HTML.
+    // by the Dockerfile's te-builder stage. SvelteKit's prerendered HTML uses
+    // relative asset URLs (./_app/immutable/...), so the browser MUST see a
+    // trailing slash on the document URL — otherwise the relative refs resolve
+    // one level above /transformer-explainer/ and land at host root.
+    async redirects() {
+        return [
+            {
+                source: "/transformer-explainer",
+                destination: "/transformer-explainer/",
+                permanent: false,
+            },
+        ];
+    },
     async rewrites() {
         return [
-            { source: "/transformer-explainer", destination: "/transformer-explainer/index.html" },
             { source: "/transformer-explainer/", destination: "/transformer-explainer/index.html" },
         ];
     },
