@@ -160,7 +160,7 @@ jobs:
             VITE_WORKBENCH_API=https://${{ steps.meta.outputs.api_host }}
             VITE_USER_EMAIL=dev@localhost
             TE_REPO=https://github.com/ndif-team/transformer-explainer.git
-            TE_REF=${{ vars.TRANSFORMER_EXPLAINER_REF || 'a4f3b3e029a8a0c36e47c16094908e7dddbdf508' }}
+            TE_REF=${{ vars.TRANSFORMER_EXPLAINER_REF || '0d0c3a81e3e08255024b3c6c6e71d1ab08d5f5f0' }}
           cache-from: type=gha,scope=preview-web
           cache-to: type=gha,mode=max,scope=preview-web
 

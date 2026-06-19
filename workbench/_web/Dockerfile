@@ -18,7 +18,7 @@ ARG TE_REPO=https://github.com/ndif-team/transformer-explainer.git
 # embeds it in a URL, and the RUN line uses it as a clone target — both
 # layer hashes change when TE_REF changes). Bump this when there's a new
 # TE commit to ship into the preview.
-ARG TE_REF=a4f3b3e029a8a0c36e47c16094908e7dddbdf508
+ARG TE_REF=0d0c3a81e3e08255024b3c6c6e71d1ab08d5f5f0
 ADD https://api.github.com/repos/ndif-team/transformer-explainer/commits/${TE_REF} /tmp/te-ref.json
 # `git clone --branch` works with tag or branch names but not bare SHAs,
 # so for a SHA we shallow clone the default branch then fetch+checkout.
@@ -31,20 +31,30 @@ RUN if echo "${TE_REF}" | grep -Eq '^[0-9a-f]{40}$'; then \
         git clone --depth 1 --branch ${TE_REF} ${TE_REPO} te; \
     fi
 WORKDIR /app/te
-ARG VITE_WORKBENCH_API=http://localhost:8000
+# These ARGs MUST be supplied via build-args from the workflow. There is
+# no safe default for the API URL: a fallback like http://localhost:8000
+# silently produces a broken bundle that 404s in production, which is the
+# bug that prompted this hardening. Leaving the ARG default empty makes
+# the build fail loudly inside `npm run build` if the wiring is broken.
+ARG VITE_WORKBENCH_API
 ARG VITE_USER_EMAIL=dev@localhost
 ARG BASE_PATH=/transformer-explainer
-ENV VITE_WORKBENCH_API=${VITE_WORKBENCH_API} \
-    VITE_USER_EMAIL=${VITE_USER_EMAIL} \
-    BASE_PATH=${BASE_PATH}
+RUN test -n "${VITE_WORKBENCH_API}" || (echo "VITE_WORKBENCH_API build-arg is required" && exit 1)
+# Persist the env vars into the TE source tree as a .env.production file
+# rather than only setting them via ENV, so vite picks them up even if a
+# cached upstream layer somehow shadows the process env. .env files are
+# loaded by vite at build time and become part of the source layer hash,
+# which means changing them invalidates the npm run build layer cleanly.
+RUN printf 'VITE_WORKBENCH_API=%s\nVITE_USER_EMAIL=%s\nBASE_PATH=%s\n' \
+    "${VITE_WORKBENCH_API}" "${VITE_USER_EMAIL}" "${BASE_PATH}" > .env.production \
+ && cat .env.production
 # `npm install` first without NODE_ENV=production so devDependencies
-# (vite, sveltekit, svelte-check, etc.) actually get installed. Only
-# after the install is complete do we flip NODE_ENV=production. The
-# BASE_PATH env var (read by svelte.config.js) is the source of truth
-# for the deploy prefix — relying on NODE_ENV alone was racy with vite's
-# own mode handling.
+# (vite, sveltekit, svelte-check, etc.) actually get installed.
 RUN npm install --legacy-peer-deps
-ENV NODE_ENV=production
+# BASE_PATH is read by svelte.config.js for the deploy prefix; relying on
+# NODE_ENV alone was racy with vite's own mode handling, so we set it
+# explicitly here as well.
+ENV NODE_ENV=production BASE_PATH=${BASE_PATH}
 RUN npm run build
 
 FROM oven/bun:1.2 AS deps
