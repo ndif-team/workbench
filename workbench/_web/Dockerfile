@@ -18,7 +18,7 @@ ARG TE_REPO=https://github.com/ndif-team/transformer-explainer.git
 # embeds it in a URL, and the RUN line uses it as a clone target — both
 # layer hashes change when TE_REF changes). Bump this when there's a new
 # TE commit to ship into the preview.
-ARG TE_REF=0d0c3a81e3e08255024b3c6c6e71d1ab08d5f5f0
+ARG TE_REF=93067a377e6195243a12e26e1f8c27196ae13f52
 ADD https://api.github.com/repos/ndif-team/transformer-explainer/commits/${TE_REF} /tmp/te-ref.json
 # `git clone --branch` works with tag or branch names but not bare SHAs,
 # so for a SHA we shallow clone the default branch then fetch+checkout.
