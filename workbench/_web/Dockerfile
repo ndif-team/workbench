@@ -13,14 +13,23 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 ARG TE_REPO=https://github.com/ndif-team/transformer-explainer.git
-ARG TE_REF=forward-pass
-# Docker caches RUN layers by their literal command + previous layer
-# hash, so `git clone` is reused across builds even after the branch HEAD
-# moves. ADD a per-ref JSON from the GitHub API so the layer cache busts
-# whenever TE's HEAD changes; the resulting file is referenced only for
-# its checksum effect on the cache key, not its contents.
+# TE_REF: pin to a specific commit SHA for reproducible builds. Updating
+# this value also busts the docker layer cache below it (the ADD line
+# embeds it in a URL, and the RUN line uses it as a clone target — both
+# layer hashes change when TE_REF changes). Bump this when there's a new
+# TE commit to ship into the preview.
+ARG TE_REF=a4f3b3e029a8a0c36e47c16094908e7dddbdf508
 ADD https://api.github.com/repos/ndif-team/transformer-explainer/commits/${TE_REF} /tmp/te-ref.json
-RUN git clone --depth 1 --branch ${TE_REF} ${TE_REPO} te
+# `git clone --branch` works with tag or branch names but not bare SHAs,
+# so for a SHA we shallow clone the default branch then fetch+checkout.
+# Falls back to --branch for human-readable refs (branches/tags).
+RUN if echo "${TE_REF}" | grep -Eq '^[0-9a-f]{40}$'; then \
+        git clone --filter=blob:none ${TE_REPO} te \
+     && git -C te fetch --depth 1 origin ${TE_REF} \
+     && git -C te checkout ${TE_REF}; \
+    else \
+        git clone --depth 1 --branch ${TE_REF} ${TE_REPO} te; \
+    fi
 WORKDIR /app/te
 ARG VITE_WORKBENCH_API=http://localhost:8000
 ARG VITE_USER_EMAIL=dev@localhost
