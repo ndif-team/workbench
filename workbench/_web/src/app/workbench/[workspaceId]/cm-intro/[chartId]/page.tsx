@@ -7,6 +7,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import ChartCardsSidebar from "../../components/ChartCardsSidebar";
 import CMIntroArea from "./components/CMIntroArea";
 import { CMIntroDisplay } from "./components/CMIntroDisplay";
+import { LensHistoryRail } from "./components/LensHistoryRail";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileSidebarDrawer } from "../../components/MobileSidebarDrawer";
 import { MobileCollapsibleControls } from "../../components/MobileCollapsibleControls";
@@ -30,6 +31,8 @@ export default function CMIntroChartPage() {
     // the user starts editing.
     const [lastRunSrcPrompt, setLastRunSrcPrompt] = useState<string | null>(null);
     const [lastRunTgtPrompt, setLastRunTgtPrompt] = useState<string | null>(null);
+    // D1: collapse the heatmap to the final-token row only. Persisted per chart.
+    const [lastRowOnly, setLastRowOnly] = useState(false);
 
     const { data: chart } = useQuery({
         queryKey: queryKeys.charts.chart(chartId as string),
@@ -56,8 +59,29 @@ export default function CMIntroChartPage() {
         if (typeof data?.lastRunTargetPrompt === "string") {
             setLastRunTgtPrompt(data.lastRunTargetPrompt);
         }
+        if (typeof data?.lastRowOnly === "boolean") {
+            setLastRowOnly(data.lastRowOnly);
+        }
         hydratedRef.current = true;
     }, [chart]);
+
+    // Persist the density toggle into the chart row (display-only flag — does
+    // not trigger a lens recompute). Merges so concurrent prompt autosaves and
+    // run results are preserved.
+    const handleLastRowOnlyChange = useCallback(
+        async (next: boolean) => {
+            setLastRowOnly(next);
+            if (!chartId) return;
+            const existing = await getChartById(chartId);
+            const existingData = (existing?.data ?? {}) as Partial<CMIntroChartData>;
+            const merged = { ...existingData, lastRowOnly: next } as CMIntroChartData;
+            await setChartData(chartId, merged, "cm-intro");
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.charts.chart(chartId),
+            });
+        },
+        [chartId, queryClient],
+    );
 
     const handleLensResult = useCallback(
         (result: CMIntroLensResult, runSrc: string, runTgt: string) => {
@@ -109,6 +133,8 @@ export default function CMIntroChartPage() {
                         lensResult={lensResult}
                         lastRunSrcPrompt={lastRunSrcPrompt}
                         lastRunTgtPrompt={lastRunTgtPrompt}
+                        lastRowOnly={lastRowOnly}
+                        onLastRowOnlyChange={handleLastRowOnlyChange}
                     />
                 </MobileCollapsibleControls>
                 <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
@@ -118,6 +144,7 @@ export default function CMIntroChartPage() {
                         lensResult={lensResult}
                         lastRunSrcPrompt={lastRunSrcPrompt}
                         lastRunTgtPrompt={lastRunTgtPrompt}
+                        lastRowOnly={lastRowOnly}
                     />
                 </div>
                 <MobileSidebarDrawer />
@@ -133,7 +160,7 @@ export default function CMIntroChartPage() {
                     direction="horizontal"
                     className="flex size-full rounded dark:bg-secondary/50 bg-secondary/80 border"
                 >
-                    <ResizablePanel className="h-full min-w-0" defaultSize={25} minSize={20}>
+                    <ResizablePanel className="h-full min-w-0" defaultSize={23} minSize={18}>
                         <CMIntroArea
                             sourcePrompt={sourcePrompt}
                             targetPrompt={targetPrompt}
@@ -143,15 +170,22 @@ export default function CMIntroChartPage() {
                             lensResult={lensResult}
                             lastRunSrcPrompt={lastRunSrcPrompt}
                             lastRunTgtPrompt={lastRunTgtPrompt}
+                            lastRowOnly={lastRowOnly}
+                            onLastRowOnlyChange={handleLastRowOnlyChange}
                         />
                     </ResizablePanel>
                     <ResizableHandle className="w-[0.8px]" />
-                    <ResizablePanel className="min-w-0" defaultSize={75} minSize={40}>
+                    <ResizablePanel className="min-w-0" defaultSize={55} minSize={35}>
                         <CMIntroDisplay
                             sourcePrompt={sourcePrompt}
                             targetPrompt={targetPrompt}
                             lensResult={lensResult}
+                            lastRowOnly={lastRowOnly}
                         />
+                    </ResizablePanel>
+                    <ResizableHandle className="w-[0.8px]" />
+                    <ResizablePanel className="min-w-0" defaultSize={22} minSize={15} collapsible>
+                        <LensHistoryRail onSelectPrompt={setSourcePrompt} />
                     </ResizablePanel>
                 </ResizablePanelGroup>
             </div>

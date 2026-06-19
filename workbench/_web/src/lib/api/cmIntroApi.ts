@@ -9,10 +9,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { startAndPoll } from "../startAndPoll";
 import { createUserHeadersAction } from "@/actions/auth";
 import { setChartData, getChartById } from "@/lib/queries/chartQueries";
+import { createLensRun } from "@/lib/queries/lensRunQueries";
+import { extractLastRow } from "@/lib/lens-last-row";
 import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
 import type { CMIntroChartData, CMIntroInterventionSpec } from "@/types/cmIntro";
+import type { LensRunSlot } from "@/types/lensRun";
 
 export interface CMIntroLensRequest {
     sourcePrompt: string;
@@ -39,6 +42,11 @@ export interface CMIntroInterventionRequest {
     topk?: number;
     includeEntropy?: boolean;
 }
+
+// Default top-k captured per cell. Raised from 5 so tokens of interest
+// (e.g. answer choices A/B/C/D) are more likely to land in the visible set —
+// the grid renders up to 15 candidates in its prediction panel.
+const CM_INTRO_DEFAULT_TOPK = 10;
 
 const runLogitLens = async (
     prompt: string,
@@ -67,7 +75,7 @@ export const useCMIntroLogitLens = () => {
         mutationKey: ["cmIntroLogitLens"],
         mutationFn: async (request: CMIntroLensRequest): Promise<CMIntroLensResult> => {
             const headers = await createUserHeadersAction();
-            const topk = request.topk ?? 5;
+            const topk = request.topk ?? CM_INTRO_DEFAULT_TOPK;
             const includeEntropy = request.includeEntropy ?? true;
             const hasTarget = !!request.targetPrompt && request.targetPrompt.trim().length > 0;
 
@@ -100,6 +108,42 @@ export const useCMIntroLogitLens = () => {
             };
             await setChartData(request.chartId, persisted, "cm-intro");
 
+            // F1: append a prompt-history row per computed prompt. The compact
+            // last-row slice is all the history rail needs. Best-effort — a
+            // history-write failure must not fail an otherwise-successful run.
+            try {
+                const chart = await getChartById(request.chartId);
+                const workspaceId = chart?.workspaceId;
+                if (workspaceId) {
+                    const entries: Array<{ slot: LensRunSlot; prompt: string; data: LogitLensIntroData }> = [
+                        { slot: "source", prompt: request.sourcePrompt, data: source },
+                    ];
+                    if (target && hasTarget) {
+                        entries.push({ slot: "target", prompt: request.targetPrompt, data: target });
+                    }
+                    await Promise.all(
+                        entries.map(({ slot, prompt, data }) => {
+                            const lastRow = extractLastRow(data);
+                            if (!lastRow) return Promise.resolve();
+                            return createLensRun({
+                                workspaceId,
+                                chartId: request.chartId,
+                                model: request.model,
+                                prompt,
+                                data: {
+                                    slot,
+                                    finalToken: lastRow.cells.at(-1)?.token ?? null,
+                                    lastRow,
+                                    params: { topk, includeEntropy },
+                                },
+                            });
+                        }),
+                    );
+                }
+            } catch (err) {
+                console.error("Failed to record prompt history", err);
+            }
+
             return { source, target };
         },
         onError: () => {
@@ -108,6 +152,8 @@ export const useCMIntroLogitLens = () => {
         onSuccess: async (_data, variables) => {
             const chartKey = queryKeys.charts.chart(variables.chartId);
             await queryClient.invalidateQueries({ queryKey: chartKey });
+            // Refresh the prompt-history rail (all models for this chart).
+            await queryClient.invalidateQueries({ queryKey: ["lensRuns", variables.chartId] });
         },
     });
 };
@@ -119,7 +165,7 @@ export const useCMIntroIntervention = () => {
         mutationKey: ["cmIntroIntervention"],
         mutationFn: async (request: CMIntroInterventionRequest): Promise<LogitLensIntroData> => {
             const headers = await createUserHeadersAction();
-            const topk = request.topk ?? 5;
+            const topk = request.topk ?? CM_INTRO_DEFAULT_TOPK;
             const includeEntropy = request.includeEntropy ?? true;
 
             const body = {

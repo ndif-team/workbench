@@ -28,4 +28,6 @@ export interface CMIntroChartData {
     lastRunTargetPrompt?: string;
     intervention?: CMIntroInterventionSpec;
     result?: LogitLensIntroData;
+    // D1 density toggle: render only the final-token row across all layers.
+    lastRowOnly?: boolean;
 }

@@ -30,7 +30,19 @@ async def start_logit_lens(
     model = state[req.model]
     backend = state.make_backend(model=model)
 
-    output = logit_lens._run(model, req.prompt, remote=state.remote, backend=backend, non_blocking=state.remote, raw=False)
+    # Forward the request's top_k / include_entropy into the tool. `_run`
+    # threads **kwargs through to its internal `format(...)`, which otherwise
+    # falls back to top_k=5 — so without this the UI's topk is silently ignored.
+    output = logit_lens._run(
+        model,
+        req.prompt,
+        remote=state.remote,
+        backend=backend,
+        non_blocking=state.remote,
+        raw=False,
+        top_k=req.topk,
+        include_entropy=req.include_entropy,
+    )
 
     if not backend.blocking:
         return {"job_id": output}

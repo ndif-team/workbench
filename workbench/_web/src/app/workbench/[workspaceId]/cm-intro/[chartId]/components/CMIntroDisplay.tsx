@@ -60,6 +60,8 @@ interface CMIntroDisplayProps {
     // can show a placeholder instead of a stale heatmap.
     lastRunSrcPrompt?: string | null;
     lastRunTgtPrompt?: string | null;
+    // D1: collapse each heatmap to just the final-token row across all layers.
+    lastRowOnly?: boolean;
 }
 
 /**
@@ -104,12 +106,33 @@ function transformToEduFormat(data: LogitLensIntroData): LogitLensData | undefin
     return { tokens: input, layers, data: cellData };
 }
 
+/**
+ * Collapse a heatmap to just its final-token row (all layers kept). Used by the
+ * "last row only" density toggle (D1): for prompts where only the final-token
+ * prediction matters, the full per-position heatmap is too dense to scan.
+ *
+ * NOTE: this shifts token positions (the sole remaining row becomes index 0),
+ * so callers that forward positions to the backend (CM interventions) must add
+ * back the dropped offset — see `rowOffset` in handleIntervention below.
+ */
+function collapseToLastRow(data: LogitLensData | undefined): LogitLensData | undefined {
+    if (!data) return data;
+    const lastIdx = data.tokens.length - 1;
+    if (lastIdx < 0) return data;
+    return {
+        tokens: [data.tokens[lastIdx]],
+        layers: data.layers,
+        data: [data.data[lastIdx]],
+    };
+}
+
 export function CMIntroDisplay({
     sourcePrompt,
     targetPrompt,
     lensResult,
     lastRunSrcPrompt,
     lastRunTgtPrompt,
+    lastRowOnly = false,
 }: CMIntroDisplayProps) {
     const { chartId } = useParams<{ chartId: string }>();
     const { selectedModelIdx } = useWorkspace();
@@ -168,14 +191,29 @@ export function CMIntroDisplay({
 
     const showPlaceholder = isStale || isMissingExpectedData;
 
-    const sourceData = useMemo(
+    const sourceDataFull = useMemo(
         () => (showPlaceholder || !liveSourceRaw ? undefined : transformToEduFormat(liveSourceRaw)),
         [showPlaceholder, liveSourceRaw],
     );
-    const targetData = useMemo(
+    const targetDataFull = useMemo(
         () => (showPlaceholder || !liveTargetRaw ? undefined : transformToEduFormat(liveTargetRaw)),
         [showPlaceholder, liveTargetRaw],
     );
+
+    const sourceData = useMemo(
+        () => (lastRowOnly ? collapseToLastRow(sourceDataFull) : sourceDataFull),
+        [lastRowOnly, sourceDataFull],
+    );
+    const targetData = useMemo(
+        () => (lastRowOnly ? collapseToLastRow(targetDataFull) : targetDataFull),
+        [lastRowOnly, targetDataFull],
+    );
+
+    // When collapsed, the sole displayed row is index 0 but maps to the final
+    // absolute token position; interventions index positions absolutely, so we
+    // add this offset back before forwarding to the backend.
+    const srcRowOffset = lastRowOnly && sourceDataFull ? sourceDataFull.tokens.length - 1 : 0;
+    const tgtRowOffset = lastRowOnly && targetDataFull ? targetDataFull.tokens.length - 1 : 0;
 
     // Undefined (not null) when absent, so CausalMediationExplorer treats the
     // result as uncontrolled and falls back to internal state populated by the
@@ -183,8 +221,9 @@ export function CMIntroDisplay({
     // it as a controlled override so revisits restore the UI.
     const persistedResultData = useMemo(() => {
         if (!persistedData?.result) return undefined;
-        return transformToEduFormat(persistedData.result);
-    }, [persistedData]);
+        const transformed = transformToEduFormat(persistedData.result);
+        return lastRowOnly ? collapseToLastRow(transformed) : transformed;
+    }, [persistedData, lastRowOnly]);
 
     const { mutateAsync: runIntervention, isPending: isInterventionPending } =
         useCMIntroIntervention();
@@ -199,18 +238,19 @@ export function CMIntroDisplay({
                     tgtPrompt: targetPrompt,
                     chartId,
                     intervention: {
-                        srcTokenPos: i.sourceTokenPosition,
+                        srcTokenPos: i.sourceTokenPosition + srcRowOffset,
                         srcLayer: i.sourceLayer,
-                        tgtTokenPos: i.targetTokenPosition,
+                        tgtTokenPos: i.targetTokenPosition + tgtRowOffset,
                         tgtLayer: i.targetLayer,
                     },
                 });
-                return transformToEduFormat(result) ?? null;
+                const transformed = transformToEduFormat(result) ?? undefined;
+                return (lastRowOnly ? collapseToLastRow(transformed) : transformed) ?? null;
             } catch {
                 return null;
             }
         },
-        [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention],
+        [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention, srcRowOffset, tgtRowOffset, lastRowOnly],
     );
 
     if (showPlaceholder) {

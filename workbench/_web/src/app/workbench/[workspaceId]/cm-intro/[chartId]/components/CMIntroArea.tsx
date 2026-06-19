@@ -7,6 +7,8 @@ import { ModelSelector } from "@/components/ModelSelector";
 import { AlertCircle, Loader2, Play, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useTour } from "@reactour/tour";
 import { CMIntroTutorial } from "@/tutorials/cmIntro";
 import { useCMIntroTutorial, hydrateCMIntroTutorial } from "@/stores/useCMIntroTutorial";
@@ -58,6 +60,9 @@ interface CMIntroAreaProps {
     lensResult?: CMIntroLensResult | null;
     lastRunSrcPrompt?: string | null;
     lastRunTgtPrompt?: string | null;
+    // D1 density toggle (owned by the page so the Display reads the same flag).
+    lastRowOnly?: boolean;
+    onLastRowOnlyChange?: (next: boolean) => void;
 }
 
 function useTutorialAutoStart() {
@@ -103,6 +108,8 @@ export default function CMIntroArea({
     lensResult,
     lastRunSrcPrompt,
     lastRunTgtPrompt,
+    lastRowOnly = false,
+    onLastRowOnlyChange,
 }: CMIntroAreaProps) {
     const { chartId } = useParams<{ chartId: string }>();
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
@@ -454,6 +461,22 @@ export default function CMIntroArea({
                         </>
                     )}
                 </Button>
+
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        id="cm-intro-last-row-only"
+                        checked={lastRowOnly}
+                        onCheckedChange={(next) => onLastRowOnlyChange?.(next === true)}
+                    />
+                    <div className="flex flex-col">
+                        <Label htmlFor="cm-intro-last-row-only" className="text-sm font-medium">
+                            Last row only
+                        </Label>
+                        <span className="text-xs text-muted-foreground leading-snug">
+                            Show only the final token&apos;s prediction across all layers.
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
     );

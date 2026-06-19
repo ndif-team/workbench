@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import type { LensConfigData } from "@/types/lens";
+import type { LensRunData } from "@/types/lensRun";
 
 // Helper function to generate UUIDs for SQLite
 const generateUUID = () => {
@@ -79,6 +80,21 @@ export const documents = sqliteTable("documents", {
         .$onUpdate(() => new Date()),
 });
 
+// F1 prompt history: one row per successful cm-intro lens run. Mirrors the
+// plain-column convention of the other sqlite tables (no FK refs; the pg
+// mirror carries the cascade). `data` holds the compact LensRunData slice.
+export const lensRuns = sqliteTable("lens_runs", {
+    id: text("id").primaryKey().$defaultFn(generateUUID),
+    workspaceId: text("workspace_id").notNull(),
+    chartId: text("chart_id").notNull(),
+    model: text("model").notNull(),
+    prompt: text("prompt").notNull(),
+    data: text("data", { mode: "json" }).$type<LensRunData>().notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+        .$defaultFn(() => new Date())
+        .notNull(),
+});
+
 // Generate types from schema
 export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
@@ -94,3 +110,6 @@ export type NewChartConfigLink = typeof chartConfigLinks.$inferInsert;
 
 export type View = typeof views.$inferSelect;
 export type NewView = typeof views.$inferInsert;
+
+export type LensRun = typeof lensRuns.$inferSelect;
+export type NewLensRun = typeof lensRuns.$inferInsert;
