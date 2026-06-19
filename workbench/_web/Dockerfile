@@ -31,21 +31,23 @@ RUN if echo "${TE_REF}" | grep -Eq '^[0-9a-f]{40}$'; then \
         git clone --depth 1 --branch ${TE_REF} ${TE_REPO} te; \
     fi
 WORKDIR /app/te
-# These ARGs MUST be supplied via build-args from the workflow. There is
-# no safe default for the API URL: a fallback like http://localhost:8000
-# silently produces a broken bundle that 404s in production, which is the
-# bug that prompted this hardening. Leaving the ARG default empty makes
-# the build fail loudly inside `npm run build` if the wiring is broken.
+# preview-deploy.yml already passes NEXT_PUBLIC_BACKEND_URL (Next.js
+# needs it for the same workbench API host). We reuse it here so the
+# te-builder doesn't need a separate workflow change to land first
+# (pull_request_target uses the workflow from main, not from the PR
+# HEAD — see https://docs.github.com/en/actions/security-guides/automatic-token-authentication).
+ARG NEXT_PUBLIC_BACKEND_URL
 ARG VITE_WORKBENCH_API
 ARG VITE_USER_EMAIL=dev@localhost
 ARG BASE_PATH=/transformer-explainer
-RUN test -n "${VITE_WORKBENCH_API}" || (echo "VITE_WORKBENCH_API build-arg is required" && exit 1)
-# Persist the env vars into the TE source tree as a .env.production file
-# rather than only setting them via ENV, so vite picks them up even if a
-# cached upstream layer somehow shadows the process env. .env files are
-# loaded by vite at build time and become part of the source layer hash,
-# which means changing them invalidates the npm run build layer cleanly.
-RUN printf 'VITE_WORKBENCH_API=%s\nVITE_USER_EMAIL=%s\nBASE_PATH=%s\n' \
+# Resolve VITE_WORKBENCH_API: prefer the explicit arg, fall back to the
+# Next.js backend URL. Fail the build if neither is set so a future
+# misconfiguration produces a clear error instead of a silently broken
+# bundle (the localhost:8000 fallback that triggered this hardening).
+RUN export VITE_WORKBENCH_API="${VITE_WORKBENCH_API:-${NEXT_PUBLIC_BACKEND_URL}}" \
+ && test -n "${VITE_WORKBENCH_API}" \
+    || (echo "Either VITE_WORKBENCH_API or NEXT_PUBLIC_BACKEND_URL build-arg is required" && exit 1) \
+ && printf 'VITE_WORKBENCH_API=%s\nVITE_USER_EMAIL=%s\nBASE_PATH=%s\n' \
     "${VITE_WORKBENCH_API}" "${VITE_USER_EMAIL}" "${BASE_PATH}" > .env.production \
  && cat .env.production
 # `npm install` first without NODE_ENV=production so devDependencies
