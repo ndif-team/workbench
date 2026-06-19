@@ -45,6 +45,20 @@ const nextConfig = {
             "./node_modules/nnsightful/src/nnsightful/viz/charts.js",
         ],
     },
+    // Transformer-explainer is built as a static SPA into public/transformer-explainer/
+    // by the Dockerfile's te-builder stage. The SvelteKit build emits absolute
+    // asset URLs (/transformer-explainer/_app/immutable/...) thanks to its
+    // paths.base + paths.relative=false config, so we can serve the same
+    // index.html for both /transformer-explainer and /transformer-explainer/
+    // without worrying about how the document URL affects asset resolution.
+    // An earlier attempt to *redirect* the slashless form to the slash form
+    // hit a loop with Next.js's default `trailingSlash: false` behavior.
+    async rewrites() {
+        return [
+            { source: "/transformer-explainer", destination: "/transformer-explainer/index.html" },
+            { source: "/transformer-explainer/", destination: "/transformer-explainer/index.html" },
+        ];
+    },
     webpack: (config) => {
         // Fallbacks for @huggingface/transformers package
         config.resolve.fallback = {
