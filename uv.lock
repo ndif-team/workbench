@@ -864,7 +864,7 @@ wheels = [
 [[package]]
 name = "nnsightful"
 version = "0.1.0"
-source = { git = "https://github.com/jon-bell/nnsightful.git?rev=ea17d7b36b17afbe5a0b877ecb373ee1ad3d0644#ea17d7b36b17afbe5a0b877ecb373ee1ad3d0644" }
+source = { git = "https://github.com/jon-bell/nnsightful.git?rev=75b4b8c101617e63ba01b39a0957a934d798aab9#75b4b8c101617e63ba01b39a0957a934d798aab9" }
 dependencies = [
     { name = "ipython" },
     { name = "nnsight" },
@@ -1737,7 +1737,7 @@ requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.6.16" },
     { name = "modal", specifier = ">=0.65.66" },
     { name = "nnsight", specifier = ">=0.7.0" },
-    { name = "nnsightful", git = "https://github.com/jon-bell/nnsightful.git?rev=ea17d7b36b17afbe5a0b877ecb373ee1ad3d0644" },
+    { name = "nnsightful", git = "https://github.com/jon-bell/nnsightful.git?rev=75b4b8c101617e63ba01b39a0957a934d798aab9" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "toml", specifier = ">=0.10.2" },
     { name = "torch", specifier = ">=2.9.0", index = "https://download.pytorch.org/whl/cpu" },
