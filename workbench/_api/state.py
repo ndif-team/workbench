@@ -61,7 +61,7 @@ def fetch_model_metadata(model_name: str) -> "ModelMetadata":
     d_head = 0
     vocab_size = 0
     positional_kind: Literal["absolute", "rope"] = "absolute"
-    arch_kind: Literal["gpt2", "llama", "other"] = "other"
+    arch_kind: Literal["gpt2", "llama", "gptj", "other"] = "other"
     try:
         config = AutoConfig.from_pretrained(model_name)
         n_layers = getattr(config, "num_hidden_layers", None) or getattr(config, "n_layer", 0)
@@ -70,13 +70,18 @@ def fetch_model_metadata(model_name: str) -> "ModelMetadata":
         d_model = int(getattr(config, "hidden_size", 0) or getattr(config, "n_embd", 0))
         d_head = int(getattr(config, "head_dim", 0) or (d_model // n_heads if n_heads else 0))
         vocab_size = int(getattr(config, "vocab_size", 0))
+        # GPT-J uses partial RoPE keyed off `rotary_dim` rather than
+        # rope_theta / rope_parameters (which are Llama-era config knobs).
         positional_kind = "rope" if (
             getattr(config, "rope_theta", None) is not None
             or getattr(config, "rope_parameters", None) is not None
+            or getattr(config, "rotary_dim", None) is not None
         ) else "absolute"
         model_type = (getattr(config, "model_type", "") or "").lower()
         if "gpt2" in model_type:
             arch_kind = "gpt2"
+        elif model_type == "gptj":
+            arch_kind = "gptj"
         elif model_type in ("llama", "mistral", "qwen2"):
             arch_kind = "llama"
         else:
@@ -130,7 +135,7 @@ class ModelMetadata(BaseModel):
     d_head: int = 0
     vocab_size: int = 0
     positional_kind: Literal["absolute", "rope"] = "absolute"
-    arch_kind: Literal["gpt2", "llama", "other"] = "other"
+    arch_kind: Literal["gpt2", "llama", "gptj", "other"] = "other"
 
 
 class ModelsConfig(BaseModel):
