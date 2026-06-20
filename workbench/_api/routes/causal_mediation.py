@@ -111,32 +111,45 @@ def _run_causal_mediation(
     into the target prompt at (tgt_layer, tgt_token_pos), then run a logit
     lens over the *patched* forward pass.
 
-    Patching pattern mirrors `nnsightful.tools.activation_patching._run`:
-    a slice-assign on `model.layers_output[i]` is sufficient to register the
-    intervention and have it propagate through subsequent layers — no
-    explicit `model.layers[i].output = (...)` reassignment is needed.
+    Trace construction matches `nnsightful.tools.activation_patching._run`
+    exactly, because that tool runs cleanly on NDIF while the previous
+    session-with-two-sequential-`model.trace()` form did not. The differences
+    that matter for NDIF remote execution:
+      * the captured source residual is kept as a RAW intervention-graph proxy
+        (no `.save()`); `.save()`-ing a value in one trace and consuming it in
+        a separate trace forces it through cloudpickle serialization, and
+      * the patched forward pass runs inside `model.trace() as tracer:` +
+        `tracer.invoke(tgt_prompt)` — the batched-invoke API activation patching
+        uses — rather than a bare `model.trace(tgt_prompt)`.
+    A slice-assign on `model.layers_output[i]` registers the intervention and
+    propagates through subsequent layers (same as activation_patching).
     """
     n_layers = model.num_layers
 
     with torch.no_grad():
         with model.session(remote=remote, backend=backend):
-            # 1) Source pass — capture the residual at (src_layer, src_token_pos).
+            # 1) Source pass — capture the residual at (src_layer, src_token_pos)
+            #    as a raw graph proxy (NO .save(): mirrors activation_patching's
+            #    `src_acts`, and avoids the cross-trace cloudpickle serialization
+            #    that NDIF's remote whitelist rejects).
             with model.trace(src_prompt):
-                src_hidden = model.layers_output[src_layer][0, src_token_pos].save()
+                src_hidden = model.layers_output[src_layer][0, src_token_pos]
 
-            # 2) Target pass — at tgt_layer, slice-assign the source residual
-            #    into the target's tgt_token_pos. project_on_vocab at every
-            #    layer gives us a logit-lens grid over the patched pass.
-            with model.trace(tgt_prompt):
-                per_layer_logits = []
-                for i in range(n_layers):
-                    hs = model.layers_output[i]
-                    if i == tgt_layer:
-                        hs[0, tgt_token_pos][:] = src_hidden
-                    per_layer_logits.append(model.project_on_vocab(hs))
-                # Stack to a single [L, T, V] tensor so backend() returns a
-                # known shape on the remote path (one saved key: "logits").
-                logits = torch.cat(per_layer_logits, dim=0).save()
+            # 2) Patched target pass via tracer.invoke (the construction
+            #    activation_patching uses). At tgt_layer slice-assign the
+            #    captured source residual into tgt_token_pos; project_on_vocab at
+            #    every layer gives a logit-lens grid over the patched pass.
+            with model.trace() as tracer:
+                with tracer.invoke(tgt_prompt):
+                    per_layer_logits = []
+                    for i in range(n_layers):
+                        hs = model.layers_output[i]
+                        if i == tgt_layer:
+                            hs[0, tgt_token_pos][:] = src_hidden
+                        per_layer_logits.append(model.project_on_vocab(hs))
+                    # Stack to a single [L, T, V] tensor so backend() returns a
+                    # known shape on the remote path (one saved key: "logits").
+                    logits = torch.cat(per_layer_logits, dim=0).save()
 
     if remote and backend is not None:
         return {"job_id": backend.job_id}
