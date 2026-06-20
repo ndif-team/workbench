@@ -14,10 +14,11 @@ const WS_ID = "11111111-1111-4111-8111-111111111111";
 const CHART_ID = "22222222-2222-4222-8222-222222222222";
 const MODEL = "meta-llama/Llama-3.1-8B";
 
-// A 12-token prompt over 32 layers — big enough that the OLD auto-fit clipped
-// the final row at a constrained viewport height (the B1 condition).
+// Mirrors a real Llama-3.1 logit-lens result: a leading <|begin_of_text|> BOS
+// (which the grid hides from display) plus content tokens. Every position —
+// including the final one — has populated topk, matching the real backend data.
 const TOKENS = [
-    "The", " Eiffel", " Tower", " is", " in", " the", " city", " of", " Rome", " not", " Paris", ":",
+    "<|begin_of_text|>", "The", " Eiffel", " Tower", " is", " in", " the", " city", " of", " Rome", " not", " Paris", ":",
 ];
 const N_LAYERS = 32;
 const LAYERS = Array.from({ length: N_LAYERS }, (_, i) => i);
