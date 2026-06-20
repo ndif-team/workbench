@@ -126,32 +126,6 @@ function collapseToLastRow(data: LogitLensData | undefined): LogitLensData | und
     };
 }
 
-/**
- * Append an explicit final row for the model's NEXT predicted token. In a logit
- * lens the last input position decodes to the next token; the existing rows are
- * labeled by the prompt tokens, so the model's continuation reads as if it were
- * just the last prompt token. This adds one display-only row at the bottom,
- * labeled with the predicted token (e.g. "→ Paris"), carrying that final
- * position's per-layer prediction — so the heatmap's bottom row is the model's
- * answer, not the last prompt token.
- *
- * The row is VIRTUAL (index = real token count): it has no backend token
- * position, so interventions that land on it are clamped to the last real
- * position in handleIntervention.
- */
-function appendPredictionRow(data: LogitLensData | undefined): LogitLensData | undefined {
-    if (!data || data.tokens.length === 0) return data;
-    const lastIdx = data.tokens.length - 1;
-    const lastRow = data.data[lastIdx];
-    const finalLayerIdx = data.layers.length - 1;
-    const predicted = lastRow?.[finalLayerIdx]?.token ?? "";
-    return {
-        tokens: [...data.tokens, `→${predicted}`],
-        layers: data.layers,
-        data: [...data.data, lastRow],
-    };
-}
-
 export function CMIntroDisplay({
     sourcePrompt,
     targetPrompt,
@@ -226,14 +200,12 @@ export function CMIntroDisplay({
         [showPlaceholder, liveTargetRaw],
     );
 
-    // Collapsed (D1) shows just the final-token prediction already; otherwise
-    // append the explicit next-predicted-token row at the bottom.
     const sourceData = useMemo(
-        () => (lastRowOnly ? collapseToLastRow(sourceDataFull) : appendPredictionRow(sourceDataFull)),
+        () => (lastRowOnly ? collapseToLastRow(sourceDataFull) : sourceDataFull),
         [lastRowOnly, sourceDataFull],
     );
     const targetData = useMemo(
-        () => (lastRowOnly ? collapseToLastRow(targetDataFull) : appendPredictionRow(targetDataFull)),
+        () => (lastRowOnly ? collapseToLastRow(targetDataFull) : targetDataFull),
         [lastRowOnly, targetDataFull],
     );
 
@@ -243,12 +215,6 @@ export function CMIntroDisplay({
     const srcRowOffset = lastRowOnly && sourceDataFull ? sourceDataFull.tokens.length - 1 : 0;
     const tgtRowOffset = lastRowOnly && targetDataFull ? targetDataFull.tokens.length - 1 : 0;
 
-    // Highest real (backend-addressable) token position per prompt. The appended
-    // prediction row is a virtual extra index beyond this, so clamp interventions
-    // that land on it back to the last real position it represents.
-    const srcMaxPos = sourceDataFull ? sourceDataFull.tokens.length - 1 : 0;
-    const tgtMaxPos = targetDataFull ? targetDataFull.tokens.length - 1 : 0;
-
     // Undefined (not null) when absent, so CausalMediationExplorer treats the
     // result as uncontrolled and falls back to internal state populated by the
     // handleIntervention promise. When a persisted result IS present, we pass
@@ -256,7 +222,7 @@ export function CMIntroDisplay({
     const persistedResultData = useMemo(() => {
         if (!persistedData?.result) return undefined;
         const transformed = transformToEduFormat(persistedData.result);
-        return lastRowOnly ? collapseToLastRow(transformed) : appendPredictionRow(transformed);
+        return lastRowOnly ? collapseToLastRow(transformed) : transformed;
     }, [persistedData, lastRowOnly]);
 
     const { mutateAsync: runIntervention, isPending: isInterventionPending } =
@@ -272,19 +238,19 @@ export function CMIntroDisplay({
                     tgtPrompt: targetPrompt,
                     chartId,
                     intervention: {
-                        srcTokenPos: Math.min(i.sourceTokenPosition + srcRowOffset, srcMaxPos),
+                        srcTokenPos: i.sourceTokenPosition + srcRowOffset,
                         srcLayer: i.sourceLayer,
-                        tgtTokenPos: Math.min(i.targetTokenPosition + tgtRowOffset, tgtMaxPos),
+                        tgtTokenPos: i.targetTokenPosition + tgtRowOffset,
                         tgtLayer: i.targetLayer,
                     },
                 });
                 const transformed = transformToEduFormat(result) ?? undefined;
-                return (lastRowOnly ? collapseToLastRow(transformed) : appendPredictionRow(transformed)) ?? null;
+                return (lastRowOnly ? collapseToLastRow(transformed) : transformed) ?? null;
             } catch {
                 return null;
             }
         },
-        [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention, srcRowOffset, tgtRowOffset, srcMaxPos, tgtMaxPos, lastRowOnly],
+        [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention, srcRowOffset, tgtRowOffset, lastRowOnly],
     );
 
     if (showPlaceholder) {
