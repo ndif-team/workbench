@@ -153,7 +153,15 @@ function ModelTriggerPopover({
             </PopoverTrigger>
             <PopoverContent
                 align="start"
+                side="bottom"
+                // Never flip up — the menu caps to the room below (the shell
+                // reads --radix-popover-content-available-height) and scrolls.
+                // This also disables horizontal shift; fine here since the
+                // trigger is left-aligned with room to the right.
+                avoidCollisions={false}
+                collisionPadding={8}
                 sideOffset={6}
+                style={{ maxHeight: "var(--radix-popover-content-available-height)" }}
                 className="p-0 border-0 bg-transparent shadow-none w-auto"
                 onCloseAutoFocus={(e) => e.preventDefault()}
             >

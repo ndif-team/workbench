@@ -212,7 +212,17 @@ export function PillPopover({
             </PopoverTrigger>
             <PopoverContent
                 align={align}
+                side="bottom"
+                // Never flip up: the menu always opens below the trigger and
+                // instead shrinks to the room available there, letting the list
+                // scroll (maxHeight below). Avoids the jarring upward flip when
+                // a trigger sits low in the viewport. NOTE: this also disables
+                // horizontal shift — fine for the current left-aligned triggers
+                // (room to the right); revisit if used on a right-edge trigger.
+                avoidCollisions={false}
                 sideOffset={6}
+                collisionPadding={8}
+                style={{ maxHeight: "var(--radix-popover-content-available-height)" }}
                 className="p-0 border-0 bg-transparent shadow-none w-auto"
                 // When there's no search input, focus the list itself so the
                 // hand-rolled arrow/Enter keyboard handler actually receives
@@ -226,11 +236,20 @@ export function PillPopover({
             >
                 <div
                     onKeyDown={onKeyDown}
-                    style={{ width, ...popoverMenuShellStyle(compact) }}
-                    className={popoverMenuShellClass(compact)}
+                    // Inherit the Radix available-height var (a real px length)
+                    // directly here — `maxHeight: 100%` wouldn't resolve against
+                    // the content wrapper's auto height, so the menu overran the
+                    // viewport. This caps the shell to the room below the
+                    // trigger and the list (flex-1) scrolls within it.
+                    style={{
+                        width,
+                        maxHeight: "var(--radix-popover-content-available-height)",
+                        ...popoverMenuShellStyle(compact),
+                    }}
+                    className={cn(popoverMenuShellClass(compact), "flex flex-col")}
                 >
                     {searchEnabled && (
-                        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-primary/10">
+                        <div className="flex shrink-0 items-center gap-2 px-3 py-2.5 border-b border-primary/10">
                             <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                             <input
                                 autoFocus
@@ -248,7 +267,7 @@ export function PillPopover({
                         role="listbox"
                         tabIndex={-1}
                         aria-label={ariaLabel}
-                        className="max-h-[260px] overflow-y-auto py-1 outline-none"
+                        className="max-h-[260px] min-h-0 flex-auto overflow-y-auto py-1 outline-none"
                     >
                         {filtered.length === 0 ? (
                             <div className="text-center py-6 text-muted-foreground text-xs px-3">
@@ -283,7 +302,7 @@ export function PillPopover({
                     </div>
 
                     {footer && (
-                        <div className={cn("border-t", compact && "border-primary/10")}>
+                        <div className={cn("shrink-0 border-t", compact && "border-primary/10")}>
                             {footer}
                         </div>
                     )}

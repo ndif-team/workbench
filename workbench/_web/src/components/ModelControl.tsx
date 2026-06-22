@@ -173,7 +173,13 @@ export function ModelControl({ className }: ModelControlProps) {
             </PopoverTrigger>
             <PopoverContent
                 align="start"
+                side="bottom"
+                // Never flip up — the menu caps to the room below (the shell
+                // reads --radix-popover-content-available-height) and scrolls.
+                avoidCollisions={false}
+                collisionPadding={8}
                 sideOffset={6}
+                style={{ maxHeight: "var(--radix-popover-content-available-height)" }}
                 className="p-0 border-0 bg-transparent shadow-none w-auto"
             >
                 <ModelPopover

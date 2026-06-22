@@ -144,14 +144,20 @@ export function ModelPopover({
     return (
         <div
             onKeyDown={onKeyDown}
-            style={{ width: compact ? 260 : 380, ...popoverMenuShellStyle(compact) }}
-            className={popoverMenuShellClass(compact)}
+            // Cap to the room below the trigger (Radix var, inherited) so a tall
+            // menu scrolls instead of flipping up or running off-screen.
+            style={{
+                width: compact ? 260 : 380,
+                maxHeight: "var(--radix-popover-content-available-height)",
+                ...popoverMenuShellStyle(compact),
+            }}
+            className={cn(popoverMenuShellClass(compact), "flex flex-col")}
         >
             {/* Search */}
             {showSearch && (
                 <div
                     className={cn(
-                        "flex items-center gap-2 px-3 py-2.5 border-b",
+                        "flex shrink-0 items-center gap-2 px-3 py-2.5 border-b",
                         compact && "border-primary/10",
                     )}
                 >
@@ -179,7 +185,7 @@ export function ModelPopover({
                 cap, sized to content. A short group doesn't claim space the
                 long group could use; a long group scrolls within its own cap
                 without pushing the other below the fold. */}
-            <div role="menu" className="flex flex-col">
+            <div role="menu" className="flex min-h-0 flex-auto flex-col overflow-y-auto">
                 {flat.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground text-sm px-3">
                         No models match &ldquo;{query}&rdquo;.
@@ -217,7 +223,9 @@ export function ModelPopover({
             </div>
 
             {footer && (
-                <div className={cn("border-t", compact && "border-primary/10")}>{footer}</div>
+                <div className={cn("shrink-0 border-t", compact && "border-primary/10")}>
+                    {footer}
+                </div>
             )}
         </div>
     );
