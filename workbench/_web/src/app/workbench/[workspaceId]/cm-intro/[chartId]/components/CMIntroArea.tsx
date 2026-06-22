@@ -305,12 +305,17 @@ export default function CMIntroArea({
             toast.error("Please select a model.");
             return;
         }
-        const src = sourcePrompt.trim();
-        const tgt = targetPrompt.trim();
-        if (!src) {
+        // Validate non-empty via trim, but send the RAW prompt — trailing/
+        // leading whitespace is meaningful to the tokenizer (a trailing space
+        // is its own token), so trimming here dropped the final space token and
+        // its heatmap row. Also send the raw text so the lastRun snapshot below
+        // matches the textarea exactly (else the stale-prompt placeholder fires).
+        if (!sourcePrompt.trim()) {
             toast.error("Please enter a source prompt.");
             return;
         }
+        const src = sourcePrompt;
+        const tgt = targetPrompt;
 
         if (!chartId) {
             toast.error("Missing chart id.");
@@ -320,12 +325,12 @@ export default function CMIntroArea({
         try {
             const result = await runLogitLens({
                 sourcePrompt: src,
-                targetPrompt: tgt, // empty string is fine — mutation skips the call
+                targetPrompt: tgt, // empty/whitespace is fine — mutation skips the call
                 model: selectedModel,
                 chartId,
             });
             onLensResult?.(result, src, tgt);
-            toast.success(tgt ? "Logit lens computed for both prompts." : "Logit lens computed.");
+            toast.success(tgt.trim() ? "Logit lens computed for both prompts." : "Logit lens computed.");
         } catch (error) {
             // Error toast handled by the mutation's onError.
         }
