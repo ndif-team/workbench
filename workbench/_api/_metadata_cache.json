@@ -580,6 +580,20 @@
       "n_layers": 32,
       "params": "7B",
       "gated": false
+    },
+    "Qwen/Qwen3-4B-Thinking-2507": {
+      "name": "Qwen/Qwen3-4B-Thinking-2507",
+      "is_chat": false,
+      "n_layers": 36,
+      "params": "4B",
+      "gated": false
+    },
+    "Qwen/Qwen2.5-Coder-32B-Instruct": {
+      "name": "Qwen/Qwen2.5-Coder-32B-Instruct",
+      "is_chat": true,
+      "n_layers": 64,
+      "params": "33B",
+      "gated": true
     }
   },
   "unsupported": [
