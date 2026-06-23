@@ -55,14 +55,14 @@ def _format_lens(
     positions = list(range(len(input_tokens)))
 
     if include_entropy:
+        # log_softmax once, then exp() reuses it for probs — softmax(x) ==
+        # log_softmax(x).exp() — so we avoid a second full-tensor softmax pass.
         log_p = torch.nn.functional.log_softmax(logits, dim=-1)
-        p = log_p.exp()
-        entropy = torch.round(-(p * log_p).sum(dim=-1), decimals=3).tolist()
+        probs = log_p.exp()
+        entropy = torch.round(-(probs * log_p).sum(dim=-1), decimals=3).tolist()
     else:
+        probs = torch.nn.functional.softmax(logits, dim=-1)
         entropy = None
-
-    probs = torch.nn.functional.softmax(logits, dim=-1)
-    logits.to("cpu")  # free memory
 
     _, top_indices = torch.topk(probs, k=top_k, dim=-1)
 
@@ -93,6 +93,13 @@ def _format_lens(
         "entropy": entropy,
         "positions": positions,
     }
+
+
+def _decode_input_tokens(tokenizer, prompt: str) -> list[str]:
+    """Per-token decoded strings for a prompt (BOS-inclusive, absolute order).
+    Shared by the /start and /results handlers so the two decode loops can't
+    drift apart."""
+    return [str(tokenizer.decode(token)) for token in tokenizer.encode(prompt)]
 
 
 def _run_causal_mediation(
@@ -168,10 +175,7 @@ async def start_causal_mediation(
     if "job_id" in raw:
         return {"job_id": raw["job_id"]}
 
-    input_tokens = [
-        str(model.tokenizer.decode(token))
-        for token in model.tokenizer.encode(req.tgt_prompt)
-    ]
+    input_tokens = _decode_input_tokens(model.tokenizer, req.tgt_prompt)
     data = _format_lens(
         raw["logits"],
         tokenizer=model.tokenizer,
@@ -196,10 +200,7 @@ async def collect_causal_mediation(
 
     model = state[req.model]
     tokenizer = model.tokenizer
-    input_tokens = [
-        str(tokenizer.decode(token))
-        for token in tokenizer.encode(req.tgt_prompt)
-    ]
+    input_tokens = _decode_input_tokens(tokenizer, req.tgt_prompt)
 
     data = _format_lens(
         results["logits"],

@@ -398,7 +398,10 @@ export function LensCompareOverlay({ runs, open, onOpenChange }: LensCompareOver
                                                             {grid ? (
                                                                 <LogitLensGrid data={grid} />
                                                             ) : (
-                                                                <div className="flex size-full items-center justify-center rounded bg-secondary/30">
+                                                                <div
+                                                                    aria-live="polite"
+                                                                    className="flex size-full items-center justify-center rounded bg-secondary/30"
+                                                                >
                                                                     <span className="text-xs text-muted-foreground">
                                                                         Loading heatmap…
                                                                     </span>

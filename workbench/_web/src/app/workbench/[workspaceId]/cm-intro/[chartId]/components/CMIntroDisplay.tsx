@@ -16,7 +16,7 @@ import type { CMIntroChartData } from "@/types/cmIntro";
 
 function CMSkeleton({ message, showTarget }: { message: string; showTarget: boolean }) {
     const SkeletonGrid = () => (
-        <div className="rounded-lg border bg-secondary/30 p-4 animate-pulse">
+        <div className="rounded-md border bg-secondary/30 p-4 animate-pulse">
             <div className="h-3 w-32 mb-3 rounded bg-muted-foreground/20" />
             <div
                 className="grid gap-1"
@@ -33,7 +33,7 @@ function CMSkeleton({ message, showTarget }: { message: string; showTarget: bool
     );
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4" aria-live="polite">
             <div className="rounded-md border border-dashed border-border bg-secondary/50 px-4 py-3 text-sm text-muted-foreground text-center">
                 {message}
             </div>

@@ -130,13 +130,19 @@ export const useCMIntroLogitLens = () => {
             const srcSummary = toPromptSummary(request.sourcePrompt, source);
             const tgtSummary =
                 target && hasTarget ? toPromptSummary(request.targetPrompt, target) : null;
-            const summary: LensRunSummary = {
-                source: srcSummary as LensRunPromptSummary,
-                ...(tgtSummary ? { target: tgtSummary } : {}),
-                params: { topk, includeEntropy },
-            };
+            // Only build a summary when the source lens is well-formed. Casting a
+            // null srcSummary to LensRunPromptSummary would put a null `source`
+            // into a non-nullable field, crashing any consumer that reads
+            // summary.source.lastRow.
+            const summary: LensRunSummary | undefined = srcSummary
+                ? {
+                      source: srcSummary,
+                      ...(tgtSummary ? { target: tgtSummary } : {}),
+                      params: { topk, includeEntropy },
+                  }
+                : undefined;
             try {
-                if (request.workspaceId && srcSummary) {
+                if (request.workspaceId && summary) {
                     const heatmaps: LensRunHeatmaps = {
                         source,
                         ...(target ? { target } : {}),
@@ -179,13 +185,16 @@ export const useCMIntroLogitLens = () => {
             toast.error("Failed to run logit lens.");
         },
         onSuccess: async (data, variables) => {
-            await queryClient.invalidateQueries({
-                queryKey: queryKeys.charts.chart(variables.chartId),
-            });
-            // Refresh the prompt-history rail (all models for this chart).
-            await queryClient.invalidateQueries({
-                queryKey: queryKeys.lensRuns.byChart(variables.chartId),
-            });
+            // Independent invalidations — run concurrently.
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.charts.chart(variables.chartId),
+                }),
+                // Refresh the prompt-history rail (all models for this chart).
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.lensRuns.byChart(variables.chartId),
+                }),
+            ]);
             // Seed the heatmap cache for the just-created run so restoring this
             // entry (or revisiting after the chart-row invalidation) is a cache
             // hit rather than a fresh round-trip. activeLensRunId and summary are
@@ -262,12 +271,19 @@ export const useCMIntroIntervention = () => {
                             interventionSummary,
                             result,
                         );
-                        // Invalidate the patched run's heatmap so a revisit /
-                        // compare shows the patched pass rather than a stale
-                        // (pre-patch) cache entry. Done here (not onSuccess)
-                        // because runId is only known inside the mutation.
+                        // Invalidate every cached heatmap query that includes
+                        // this run so a revisit / compare shows the patched pass
+                        // rather than a stale (pre-patch) entry. A plain
+                        // invalidate on heatmaps([runId]) only prefix-matches the
+                        // single-id key; the compare overlay batches ids into
+                        // ["lensRunHeatmaps", ...sortedIds] and would be missed
+                        // unless runId happened to sort first. Done here (not
+                        // onSuccess) because runId is only known inside the
+                        // mutation.
                         await queryClient.invalidateQueries({
-                            queryKey: queryKeys.lensRuns.heatmaps([runId]),
+                            predicate: (q) =>
+                                q.queryKey[0] === "lensRunHeatmaps" &&
+                                (q.queryKey as unknown[]).includes(runId),
                         });
                     }
                 }
@@ -283,13 +299,16 @@ export const useCMIntroIntervention = () => {
             toast.error("Failed to run causal mediation intervention.");
         },
         onSuccess: async (_data, variables) => {
-            await queryClient.invalidateQueries({
-                queryKey: queryKeys.charts.chart(variables.chartId),
-            });
-            // Refresh the prompt-history rail so the new patch badge appears.
-            await queryClient.invalidateQueries({
-                queryKey: queryKeys.lensRuns.byChart(variables.chartId),
-            });
+            // Independent invalidations — run concurrently.
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.charts.chart(variables.chartId),
+                }),
+                // Refresh the prompt-history rail so the new patch badge appears.
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.lensRuns.byChart(variables.chartId),
+                }),
+            ]);
         },
     });
 };

@@ -477,7 +477,7 @@ export default function CMIntroArea({
                     id="cm-intro-run"
                     onClick={handleRun}
                     disabled={!canRun}
-                    className="w-full bg-violet-500 hover:bg-violet-600 text-white"
+                    className="w-full"
                 >
                     {isRunning ? (
                         <>

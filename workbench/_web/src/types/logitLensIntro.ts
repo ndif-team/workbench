@@ -7,10 +7,3 @@
 import type { LogitLensData } from "nnsightful";
 
 export type LogitLensIntroData = LogitLensData;
-
-export interface LogitLensIntroConfigData {
-    model: string;
-    prompt: string;
-    topk?: number;
-    includeEntropy?: boolean;
-}
