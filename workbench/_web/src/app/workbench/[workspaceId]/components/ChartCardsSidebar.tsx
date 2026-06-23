@@ -5,6 +5,7 @@ import { getChartsMetadata } from "@/lib/queries/chartQueries";
 import { useParams, useRouter } from "next/navigation";
 import {
     useCreateLens2ChartPair,
+    useCreateCMIntroChartPair,
     useCreatePatchChartPair,
     useCreateActivationPatchingChartPair,
     useDeleteChart,
@@ -64,6 +65,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     );
 
     const { mutate: createLens2Pair, isPending: isCreatingLens2 } = useCreateLens2ChartPair();
+    const { mutate: createCMIntroPair, isPending: isCreatingCMIntro } = useCreateCMIntroChartPair();
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
     const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
         useCreateActivationPatchingChartPair();
@@ -161,6 +163,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             router.push(`/workbench/${workspaceId}/lens2/${chartId}`);
         } else if (toolType === "activation-patching") {
             router.push(`/workbench/${workspaceId}/activation-patching/${chartId}`);
+        } else if (toolType === "cm-intro") {
+            router.push(`/workbench/${workspaceId}/cm-intro/${chartId}`);
         } else {
             router.push(`/workbench/${workspaceId}/${chartId}`);
         }
@@ -170,12 +174,21 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (toolType: "lens2" | "patch" | "activation-patching") => {
+    const handleCreate = (toolType: "lens2" | "patch" | "activation-patching" | "cm-intro") => {
         if (toolType === "lens2") {
             createLens2Pair(
                 { workspaceId: workspaceId as string },
                 {
                     onSuccess: ({ chart }) => navigateToChart(chart.id, "lens2"),
+                },
+            );
+            return;
+        }
+        if (toolType === "cm-intro") {
+            createCMIntroPair(
+                { workspaceId: workspaceId as string },
+                {
+                    onSuccess: ({ chart }) => navigateToChart(chart.id, "cm-intro"),
                 },
             );
             return;
@@ -245,7 +258,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     };
 
     const isCreatingAny =
-        isCreatingLens2 || isCreatingPatch || isCreatingActivationPatching || isCreatingDocument;
+        isCreatingLens2 ||
+        isCreatingCMIntro ||
+        isCreatingPatch ||
+        isCreatingActivationPatching ||
+        isCreatingDocument;
 
     const actionButtons = (
         <div className="flex flex-col w-full gap-2 text-sm">
@@ -262,6 +279,20 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                     <Layers className="w-4 h-4" />
                 )}
                 <span>Logit Lens</span>
+            </Button>
+            <Button
+                variant="outline"
+                onClick={() => handleCreate("cm-intro")}
+                disabled={isCreatingAny}
+                className="w-full"
+                title="Causal Mediation Intro"
+            >
+                {isCreatingCMIntro ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                    <GitBranch className="w-4 h-4" />
+                )}
+                <span>CM Intro</span>
             </Button>
             <Button
                 variant="outline"
@@ -333,6 +364,20 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                         title="New Activation Patching"
                     >
                         {isCreatingActivationPatching ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <GitBranch className="h-4 w-4" />
+                        )}
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleCreate("cm-intro")}
+                        disabled={isCreatingAny}
+                        className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
+                        title="New CM Intro"
+                    >
+                        {isCreatingCMIntro ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                             <GitBranch className="h-4 w-4" />

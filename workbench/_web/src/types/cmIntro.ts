@@ -1,0 +1,31 @@
+/**
+ * CM Intro chart data types.
+ *
+ * Persisted into the chart row's `data` field when `type = "cm-intro"`.
+ * The chart row no longer carries heatmaps: those live in `lens_runs` and are
+ * fetched on demand by `activeLensRunId`. This row holds only the prompts, the
+ * pending intervention spec, and the pointer to the active run.
+ */
+
+export interface CMIntroInterventionSpec {
+    srcTokenPos: number;
+    srcLayer: number;
+    tgtTokenPos: number;
+    tgtLayer: number;
+}
+
+export interface CMIntroChartData {
+    sourcePrompt: string;
+    targetPrompt: string;
+    // Snapshot of the prompts the active lens run was actually computed from.
+    // Distinct from sourcePrompt/targetPrompt (which autosave on every edit) —
+    // these only update on a successful lens run, so the UI can hide the
+    // predicted-next-token hint when the user starts editing.
+    lastRunSourcePrompt?: string;
+    lastRunTargetPrompt?: string;
+    intervention?: CMIntroInterventionSpec;
+    // The lens_runs row this chart's current state came from (the latest run,
+    // or the history entry the user restored). Heatmaps are fetched from that
+    // row; the intervention mutation also attaches a patch back onto it.
+    activeLensRunId?: string;
+}

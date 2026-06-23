@@ -43,6 +43,8 @@ export default async function Page({
         redirect(`/workbench/${workspaceId}/lens2/${chart.id}`);
     } else if (chartType === "activation-patching") {
         redirect(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
+    } else if (chartType === "cm-intro") {
+        redirect(`/workbench/${workspaceId}/cm-intro/${chart.id}`);
     } else {
         redirect(`/workbench/${workspaceId}/${chart.id}`);
     }

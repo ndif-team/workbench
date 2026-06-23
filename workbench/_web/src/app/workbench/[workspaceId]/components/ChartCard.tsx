@@ -40,6 +40,8 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
             chart.chartType === "activation-patching"
         ) {
             router.push(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
+        } else if (chart.toolType === "cm-intro" || chart.chartType === "cm-intro") {
+            router.push(`/workbench/${workspaceId}/cm-intro/${chart.id}`);
         } else {
             router.push(`/workbench/${workspaceId}/${chart.id}`);
         }
@@ -92,6 +94,13 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
                 <span className="inline-flex items-center gap-1">
                     <GitBranch className="h-3 w-3" />
                     <span>Act. Patching</span>
+                </span>
+            );
+        if (chartType === "cm-intro")
+            return (
+                <span className="inline-flex items-center gap-1">
+                    <GitBranch className="h-3 w-3" />
+                    <span>CM Intro</span>
                 </span>
             );
         return (

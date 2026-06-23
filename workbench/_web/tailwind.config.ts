@@ -6,6 +6,11 @@ export default {
         "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
         "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
         "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+        // edulogitlens is a file: workspace dep; its components use Tailwind
+        // classes (e.g. bg-white on the cell-prediction popup) that need to be
+        // scanned here or they don't make it into the compiled CSS bundle.
+        "./node_modules/edulogitlens/src/**/*.{js,ts,jsx,tsx}",
+        "./node_modules/edulogitlens/index.ts",
     ],
     theme: {
         extend: {

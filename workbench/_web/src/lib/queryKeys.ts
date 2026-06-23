@@ -18,4 +18,8 @@ export const queryKeys = {
         byWorkspace: (workspaceId: string) => ["documents", workspaceId] as const,
         workspaceDoc: (workspaceId: string) => ["document-workspace", workspaceId] as const,
     },
+    lensRuns: {
+        byChart: (chartId: string, model?: string) => ["lensRuns", chartId, model ?? null] as const,
+        heatmaps: (ids: string[]) => ["lensRunHeatmaps", ...ids] as const,
+    },
 };

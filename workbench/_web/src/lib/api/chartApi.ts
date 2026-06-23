@@ -4,6 +4,7 @@ import {
     setChartData,
     deleteChart,
     createLens2ChartPair,
+    createCMIntroChartPair,
     createPatchChartPair,
     createActivationPatchingChartPair,
     updateChartName,
@@ -264,6 +265,19 @@ export const useCreateLens2ChartPair = () => {
             config?: Lens2ConfigData;
         }) => {
             return await createLens2ChartPair(workspaceId, config);
+        },
+        onSuccess: (_, { workspaceId }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+        },
+    });
+};
+
+export const useCreateCMIntroChartPair = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ workspaceId }: { workspaceId: string }) => {
+            return await createCMIntroChartPair(workspaceId);
         },
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
