@@ -616,6 +616,7 @@
     "lewtun/talkie-1930-13b-it-hf",
     "llava-hf/llava-1.5-7b-hf",
     "meta-llama/Llama-3-8B-instruct",
+    "mlabonne/gemma-3-27b-it-abliterated",
     "moonshotai/Kimi-K2.5",
     "mosaicml/mpt-30b",
     "stabilityai/stable-diffusion-xl-base-1.0",
