@@ -7,7 +7,7 @@ import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc, desc, sql } from "drizzle-orm";
 import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
 
 export const setChartData = async (chartId: string, chartData: ChartData, chartType: ChartType) => {
@@ -126,7 +126,17 @@ export const getAllChartsByType = async (
 };
 
 export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetadata[]> => {
-    const rows = await db
+    // Whether the chart has a saved result, derived cheaply from the column
+    // being non-null (a freshly created chart has no `data` until it runs) so
+    // we don't ship the heavy result payload into the lightweight sidebar list.
+    // The sidebar uses this + the model to decide whether to show a deploying
+    // card, matching `useChartModelReady` on the chart page.
+    const hasData = sql<boolean>`${charts.data} is not null`;
+    // NOTE: the row type is asserted below. Adding these extra select fields
+    // tips drizzle's deeply-generic select inference past its complexity
+    // threshold and it silently widens the result to `any`; the explicit cast
+    // restores a typed, checked mapping.
+    const rows = (await db
         .select({
             id: charts.id,
             name: charts.name,
@@ -135,6 +145,8 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
             createdAt: charts.createdAt,
             updatedAt: charts.updatedAt,
             toolType: configs.type,
+            configData: configs.data,
+            hasData,
         })
         .from(charts)
         .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
@@ -146,20 +158,34 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
             charts.updatedAt,
             charts.position,
             charts.type,
+            charts.data,
             configs.type,
+            configs.data,
         )
-        .orderBy(asc(charts.position), asc(charts.createdAt));
+        .orderBy(asc(charts.position), asc(charts.createdAt))) as Array<{
+        id: string;
+        name: string | null;
+        chartType: ChartType | null;
+        position: number;
+        createdAt: Date;
+        updatedAt: Date;
+        toolType: ToolType | null;
+        configData: { model?: string } | null;
+        hasData: boolean;
+    }>;
 
     return rows.map(
         (r) =>
             ({
                 id: r.id,
                 name: r.name,
-                chartType: (r.chartType as ChartType | null) ?? null,
-                toolType: (r.toolType as ToolType | null) ?? null,
-                position: r.position as number,
-                createdAt: r.createdAt as Date,
-                updatedAt: r.updatedAt as Date,
+                chartType: r.chartType ?? null,
+                toolType: r.toolType ?? null,
+                position: r.position,
+                createdAt: r.createdAt,
+                updatedAt: r.updatedAt,
+                model: r.configData?.model ?? null,
+                hasData: !!r.hasData,
             }) as ChartMetadata,
     );
 };

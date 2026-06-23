@@ -18,7 +18,12 @@ import { useReorderWorkspaceItems } from "@/lib/api/workspaceApi";
 import { queryKeys } from "@/lib/queryKeys";
 import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
+import { DeployCard, type DeployCardState } from "./DeployCard";
 import { SortableEntry, entryKey, type SidebarEntry } from "./SortableEntry";
+import { useModelDeployment } from "@/stores/useModelDeployment";
+import { useModelsQuery } from "@/lib/api/modelsApi";
+import { isChartModelDeploying } from "@/hooks/useChartModelReady";
+import { isModelDeploying } from "@/components/model-selector/status";
 import { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
 import {
@@ -51,7 +56,7 @@ import {
 const SIDEBAR_COLLAPSED_KEY = "workbench_sidebar_collapsed";
 
 export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: boolean }) {
-    const { workspaceId } = useParams<{ workspaceId: string }>();
+    const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId?: string }>();
     const router = useRouter();
 
     const { data: charts, isLoading: isChartsLoading } = useQuery<ChartMetadata[]>({
@@ -88,6 +93,33 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             return new Date(a.item.createdAt).getTime() - new Date(b.item.createdAt).getTime();
         });
     }, [charts, reports]);
+
+    // A chart whose saved model is still warming up shows *its own* row as a
+    // deploying card (instead of a second, independent one), then swaps to the
+    // normal chart card once the model is ready. Derived from the same source
+    // as the chart page's deploying panel — the persisted model + the live
+    // catalog heat + the deployment store — so the sidebar and the display area
+    // never disagree (e.g. after a reload, when the store has been cleared).
+    const deployments = useModelDeployment((s) => s.deployments);
+    const { data: models } = useModelsQuery();
+    const modelByName = useMemo(() => new Map((models ?? []).map((m) => [m.name, m])), [models]);
+    const deployStateOf = useCallback(
+        (chart: ChartMetadata): DeployCardState | null => {
+            if (!chart.model) return null;
+            const phase = deployments[chart.model]?.phase ?? "idle";
+            const catalogModel = modelByName.get(chart.model);
+            if (!isChartModelDeploying(catalogModel, phase, chart.hasData ?? false)) return null;
+            if (phase === "error") return "failed";
+            // In flight either via our own warmup or NDIF reporting it mid-load;
+            // otherwise it's simply cold/not-deployed (matches the chart panel's
+            // "Deploy" state after a reload clears the store).
+            if (phase === "submitting" || phase === "deploying" || isModelDeploying(catalogModel)) {
+                return "deploying";
+            }
+            return "cold";
+        },
+        [deployments, modelByName],
+    );
 
     const handleDragEnd = useCallback(
         (event: DragEndEvent) => {
@@ -209,6 +241,26 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             {
                 onSuccess: () => {
                     if (nextChart) navigateToChart(nextChart.id, nextChart.toolType ?? undefined);
+                },
+            },
+        );
+    };
+
+    // Deletes a deploy placeholder (a chart whose model never deployed / failed
+    // to deploy). Unlike handleDelete it isn't blocked when it's the only chart
+    // — a lone failed placeholder is exactly what you'd want to clear — and only
+    // navigates away if you're currently viewing the one being removed.
+    const handleDeletePlaceholder = (e: React.MouseEvent, deletedId: string) => {
+        e.stopPropagation();
+        const remaining = (charts ?? []).filter((c) => c.id !== deletedId);
+        deleteChart(
+            { chartId: deletedId, workspaceId: workspaceId as string },
+            {
+                onSuccess: () => {
+                    if (chartId !== deletedId) return;
+                    const nextChart = remaining[0];
+                    if (nextChart) navigateToChart(nextChart.id, nextChart.toolType ?? undefined);
+                    else router.push(`/workbench/${workspaceId}`);
                 },
             },
         );
@@ -380,12 +432,12 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                 </Button>
             )}
             <div ref={listRef} className="flex-1 scrollbar-hide overflow-auto">
-                <div ref={cardsRef} className="flex flex-col gap-3">
+                <div ref={cardsRef} className="flex flex-col gap-2">
                     {(isChartsLoading || isReportsLoading) && (
                         <>
-                            <div className="h-24 bg-card animate-pulse rounded" />
-                            <div className="h-24 bg-card animate-pulse rounded" />
-                            <div className="h-24 bg-card animate-pulse rounded" />
+                            <div className="h-16 bg-secondary/80 dark:bg-secondary/50 animate-pulse rounded border border-border" />
+                            <div className="h-16 bg-secondary/80 dark:bg-secondary/50 animate-pulse rounded border border-border" />
+                            <div className="h-16 bg-secondary/80 dark:bg-secondary/50 animate-pulse rounded border border-border" />
                         </>
                     )}
                     {(!charts || charts.length === 0) &&
@@ -410,13 +462,38 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                                     const key = entryKey(entry);
                                     if (entry.type === "chart") {
                                         const canDelete = (charts?.length || 0) > 1;
+                                        const chart = entry.item;
+                                        const deployState = deployStateOf(chart);
                                         return (
                                             <SortableEntry key={key} id={key}>
-                                                <ChartCard
-                                                    metadata={entry.item}
-                                                    handleDelete={handleDelete}
-                                                    canDelete={canDelete}
-                                                />
+                                                {deployState ? (
+                                                    <DeployCard
+                                                        model={chart.model ?? ""}
+                                                        state={deployState}
+                                                        selected={chartId === chart.id}
+                                                        onClick={() =>
+                                                            navigateToChart(
+                                                                chart.id,
+                                                                chart.toolType ?? undefined,
+                                                            )
+                                                        }
+                                                        onDelete={
+                                                            deployState === "deploying"
+                                                                ? undefined
+                                                                : (e) =>
+                                                                      handleDeletePlaceholder(
+                                                                          e,
+                                                                          chart.id,
+                                                                      )
+                                                        }
+                                                    />
+                                                ) : (
+                                                    <ChartCard
+                                                        metadata={chart}
+                                                        handleDelete={handleDelete}
+                                                        canDelete={canDelete}
+                                                    />
+                                                )}
                                             </SortableEntry>
                                         );
                                     }

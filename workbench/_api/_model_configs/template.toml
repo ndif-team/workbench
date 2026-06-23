@@ -1,7 +1,9 @@
-remote = false # Whether to use NDIF remote
-
-# List of HuggingFace model repo IDs to serve.
-# Metadata (chat, gated, n_layers, params) is auto-derived at startup.
-models = [
+# Pinned models: always loaded by the backend in local mode, never evicted from
+# the in-memory LRU. In remote mode pin status comes from NDIF instead; this
+# list is ignored. Remote vs local deployment is controlled by the REMOTE env
+# var. Non-pinned models that NDIF serves appear in the catalog and can be
+# requested — they live in a bounded LRU cache (see AppState.max_non_pinned_models).
+# Metadata (chat, gated, n_layers, params) is auto-derived from HF Hub.
+pinned = [
     "openai-community/gpt2",
 ]

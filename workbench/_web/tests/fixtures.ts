@@ -46,18 +46,32 @@ export const test = base.extend<{ workbenchPage: Page }>({
 });
 
 /**
- * Wait until the model dropdown has been populated by the backend. The
- * `/models/` endpoint reaches out to NDIF on first call and can be slow,
- * so we give it a generous timeout.
+ * Wait for the model selector to populate, then make sure the workspace is on
+ * gpt2 — selecting it from the picker if it isn't already.
+ *
+ * The workspace-header ModelControl shows a "Fetching models…" pill while
+ * loading and only swaps in the real trigger button once `/models/` resolves
+ * (a slow first call to NDIF), so awaiting the trigger gates on models arriving.
+ *
+ * Against real NDIF the catalog is the full live roster — the e2e config's
+ * model list doesn't restrict it in remote mode (the catalog is rebuilt from
+ * NDIF's /status), and the header defaults to whichever model sorts first, not
+ * necessarily gpt2. So we pick gpt2 explicitly (it's small + always deployed),
+ * which keeps the run and downstream assertions deterministic. `handleSelect`
+ * sets the workspace's selected model, so this also drives what the chart runs.
  */
 export async function waitForModelsLoaded(page: Page) {
-    await expect
-        .poll(
-            async () =>
-                await page.locator('[role="combobox"]').filter({ hasText: /gpt2/i }).count(),
-            { timeout: REAL_NDIF_TIMEOUT_MS, intervals: [1000] },
-        )
-        .toBeGreaterThan(0);
+    const trigger = page.getByTestId("model-select-trigger");
+    await expect(trigger).toBeVisible({ timeout: REAL_NDIF_TIMEOUT_MS });
+
+    // Already on gpt2 — nothing to do (e.g. a workspace opened with model=gpt2).
+    if ((await trigger.filter({ hasText: /gpt2/i }).count()) > 0) return;
+
+    // Open the picker, filter to gpt2 via its search box, and select it.
+    await trigger.click();
+    await page.getByPlaceholder(/search models/i).fill("gpt2");
+    await page.getByRole("menuitem", { name: /gpt2/i }).first().click();
+    await expect(trigger).toContainText(/gpt2/i);
 }
 
 /** Navigate to a fresh workspace with a lens chart. */
