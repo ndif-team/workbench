@@ -147,6 +147,7 @@ export function ModelControl({ className }: ModelControlProps) {
             <PopoverTrigger asChild>
                 <button
                     type="button"
+                    data-testid="model-select-trigger"
                     aria-label={
                         isJobActive
                             ? "Model selection disabled while a job is running"
