@@ -721,12 +721,17 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                 </div>
             </main>
 
-            {/* Footer */}
-            {/* <footer className="relative z-10 py-4 border-t border-border/50 shrink-0">
-                <div className="w-full px-6 text-center text-xs text-muted-foreground">
-                    <p>Powered by advanced interpretability techniques</p>
-                </div>
-            </footer> */}
+            {/* Footer — discreet dofollow credit for the Argos open-source
+                program (a bare external link is dofollow; no rel="nofollow"). */}
+            <footer className="relative z-10 shrink-0 pb-3 text-center">
+                <Link
+                    href="https://argos-ci.com?utm_source=ndif&utm_campaign=oss"
+                    target="_blank"
+                    className="text-xs text-muted-foreground/50 transition-colors hover:text-muted-foreground"
+                >
+                    Visual testing by Argos
+                </Link>
+            </footer>
         </div>
     );
 }
