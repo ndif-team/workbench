@@ -2,17 +2,9 @@
 
 import React from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-    Grid3X3,
-    ChartLine,
-    Trash2,
-    Copy,
-    MoreVertical,
-    GitBranch,
-    GraduationCap,
-    type LucideIcon,
-} from "lucide-react";
+import { Grid3X3, ChartLine, Trash2, Copy, MoreVertical, GitBranch } from "lucide-react";
 import { ChartMetadata, ChartType } from "@/types/charts";
+import { PatchLensIcon } from "@/components/PatchLensIcon";
 import { cn } from "@/lib/utils";
 import { ChartRenameDialog } from "./ChartRenameDialog";
 import { sidebarCardShell } from "./sidebarCardShell";
@@ -27,12 +19,15 @@ export type ChartCardProps = {
 };
 
 /** tool → label + icon. Keyed by the chart's stored `chartType`. */
-const TOOL_META: Record<ChartType, { label: string; Icon: LucideIcon }> = {
+const TOOL_META: Record<
+    ChartType,
+    { label: string; Icon: React.ComponentType<{ className?: string }> }
+> = {
     line: { label: "Line", Icon: ChartLine },
     heatmap: { label: "Heatmap", Icon: Grid3X3 },
     lens2: { label: "Logit Lens", Icon: Grid3X3 },
     "activation-patching": { label: "Act. Patching", Icon: GitBranch },
-    "cm-intro": { label: "Workshop activity", Icon: GraduationCap },
+    "patch-lens": { label: "Patch Lens", Icon: PatchLensIcon },
 };
 
 export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCardProps) {
@@ -58,8 +53,8 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
             chart.chartType === "activation-patching"
         ) {
             router.push(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
-        } else if (chart.toolType === "cm-intro" || chart.chartType === "cm-intro") {
-            router.push(`/workbench/${workspaceId}/cm-intro/${chart.id}`);
+        } else if (chart.toolType === "patch-lens" || chart.chartType === "patch-lens") {
+            router.push(`/workbench/${workspaceId}/patch-lens/${chart.id}`);
         } else {
             router.push(`/workbench/${workspaceId}/${chart.id}`);
         }

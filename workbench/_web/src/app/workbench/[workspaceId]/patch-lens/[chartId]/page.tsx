@@ -4,61 +4,43 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import type { ImperativePanelHandle } from "react-resizable-panels";
 import ChartCardsSidebar from "../../components/ChartCardsSidebar";
-import CMIntroArea from "./components/CMIntroArea";
-import { CMIntroDisplay } from "./components/CMIntroDisplay";
-import { LensHistoryRail, CollapsedHistoryBar } from "./components/LensHistoryRail";
+import PatchLensArea from "./components/PatchLensArea";
+import { PatchLensDisplay } from "./components/PatchLensDisplay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileSidebarDrawer } from "../../components/MobileSidebarDrawer";
 import { MobileCollapsibleControls } from "../../components/MobileCollapsibleControls";
 import { GitBranch } from "lucide-react";
-import { CMIntroLensResult } from "@/lib/api/cmIntroApi";
+import { PatchLensResult } from "@/lib/api/patchLensApi";
 import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { getChartById, setChartData } from "@/lib/queries/chartQueries";
 import { getLensRunHeatmapsByIds } from "@/lib/queries/lensRunQueries";
 import { queryKeys } from "@/lib/queryKeys";
-import type { CMIntroChartData } from "@/types/cmIntro";
+import type { PatchLensChartData } from "@/types/patchLens";
 import type { NormalizedRun } from "@/lib/lensRun";
 
 const PROMPT_AUTOSAVE_DEBOUNCE_MS = 600;
 
-export default function CMIntroChartPage() {
+export default function PatchLensChartPage() {
     const isMobile = useIsMobile();
     const { chartId } = useParams<{ chartId: string }>();
     const queryClient = useQueryClient();
     const { setSelectedModelIdx } = useWorkspace();
-    // Model list (shares the React Query cache with CMIntroArea/Display) so a
+    // Model list (shares the React Query cache with PatchLensArea/Display) so a
     // history restore can re-select the model the entry was computed with.
     const { data: models } = useQuery({ queryKey: ["models"], queryFn: getModels });
     const [sourcePrompt, setSourcePrompt] = useState("");
     const [targetPrompt, setTargetPrompt] = useState("");
-    const [lensResult, setLensResult] = useState<CMIntroLensResult | null>(null);
+    const [lensResult, setLensResult] = useState<PatchLensResult | null>(null);
     // Snapshot of the prompts the current lensResult was computed for. Used by
-    // CMIntroArea to gate the predicted-next-token hint so it disappears once
+    // PatchLensArea to gate the predicted-next-token hint so it disappears once
     // the user starts editing.
     const [lastRunSrcPrompt, setLastRunSrcPrompt] = useState<string | null>(null);
     const [lastRunTgtPrompt, setLastRunTgtPrompt] = useState<string | null>(null);
-    // Bumped on each history restore so CMIntroArea re-tokenizes the swapped-in
+    // Bumped on each history restore so PatchLensArea re-tokenizes the swapped-in
     // prompts and shows the chip view.
     const [restoreNonce, setRestoreNonce] = useState(0);
-
-    // Prompt-history rail collapses to a slim strip by default so the chart gets
-    // the room; the user expands it on demand. State drives which UI renders;
-    // the imperative panel handle drives the actual layout width.
-    const historyPanelRef = useRef<ImperativePanelHandle>(null);
-    const [historyCollapsed, setHistoryCollapsed] = useState(true);
-    const HISTORY_COLLAPSED_SIZE = 4;
-    const HISTORY_EXPANDED_SIZE = 24;
-    const expandHistory = useCallback(() => {
-        setHistoryCollapsed(false);
-        historyPanelRef.current?.resize(HISTORY_EXPANDED_SIZE);
-    }, []);
-    const collapseHistory = useCallback(() => {
-        setHistoryCollapsed(true);
-        historyPanelRef.current?.resize(HISTORY_COLLAPSED_SIZE);
-    }, []);
 
     const { data: chart } = useQuery({
         queryKey: queryKeys.charts.chart(chartId as string),
@@ -73,11 +55,11 @@ export default function CMIntroChartPage() {
     useEffect(() => {
         if (hydratedRef.current) return;
         if (chart === undefined) return;
-        const data = chart?.data as Partial<CMIntroChartData> | undefined;
+        const data = chart?.data as Partial<PatchLensChartData> | undefined;
         if (typeof data?.sourcePrompt === "string") setSourcePrompt(data.sourcePrompt);
         if (typeof data?.targetPrompt === "string") setTargetPrompt(data.targetPrompt);
         // No heatmaps on the chart row anymore — lensResult stays null on load;
-        // CMIntroDisplay fetches the active run's heatmaps by activeLensRunId.
+        // PatchLensDisplay fetches the active run's heatmaps by activeLensRunId.
         if (typeof data?.lastRunSourcePrompt === "string") {
             setLastRunSrcPrompt(data.lastRunSourcePrompt);
         }
@@ -88,7 +70,7 @@ export default function CMIntroChartPage() {
     }, [chart]);
 
     const handleLensResult = useCallback(
-        (result: CMIntroLensResult, runSrc: string, runTgt: string) => {
+        (result: PatchLensResult, runSrc: string, runTgt: string) => {
             setLensResult(result);
             setLastRunSrcPrompt(runSrc);
             setLastRunTgtPrompt(runTgt);
@@ -96,9 +78,9 @@ export default function CMIntroChartPage() {
         [],
     );
 
-    // Restore a whole history entry onto cm-intro: its source + target prompts
+    // Restore a whole history entry onto patch-lens: its source + target prompts
     // and any patch. NormalizedRun carries no heatmaps — we point the chart row
-    // at the run (activeLensRunId) and let CMIntroDisplay fetch its heatmaps by
+    // at the run (activeLensRunId) and let PatchLensDisplay fetch its heatmaps by
     // id. lensResult is cleared so the fetched-by-id heatmaps drive the display.
     const handleSelectRun = useCallback(
         async (run: NormalizedRun) => {
@@ -118,8 +100,8 @@ export default function CMIntroChartPage() {
 
             if (!chartId) return;
             const existing = await getChartById(chartId);
-            const existingData = (existing?.data ?? {}) as Partial<CMIntroChartData>;
-            const merged: CMIntroChartData = {
+            const existingData = (existing?.data ?? {}) as Partial<PatchLensChartData>;
+            const merged: PatchLensChartData = {
                 ...existingData,
                 sourcePrompt: src,
                 targetPrompt: tgt,
@@ -128,7 +110,7 @@ export default function CMIntroChartPage() {
                 intervention: run.intervention,
                 activeLensRunId: run.id,
             };
-            await setChartData(chartId, merged, "cm-intro");
+            await setChartData(chartId, merged, "patch-lens");
             // Warm the run's heatmaps before the chart-row invalidation so the
             // display has them the moment it re-reads activeLensRunId — an
             // instant restore instead of a fetch flash.
@@ -162,19 +144,19 @@ export default function CMIntroChartPage() {
             // by this re-read; a fully field-scoped prompt-update action is a
             // flagged follow-up.
             const existing = await getChartById(chartId);
-            const existingData = (existing?.data ?? {}) as Partial<CMIntroChartData>;
+            const existingData = (existing?.data ?? {}) as Partial<PatchLensChartData>;
             if (
                 existingData.sourcePrompt === sourcePrompt &&
                 existingData.targetPrompt === targetPrompt
             ) {
                 return;
             }
-            const merged: CMIntroChartData = {
+            const merged: PatchLensChartData = {
                 ...existingData,
                 sourcePrompt,
                 targetPrompt,
             };
-            await setChartData(chartId, merged, "cm-intro");
+            await setChartData(chartId, merged, "patch-lens");
             queryClient.invalidateQueries({
                 queryKey: queryKeys.charts.chart(chartId),
             });
@@ -187,8 +169,8 @@ export default function CMIntroChartPage() {
     if (isMobile) {
         return (
             <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pb-20 gap-2">
-                <MobileCollapsibleControls label="CM Intro" icon={GitBranch} isRunning={false}>
-                    <CMIntroArea
+                <MobileCollapsibleControls label="Patch Lens" icon={GitBranch} isRunning={false}>
+                    <PatchLensArea
                         sourcePrompt={sourcePrompt}
                         targetPrompt={targetPrompt}
                         onSourcePromptChange={setSourcePrompt}
@@ -197,10 +179,11 @@ export default function CMIntroChartPage() {
                         lensResult={lensResult}
                         lastRunSrcPrompt={lastRunSrcPrompt}
                         lastRunTgtPrompt={lastRunTgtPrompt}
+                        onSelectRun={handleSelectRun}
                     />
                 </MobileCollapsibleControls>
                 <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
-                    <CMIntroDisplay
+                    <PatchLensDisplay
                         sourcePrompt={sourcePrompt}
                         targetPrompt={targetPrompt}
                         lensResult={lensResult}
@@ -219,14 +202,15 @@ export default function CMIntroChartPage() {
                     direction="horizontal"
                     className="flex size-full rounded dark:bg-secondary/50 bg-secondary/80 border"
                 >
-                    <ResizablePanel className="h-full min-w-0" defaultSize={23} minSize={18}>
-                        {/* CMIntroArea's predicted-next-token chip is now ephemeral:
+                    <ResizablePanel className="h-full min-w-0" defaultSize={27} minSize={22}>
+                        {/* PatchLensArea's predicted-next-token chip is now ephemeral:
                             it shows after a run (lensResult is set) but is NOT
                             re-hydrated on revisit, since heatmaps moved off the
                             chart row onto lens_runs. Acceptable — the Display's
                             heatmap (fetched by activeLensRunId) conveys the
-                            prediction on revisit. */}
-                        <CMIntroArea
+                            prediction on revisit. The prompt-history list lives at
+                            the bottom of this controls column (onSelectRun). */}
+                        <PatchLensArea
                             sourcePrompt={sourcePrompt}
                             targetPrompt={targetPrompt}
                             onSourcePromptChange={setSourcePrompt}
@@ -236,33 +220,16 @@ export default function CMIntroChartPage() {
                             lastRunSrcPrompt={lastRunSrcPrompt}
                             lastRunTgtPrompt={lastRunTgtPrompt}
                             restoreNonce={restoreNonce}
+                            onSelectRun={handleSelectRun}
                         />
                     </ResizablePanel>
                     <ResizableHandle className="w-[0.8px]" />
                     <ResizablePanel className="min-w-0" defaultSize={73} minSize={35}>
-                        <CMIntroDisplay
+                        <PatchLensDisplay
                             sourcePrompt={sourcePrompt}
                             targetPrompt={targetPrompt}
                             lensResult={lensResult}
                         />
-                    </ResizablePanel>
-                    <ResizableHandle className="w-[0.8px]" />
-                    <ResizablePanel
-                        ref={historyPanelRef}
-                        className="min-w-0"
-                        defaultSize={HISTORY_COLLAPSED_SIZE}
-                        minSize={HISTORY_COLLAPSED_SIZE}
-                        maxSize={40}
-                        onResize={(size) => setHistoryCollapsed(size < HISTORY_COLLAPSED_SIZE + 2)}
-                    >
-                        {historyCollapsed ? (
-                            <CollapsedHistoryBar onExpand={expandHistory} />
-                        ) : (
-                            <LensHistoryRail
-                                onSelectRun={handleSelectRun}
-                                onCollapse={collapseHistory}
-                            />
-                        )}
                     </ResizablePanel>
                 </ResizablePanelGroup>
             </div>

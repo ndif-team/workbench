@@ -3,51 +3,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { History, Maximize2, PanelRightClose } from "lucide-react";
+import { Maximize2 } from "lucide-react";
 import { useLensRuns, useClearLensRuns } from "@/lib/api/lensRunApi";
 import { getChartById } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { normalizeLensRun, type NormalizedRun } from "@/lib/lensRun";
-import type { CMIntroChartData } from "@/types/cmIntro";
+import type { PatchLensChartData } from "@/types/patchLens";
 import { LensHistoryStrip } from "./LensHistoryStrip";
 import { LensCompareOverlay } from "./LensCompareOverlay";
 
 /**
- * Slim collapsed state of the prompt-history rail: a full-height strip with a
- * vertical label that expands the rail on click. Shown in place of the rail
- * when the panel is collapsed so the chart gets the space by default.
- */
-export function CollapsedHistoryBar({ onExpand }: { onExpand: () => void }) {
-    return (
-        <button
-            type="button"
-            onClick={onExpand}
-            title="Show prompt history"
-            className="flex h-full w-full flex-col items-center gap-2 border-l py-3 text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-        >
-            <History className="h-4 w-4 shrink-0" />
-            <span className="text-xs font-medium [writing-mode:vertical-rl]">Prompt history</span>
-        </button>
-    );
-}
-
-/**
- * F1 container: the prompt-history rail for cm-intro. Fetches the chart's full
+ * F1 container: the prompt-history rail for patch-lens. Fetches the chart's full
  * run history — across ALL models, so it persists when the user switches the
  * active model — and stacks each run (source + optional target + patch) newest
  * first with the most recent highlighted. Clicking a run restores its whole
- * state onto cm-intro; "Compare" opens a full-screen overlay to line up the
+ * state onto patch-lens; "Compare" opens a full-screen overlay to line up the
  * heatmaps across runs.
  */
 
 interface LensHistoryRailProps {
     onSelectRun: (run: NormalizedRun) => void;
-    onCollapse?: () => void;
 }
 
-export function LensHistoryRail({ onSelectRun, onCollapse }: LensHistoryRailProps) {
+export function LensHistoryRail({ onSelectRun }: LensHistoryRailProps) {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
 
     // No model filter: history is per-chart and survives model switches. Scoped
@@ -65,7 +45,7 @@ export function LensHistoryRail({ onSelectRun, onCollapse }: LensHistoryRailProp
         queryFn: () => getChartById(chartId),
         enabled: !!chartId,
     });
-    const chartActiveId = (chart?.data as CMIntroChartData | undefined)?.activeLensRunId;
+    const chartActiveId = (chart?.data as PatchLensChartData | undefined)?.activeLensRunId;
 
     // Newest first; normalize rows into the flat NormalizedRun shape.
     const ordered = useMemo<NormalizedRun[]>(
@@ -91,9 +71,9 @@ export function LensHistoryRail({ onSelectRun, onCollapse }: LensHistoryRailProp
     };
 
     return (
-        <div className="flex h-full flex-col">
-            <div className="p-3 border-b flex items-center justify-between">
-                <h2 className="text-sm pl-2 font-medium">Prompt history</h2>
+        <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+                <h2 className="text-sm font-medium">Prompt history</h2>
                 <div className="flex items-center gap-1">
                     <Button
                         variant="ghost"
@@ -133,24 +113,10 @@ export function LensHistoryRail({ onSelectRun, onCollapse }: LensHistoryRailProp
                             </div>
                         </PopoverContent>
                     </Popover>
-                    {onCollapse && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground"
-                            title="Collapse prompt history"
-                            onClick={onCollapse}
-                        >
-                            <PanelRightClose className="h-4 w-4" />
-                        </Button>
-                    )}
                 </div>
             </div>
 
-            <div
-                className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1.5"
-                data-testid="lens-history-list"
-            >
+            <div className="space-y-1.5" data-testid="lens-history-list">
                 {ordered.length === 0 ? (
                     <p className="text-xs text-muted-foreground px-2 py-6 text-center leading-snug">
                         Run a prompt to start a history. Each run is stacked here so you can compare

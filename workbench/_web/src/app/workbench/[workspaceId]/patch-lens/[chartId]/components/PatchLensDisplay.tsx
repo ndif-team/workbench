@@ -2,17 +2,17 @@
 
 import { useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getModels } from "@/lib/api/modelsApi";
-import { getChartById } from "@/lib/queries/chartQueries";
+import { getChartById, setChartData } from "@/lib/queries/chartQueries";
 import { useLensRunHeatmaps } from "@/lib/api/lensRunApi";
 import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { CausalMediationExplorer } from "edulogitlens";
 import type { LogitLensData, Intervention } from "edulogitlens";
-import { CMIntroLensResult, useCMIntroIntervention } from "@/lib/api/cmIntroApi";
+import { PatchLensResult, usePatchLensIntervention } from "@/lib/api/patchLensApi";
 import { transformToEduFormat } from "@/lib/edu-lens";
-import type { CMIntroChartData } from "@/types/cmIntro";
+import type { PatchLensChartData } from "@/types/patchLens";
 
 function CMSkeleton({ message, showTarget }: { message: string; showTarget: boolean }) {
     const SkeletonGrid = () => (
@@ -52,15 +52,20 @@ function CMSkeleton({ message, showTarget }: { message: string; showTarget: bool
     );
 }
 
-interface CMIntroDisplayProps {
+interface PatchLensDisplayProps {
     sourcePrompt: string;
     targetPrompt: string;
-    lensResult?: CMIntroLensResult | null;
+    lensResult?: PatchLensResult | null;
 }
 
-export function CMIntroDisplay({ sourcePrompt, targetPrompt, lensResult }: CMIntroDisplayProps) {
+export function PatchLensDisplay({
+    sourcePrompt,
+    targetPrompt,
+    lensResult,
+}: PatchLensDisplayProps) {
     const { chartId } = useParams<{ chartId: string }>();
     const { selectedModelIdx } = useWorkspace();
+    const queryClient = useQueryClient();
 
     const { data: models } = useQuery({
         queryKey: ["models"],
@@ -73,7 +78,7 @@ export function CMIntroDisplay({ sourcePrompt, targetPrompt, lensResult }: CMInt
         return models[selectedModelIdx]?.name || models[0].name;
     }, [models, selectedModelIdx]);
 
-    // The cm-intro chart row no longer carries heatmaps — only prompts, the
+    // The patch-lens chart row no longer carries heatmaps — only prompts, the
     // prompts the active run was computed from, and a pointer (activeLensRunId)
     // to the lens_runs row that owns the heatmaps.
     const { data: chart } = useQuery({
@@ -82,10 +87,10 @@ export function CMIntroDisplay({ sourcePrompt, targetPrompt, lensResult }: CMInt
         enabled: !!chartId,
     });
 
-    const persistedData = useMemo<CMIntroChartData | null>(() => {
+    const persistedData = useMemo<PatchLensChartData | null>(() => {
         const raw = chart?.data as unknown;
         if (!raw || typeof raw !== "object") return null;
-        return raw as CMIntroChartData;
+        return raw as PatchLensChartData;
     }, [chart]);
 
     // Fetch the active run's heatmaps on demand (the run mutation seeds this
@@ -141,8 +146,24 @@ export function CMIntroDisplay({ sourcePrompt, targetPrompt, lensResult }: CMInt
         [fetched],
     );
 
+    // Map the persisted patch spec (chart row) into the widget's Intervention
+    // shape so a restored / revisited patch redraws the cone + arrow + result
+    // grid without a live drag. undefined when the chart carries no patch.
+    const interventionForWidget = useMemo<Intervention | undefined>(() => {
+        const spec = persistedData?.intervention;
+        if (!spec) return undefined;
+        return {
+            sourcePromptId: "source",
+            targetPromptId: "target",
+            sourceLayer: spec.srcLayer,
+            sourceTokenPosition: spec.srcTokenPos,
+            targetLayer: spec.tgtLayer,
+            targetTokenPosition: spec.tgtTokenPos,
+        };
+    }, [persistedData]);
+
     const { mutateAsync: runIntervention, isPending: isInterventionPending } =
-        useCMIntroIntervention();
+        usePatchLensIntervention();
 
     const handleIntervention = useCallback(
         async (i: Intervention): Promise<LogitLensData | null> => {
@@ -168,6 +189,25 @@ export function CMIntroDisplay({ sourcePrompt, targetPrompt, lensResult }: CMInt
         [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention],
     );
 
+    // Clear the persisted patch when the user resets the intervention, so the
+    // controlled `intervention` prop stops re-supplying it. The run keeps its own
+    // patch record (history is unaffected) — this only un-patches the view.
+    const handleResetIntervention = useCallback(async () => {
+        if (!chartId) return;
+        const existing = await getChartById(chartId);
+        const existingData = (existing?.data ?? {}) as Partial<PatchLensChartData>;
+        if (existingData.intervention === undefined) return;
+        const next = { ...existingData };
+        delete next.intervention;
+        await setChartData(chartId, next as PatchLensChartData, "patch-lens");
+        queryClient.setQueryData(
+            queryKeys.charts.chart(chartId),
+            (prev: Awaited<ReturnType<typeof getChartById>> | undefined) =>
+                prev ? { ...prev, data: next } : prev,
+        );
+        queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(chartId) });
+    }, [chartId, queryClient]);
+
     // A run is attached but its heatmaps haven't arrived yet (revisit / restore,
     // no ephemeral result). Show the skeleton rather than the "no analysis"
     // placeholder so we don't flash an empty state before the cache resolves.
@@ -191,7 +231,7 @@ export function CMIntroDisplay({ sourcePrompt, targetPrompt, lensResult }: CMInt
     }
 
     return (
-        <div id="cm-intro-display" className="size-full overflow-auto">
+        <div id="patch-lens-display" className="size-full overflow-auto">
             <CausalMediationExplorer
                 sourcePromptText={sourcePrompt}
                 targetPromptText={targetPrompt}
@@ -199,6 +239,8 @@ export function CMIntroDisplay({ sourcePrompt, targetPrompt, lensResult }: CMInt
                 targetData={targetData}
                 onIntervention={handleIntervention}
                 resultData={persistedResultData}
+                intervention={interventionForWidget}
+                onResetIntervention={handleResetIntervention}
                 isInterventionPending={isInterventionPending}
             />
         </div>

@@ -1,7 +1,7 @@
 /**
  * Shared transform: nnsightful/workbench `LogitLensIntroData` → edulogitlens
  * `LogitLensData` (the `{ tokens, layers, data: LogitCell[][] }` shape its
- * widgets render). Used by the cm-intro display (CausalMediationExplorer) and
+ * widgets render). Used by the patch-lens display (CausalMediationExplorer) and
  * the prompt-history compare overlay (LogitLensGrid) so both see identical
  * cells.
  */

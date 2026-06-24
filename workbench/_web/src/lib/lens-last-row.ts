@@ -17,7 +17,7 @@ import type { LensRunLastRow } from "@/types/lensRun";
  * For the final input position, return the top-1 token + probability at each
  * layer. Returns null if the data is empty/malformed.
  *
- * Generalises the single-layer `getNextTokenPrediction` helper (CMIntroArea):
+ * Generalises the single-layer `getNextTokenPrediction` helper (PatchLensArea):
  * that returns just the final layer's top-1; this returns the whole column.
  */
 export function extractLastRow(data: LogitLensIntroData | undefined | null): LensRunLastRow | null {

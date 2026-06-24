@@ -4,7 +4,7 @@ import {
     setChartData,
     deleteChart,
     createLens2ChartPair,
-    createCMIntroChartPair,
+    createPatchLensChartPair,
     createPatchChartPair,
     createActivationPatchingChartPair,
     updateChartName,
@@ -272,12 +272,12 @@ export const useCreateLens2ChartPair = () => {
     });
 };
 
-export const useCreateCMIntroChartPair = () => {
+export const useCreatePatchLensChartPair = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: async ({ workspaceId }: { workspaceId: string }) => {
-            return await createCMIntroChartPair(workspaceId);
+            return await createPatchLensChartPair(workspaceId);
         },
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });

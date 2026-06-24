@@ -5,7 +5,7 @@ import { getChartsMetadata } from "@/lib/queries/chartQueries";
 import { useParams, useRouter } from "next/navigation";
 import {
     useCreateLens2ChartPair,
-    useCreateCMIntroChartPair,
+    useCreatePatchLensChartPair,
     useCreatePatchChartPair,
     useCreateActivationPatchingChartPair,
     useDeleteChart,
@@ -35,9 +35,9 @@ import {
     FileText,
     Layers,
     GitBranch,
-    GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PatchLensIcon } from "@/components/PatchLensIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     DndContext,
@@ -71,7 +71,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     );
 
     const { mutate: createLens2Pair, isPending: isCreatingLens2 } = useCreateLens2ChartPair();
-    const { mutate: createCMIntroPair, isPending: isCreatingCMIntro } = useCreateCMIntroChartPair();
+    const { mutate: createPatchLensPair, isPending: isCreatingPatchLens } =
+        useCreatePatchLensChartPair();
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
     const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
         useCreateActivationPatchingChartPair();
@@ -196,8 +197,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             router.push(`/workbench/${workspaceId}/lens2/${chartId}`);
         } else if (toolType === "activation-patching") {
             router.push(`/workbench/${workspaceId}/activation-patching/${chartId}`);
-        } else if (toolType === "cm-intro") {
-            router.push(`/workbench/${workspaceId}/cm-intro/${chartId}`);
+        } else if (toolType === "patch-lens") {
+            router.push(`/workbench/${workspaceId}/patch-lens/${chartId}`);
         } else {
             router.push(`/workbench/${workspaceId}/${chartId}`);
         }
@@ -207,7 +208,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (toolType: "lens2" | "patch" | "activation-patching" | "cm-intro") => {
+    const handleCreate = (toolType: "lens2" | "patch" | "activation-patching" | "patch-lens") => {
         if (toolType === "lens2") {
             createLens2Pair(
                 { workspaceId: workspaceId as string },
@@ -217,11 +218,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             );
             return;
         }
-        if (toolType === "cm-intro") {
-            createCMIntroPair(
+        if (toolType === "patch-lens") {
+            createPatchLensPair(
                 { workspaceId: workspaceId as string },
                 {
-                    onSuccess: ({ chart }) => navigateToChart(chart.id, "cm-intro"),
+                    onSuccess: ({ chart }) => navigateToChart(chart.id, "patch-lens"),
                 },
             );
             return;
@@ -323,7 +324,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
 
     const isCreatingAny =
         isCreatingLens2 ||
-        isCreatingCMIntro ||
+        isCreatingPatchLens ||
         isCreatingPatch ||
         isCreatingActivationPatching ||
         isCreatingDocument;
@@ -346,17 +347,17 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             </Button>
             <Button
                 variant="outline"
-                onClick={() => handleCreate("cm-intro")}
+                onClick={() => handleCreate("patch-lens")}
                 disabled={isCreatingAny}
                 className="w-full"
-                title="New workshop activity"
+                title="New Patch Lens"
             >
-                {isCreatingCMIntro ? (
+                {isCreatingPatchLens ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                    <GraduationCap className="w-4 h-4" />
+                    <PatchLensIcon className="w-4 h-4" />
                 )}
-                <span>New workshop activity</span>
+                <span>New Patch Lens</span>
             </Button>
             <Button
                 variant="outline"
@@ -436,15 +437,15 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleCreate("cm-intro")}
+                        onClick={() => handleCreate("patch-lens")}
                         disabled={isCreatingAny}
                         className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
-                        title="New workshop activity"
+                        title="New Patch Lens"
                     >
-                        {isCreatingCMIntro ? (
+                        {isCreatingPatchLens ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                            <GraduationCap className="h-4 w-4" />
+                            <PatchLensIcon className="h-4 w-4" />
                         )}
                     </Button>
                     <Button

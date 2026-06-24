@@ -1,5 +1,5 @@
 /**
- * Shared formatting helpers for the cm-intro prompt-history UI. Single source so
+ * Shared formatting helpers for the patch-lens prompt-history UI. Single source so
  * the rail strips, the compare overlay, and any future history surface render
  * probabilities and model names identically.
  */

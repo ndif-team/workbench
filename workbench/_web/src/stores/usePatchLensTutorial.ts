@@ -1,8 +1,8 @@
 import { create } from "zustand";
 
-const STORAGE_KEY = "workbench:cm-intro-tutorial-completed:v1";
+const STORAGE_KEY = "workbench:patch-lens-tutorial-completed:v1";
 
-interface CMIntroTutorialState {
+interface PatchLensTutorialState {
     completed: boolean;
     markCompleted: () => void;
     reset: () => void;
@@ -13,7 +13,7 @@ function readCompleted(): boolean {
     return localStorage.getItem(STORAGE_KEY) === "true";
 }
 
-export const useCMIntroTutorial = create<CMIntroTutorialState>()((set) => ({
+export const usePatchLensTutorial = create<PatchLensTutorialState>()((set) => ({
     completed: false,
     markCompleted: () => {
         if (typeof window !== "undefined") {
@@ -33,6 +33,6 @@ export const useCMIntroTutorial = create<CMIntroTutorialState>()((set) => ({
  * Hydrate from localStorage on the client. Call once at mount in a client
  * component.
  */
-export function hydrateCMIntroTutorial() {
-    useCMIntroTutorial.setState({ completed: readCompleted() });
+export function hydratePatchLensTutorial() {
+    usePatchLensTutorial.setState({ completed: readCompleted() });
 }

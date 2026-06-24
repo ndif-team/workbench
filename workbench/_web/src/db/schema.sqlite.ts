@@ -80,7 +80,7 @@ export const documents = sqliteTable("documents", {
         .$onUpdate(() => new Date()),
 });
 
-// F1 prompt history: one row per successful cm-intro lens run. Mirrors the
+// F1 prompt history: one row per successful patch-lens lens run. Mirrors the
 // plain-column convention of the other sqlite tables (no FK refs; the pg
 // mirror carries the cascade). Split storage: `summary` is the compact slice
 // the rail lists; `data` holds the full per-prompt heatmaps, fetched on demand.

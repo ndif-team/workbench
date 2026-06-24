@@ -7,8 +7,8 @@ import { AlertCircle, Loader2, Play, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { useTour } from "@reactour/tour";
-import { CMIntroTutorial } from "@/tutorials/cmIntro";
-import { useCMIntroTutorial, hydrateCMIntroTutorial } from "@/stores/useCMIntroTutorial";
+import { PatchLensTutorial } from "@/tutorials/patchLens";
+import { usePatchLensTutorial, hydratePatchLensTutorial } from "@/stores/usePatchLensTutorial";
 import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { encodeText } from "@/actions/tok";
@@ -16,44 +16,49 @@ import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { PatchPromptSection } from "@/components/activation-patching/toolkit";
 import { toast } from "sonner";
-import { useCMIntroLogitLens, CMIntroLensResult } from "@/lib/api/cmIntroApi";
+import { usePatchLensLogitLens, PatchLensResult } from "@/lib/api/patchLensApi";
 import { finalPrediction } from "@/lib/lens-last-row";
+import type { NormalizedRun } from "@/lib/lensRun";
+import { LensHistoryRail } from "./LensHistoryRail";
 
 // Default model for the CM intro. 32 layers reads as a manageable heatmap;
 // index 0 in the model list is the 70B (80 layers), far too many for a primer.
 const DEFAULT_INTRO_MODEL = "meta-llama/Llama-3.1-8B";
 
-interface CMIntroAreaProps {
+interface PatchLensAreaProps {
     sourcePrompt: string;
     targetPrompt: string;
     onSourcePromptChange: (value: string) => void;
     onTargetPromptChange: (value: string) => void;
-    onLensResult?: (result: CMIntroLensResult, runSrc: string, runTgt: string) => void;
-    lensResult?: CMIntroLensResult | null;
+    onLensResult?: (result: PatchLensResult, runSrc: string, runTgt: string) => void;
+    lensResult?: PatchLensResult | null;
     lastRunSrcPrompt?: string | null;
     lastRunTgtPrompt?: string | null;
     // Bumped each time a history entry is restored. Tells the area to re-tokenize
     // both prompts and show the chip view, since the prompt props change without
     // the textarea blur that normally drives tokenization.
     restoreNonce?: number;
+    // Restore a history entry onto the tool. When provided, the prompt-history
+    // list renders at the bottom of this controls column.
+    onSelectRun?: (run: NormalizedRun) => void;
 }
 
 function useTutorialAutoStart() {
     const { setSteps, setIsOpen, isOpen } = useTour();
-    const { completed, markCompleted } = useCMIntroTutorial();
+    const { completed, markCompleted } = usePatchLensTutorial();
     // Auto-start fires at most once per mount; dismissing then resaving the
     // localStorage flag prevents a popup loop (same pattern as lens-intro).
     const autoStartedRef = useRef(false);
 
     useEffect(() => {
-        hydrateCMIntroTutorial();
+        hydratePatchLensTutorial();
     }, []);
 
     useEffect(() => {
         if (autoStartedRef.current || completed || isOpen) return;
         if (!setSteps || !setIsOpen) return;
         autoStartedRef.current = true;
-        const steps = CMIntroTutorial.chapters[0]?.steps ?? [];
+        const steps = PatchLensTutorial.chapters[0]?.steps ?? [];
         setSteps(steps);
         const id = setTimeout(() => {
             setIsOpen(true);
@@ -64,7 +69,7 @@ function useTutorialAutoStart() {
 
     const startTutorial = () => {
         if (!setSteps || !setIsOpen) return;
-        const steps = CMIntroTutorial.chapters[0]?.steps ?? [];
+        const steps = PatchLensTutorial.chapters[0]?.steps ?? [];
         setSteps(steps);
         setIsOpen(true);
     };
@@ -72,7 +77,7 @@ function useTutorialAutoStart() {
     return { startTutorial };
 }
 
-export default function CMIntroArea({
+export default function PatchLensArea({
     sourcePrompt,
     targetPrompt,
     onSourcePromptChange,
@@ -82,7 +87,8 @@ export default function CMIntroArea({
     lastRunSrcPrompt,
     lastRunTgtPrompt,
     restoreNonce,
-}: CMIntroAreaProps) {
+    onSelectRun,
+}: PatchLensAreaProps) {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
 
@@ -306,9 +312,9 @@ export default function CMIntroArea({
         return finalPrediction(lensResult.target);
     }, [lensResult, targetPrompt, lastRunTgtPrompt]);
 
-    const { mutateAsync: runLogitLens, isPending: isRunning } = useCMIntroLogitLens();
+    const { mutateAsync: runLogitLens, isPending: isRunning } = usePatchLensLogitLens();
 
-    // Target is optional: when blank, CM Intro runs in single-prompt mode and
+    // Target is optional: when blank, Patch Lens runs in single-prompt mode and
     // only computes the source lens. The widget hides the target heatmap and
     // disables drag-and-drop patching in that mode.
     const canRun = !!selectedModel && !!sourcePrompt.trim() && !isRunning;
@@ -364,8 +370,8 @@ export default function CMIntroArea({
 
     return (
         <div className="h-full flex flex-col md:min-w-64">
-            <div id="cm-intro-welcome" className="p-3 border-b flex items-center justify-between">
-                <h2 className="text-sm pl-2 font-medium">CM Intro</h2>
+            <div id="patch-lens-welcome" className="p-3 border-b flex items-center justify-between">
+                <h2 className="text-sm pl-2 font-medium">Patch Lens</h2>
                 <div className="flex items-center gap-2">
                     {configModelUnavailable && (
                         <Tooltip>
@@ -392,7 +398,7 @@ export default function CMIntroArea({
             </div>
 
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
-                <div id="cm-intro-source-prompt" className="flex flex-col gap-1.5 relative">
+                <div id="patch-lens-source-prompt" className="flex flex-col gap-1.5 relative">
                     {sourcePrompt && (
                         <button
                             type="button"
@@ -431,7 +437,7 @@ export default function CMIntroArea({
                     </p>
                 </div>
 
-                <div id="cm-intro-target-prompt" className="flex flex-col gap-1.5 relative">
+                <div id="patch-lens-target-prompt" className="flex flex-col gap-1.5 relative">
                     {targetPrompt && (
                         <button
                             type="button"
@@ -471,7 +477,12 @@ export default function CMIntroArea({
                     </p>
                 </div>
 
-                <Button id="cm-intro-run" onClick={handleRun} disabled={!canRun} className="w-full">
+                <Button
+                    id="patch-lens-run"
+                    onClick={handleRun}
+                    disabled={!canRun}
+                    className="w-full"
+                >
                     {isRunning ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -484,6 +495,8 @@ export default function CMIntroArea({
                         </>
                     )}
                 </Button>
+
+                {onSelectRun && <LensHistoryRail onSelectRun={onSelectRun} />}
             </div>
         </div>
     );

@@ -84,7 +84,7 @@ export const documents = pgTable("documents", {
         .$onUpdate(() => new Date()),
 });
 
-// F1 prompt history: one row per successful cm-intro lens run; cascades through
+// F1 prompt history: one row per successful patch-lens lens run; cascades through
 // workspace/chart like configs. Split storage: `summary` is the compact slice
 // the rail lists; `data` holds the full per-prompt heatmaps, fetched on demand.
 export const lensRuns = pgTable("lens_runs", {

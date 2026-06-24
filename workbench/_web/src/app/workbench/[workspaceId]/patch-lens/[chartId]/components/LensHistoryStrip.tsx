@@ -10,7 +10,7 @@ import { probColor, shortModelName } from "@/lib/lens-format";
  * prompt (and a patch badge when the run carried an intervention). Each prompt
  * shows its final-token prediction as a horizontal strip of per-layer cells
  * (one cell per layer, colored by probability) and the model's final-layer
- * token. Clicking restores the whole run onto cm-intro.
+ * token. Clicking restores the whole run onto patch-lens.
  */
 
 function PromptResultRow({ label, result }: { label?: string; result: LensRunPromptSummary }) {

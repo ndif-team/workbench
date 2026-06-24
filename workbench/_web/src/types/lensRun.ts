@@ -1,7 +1,7 @@
 /**
  * F1 — prompt-history types.
  *
- * One `lens_runs` row is recorded each time a cm-intro lens is run. A run is a
+ * One `lens_runs` row is recorded each time a patch-lens lens is run. A run is a
  * *pair*: a source prompt plus an optional target prompt, and (once the user
  * drops a patch on the explorer) an optional intervention.
  *
@@ -16,7 +16,7 @@
  * database — there is no legacy/normalization path to carry.
  */
 
-import type { CMIntroInterventionSpec } from "./cmIntro";
+import type { PatchLensInterventionSpec } from "./patchLens";
 import type { LogitLensIntroData } from "./logitLensIntro";
 
 /** Per-layer top-1 token + probability at the final input position. */
@@ -42,7 +42,7 @@ export interface LensRunPromptSummary {
 export interface LensRunSummary {
     source: LensRunPromptSummary;
     target?: LensRunPromptSummary;
-    intervention?: CMIntroInterventionSpec;
+    intervention?: PatchLensInterventionSpec;
     interventionResult?: LensRunPromptSummary;
     params: LensRunParams;
 }

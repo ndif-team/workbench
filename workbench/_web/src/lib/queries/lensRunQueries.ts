@@ -3,12 +3,12 @@
 import { db } from "@/db/client";
 import { lensRuns, LensRun } from "@/db/schema";
 import type { LensRunSummary, LensRunHeatmaps, LensRunPromptSummary } from "@/types/lensRun";
-import type { CMIntroInterventionSpec } from "@/types/cmIntro";
+import type { PatchLensInterventionSpec } from "@/types/patchLens";
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
 import { and, asc, eq, inArray } from "drizzle-orm";
 
 /**
- * F1 prompt-history persistence. One row per successful cm-intro lens run,
+ * F1 prompt-history persistence. One row per successful patch-lens lens run,
  * scoped by (workspace, chart, model). Mirrors the configs/charts pattern:
  * thin server actions over `db`, payload in json columns.
  *
@@ -153,7 +153,7 @@ export const clearLensRunsForChart = async (
  */
 export const updateLensRunIntervention = async (
     id: string,
-    intervention: CMIntroInterventionSpec,
+    intervention: PatchLensInterventionSpec,
     interventionSummary: LensRunPromptSummary,
     interventionHeatmap: LogitLensIntroData,
 ): Promise<void> => {

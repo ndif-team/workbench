@@ -1,7 +1,7 @@
 /**
  * F1 prompt-history client hooks. Thin React Query wrappers over the
  * lensRunQueries server actions. History is server-truth (per CLAUDE.md §6);
- * the cm-intro run mutation appends a row on success and invalidates these.
+ * the patch-lens run mutation appends a row on success and invalidates these.
  *
  * The list (`useLensRuns`) returns the compact `LensRunListItem` (no heatmaps);
  * full heatmaps are fetched on demand by id via `useLensRunHeatmaps`.

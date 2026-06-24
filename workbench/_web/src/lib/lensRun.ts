@@ -12,7 +12,7 @@
 
 import type { LensRunListItem } from "@/lib/queries/lensRunQueries";
 import type { LensRunParams, LensRunPromptSummary } from "@/types/lensRun";
-import type { CMIntroInterventionSpec } from "@/types/cmIntro";
+import type { PatchLensInterventionSpec } from "@/types/patchLens";
 
 export interface NormalizedRun {
     id: string;
@@ -21,7 +21,7 @@ export interface NormalizedRun {
     createdAt: Date;
     source: LensRunPromptSummary;
     target?: LensRunPromptSummary;
-    intervention?: CMIntroInterventionSpec;
+    intervention?: PatchLensInterventionSpec;
     interventionResult?: LensRunPromptSummary;
     params: LensRunParams;
 }
@@ -46,7 +46,7 @@ export interface PromptResultRef {
     model: string;
     role: "source" | "target" | "patched";
     result: LensRunPromptSummary;
-    intervention?: CMIntroInterventionSpec;
+    intervention?: PatchLensInterventionSpec;
 }
 
 export function promptResultsOf(run: NormalizedRun): PromptResultRef[] {

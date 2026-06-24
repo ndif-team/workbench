@@ -1,5 +1,5 @@
 /**
- * CM Intro API — reuses the /logit_lens backend to compute logit lens
+ * Patch Lens API — reuses the /logit_lens backend to compute logit lens
  * results for a source and target prompt pair, plus /causal_mediation
  * for the cell-drop intervention.
  */
@@ -14,7 +14,7 @@ import { extractLastRow } from "@/lib/lens-last-row";
 import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
-import type { CMIntroChartData, CMIntroInterventionSpec } from "@/types/cmIntro";
+import type { PatchLensChartData, PatchLensInterventionSpec } from "@/types/patchLens";
 import type { LensRunSummary, LensRunHeatmaps, LensRunPromptSummary } from "@/types/lensRun";
 
 /**
@@ -34,7 +34,7 @@ const toPromptSummary = (prompt: string, data: LogitLensIntroData): LensRunPromp
     };
 };
 
-export interface CMIntroLensRequest {
+export interface PatchLensRequest {
     sourcePrompt: string;
     targetPrompt: string;
     model: string;
@@ -48,9 +48,9 @@ export interface CMIntroLensRequest {
     includeEntropy?: boolean;
 }
 
-export interface CMIntroLensResult {
+export interface PatchLensResult {
     source: LogitLensIntroData;
-    // Optional: when the user runs CM Intro in single-prompt mode (target blank)
+    // Optional: when the user runs Patch Lens in single-prompt mode (target blank)
     // we only compute the source lens.
     target: LogitLensIntroData | null;
     // Superset fields populated by the run mutation (undefined on the ephemeral
@@ -60,11 +60,11 @@ export interface CMIntroLensResult {
     summary?: LensRunSummary;
 }
 
-export interface CMIntroInterventionRequest {
+export interface PatchLensInterventionRequest {
     model: string;
     srcPrompt: string;
     tgtPrompt: string;
-    intervention: CMIntroInterventionSpec;
+    intervention: PatchLensInterventionSpec;
     chartId: string;
     topk?: number;
     includeEntropy?: boolean;
@@ -98,9 +98,9 @@ const runLogitLens = async (
 // Bare async executor, exported alongside the hook so a feature can run the
 // CM-intro lens pair without the hook's toast/invalidation wiring (per the
 // repo convention; see generateCompletion in modelsApi.ts).
-export const runCMIntroLogitLens = async (
-    request: CMIntroLensRequest,
-): Promise<CMIntroLensResult> => {
+export const runPatchLensLogitLens = async (
+    request: PatchLensRequest,
+): Promise<PatchLensResult> => {
     const headers = await createUserHeadersAction();
     const topk = request.topk ?? CM_INTRO_DEFAULT_TOPK;
     const includeEntropy = request.includeEntropy ?? true;
@@ -160,27 +160,27 @@ export const runCMIntroLogitLens = async (
     // lastRunTargetPrompt snapshot the prompts actually run, so the
     // predicted-next-token hint and the stale-prompt placeholder can fire
     // on edits even though autosave keeps sourcePrompt/targetPrompt fresh.
-    const persisted: CMIntroChartData = {
+    const persisted: PatchLensChartData = {
         sourcePrompt: request.sourcePrompt,
         targetPrompt: request.targetPrompt,
         lastRunSourcePrompt: request.sourcePrompt,
         lastRunTargetPrompt: request.targetPrompt,
         ...(activeLensRunId ? { activeLensRunId } : {}),
     };
-    await setChartData(request.chartId, persisted, "cm-intro");
+    await setChartData(request.chartId, persisted, "patch-lens");
 
-    // Superset of CMIntroLensResult: CMIntroArea consumes { source,
+    // Superset of PatchLensResult: PatchLensArea consumes { source,
     // target } (extra fields ignored); onSuccess uses activeLensRunId +
     // summary to seed the heatmap cache for an instant restore.
     return { source, target, activeLensRunId, summary };
 };
 
-export const useCMIntroLogitLens = () => {
+export const usePatchLensLogitLens = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationKey: ["cmIntroLogitLens"],
-        mutationFn: runCMIntroLogitLens,
+        mutationKey: ["patchLensLogitLens"],
+        mutationFn: runPatchLensLogitLens,
         onError: () => {
             toast.error("Failed to run logit lens.");
         },
@@ -215,12 +215,12 @@ export const useCMIntroLogitLens = () => {
     });
 };
 
-export const useCMIntroIntervention = () => {
+export const usePatchLensIntervention = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationKey: ["cmIntroIntervention"],
-        mutationFn: async (request: CMIntroInterventionRequest): Promise<LogitLensIntroData> => {
+        mutationKey: ["patchLensIntervention"],
+        mutationFn: async (request: PatchLensInterventionRequest): Promise<LogitLensIntroData> => {
             const headers = await createUserHeadersAction();
             const topk = request.topk ?? CM_INTRO_DEFAULT_TOPK;
             const includeEntropy = request.includeEntropy ?? true;
@@ -248,14 +248,14 @@ export const useCMIntroIntervention = () => {
             // active-run pointer. The patched heatmap is NOT written to the chart
             // row — it's attached to the active run below and fetched on demand.
             const existingChart = await getChartById(request.chartId);
-            const existingData = (existingChart?.data ?? {}) as Partial<CMIntroChartData>;
-            const merged: CMIntroChartData = {
+            const existingData = (existingChart?.data ?? {}) as Partial<PatchLensChartData>;
+            const merged: PatchLensChartData = {
                 ...existingData,
                 sourcePrompt: existingData.sourcePrompt ?? request.srcPrompt,
                 targetPrompt: existingData.targetPrompt ?? request.tgtPrompt,
                 intervention: request.intervention,
             };
-            await setChartData(request.chartId, merged, "cm-intro");
+            await setChartData(request.chartId, merged, "patch-lens");
 
             // F1: attach the patch + its heatmap to the run entry that produced
             // the current state, so the history shows the patch and the compare

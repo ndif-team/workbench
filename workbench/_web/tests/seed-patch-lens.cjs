@@ -1,9 +1,9 @@
 /**
- * Seeds local.db with a deterministic cm-intro chart + prompt history so the
+ * Seeds local.db with a deterministic patch-lens chart + prompt history so the
  * UI E2E (B1/F1) can exercise the heatmap and the history rail WITHOUT a model
  * run / NDIF. Run under node before Playwright.
  *
- *   node tests/seed-cm-intro.cjs
+ *   node tests/seed-patch-lens.cjs
  *
  * Fixed IDs let the spec navigate straight to the chart.
  */
@@ -98,11 +98,11 @@ db.prepare("DELETE FROM workspaces WHERE id = ?").run(WS_ID);
 
 db.prepare(
     "INSERT INTO workspaces (id, user_id, name, public, updated_at) VALUES (?, ?, ?, ?, ?)",
-).run(WS_ID, "dev@localhost", "E2E CM Intro", 0, now);
+).run(WS_ID, "dev@localhost", "E2E Patch Lens", 0, now);
 
 db.prepare(
     "INSERT INTO charts (id, workspace_id, name, data, type, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-).run(CHART_ID, WS_ID, "Eiffel Tower", JSON.stringify(chartData), "cm-intro", 0, now, now);
+).run(CHART_ID, WS_ID, "Eiffel Tower", JSON.stringify(chartData), "patch-lens", 0, now, now);
 
 // Three history entries (successive prompt versions) with distinct timestamps.
 const insRun = db.prepare(
@@ -147,6 +147,6 @@ versions.forEach((v, i) => {
 });
 
 console.log(
-    `Seeded workspace ${WS_ID}, chart ${CHART_ID} (cm-intro), ${versions.length} history rows -> ${DB_PATH}`,
+    `Seeded workspace ${WS_ID}, chart ${CHART_ID} (patch-lens), ${versions.length} history rows -> ${DB_PATH}`,
 );
 db.close();
