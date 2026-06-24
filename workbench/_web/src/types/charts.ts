@@ -64,7 +64,12 @@ export interface LineViewData {
 
 // Combined Types
 
-export type ChartData = Line[] | HeatmapRow[] | Lens2Data | ActivationPatchingData | CMIntroChartData;
+export type ChartData =
+    | Line[]
+    | HeatmapRow[]
+    | Lens2Data
+    | ActivationPatchingData
+    | CMIntroChartData;
 export type ChartView = HeatmapViewData | LineViewData;
 export type ConfigData =
     | LensConfigData

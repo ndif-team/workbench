@@ -471,12 +471,7 @@ export default function CMIntroArea({
                     </p>
                 </div>
 
-                <Button
-                    id="cm-intro-run"
-                    onClick={handleRun}
-                    disabled={!canRun}
-                    className="w-full"
-                >
+                <Button id="cm-intro-run" onClick={handleRun} disabled={!canRun} className="w-full">
                     {isRunning ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
