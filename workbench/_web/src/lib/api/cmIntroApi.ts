@@ -95,92 +95,92 @@ const runLogitLens = async (
     );
 };
 
+// Bare async executor, exported alongside the hook so a feature can run the
+// CM-intro lens pair without the hook's toast/invalidation wiring (per the
+// repo convention; see generateCompletion in modelsApi.ts).
+export const runCMIntroLogitLens = async (
+    request: CMIntroLensRequest,
+): Promise<CMIntroLensResult> => {
+    const headers = await createUserHeadersAction();
+    const topk = request.topk ?? CM_INTRO_DEFAULT_TOPK;
+    const includeEntropy = request.includeEntropy ?? true;
+    const hasTarget = !!request.targetPrompt && request.targetPrompt.trim().length > 0;
+
+    const [source, target] = await Promise.all([
+        runLogitLens(request.sourcePrompt, request.model, topk, includeEntropy, headers),
+        hasTarget
+            ? runLogitLens(request.targetPrompt, request.model, topk, includeEntropy, headers)
+            : Promise.resolve(null as unknown as LogitLensIntroData | null),
+    ]);
+
+    // F1: record this run as ONE prompt-history entry (source + optional
+    // target). The compact `summary` feeds the rail; the full `heatmaps`
+    // live in the row's `data` column and are fetched on demand (restore
+    // / compare). Capture the id so the chart row knows which entry to
+    // attach a later patch to. Best-effort — a history-write failure must
+    // not fail an otherwise-successful run, so activeLensRunId may stay
+    // undefined.
+    let activeLensRunId: string | undefined;
+    const srcSummary = toPromptSummary(request.sourcePrompt, source);
+    const tgtSummary = target && hasTarget ? toPromptSummary(request.targetPrompt, target) : null;
+    // Only build a summary when the source lens is well-formed. Casting a
+    // null srcSummary to LensRunPromptSummary would put a null `source`
+    // into a non-nullable field, crashing any consumer that reads
+    // summary.source.lastRow.
+    const summary: LensRunSummary | undefined = srcSummary
+        ? {
+              source: srcSummary,
+              ...(tgtSummary ? { target: tgtSummary } : {}),
+              params: { topk, includeEntropy },
+          }
+        : undefined;
+    try {
+        if (request.workspaceId && summary) {
+            const heatmaps: LensRunHeatmaps = {
+                source,
+                ...(target ? { target } : {}),
+            };
+            const created = await createLensRun({
+                workspaceId: request.workspaceId,
+                chartId: request.chartId,
+                model: request.model,
+                summary,
+                heatmaps,
+            });
+            activeLensRunId = created.id;
+        }
+    } catch (err) {
+        console.error("Failed to record prompt history", err);
+    }
+
+    // The chart row carries NO heatmaps anymore — just the prompts, the
+    // snapshot of the prompts this run was computed from, and a pointer
+    // to the run that owns the heatmaps (activeLensRunId). The Display
+    // fetches the heatmaps by that id. lastRunSourcePrompt/
+    // lastRunTargetPrompt snapshot the prompts actually run, so the
+    // predicted-next-token hint and the stale-prompt placeholder can fire
+    // on edits even though autosave keeps sourcePrompt/targetPrompt fresh.
+    const persisted: CMIntroChartData = {
+        sourcePrompt: request.sourcePrompt,
+        targetPrompt: request.targetPrompt,
+        lastRunSourcePrompt: request.sourcePrompt,
+        lastRunTargetPrompt: request.targetPrompt,
+        ...(activeLensRunId ? { activeLensRunId } : {}),
+    };
+    await setChartData(request.chartId, persisted, "cm-intro");
+
+    // Superset of CMIntroLensResult: CMIntroArea consumes { source,
+    // target } (extra fields ignored); onSuccess uses activeLensRunId +
+    // summary to seed the heatmap cache for an instant restore.
+    return { source, target, activeLensRunId, summary };
+};
+
 export const useCMIntroLogitLens = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationKey: ["cmIntroLogitLens"],
-        mutationFn: async (request: CMIntroLensRequest): Promise<CMIntroLensResult> => {
-            const headers = await createUserHeadersAction();
-            const topk = request.topk ?? CM_INTRO_DEFAULT_TOPK;
-            const includeEntropy = request.includeEntropy ?? true;
-            const hasTarget = !!request.targetPrompt && request.targetPrompt.trim().length > 0;
-
-            const [source, target] = await Promise.all([
-                runLogitLens(request.sourcePrompt, request.model, topk, includeEntropy, headers),
-                hasTarget
-                    ? runLogitLens(
-                          request.targetPrompt,
-                          request.model,
-                          topk,
-                          includeEntropy,
-                          headers,
-                      )
-                    : Promise.resolve(null as unknown as LogitLensIntroData | null),
-            ]);
-
-            // F1: record this run as ONE prompt-history entry (source + optional
-            // target). The compact `summary` feeds the rail; the full `heatmaps`
-            // live in the row's `data` column and are fetched on demand (restore
-            // / compare). Capture the id so the chart row knows which entry to
-            // attach a later patch to. Best-effort — a history-write failure must
-            // not fail an otherwise-successful run, so activeLensRunId may stay
-            // undefined.
-            let activeLensRunId: string | undefined;
-            const srcSummary = toPromptSummary(request.sourcePrompt, source);
-            const tgtSummary =
-                target && hasTarget ? toPromptSummary(request.targetPrompt, target) : null;
-            // Only build a summary when the source lens is well-formed. Casting a
-            // null srcSummary to LensRunPromptSummary would put a null `source`
-            // into a non-nullable field, crashing any consumer that reads
-            // summary.source.lastRow.
-            const summary: LensRunSummary | undefined = srcSummary
-                ? {
-                      source: srcSummary,
-                      ...(tgtSummary ? { target: tgtSummary } : {}),
-                      params: { topk, includeEntropy },
-                  }
-                : undefined;
-            try {
-                if (request.workspaceId && summary) {
-                    const heatmaps: LensRunHeatmaps = {
-                        source,
-                        ...(target ? { target } : {}),
-                    };
-                    const created = await createLensRun({
-                        workspaceId: request.workspaceId,
-                        chartId: request.chartId,
-                        model: request.model,
-                        summary,
-                        heatmaps,
-                    });
-                    activeLensRunId = created.id;
-                }
-            } catch (err) {
-                console.error("Failed to record prompt history", err);
-            }
-
-            // The chart row carries NO heatmaps anymore — just the prompts, the
-            // snapshot of the prompts this run was computed from, and a pointer
-            // to the run that owns the heatmaps (activeLensRunId). The Display
-            // fetches the heatmaps by that id. lastRunSourcePrompt/
-            // lastRunTargetPrompt snapshot the prompts actually run, so the
-            // predicted-next-token hint and the stale-prompt placeholder can fire
-            // on edits even though autosave keeps sourcePrompt/targetPrompt fresh.
-            const persisted: CMIntroChartData = {
-                sourcePrompt: request.sourcePrompt,
-                targetPrompt: request.targetPrompt,
-                lastRunSourcePrompt: request.sourcePrompt,
-                lastRunTargetPrompt: request.targetPrompt,
-                ...(activeLensRunId ? { activeLensRunId } : {}),
-            };
-            await setChartData(request.chartId, persisted, "cm-intro");
-
-            // Superset of CMIntroLensResult: CMIntroArea consumes { source,
-            // target } (extra fields ignored); onSuccess uses activeLensRunId +
-            // summary to seed the heatmap cache for an instant restore.
-            return { source, target, activeLensRunId, summary };
-        },
+        mutationFn: runCMIntroLogitLens,
         onError: () => {
             toast.error("Failed to run logit lens.");
         },

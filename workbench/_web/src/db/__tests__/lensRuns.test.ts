@@ -230,7 +230,7 @@ describe("lens_runs (F1 prompt history)", () => {
             heatmaps: heatmaps(" y"),
         });
 
-        await deleteLensRun(a.id);
+        await deleteLensRun(a.workspaceId, a.id);
         const rows = await getLensRunsByChart(WS, CHART_A);
         expect(rows).toHaveLength(1);
         expect(rows[0].summary.source.finalToken).toBe(" y");

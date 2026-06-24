@@ -75,7 +75,8 @@ export type ConfigData =
     | LensConfigData
     | Lens2ConfigData
     | PatchingConfig
-    | ActivationPatchingConfigData;
+    | ActivationPatchingConfigData
+    | Record<string, never>; // cm-intro stores no config payload
 
 export type ChartType = "line" | "heatmap" | "lens2" | "activation-patching" | "cm-intro";
 export type ToolType = "lens" | "lens2" | "patch" | "activation-patching" | "cm-intro";

@@ -253,7 +253,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             { chartId, workspaceId: workspaceId as string },
             {
                 onSuccess: () => {
-                    if (nextChart) navigateToChart(nextChart.id, nextChart.toolType ?? undefined);
+                    if (nextChart)
+                        navigateToChart(
+                            nextChart.id,
+                            nextChart.toolType ?? nextChart.chartType ?? undefined,
+                        );
                 },
             },
         );
@@ -272,7 +276,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                 onSuccess: () => {
                     if (chartId !== deletedId) return;
                     const nextChart = remaining[0];
-                    if (nextChart) navigateToChart(nextChart.id, nextChart.toolType ?? undefined);
+                    if (nextChart)
+                        navigateToChart(
+                            nextChart.id,
+                            nextChart.toolType ?? nextChart.chartType ?? undefined,
+                        );
                     else router.push(`/workbench/${workspaceId}`);
                 },
             },
@@ -302,7 +310,10 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                     // If the current route is the deleted report, navigate to first chart if any
                     const firstChart = charts && charts.length > 0 ? charts[0] : null;
                     if (firstChart) {
-                        navigateToChart(firstChart.id, firstChart.toolType ?? undefined);
+                        navigateToChart(
+                            firstChart.id,
+                            firstChart.toolType ?? firstChart.chartType ?? undefined,
+                        );
                     }
                 },
             },

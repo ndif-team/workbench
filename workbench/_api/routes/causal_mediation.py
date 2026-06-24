@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 import torch
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 
 from ..auth import require_user_email
 from ..data_models import NDIFResponse
@@ -19,11 +19,11 @@ class CausalMediationRequest(BaseModel):
     model: str
     src_prompt: str
     tgt_prompt: str
-    src_token_pos: int
-    src_layer: int
-    tgt_token_pos: int
-    tgt_layer: int
-    topk: int = 5
+    src_token_pos: int = Field(ge=0)
+    src_layer: int = Field(ge=0)
+    tgt_token_pos: int = Field(ge=0)
+    tgt_layer: int = Field(ge=0)
+    topk: int = Field(default=5, ge=1)
     include_entropy: bool = True
 
 
@@ -102,6 +102,31 @@ def _decode_input_tokens(tokenizer, prompt: str) -> list[str]:
     return [str(tokenizer.decode(token)) for token in tokenizer.encode(prompt)]
 
 
+def _validate_indices(req: CausalMediationRequest, model) -> None:
+    """Reject out-of-range layer/token indices with a 422 rather than letting an
+    IndexError during tracing surface as an opaque 500. `Field(ge=0)` already
+    guards negatives; here we bound-check against the model's layer count and
+    each prompt's token length."""
+    n_layers = model.num_layers
+    if req.src_layer >= n_layers or req.tgt_layer >= n_layers:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Layer index out of range (model has {n_layers} layers).",
+        )
+    n_src = len(model.tokenizer.encode(req.src_prompt))
+    n_tgt = len(model.tokenizer.encode(req.tgt_prompt))
+    if req.src_token_pos >= n_src:
+        raise HTTPException(
+            status_code=422,
+            detail=f"src_token_pos out of range (source prompt has {n_src} tokens).",
+        )
+    if req.tgt_token_pos >= n_tgt:
+        raise HTTPException(
+            status_code=422,
+            detail=f"tgt_token_pos out of range (target prompt has {n_tgt} tokens).",
+        )
+
+
 def _run_causal_mediation(
     model,
     src_prompt: str,
@@ -158,6 +183,7 @@ async def start_causal_mediation(
     user_email: str = Depends(require_user_email),
 ):
     model = state[req.model]
+    _validate_indices(req, model)
     backend = state.make_backend(model=model)
 
     raw = _run_causal_mediation(

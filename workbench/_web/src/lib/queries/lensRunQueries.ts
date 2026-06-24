@@ -126,8 +126,11 @@ export const getLensRunHeatmaps = async (
     return (await getLensRunHeatmapsByIds([id]))[0] ?? null;
 };
 
-export const deleteLensRun = async (id: string): Promise<void> => {
-    await db.delete(lensRuns).where(eq(lensRuns.id, id));
+export const deleteLensRun = async (workspaceId: string, id: string): Promise<void> => {
+    // Scope by workspace so a run id alone can't delete another workspace's row.
+    await db
+        .delete(lensRuns)
+        .where(and(eq(lensRuns.id, id), eq(lensRuns.workspaceId, workspaceId)));
 };
 
 /** Clear a chart's history (used by the rail's "Clear" affordance). Scoped by
