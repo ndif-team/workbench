@@ -216,6 +216,59 @@ jobs:
             --from-literal=HF_TOKEN="$HF_TOKEN" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      # When a prior run gets killed mid-flight (runner OOMKilled,
+      # workflow cancelled, ctrl-c'd before helm finished), the helm
+      # release is left in `pending-upgrade` / `pending-install` /
+      # `pending-rollback`. Every subsequent `helm upgrade --install`
+      # then fails with:
+      #   Error: UPGRADE FAILED: another operation (install/upgrade/rollback) is in progress
+      # `--atomic` on the upgrade below handles the case where THIS run
+      # fails (rollback happens before the step exits), but it can't
+      # help when the process is killed externally — no time to clean
+      # up. Detect the leftover pending state and recover here.
+      - name: Recover stuck helm release
+        env:
+          PR_NUM: ${{ steps.meta.outputs.preview_id }}
+          NS: ${{ steps.meta.outputs.namespace }}
+        run: |
+          set -euo pipefail
+          release="pr-${PR_NUM}"
+
+          if ! helm -n "$NS" status "$release" >/dev/null 2>&1; then
+            echo "No existing release $release; nothing to recover."
+            exit 0
+          fi
+
+          status=$(helm -n "$NS" status "$release" -o json \
+            | python3 -c 'import sys, json; print(json.load(sys.stdin).get("info", {}).get("status", ""))')
+          echo "Current release status: $status"
+
+          case "$status" in
+            pending-upgrade|pending-rollback)
+              # Roll forward to the last successful revision. `helm
+              # rollback` writes a new revision mirroring the target,
+              # which clears the pending state.
+              last_deployed=$(helm -n "$NS" history "$release" -o json \
+                | python3 -c 'import sys, json; r=[x["revision"] for x in json.load(sys.stdin) if x["status"]=="deployed"]; print(r[-1] if r else "")')
+              if [ -z "$last_deployed" ]; then
+                echo "::warning::release in $status with no deployed revision in history — uninstalling"
+                helm -n "$NS" uninstall "$release" --wait --timeout 5m
+              else
+                echo "::warning::release in $status — rolling back to revision $last_deployed"
+                helm -n "$NS" rollback "$release" "$last_deployed" --wait --timeout 5m
+              fi
+              ;;
+            pending-install)
+              # First install never completed; no prior good state.
+              # Uninstall so the next upgrade --install starts clean.
+              echo "::warning::release in pending-install — uninstalling"
+              helm -n "$NS" uninstall "$release" --wait --timeout 5m
+              ;;
+            *)
+              echo "Release status OK; no recovery needed."
+              ;;
+          esac
+
       - name: Helm upgrade --install
         env:
           PR_NUM: ${{ steps.meta.outputs.preview_id }}
@@ -225,6 +278,13 @@ jobs:
           API_HOST: ${{ steps.meta.outputs.api_host }}
           TAG: ${{ steps.meta.outputs.tag }}
         run: |
+          # --atomic: if the upgrade fails before --timeout, helm rolls
+          #   back to the prior revision in the same shell invocation,
+          #   leaving the release in `deployed` (not `failed`) state so
+          #   the next run isn't wedged.
+          # --cleanup-on-fail: also deletes any new resources the failed
+          #   upgrade created (implied by --atomic, set explicitly for
+          #   clarity).
           helm upgrade --install "pr-${PR_NUM}" deploy/preview \
             --namespace "$NS" \
             --set image.repository="${IMAGE_NAME}" \
@@ -237,6 +297,7 @@ jobs:
             --set ingress.host="${HOST}" \
             --set ingress.className="${INGRESS_CLASS}" \
             --set ingress.clusterIssuer="${CLUSTER_ISSUER}" \
+            --atomic --cleanup-on-fail \
             --wait --timeout 10m
 
       - name: Write job summary
