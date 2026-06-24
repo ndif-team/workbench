@@ -9,6 +9,7 @@ import {
     Copy,
     MoreVertical,
     GitBranch,
+    GraduationCap,
     type LucideIcon,
 } from "lucide-react";
 import { ChartMetadata, ChartType } from "@/types/charts";
@@ -31,7 +32,7 @@ const TOOL_META: Record<ChartType, { label: string; Icon: LucideIcon }> = {
     heatmap: { label: "Heatmap", Icon: Grid3X3 },
     lens2: { label: "Logit Lens", Icon: Grid3X3 },
     "activation-patching": { label: "Act. Patching", Icon: GitBranch },
-    "cm-intro": { label: "CM Intro", Icon: GitBranch },
+    "cm-intro": { label: "Workshop activity", Icon: GraduationCap },
 };
 
 export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCardProps) {

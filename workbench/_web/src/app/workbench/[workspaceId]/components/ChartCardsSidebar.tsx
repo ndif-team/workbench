@@ -35,6 +35,7 @@ import {
     FileText,
     Layers,
     GitBranch,
+    GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -348,14 +349,14 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                 onClick={() => handleCreate("cm-intro")}
                 disabled={isCreatingAny}
                 className="w-full"
-                title="Causal Mediation Intro"
+                title="New workshop activity"
             >
                 {isCreatingCMIntro ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                    <GitBranch className="w-4 h-4" />
+                    <GraduationCap className="w-4 h-4" />
                 )}
-                <span>CM Intro</span>
+                <span>New workshop activity</span>
             </Button>
             <Button
                 variant="outline"
@@ -438,12 +439,12 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                         onClick={() => handleCreate("cm-intro")}
                         disabled={isCreatingAny}
                         className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
-                        title="New CM Intro"
+                        title="New workshop activity"
                     >
                         {isCreatingCMIntro ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                            <GitBranch className="h-4 w-4" />
+                            <GraduationCap className="h-4 w-4" />
                         )}
                     </Button>
                     <Button
