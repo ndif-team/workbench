@@ -21,12 +21,11 @@ ALLOWED_ORIGINS = [
     "https://workbench.ndif.us"
 ]
 
-if os.environ.get('CONFIG') != "prod":
-    ALLOWED_ORIGINS.append("http://localhost:3000")
-
 ALLOWED_ORIGIN_REGEX = (
-    # Vercel dev/staging previews + ripley-cluster PR previews.
-    r"^https://(workbench-[a-z0-9\-]*-ndif\.vercel\.app|pr-[a-z0-9\-]+\.ndif-preview\.ripley\.cloud)$"
+    # Non-prod: any localhost / 127.0.0.1 port (local dev, multiple instances),
+    # plus Vercel dev/staging previews and ripley-cluster PR previews.
+    r"^(http://(localhost|127\.0\.0\.1)(:\d+)?"
+    r"|https://(workbench-[a-z0-9\-]*-ndif\.vercel\.app|pr-[a-z0-9\-]+\.ndif-preview\.ripley\.cloud))$"
     if os.environ.get('CONFIG') != "prod"
     else None  # in prod, rely on the fixed list above
 )

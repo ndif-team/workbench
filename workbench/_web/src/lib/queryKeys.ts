@@ -22,4 +22,7 @@ export const queryKeys = {
         byChart: (chartId: string, model?: string) => ["lensRuns", chartId, model ?? null] as const,
         heatmaps: (ids: string[]) => ["lensRunHeatmaps", ...ids] as const,
     },
+    models: {
+        all: ["models"] as const,
+    },
 };

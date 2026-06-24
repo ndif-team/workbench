@@ -69,6 +69,7 @@ export default {
             },
             animation: {
                 shimmer: "shimmer 2s infinite",
+                "shimmer-fast": "shimmer 1s infinite",
             },
             container: {
                 center: true,

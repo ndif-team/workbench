@@ -1,6 +1,8 @@
-remote = true
-
-models = [
+# Models that the backend should always load in local mode (preloaded with GPU
+# weights at startup, never LRU-evicted). In remote mode pin status comes from
+# NDIF instead; this list is ignored. Remote vs local deployment is controlled
+# by the REMOTE env var.
+pinned = [
     "openai-community/gpt2",
     "EleutherAI/gpt-j-6b",
     "meta-llama/Llama-2-7b-hf",

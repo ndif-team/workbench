@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+.docs/
 
 # debug
 npm-debug.log*
@@ -65,3 +66,4 @@ local.db
 
 # Per-user Claude Code settings (skills + CLAUDE.md ARE committed)
 .claude/settings.local.json
+.claude/

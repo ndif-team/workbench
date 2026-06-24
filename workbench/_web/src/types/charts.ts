@@ -84,4 +84,10 @@ export type ChartMetadata = {
     createdAt: Date;
     updatedAt: Date;
     thumbnailUrl?: string | null;
+    /** The chart's saved model (from its config). Lets the sidebar decide
+     * whether the chart's model is still deploying. */
+    model?: string | null;
+    /** Whether the chart has a saved result. A chart with data shows it even if
+     * its model later goes cold; only data-less charts get the deploying card. */
+    hasData?: boolean;
 };

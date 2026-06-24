@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ModelSelector } from "@/components/ModelSelector";
 import { AlertCircle, Loader2, Play, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -389,7 +388,6 @@ export default function CMIntroArea({
                     >
                         Tutorial
                     </Button>
-                    <ModelSelector />
                 </div>
             </div>
 

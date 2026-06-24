@@ -29,9 +29,19 @@ const PROMPT = "The Eiffel Tower is in the city of";
  */
 
 async function runOnce(page: import("@playwright/test").Page) {
-    const runButton = page.getByRole("button", { name: /Run Logit Lens/i });
-    await expect(runButton).toBeEnabled({ timeout: 15_000 });
-    await runButton.click();
+    // The Run button is gated behind a blur-driven tokenization step
+    // (`tokensInSync`) that's awkward to trigger reliably from a test. Submit
+    // via the documented Cmd/Ctrl+Enter shortcut instead — it calls handleSubmit
+    // directly, which tokenizes and runs in one step regardless of the button's
+    // enabled state. Fall back to clicking Run if the editor already collapsed
+    // to the token view (in which case Run is enabled).
+    const editor = page.getByPlaceholder(/Enter your prompt here/);
+    if ((await editor.count()) > 0) {
+        await editor.focus();
+        await editor.press("ControlOrMeta+Enter");
+    } else {
+        await page.getByRole("button", { name: /Run Logit Lens/i }).click();
+    }
 
     // The widget Empty-state copy is the most stable signal that no
     // result exists yet — wait for it to disappear (or never appear if a
