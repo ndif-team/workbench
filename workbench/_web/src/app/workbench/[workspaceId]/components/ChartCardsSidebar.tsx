@@ -347,20 +347,6 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             </Button>
             <Button
                 variant="outline"
-                onClick={() => handleCreate("patch-lens")}
-                disabled={isCreatingAny}
-                className="w-full"
-                title="New Patch Lens"
-            >
-                {isCreatingPatchLens ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                    <PatchLensIcon className="w-4 h-4" />
-                )}
-                <span>New Patch Lens</span>
-            </Button>
-            <Button
-                variant="outline"
                 onClick={() => handleCreate("activation-patching")}
                 disabled={isCreatingAny}
                 className="w-full"
@@ -372,6 +358,20 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                     <GitBranch className="w-4 h-4" />
                 )}
                 <span>Activation Patching</span>
+            </Button>
+            <Button
+                variant="outline"
+                onClick={() => handleCreate("patch-lens")}
+                disabled={isCreatingAny}
+                className="w-full"
+                title="Patch Lens"
+            >
+                {isCreatingPatchLens ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                    <PatchLensIcon className="w-4 h-4" />
+                )}
+                <span>Patch Lens</span>
             </Button>
             <Button
                 variant="outline"
