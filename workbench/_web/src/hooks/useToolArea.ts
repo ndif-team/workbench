@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
@@ -74,13 +74,24 @@ export function useToolArea<
     const typedConfig = config as TConfig | undefined;
     const typedChart = chart as TChart | undefined;
 
+    // Sync the workspace's selected model to the chart's saved model ONCE per
+    // chart (when its config first loads / the catalog first becomes available).
+    // Without the per-chart guard this would re-fire on every background models
+    // refetch (the `select` returns a fresh array identity each time) and stomp
+    // the user's manual model switch every ~60s. Reads hoisted primitives (not
+    // the whole config object) so the effect only re-runs on real changes.
+    const configId = typedConfig?.id;
+    const configModel = typedConfig?.data?.model;
+    const syncedChartIdRef = useRef<string | undefined>(undefined);
     useEffect(() => {
-        if (!typedConfig || !models || models.length === 0) return;
-        const configModel = typedConfig.data?.model;
-        if (!configModel) return;
+        if (!configId || !configModel || !models || models.length === 0) return;
+        if (syncedChartIdRef.current === configId) return;
         const idx = models.findIndex((m) => m.name === configModel);
-        if (idx !== -1) setSelectedModelIdx(idx);
-    }, [typedConfig?.id, models, setSelectedModelIdx, typedConfig]);
+        if (idx !== -1) {
+            setSelectedModelIdx(idx);
+            syncedChartIdRef.current = configId;
+        }
+    }, [configId, configModel, models, setSelectedModelIdx]);
 
     const modelsAvailable = !!models && models.length > 0;
     const effectiveModel = useMemo(() => {

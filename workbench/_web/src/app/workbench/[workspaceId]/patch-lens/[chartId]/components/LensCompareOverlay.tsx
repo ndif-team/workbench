@@ -222,7 +222,9 @@ export function LensCompareOverlay({ runs, open, onOpenChange }: LensCompareOver
             return next;
         });
 
-    const selectedRefs = refs.filter((r) => selected.has(refKey(r)));
+    // Memoized so the downstream `groups` / `selectedRunIds` memos keep a stable
+    // input identity (a fresh filter() each render would defeat them).
+    const selectedRefs = useMemo(() => refs.filter((r) => selected.has(refKey(r))), [refs, selected]);
     // Both views group selected prompts by model (layer counts differ across
     // models, so they can't share a table / heatmap-grid header).
     const groups = useMemo(() => groupByModel(selectedRefs), [selectedRefs]);

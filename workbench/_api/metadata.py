@@ -163,6 +163,37 @@ def _get_param_count(model_name: str) -> int:
     return sum(int(v) for v in metadata.parameter_count.values())
 
 
+def _is_transient_metadata_error(exc: BaseException) -> bool:
+    """True when a config probe failed for a transient/access reason rather than
+    a genuine supportability verdict.
+
+    Network blips, timeouts, server errors (5xx), rate limits (429/408), and
+    auth/gated responses (403) are transient: the repo may well be a supported
+    model once the Hub recovers or access is granted. A 404 (repo/file genuinely
+    absent — e.g. a LoRA adapter with no ``config.json``) or a local config-parse
+    error is a real verdict and is left to become ``UnsupportedModel``.
+
+    Transient failures must not be cached as unsupported, otherwise a single Hub
+    hiccup permanently drops the model from the catalog (across restarts) until
+    the cache file is deleted by hand.
+    """
+    from requests.exceptions import ConnectionError as RequestsConnectionError
+    from requests.exceptions import Timeout as RequestsTimeout
+
+    seen: set[int] = set()
+    cur: BaseException | None = exc
+    # transformers wraps the underlying Hub/HTTP error, so walk the cause chain.
+    while cur is not None and id(cur) not in seen:
+        if isinstance(cur, (RequestsConnectionError, RequestsTimeout)):
+            return True
+        status = getattr(getattr(cur, "response", None), "status_code", None)
+        if status is not None and (status >= 500 or status in (403, 408, 429)):
+            return True
+        seen.add(id(cur))
+        cur = cur.__cause__ or cur.__context__
+    return False
+
+
 def fetch_model_metadata(model_name: str) -> ModelMetadata:
     """Fetch and derive metadata for a HuggingFace model repo.
 
@@ -190,6 +221,10 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
     try:
         config = AutoConfig.from_pretrained(model_name, trust_remote_code=False)
     except Exception as e:
+        # Don't turn a transient Hub failure into a permanent unsupported verdict
+        # — re-raise so the caller skips this model for now and retries later.
+        if _is_transient_metadata_error(e):
+            raise
         raise UnsupportedModel(
             f"{model_name} is not a standard text-to-text transformer (config load failed: {e})"
         ) from e

@@ -123,9 +123,12 @@ export function apConfigEqualsExceptModel(
 
 /**
  * Computes whether a chart is "stale" — the model behind the rendered
- * visualization differs from the workspace's current selection, or models
- * aren't available at all. Both the Lens2 and AP Display surfaces use this
- * to decide whether to show the ChartModelPill.
+ * visualization differs from the workspace's current selection. Both the Lens2
+ * and AP Display surfaces use this to decide whether to show the ChartModelPill.
+ *
+ * While the catalog is still loading (`modelsAvailable` false) we can't know
+ * the current selection, so we report "not stale" rather than flashing the
+ * pill on every chart open.
  */
 export function isChartStale(
     chartModel: string | null,
@@ -133,7 +136,7 @@ export function isChartStale(
     modelsAvailable: boolean,
 ): boolean {
     if (!chartModel) return false;
-    if (!modelsAvailable) return true;
+    if (!modelsAvailable) return false;
     return chartModel !== selectedModel;
 }
 

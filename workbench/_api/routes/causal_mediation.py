@@ -224,7 +224,16 @@ async def collect_causal_mediation(
     backend = state.make_backend(job_id=job_id)
     results = backend()
 
-    model = state[req.model]
+    # The model can be deregistered from the catalog (NDIF stopped serving it)
+    # between /start and /results; state[...] raises KeyError in that case.
+    # Surface a clear 503 instead of an opaque 500.
+    try:
+        model = state[req.model]
+    except KeyError:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Model {req.model} is no longer available; please re-run.",
+        )
     tokenizer = model.tokenizer
     input_tokens = _decode_input_tokens(tokenizer, req.tgt_prompt)
 
