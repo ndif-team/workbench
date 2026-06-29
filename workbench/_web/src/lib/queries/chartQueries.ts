@@ -56,7 +56,8 @@ type ConfigPayload =
     | { type: "lens"; data: LensConfigData }
     | { type: "lens2"; data: Lens2ConfigData }
     | { type: "patch"; data: PatchingConfig }
-    | { type: "activation-patching"; data: ActivationPatchingConfigData };
+    | { type: "activation-patching"; data: ActivationPatchingConfigData }
+    | { type: "patch-lens"; data: Record<string, never> };
 
 // Creates a chart, its config, and the link between them, with the chart
 // positioned at the bottom of the unified sidebar list.
@@ -85,6 +86,9 @@ export const createLensChartPair = async (
 
 export const createLens2ChartPair = async (workspaceId: string, defaultConfig: Lens2ConfigData) =>
     createChartConfigPair(workspaceId, { type: "lens2", data: defaultConfig });
+
+export const createPatchLensChartPair = async (workspaceId: string) =>
+    createChartConfigPair(workspaceId, { type: "patch-lens", data: {} });
 
 export const createPatchChartPair = async (workspaceId: string, defaultConfig: PatchingConfig) =>
     createChartConfigPair(workspaceId, { type: "patch", data: defaultConfig });
@@ -221,14 +225,22 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
         .from(configs)
         .where(eq(configs.id, originalLink.configId));
 
-    // Create the new chart with copied data
+    // Create the new chart with copied data. For patch-lens, drop the pointer to
+    // the source chart's active lens run so the copy starts without history.
+    let copiedData = originalChart.data;
+    if (originalChart.type === "patch-lens" && copiedData && typeof copiedData === "object") {
+        const rest = { ...(copiedData as Record<string, unknown>) };
+        delete rest.activeLensRunId;
+        copiedData = rest as typeof originalChart.data;
+    }
+
     const position = await getNextWorkspaceItemPosition(originalChart.workspaceId);
     const [newChart] = await db
         .insert(charts)
         .values({
             workspaceId: originalChart.workspaceId,
             name: `Copy of ${originalChart.name}`,
-            data: originalChart.data,
+            data: copiedData,
             type: originalChart.type,
             view: originalChart.view,
             position,

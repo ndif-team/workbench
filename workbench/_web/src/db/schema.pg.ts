@@ -1,6 +1,7 @@
 import { boolean, jsonb, pgTable, varchar, uuid, timestamp, real } from "drizzle-orm/pg-core";
 import type { ConfigData, ChartData, ChartView } from "@/types/charts";
 import type { LensConfigData } from "@/types/lens";
+import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 
 export const workspaces = pgTable("workspaces", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -83,6 +84,23 @@ export const documents = pgTable("documents", {
         .$onUpdate(() => new Date()),
 });
 
+// F1 prompt history: one row per successful patch-lens lens run; cascades through
+// workspace/chart like configs. Split storage: `summary` is the compact slice
+// the rail lists; `data` holds the full per-prompt heatmaps, fetched on demand.
+export const lensRuns = pgTable("lens_runs", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+        .references(() => workspaces.id, { onDelete: "cascade" })
+        .notNull(),
+    chartId: uuid("chart_id")
+        .references(() => charts.id, { onDelete: "cascade" })
+        .notNull(),
+    model: varchar("model", { length: 256 }).notNull(),
+    summary: jsonb("summary").$type<LensRunSummary>().notNull(),
+    data: jsonb("data").$type<LensRunHeatmaps>().notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
 // Generate types from schema
 export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
@@ -98,3 +116,6 @@ export type NewChartConfigLink = typeof chartConfigLinks.$inferInsert;
 
 export type View = typeof views.$inferSelect;
 export type NewView = typeof views.$inferInsert;
+
+export type LensRun = typeof lensRuns.$inferSelect;
+export type NewLensRun = typeof lensRuns.$inferInsert;

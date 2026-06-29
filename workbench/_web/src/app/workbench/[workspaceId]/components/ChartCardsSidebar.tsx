@@ -5,6 +5,7 @@ import { getChartsMetadata } from "@/lib/queries/chartQueries";
 import { useParams, useRouter } from "next/navigation";
 import {
     useCreateLens2ChartPair,
+    useCreatePatchLensChartPair,
     useCreatePatchChartPair,
     useCreateActivationPatchingChartPair,
     useDeleteChart,
@@ -36,6 +37,7 @@ import {
     GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PatchLensIcon } from "@/components/PatchLensIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     DndContext,
@@ -69,6 +71,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     );
 
     const { mutate: createLens2Pair, isPending: isCreatingLens2 } = useCreateLens2ChartPair();
+    const { mutate: createPatchLensPair, isPending: isCreatingPatchLens } =
+        useCreatePatchLensChartPair();
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
     const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
         useCreateActivationPatchingChartPair();
@@ -193,6 +197,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             router.push(`/workbench/${workspaceId}/lens2/${chartId}`);
         } else if (toolType === "activation-patching") {
             router.push(`/workbench/${workspaceId}/activation-patching/${chartId}`);
+        } else if (toolType === "patch-lens") {
+            router.push(`/workbench/${workspaceId}/patch-lens/${chartId}`);
         } else {
             router.push(`/workbench/${workspaceId}/${chartId}`);
         }
@@ -202,12 +208,21 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (toolType: "lens2" | "patch" | "activation-patching") => {
+    const handleCreate = (toolType: "lens2" | "patch" | "activation-patching" | "patch-lens") => {
         if (toolType === "lens2") {
             createLens2Pair(
                 { workspaceId: workspaceId as string },
                 {
                     onSuccess: ({ chart }) => navigateToChart(chart.id, "lens2"),
+                },
+            );
+            return;
+        }
+        if (toolType === "patch-lens") {
+            createPatchLensPair(
+                { workspaceId: workspaceId as string },
+                {
+                    onSuccess: ({ chart }) => navigateToChart(chart.id, "patch-lens"),
                 },
             );
             return;
@@ -240,7 +255,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             { chartId, workspaceId: workspaceId as string },
             {
                 onSuccess: () => {
-                    if (nextChart) navigateToChart(nextChart.id, nextChart.toolType ?? undefined);
+                    if (nextChart)
+                        navigateToChart(
+                            nextChart.id,
+                            nextChart.toolType ?? nextChart.chartType ?? undefined,
+                        );
                 },
             },
         );
@@ -259,7 +278,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                 onSuccess: () => {
                     if (chartId !== deletedId) return;
                     const nextChart = remaining[0];
-                    if (nextChart) navigateToChart(nextChart.id, nextChart.toolType ?? undefined);
+                    if (nextChart)
+                        navigateToChart(
+                            nextChart.id,
+                            nextChart.toolType ?? nextChart.chartType ?? undefined,
+                        );
                     else router.push(`/workbench/${workspaceId}`);
                 },
             },
@@ -289,7 +312,10 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                     // If the current route is the deleted report, navigate to first chart if any
                     const firstChart = charts && charts.length > 0 ? charts[0] : null;
                     if (firstChart) {
-                        navigateToChart(firstChart.id, firstChart.toolType ?? undefined);
+                        navigateToChart(
+                            firstChart.id,
+                            firstChart.toolType ?? firstChart.chartType ?? undefined,
+                        );
                     }
                 },
             },
@@ -297,7 +323,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     };
 
     const isCreatingAny =
-        isCreatingLens2 || isCreatingPatch || isCreatingActivationPatching || isCreatingDocument;
+        isCreatingLens2 ||
+        isCreatingPatchLens ||
+        isCreatingPatch ||
+        isCreatingActivationPatching ||
+        isCreatingDocument;
 
     const actionButtons = (
         <div className="flex flex-col w-full gap-2 text-sm">
@@ -328,6 +358,20 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                     <GitBranch className="w-4 h-4" />
                 )}
                 <span>Activation Patching</span>
+            </Button>
+            <Button
+                variant="outline"
+                onClick={() => handleCreate("patch-lens")}
+                disabled={isCreatingAny}
+                className="w-full"
+                title="Patch Lens"
+            >
+                {isCreatingPatchLens ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                    <PatchLensIcon className="w-4 h-4" />
+                )}
+                <span>Patch Lens</span>
             </Button>
             <Button
                 variant="outline"
@@ -388,6 +432,20 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                             <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                             <GitBranch className="h-4 w-4" />
+                        )}
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleCreate("patch-lens")}
+                        disabled={isCreatingAny}
+                        className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
+                        title="New Patch Lens"
+                    >
+                        {isCreatingPatchLens ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <PatchLensIcon className="h-4 w-4" />
                         )}
                     </Button>
                     <Button

@@ -1,5 +1,6 @@
 import { LensConfigData } from "./lens";
 import { Lens2ConfigData, Lens2Data } from "./lens2";
+import { PatchLensChartData } from "./patchLens";
 import { PatchingConfig } from "./patching";
 import { ActivationPatchingConfigData, ActivationPatchingData } from "./activationPatching";
 
@@ -63,16 +64,22 @@ export interface LineViewData {
 
 // Combined Types
 
-export type ChartData = Line[] | HeatmapRow[] | Lens2Data | ActivationPatchingData;
+export type ChartData =
+    | Line[]
+    | HeatmapRow[]
+    | Lens2Data
+    | ActivationPatchingData
+    | PatchLensChartData;
 export type ChartView = HeatmapViewData | LineViewData;
 export type ConfigData =
     | LensConfigData
     | Lens2ConfigData
     | PatchingConfig
-    | ActivationPatchingConfigData;
+    | ActivationPatchingConfigData
+    | Record<string, never>; // patch-lens stores no config payload
 
-export type ChartType = "line" | "heatmap" | "lens2" | "activation-patching";
-export type ToolType = "lens" | "lens2" | "patch" | "activation-patching";
+export type ChartType = "line" | "heatmap" | "lens2" | "activation-patching" | "patch-lens";
+export type ToolType = "lens" | "lens2" | "patch" | "activation-patching" | "patch-lens";
 
 export type ChartMetadata = {
     id: string;
