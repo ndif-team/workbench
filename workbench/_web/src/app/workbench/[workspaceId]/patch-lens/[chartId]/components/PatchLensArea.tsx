@@ -15,6 +15,9 @@ import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { PatchPromptSection } from "@/components/activation-patching/toolkit";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { normalizeLensPrompt, promptHasSurroundingWhitespace } from "@/lib/lensPrompt";
 import { toast } from "sonner";
 import { usePatchLensLogitLens, PatchLensResult } from "@/lib/api/patchLensApi";
 import { finalPrediction } from "@/lib/lens-last-row";
@@ -30,6 +33,10 @@ interface PatchLensAreaProps {
     targetPrompt: string;
     onSourcePromptChange: (value: string) => void;
     onTargetPromptChange: (value: string) => void;
+    // When false (default), surrounding whitespace is trimmed before
+    // tokenizing/running and the trimmed text is reflected back into the editor.
+    preserveWhitespace: boolean;
+    onPreserveWhitespaceChange: (value: boolean) => void;
     onLensResult?: (result: PatchLensResult, runSrc: string, runTgt: string) => void;
     lensResult?: PatchLensResult | null;
     lastRunSrcPrompt?: string | null;
@@ -82,6 +89,8 @@ export default function PatchLensArea({
     targetPrompt,
     onSourcePromptChange,
     onTargetPromptChange,
+    preserveWhitespace,
+    onPreserveWhitespaceChange,
     onLensResult,
     lensResult,
     lastRunSrcPrompt,
@@ -231,7 +240,12 @@ export default function PatchLensArea({
                 activeElement && srcTokenContainerRef.current?.contains(activeElement);
             if (withinTextarea || withinToken) return;
 
-            if (!sourcePrompt || !selectedModel) {
+            // Trim surrounding whitespace (unless preserved) and reflect it back
+            // so the chip view matches exactly what will be tokenized/run.
+            const finalSrc = normalizeLensPrompt(sourcePrompt, preserveWhitespace);
+            if (finalSrc !== sourcePrompt) onSourcePromptChange(finalSrc);
+
+            if (!finalSrc || !selectedModel) {
                 // Clear any stale tokens so the empty state actually reads as
                 // empty (otherwise the token display would show the previous
                 // tokenization after the user deletes the text).
@@ -240,14 +254,14 @@ export default function PatchLensArea({
                 setSrcEditing(true);
                 return;
             }
-            const tokens = await tokenize(sourcePrompt, selectedModel);
+            const tokens = await tokenize(finalSrc, selectedModel);
             if (tokens && tokens.length > 0) {
                 setSrcTokens(tokens);
                 setSrcTokenizedModel(selectedModel);
                 setSrcEditing(false);
             }
         }, 100);
-    }, [sourcePrompt, selectedModel, tokenize]);
+    }, [sourcePrompt, preserveWhitespace, onSourcePromptChange, selectedModel, tokenize]);
 
     const handleTgtBlur = useCallback(() => {
         setTimeout(async () => {
@@ -257,20 +271,23 @@ export default function PatchLensArea({
                 activeElement && tgtTokenContainerRef.current?.contains(activeElement);
             if (withinTextarea || withinToken) return;
 
-            if (!targetPrompt || !selectedModel) {
+            const finalTgt = normalizeLensPrompt(targetPrompt, preserveWhitespace);
+            if (finalTgt !== targetPrompt) onTargetPromptChange(finalTgt);
+
+            if (!finalTgt || !selectedModel) {
                 setTgtTokens([]);
                 setTgtTokenizedModel(null);
                 setTgtEditing(true);
                 return;
             }
-            const tokens = await tokenize(targetPrompt, selectedModel);
+            const tokens = await tokenize(finalTgt, selectedModel);
             if (tokens && tokens.length > 0) {
                 setTgtTokens(tokens);
                 setTgtTokenizedModel(selectedModel);
                 setTgtEditing(false);
             }
         }, 100);
-    }, [targetPrompt, selectedModel, tokenize]);
+    }, [targetPrompt, preserveWhitespace, onTargetPromptChange, selectedModel, tokenize]);
 
     // Explicit clear handlers so the user has a one-click way to reset a
     // prompt back to empty (deleting characters in the textarea works too,
@@ -324,17 +341,21 @@ export default function PatchLensArea({
             toast.error("Please select a model.");
             return;
         }
-        // Validate non-empty via trim, but send the RAW prompt — trailing/
-        // leading whitespace is meaningful to the tokenizer (a trailing space
-        // is its own token), so trimming here dropped the final space token and
-        // its heatmap row. Also send the raw text so the lastRun snapshot below
-        // matches the textarea exactly (else the stale-prompt placeholder fires).
         if (!sourcePrompt.trim()) {
             toast.error("Please enter a source prompt.");
             return;
         }
-        const src = sourcePrompt;
-        const tgt = targetPrompt;
+        // Trim surrounding whitespace (unless preserved) before running, and
+        // reflect it back into the editors. A trailing space tokenizes as its
+        // own whitespace token and collapses the model's prediction onto more
+        // whitespace/digits (e.g. "Paris" drops from ~89% to ~2%), so trimming
+        // is the right default; the "Preserve surrounding whitespace" toggle
+        // opts out. Sending the normalized text also keeps the lastRun snapshot
+        // in sync with the textarea (else the stale-prompt placeholder fires).
+        const src = normalizeLensPrompt(sourcePrompt, preserveWhitespace);
+        const tgt = normalizeLensPrompt(targetPrompt, preserveWhitespace);
+        if (src !== sourcePrompt) onSourcePromptChange(src);
+        if (tgt !== targetPrompt) onTargetPromptChange(tgt);
 
         if (!chartId) {
             toast.error("Missing chart id.");
@@ -360,6 +381,9 @@ export default function PatchLensArea({
         selectedModel,
         sourcePrompt,
         targetPrompt,
+        preserveWhitespace,
+        onSourcePromptChange,
+        onTargetPromptChange,
         runLogitLens,
         onLensResult,
         chartId,
@@ -476,6 +500,28 @@ export default function PatchLensArea({
                         to view the source prompt alone (no patching).
                     </p>
                 </div>
+
+                {/* Only worth offering when a prompt actually has surrounding
+                    whitespace to trim — otherwise the toggle has no effect. */}
+                {(promptHasSurroundingWhitespace(sourcePrompt) ||
+                    promptHasSurroundingWhitespace(targetPrompt)) && (
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id="patch-lens-preserve-whitespace"
+                            checked={preserveWhitespace}
+                            onCheckedChange={(checked) =>
+                                onPreserveWhitespaceChange(checked === true)
+                            }
+                            disabled={isRunning}
+                        />
+                        <Label
+                            htmlFor="patch-lens-preserve-whitespace"
+                            className="text-sm font-medium cursor-pointer"
+                        >
+                            Preserve surrounding whitespace
+                        </Label>
+                    </div>
+                )}
 
                 <Button
                     id="patch-lens-run"

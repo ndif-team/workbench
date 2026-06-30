@@ -12,7 +12,7 @@ import { Lens2ConfigData } from "@/types/lens2";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { encodeText } from "@/actions/tok";
-import { normalizeLensPrompt } from "@/lib/lensPrompt";
+import { normalizeLensPrompt, promptHasSurroundingWhitespace } from "@/lib/lensPrompt";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
@@ -596,20 +596,24 @@ export function Lens2Controls({
                     </Label>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <Checkbox
-                        id="preserve-whitespace"
-                        checked={preserveWhitespace}
-                        onCheckedChange={(checked) => setPreserveWhitespace(checked === true)}
-                        disabled={!interactive}
-                    />
-                    <Label
-                        htmlFor="preserve-whitespace"
-                        className="text-sm font-medium cursor-pointer"
-                    >
-                        Preserve surrounding whitespace
-                    </Label>
-                </div>
+                {/* Only worth offering when the prompt actually has surrounding
+                    whitespace to trim — otherwise the toggle has no effect. */}
+                {promptHasSurroundingWhitespace(prompt) && (
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id="preserve-whitespace"
+                            checked={preserveWhitespace}
+                            onCheckedChange={(checked) => setPreserveWhitespace(checked === true)}
+                            disabled={!interactive}
+                        />
+                        <Label
+                            htmlFor="preserve-whitespace"
+                            className="text-sm font-medium cursor-pointer"
+                        >
+                            Preserve surrounding whitespace
+                        </Label>
+                    </div>
+                )}
 
                 <Button
                     onClick={handleSubmit}

@@ -32,6 +32,7 @@ export default function PatchLensChartPage() {
     const { data: models } = useQuery({ queryKey: ["models"], queryFn: getModels });
     const [sourcePrompt, setSourcePrompt] = useState("");
     const [targetPrompt, setTargetPrompt] = useState("");
+    const [preserveWhitespace, setPreserveWhitespace] = useState(false);
     const [lensResult, setLensResult] = useState<PatchLensResult | null>(null);
     // Snapshot of the prompts the current lensResult was computed for. Used by
     // PatchLensArea to gate the predicted-next-token hint so it disappears once
@@ -58,6 +59,9 @@ export default function PatchLensChartPage() {
         const data = chart?.data as Partial<PatchLensChartData> | undefined;
         if (typeof data?.sourcePrompt === "string") setSourcePrompt(data.sourcePrompt);
         if (typeof data?.targetPrompt === "string") setTargetPrompt(data.targetPrompt);
+        if (typeof data?.preserveWhitespace === "boolean") {
+            setPreserveWhitespace(data.preserveWhitespace);
+        }
         // No heatmaps on the chart row anymore — lensResult stays null on load;
         // PatchLensDisplay fetches the active run's heatmaps by activeLensRunId.
         if (typeof data?.lastRunSourcePrompt === "string") {
@@ -147,7 +151,8 @@ export default function PatchLensChartPage() {
             const existingData = (existing?.data ?? {}) as Partial<PatchLensChartData>;
             if (
                 existingData.sourcePrompt === sourcePrompt &&
-                existingData.targetPrompt === targetPrompt
+                existingData.targetPrompt === targetPrompt &&
+                (existingData.preserveWhitespace ?? false) === preserveWhitespace
             ) {
                 return;
             }
@@ -155,6 +160,7 @@ export default function PatchLensChartPage() {
                 ...existingData,
                 sourcePrompt,
                 targetPrompt,
+                preserveWhitespace,
             };
             await setChartData(chartId, merged, "patch-lens");
             queryClient.invalidateQueries({
@@ -162,7 +168,7 @@ export default function PatchLensChartPage() {
             });
         }, PROMPT_AUTOSAVE_DEBOUNCE_MS);
         return () => clearTimeout(handle);
-    }, [sourcePrompt, targetPrompt, chartId, queryClient]);
+    }, [sourcePrompt, targetPrompt, preserveWhitespace, chartId, queryClient]);
 
     if (isMobile === undefined) return null;
 
@@ -175,6 +181,8 @@ export default function PatchLensChartPage() {
                         targetPrompt={targetPrompt}
                         onSourcePromptChange={setSourcePrompt}
                         onTargetPromptChange={setTargetPrompt}
+                        preserveWhitespace={preserveWhitespace}
+                        onPreserveWhitespaceChange={setPreserveWhitespace}
                         onLensResult={handleLensResult}
                         lensResult={lensResult}
                         lastRunSrcPrompt={lastRunSrcPrompt}
@@ -215,6 +223,8 @@ export default function PatchLensChartPage() {
                             targetPrompt={targetPrompt}
                             onSourcePromptChange={setSourcePrompt}
                             onTargetPromptChange={setTargetPrompt}
+                            preserveWhitespace={preserveWhitespace}
+                            onPreserveWhitespaceChange={setPreserveWhitespace}
                             onLensResult={handleLensResult}
                             lensResult={lensResult}
                             lastRunSrcPrompt={lastRunSrcPrompt}

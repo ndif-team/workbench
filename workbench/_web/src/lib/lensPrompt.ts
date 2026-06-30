@@ -14,3 +14,13 @@
 export function normalizeLensPrompt(prompt: string, preserveWhitespace = false): string {
     return preserveWhitespace ? prompt : prompt.trim();
 }
+
+/**
+ * Whether the prompt has leading or trailing whitespace that the default
+ * (trimming) normalization would remove. Drives whether the "Preserve
+ * surrounding whitespace" control is worth showing at all — there's nothing to
+ * preserve when the prompt is already tight.
+ */
+export function promptHasSurroundingWhitespace(prompt: string): boolean {
+    return prompt.trim() !== prompt;
+}
