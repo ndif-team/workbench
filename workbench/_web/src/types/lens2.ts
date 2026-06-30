@@ -23,10 +23,6 @@ export interface Lens2ConfigData {
     prompt: string;
     topk?: number; // Number of top-k predictions per cell (default: 5)
     includeEntropy?: boolean; // Whether to include entropy data (default: true)
-    // When true, send the prompt verbatim instead of trimming surrounding
-    // whitespace before tokenizing/running (default: false — trim). The prompt
-    // stored above is already normalized according to this flag.
-    preserveWhitespace?: boolean;
     // Persisted heatmap UI state (pinned trajectories, selection, layer
     // window, appearance) so the visualization restores across reloads.
     uiState?: LogitLensUIState;

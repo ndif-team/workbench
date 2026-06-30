@@ -83,7 +83,6 @@ export function lens2ConfigEqualsExceptModel(
         (c) => c.prompt ?? "",
         (c) => c.topk ?? 5,
         (c) => c.includeEntropy ?? true,
-        (c) => c.preserveWhitespace ?? false,
     ]);
 }
 

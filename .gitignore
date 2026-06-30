@@ -67,6 +67,3 @@ local.db
 # Per-user Claude Code settings (skills + CLAUDE.md ARE committed)
 .claude/settings.local.json
 .claude/
-
-# Local NDIF/HF tokens for diagnostics — never commit
-.secrets

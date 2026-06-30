@@ -23,9 +23,6 @@ export interface PatchLensChartData {
     // predicted-next-token hint when the user starts editing.
     lastRunSourcePrompt?: string;
     lastRunTargetPrompt?: string;
-    // When true, send prompts verbatim instead of trimming surrounding
-    // whitespace before tokenizing/running (default: false — trim).
-    preserveWhitespace?: boolean;
     intervention?: PatchLensInterventionSpec;
     // The lens_runs row this chart's current state came from (the latest run,
     // or the history entry the user restored). Heatmaps are fetched from that
