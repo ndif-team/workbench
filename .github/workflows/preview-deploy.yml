@@ -146,6 +146,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Build cache lives in GHCR (registry-backed) rather than the GHA
+      # cache service. Why: GHA cache is capped at 10 GiB per repo, and
+      # `mode=max` here pushes the full multi-layer cache (~1.5 GiB per
+      # build) every preview run. We were filling the cap within a week
+      # of activity, which then started failing every new preview with
+      # `error writing layer blob: failed to reserve cache`. GHCR has no
+      # such cap and we already authenticate to it for image pushes.
       - name: Build & push web image
         uses: docker/build-push-action@v6
         with:
@@ -157,8 +164,8 @@ jobs:
             ${{ env.IMAGE_NAME }}:pr-${{ steps.meta.outputs.preview_id }}
           build-args: |
             NEXT_PUBLIC_BACKEND_URL=https://${{ steps.meta.outputs.api_host }}
-          cache-from: type=gha,scope=preview-web
-          cache-to: type=gha,mode=max,scope=preview-web
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
       - name: Build & push api image
         uses: docker/build-push-action@v6
@@ -169,8 +176,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME_API }}:${{ steps.meta.outputs.tag }}
             ${{ env.IMAGE_NAME_API }}:pr-${{ steps.meta.outputs.preview_id }}
-          cache-from: type=gha,scope=preview-api
-          cache-to: type=gha,mode=max,scope=preview-api
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME_API }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME_API }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
       - name: Set up kubectl & helm
         uses: azure/setup-helm@v4
