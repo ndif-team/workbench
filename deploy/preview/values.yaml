@@ -18,7 +18,14 @@ ingress:
   enabled: true
   className: nginx
   host: ""                       # set by workflow, e.g. pr-123.ndif-preview.ripley.cloud
-  clusterIssuer: letsencrypt-prod  # cert-manager ClusterIssuer (DNS-01 on ripley.cloud)
+  # Shared wildcard TLS Secret mirrored into every workbench-preview-pr-*
+  # namespace by emberstack/reflector. The source Certificate
+  # (*.ndif-preview.ripley.cloud) lives in the cert-manager namespace —
+  # see k8s/apps/workbench-preview-auth/wildcard-certificate.yaml in the
+  # cluster repo. Using a shared cert avoids burning through the Let's
+  # Encrypt 50-certs/week/registered-domain quota on per-PR per-host
+  # issuance.
+  tlsSecretName: workbench-preview-wildcard-tls
   annotations: {}
   # Forward-auth gate via oauth2-proxy (GitHub OAuth, ndif-team org-only).
   # See k8s/apps/workbench-preview-auth/ in the cluster repo. Set
@@ -42,8 +49,10 @@ imagePullSecret: ghcr-pull
 env: []
 
 # FastAPI backend (workbench/_api) deployed alongside the Next.js frontend.
-# Reachable at api.<ingress.host>, baked into the web build at
-# NEXT_PUBLIC_BACKEND_URL. Shares the same oauth2-proxy auth gate.
+# Reachable at a SIBLING subdomain of the web host (e.g. pr-123-api.<root>
+# alongside pr-123.<root>) so a single *.<root> wildcard cert covers both.
+# Baked into the web build at NEXT_PUBLIC_BACKEND_URL. Shares the same
+# oauth2-proxy auth gate.
 api:
   enabled: true
   image:
@@ -53,7 +62,7 @@ api:
   service:
     port: 80
     targetPort: 8000
-  host: ""                        # set by workflow, e.g. api.pr-123.ndif-preview.ripley.cloud
+  host: ""                        # set by workflow, e.g. pr-123-api.ndif-preview.ripley.cloud
   replicaCount: 1
   resources:
     requests: { cpu: 200m, memory: 1Gi }
