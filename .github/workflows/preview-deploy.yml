@@ -43,7 +43,6 @@ env:
   PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}         # e.g. ndif-preview.ripley.cloud
   PREVIEW_NAMESPACE_PREFIX: ${{ vars.PREVIEW_NAMESPACE_PREFIX || 'workbench-preview' }}
   INGRESS_CLASS: ${{ vars.PREVIEW_INGRESS_CLASS || 'nginx' }}
-  CLUSTER_ISSUER: ${{ vars.PREVIEW_CLUSTER_ISSUER || 'letsencrypt-prod' }}
   # In-cluster ARC runners use a glibc image; some JS actions still ship
   # Node 20 binaries that won't load. Force them to Node 24.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -125,7 +124,10 @@ jobs:
             echo "sha=${sha}"
             echo "tag=pr-${{ steps.pre.outputs.preview_id }}-${sha}"
             echo "host=pr-${{ steps.pre.outputs.preview_id }}.${PREVIEW_DOMAIN}"
-            echo "api_host=api.pr-${{ steps.pre.outputs.preview_id }}.${PREVIEW_DOMAIN}"
+            # Sibling subdomain of `host`, not a child — so one
+            # `*.${PREVIEW_DOMAIN}` wildcard TLS cert covers both. (DNS
+            # wildcards only span one label.)
+            echo "api_host=pr-${{ steps.pre.outputs.preview_id }}-api.${PREVIEW_DOMAIN}"
             echo "namespace=${PREVIEW_NAMESPACE_PREFIX}-pr-${{ steps.pre.outputs.preview_id }}"
           } | tee -a "$GITHUB_OUTPUT"
 
@@ -303,7 +305,6 @@ jobs:
             --set commitSha="${SHA}" \
             --set ingress.host="${HOST}" \
             --set ingress.className="${INGRESS_CLASS}" \
-            --set ingress.clusterIssuer="${CLUSTER_ISSUER}" \
             --atomic --cleanup-on-fail \
             --wait --timeout 10m
 
