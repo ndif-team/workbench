@@ -12,6 +12,7 @@ import { Lens2ConfigData } from "@/types/lens2";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { encodeText } from "@/actions/tok";
+import { normalizeLensPrompt } from "@/lib/lensPrompt";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
@@ -93,11 +94,13 @@ export function Lens2Controls({
     const savedPrompt = initialConfig.data?.prompt || "";
     const savedTopk = initialConfig.data?.topk ?? 5;
     const savedIncludeEntropy = initialConfig.data?.includeEntropy ?? true;
+    const savedPreserveWhitespace = initialConfig.data?.preserveWhitespace ?? false;
     const savedModel = initialConfig.data?.model ?? "";
 
     const [prompt, setPrompt] = useState(savedPrompt);
     const [topk, setTopk] = useState(savedTopk);
     const [includeEntropy, setIncludeEntropy] = useState(savedIncludeEntropy);
+    const [preserveWhitespace, setPreserveWhitespace] = useState(savedPreserveWhitespace);
     const { draftModel, setDraftModel, restoreWorkspaceModel } = useDraftModel(
         savedModel,
         initialConfig.id,
@@ -206,17 +209,20 @@ export function Lens2Controls({
             hasAutoRunRef.current = true;
             shouldAutoRunRef.current = false;
             try {
-                const tokens = await encodeText(savedPrompt, selectedModel);
+                const finalPrompt = normalizeLensPrompt(savedPrompt, savedPreserveWhitespace);
+                const tokens = await encodeText(finalPrompt, selectedModel);
                 if (isCancelled || tokens.length <= 1) return;
+                if (finalPrompt !== savedPrompt) setPrompt(finalPrompt);
                 setTokenData(tokens);
                 setTokenizedModel(selectedModel);
                 setEditingText(false);
-                lastTokenizedPromptRef.current = savedPrompt;
+                lastTokenizedPromptRef.current = finalPrompt;
                 const config: Lens2ConfigData = {
                     model: selectedModel,
-                    prompt: savedPrompt,
+                    prompt: finalPrompt,
                     topk: savedTopk,
                     includeEntropy: savedIncludeEntropy,
+                    preserveWhitespace: savedPreserveWhitespace,
                 };
                 await computeLens2({
                     lensRequest: { completion: config, chartId },
@@ -229,7 +235,7 @@ export function Lens2Controls({
                     config: { data: config, workspaceId, type: "lens2" },
                 });
                 if (isCancelled) return;
-                lastSyncedPromptRef.current = savedPrompt;
+                lastSyncedPromptRef.current = finalPrompt;
             } catch {
                 /* one-shot auto-run; swallow */
             }
@@ -245,6 +251,7 @@ export function Lens2Controls({
         savedPrompt,
         savedTopk,
         savedIncludeEntropy,
+        savedPreserveWhitespace,
         chartId,
         initialConfig.id,
         workspaceId,
@@ -279,9 +286,14 @@ export function Lens2Controls({
             toast.error("Please enter a prompt.");
             return;
         }
+        // Trim surrounding whitespace (unless explicitly preserved) BEFORE
+        // tokenizing, and reflect it back into the editor so the user sees the
+        // exact text that gets tokenized/run.
+        const finalPrompt = normalizeLensPrompt(prompt, preserveWhitespace);
+        if (finalPrompt !== prompt) setPrompt(finalPrompt);
         let tokens: Token[];
         try {
-            tokens = await encodeText(prompt, selectedModel);
+            tokens = await encodeText(finalPrompt, selectedModel);
         } catch (error) {
             if (error instanceof TokenizerLoadError) {
                 toast.error(
@@ -296,12 +308,12 @@ export function Lens2Controls({
             toast.error("Please enter a longer prompt.");
             return;
         }
-        const promptChanged = prompt !== lastTokenizedPromptRef.current;
+        const promptChanged = finalPrompt !== lastTokenizedPromptRef.current;
         const modelChanged = tokenizedModel !== null && tokenizedModel !== selectedModel;
         setTokenData(tokens);
         setTokenizedModel(selectedModel);
         setEditingText(false);
-        lastTokenizedPromptRef.current = prompt;
+        lastTokenizedPromptRef.current = finalPrompt;
         // Editing the prompt under a different selected model implicitly
         // commits the draft to that model — same effect as the explicit
         // "Update config to selected model" action. topk/includeEntropy are
@@ -309,13 +321,17 @@ export function Lens2Controls({
         if (promptChanged && modelChanged) {
             setDraftModel(selectedModel);
         }
-    }, [prompt, selectedModel, tokenizedModel]);
+    }, [prompt, preserveWhitespace, selectedModel, tokenizedModel]);
 
     const handleSubmit = useCallback(async () => {
         if (!prompt.trim()) return;
+        // Normalize (trim unless preserved) and reflect the sent text in the
+        // editor, so what runs matches what the user sees.
+        const finalPrompt = normalizeLensPrompt(prompt, preserveWhitespace);
+        if (finalPrompt !== prompt) setPrompt(finalPrompt);
         let tokens: Token[];
         try {
-            tokens = await encodeText(prompt, selectedModel);
+            tokens = await encodeText(finalPrompt, selectedModel);
         } catch (error) {
             if (error instanceof TokenizerLoadError) {
                 toast.error(
@@ -332,13 +348,14 @@ export function Lens2Controls({
         }
         setTokenData(tokens);
         setTokenizedModel(selectedModel);
-        lastTokenizedPromptRef.current = prompt;
+        lastTokenizedPromptRef.current = finalPrompt;
 
         const config: Lens2ConfigData = {
             model: selectedModel,
-            prompt,
+            prompt: finalPrompt,
             topk,
             includeEntropy,
+            preserveWhitespace,
         };
 
         await computeLens2({
@@ -353,10 +370,11 @@ export function Lens2Controls({
         // Land draftModel on the model that just persisted so the banner
         // doesn't flash between the run completing and the refetch arriving.
         setDraftModel(selectedModel);
-        lastSyncedPromptRef.current = prompt;
+        lastSyncedPromptRef.current = finalPrompt;
         setEditingText(false);
     }, [
         prompt,
+        preserveWhitespace,
         topk,
         includeEntropy,
         selectedModel,
@@ -399,6 +417,7 @@ export function Lens2Controls({
         setPrompt(savedPrompt);
         setTopk(savedTopk);
         setIncludeEntropy(savedIncludeEntropy);
+        setPreserveWhitespace(savedPreserveWhitespace);
         setDraftModel(savedModel);
         restoreWorkspaceModel(savedModel);
         lastSyncedPromptRef.current = savedPrompt;
@@ -422,6 +441,7 @@ export function Lens2Controls({
         savedPrompt,
         savedTopk,
         savedIncludeEntropy,
+        savedPreserveWhitespace,
         savedModel,
         blurTokenize,
         setDraftModel,
@@ -458,8 +478,9 @@ export function Lens2Controls({
                 prompt,
                 topk,
                 includeEntropy,
+                preserveWhitespace,
             }),
-        [initialConfig.data, prompt, topk, includeEntropy],
+        [initialConfig.data, prompt, topk, includeEntropy, preserveWhitespace],
     );
 
     // Draft is dirty if any non-model field differs OR the draft model differs
@@ -572,6 +593,21 @@ export function Lens2Controls({
                     />
                     <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">
                         Include Entropy
+                    </Label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        id="preserve-whitespace"
+                        checked={preserveWhitespace}
+                        onCheckedChange={(checked) => setPreserveWhitespace(checked === true)}
+                        disabled={!interactive}
+                    />
+                    <Label
+                        htmlFor="preserve-whitespace"
+                        className="text-sm font-medium cursor-pointer"
+                    >
+                        Preserve surrounding whitespace
                     </Label>
                 </div>
 
