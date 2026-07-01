@@ -206,15 +206,19 @@ export function Lens2Controls({
             hasAutoRunRef.current = true;
             shouldAutoRunRef.current = false;
             try {
-                const tokens = await encodeText(savedPrompt, selectedModel);
+                // Same trim as handleSubmit — the auto-run path (landing page /
+                // auto-run on open) is a second submit path and must not send a
+                // trailing-space prompt either.
+                const trimmedPrompt = savedPrompt.trim();
+                const tokens = await encodeText(trimmedPrompt, selectedModel);
                 if (isCancelled || tokens.length <= 1) return;
                 setTokenData(tokens);
                 setTokenizedModel(selectedModel);
                 setEditingText(false);
-                lastTokenizedPromptRef.current = savedPrompt;
+                lastTokenizedPromptRef.current = trimmedPrompt;
                 const config: Lens2ConfigData = {
                     model: selectedModel,
-                    prompt: savedPrompt,
+                    prompt: trimmedPrompt,
                     topk: savedTopk,
                     includeEntropy: savedIncludeEntropy,
                 };
@@ -229,7 +233,7 @@ export function Lens2Controls({
                     config: { data: config, workspaceId, type: "lens2" },
                 });
                 if (isCancelled) return;
-                lastSyncedPromptRef.current = savedPrompt;
+                lastSyncedPromptRef.current = trimmedPrompt;
             } catch {
                 /* one-shot auto-run; swallow */
             }
