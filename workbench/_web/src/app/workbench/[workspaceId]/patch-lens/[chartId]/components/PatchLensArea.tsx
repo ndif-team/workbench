@@ -324,17 +324,14 @@ export default function PatchLensArea({
             toast.error("Please select a model.");
             return;
         }
-        // Validate non-empty via trim, but send the RAW prompt — trailing/
-        // leading whitespace is meaningful to the tokenizer (a trailing space
-        // is its own token), so trimming here dropped the final space token and
-        // its heatmap row. Also send the raw text so the lastRun snapshot below
-        // matches the textarea exactly (else the stale-prompt placeholder fires).
         if (!sourcePrompt.trim()) {
             toast.error("Please enter a source prompt.");
             return;
         }
-        const src = sourcePrompt;
-        const tgt = targetPrompt;
+        // Trim surrounding whitespace: a trailing space tokenizes as its own
+        // token and collapses the model's prediction onto whitespace/digits.
+        const src = sourcePrompt.trim();
+        const tgt = targetPrompt.trim();
 
         if (!chartId) {
             toast.error("Missing chart id.");

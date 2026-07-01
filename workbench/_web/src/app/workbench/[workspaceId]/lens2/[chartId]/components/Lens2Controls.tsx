@@ -312,10 +312,13 @@ export function Lens2Controls({
     }, [prompt, selectedModel, tokenizedModel]);
 
     const handleSubmit = useCallback(async () => {
-        if (!prompt.trim()) return;
+        // Trim surrounding whitespace: a trailing space tokenizes as its own
+        // token and collapses the model's prediction onto whitespace/digits.
+        const trimmedPrompt = prompt.trim();
+        if (!trimmedPrompt) return;
         let tokens: Token[];
         try {
-            tokens = await encodeText(prompt, selectedModel);
+            tokens = await encodeText(trimmedPrompt, selectedModel);
         } catch (error) {
             if (error instanceof TokenizerLoadError) {
                 toast.error(
@@ -332,11 +335,11 @@ export function Lens2Controls({
         }
         setTokenData(tokens);
         setTokenizedModel(selectedModel);
-        lastTokenizedPromptRef.current = prompt;
+        lastTokenizedPromptRef.current = trimmedPrompt;
 
         const config: Lens2ConfigData = {
             model: selectedModel,
-            prompt,
+            prompt: trimmedPrompt,
             topk,
             includeEntropy,
         };
@@ -353,7 +356,7 @@ export function Lens2Controls({
         // Land draftModel on the model that just persisted so the banner
         // doesn't flash between the run completing and the refetch arriving.
         setDraftModel(selectedModel);
-        lastSyncedPromptRef.current = prompt;
+        lastSyncedPromptRef.current = trimmedPrompt;
         setEditingText(false);
     }, [
         prompt,
