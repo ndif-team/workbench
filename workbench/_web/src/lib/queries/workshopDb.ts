@@ -26,12 +26,21 @@ export type WorkshopInput = {
 };
 
 const validateTools = (tools: WorkshopTool[]) => {
-    const valid = tools.filter((t) => (workshopTools as readonly string[]).includes(t));
-    if (valid.length === 0) {
+    const unknown = tools.filter((t) => !(workshopTools as readonly string[]).includes(t));
+    if (unknown.length > 0) {
+        throw new Error(`Unknown workshop tool(s): ${unknown.join(", ")}`);
+    }
+    if (tools.length === 0) {
         throw new Error("Workshop must allow at least one tool");
     }
-    return valid;
+    return tools;
 };
+
+// Both drivers' unique-violation messages: better-sqlite3/bun:sqlite say
+// "UNIQUE constraint failed", postgres-js says "duplicate key value violates
+// unique constraint".
+export const isUniqueViolation = (err: unknown): boolean =>
+    err instanceof Error && /unique constraint|duplicate key/i.test(err.message);
 
 export const getWorkshopBySlug = async (slug: string): Promise<Workshop | null> => {
     const [workshop] = await db.select().from(workshops).where(eq(workshops.slug, slug)).limit(1);
@@ -94,7 +103,8 @@ export const listWorkshops = async (): Promise<WorkshopWithCount[]> => {
 
 export const createWorkshop = async (input: WorkshopInput): Promise<Workshop> => {
     const values = { ...input, allowedTools: validateTools(input.allowedTools) };
-    // One retry on the (astronomically unlikely) slug collision.
+    // One retry on the (astronomically unlikely) slug collision; anything else
+    // surfaces immediately.
     for (let attempt = 0; ; attempt++) {
         try {
             const [workshop] = await db
@@ -103,7 +113,7 @@ export const createWorkshop = async (input: WorkshopInput): Promise<Workshop> =>
                 .returning();
             return workshop as Workshop;
         } catch (err) {
-            if (attempt >= 1) throw err;
+            if (attempt >= 1 || !isUniqueViolation(err)) throw err;
         }
     }
 };

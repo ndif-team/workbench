@@ -13,6 +13,10 @@ export const getWorkshopSlugClaim = (user: ClaimUser): string | null => {
 
 export const hasWorkshopClaim = (user: ClaimUser): boolean => getWorkshopSlugClaim(user) !== null;
 
+/** Single source of truth for join-link expiry — used by the /w page and the join action. */
+export const isWorkshopExpired = (workshop: { expiresAt: Date }): boolean =>
+    workshop.expiresAt < new Date();
+
 /**
  * Synthetic backend identity for anonymous workshop participants. Anything
  * other than "guest@localhost" passes the FastAPI gated-model check

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { getWorkshopBySlug } from "@/lib/queries/workshopQueries";
+import { isWorkshopExpired } from "@/lib/workshop";
 import { WorkshopJoin } from "./components/WorkshopJoin";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export default async function WorkshopJoinPage({ params }: { params: Promise<{ s
         notFound();
     }
 
-    if (workshop.expiresAt < new Date()) {
+    if (isWorkshopExpired(workshop)) {
         return (
             <div className="flex min-h-screen items-center justify-center p-4">
                 <div className="w-full max-w-md rounded-md border bg-card p-4 shadow-sm">

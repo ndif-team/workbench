@@ -77,8 +77,10 @@ export function ModelControl({ className }: ModelControlProps) {
     const { data: models, isLoading: modelsLoading, isError: modelsError } = useModelsQuery();
 
     // Workshop workspaces pin the workshop's model: the selection is forced
-    // and the picker popover is replaced with a locked pill.
-    const { data: workshop } = useWorkspaceWorkshop(workspaceId);
+    // and the picker popover is replaced with a locked pill. While the lookup
+    // is in flight we show the loading pill rather than the unlocked picker,
+    // so a participant never gets a window to change the model.
+    const { data: workshop, isLoading: workshopLoading } = useWorkspaceWorkshop(workspaceId);
 
     const [open, setOpen] = React.useState(false);
 
@@ -109,7 +111,8 @@ export function ModelControl({ className }: ModelControlProps) {
     };
 
     // Loading: explicit fetch indicator inside the same brand-wash pill.
-    if (modelsLoading && !models) {
+    // Includes the workshop lookup — see the pinning note above.
+    if ((modelsLoading && !models) || workshopLoading) {
         return (
             <div
                 role="status"

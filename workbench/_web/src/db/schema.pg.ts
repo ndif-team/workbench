@@ -1,4 +1,13 @@
-import { boolean, jsonb, pgTable, varchar, uuid, timestamp, real } from "drizzle-orm/pg-core";
+import {
+    boolean,
+    jsonb,
+    pgTable,
+    varchar,
+    uuid,
+    timestamp,
+    real,
+    uniqueIndex,
+} from "drizzle-orm/pg-core";
 import type { ConfigData, ChartData, ChartView } from "@/types/charts";
 import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
@@ -27,17 +36,25 @@ export const workshops = pgTable("workshops", {
         .$onUpdate(() => new Date()),
 });
 
-export const workspaces = pgTable("workspaces", {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: varchar("user_id", { length: 256 }).notNull(),
-    name: varchar("name", { length: 256 }).notNull(),
-    public: boolean("public").default(false).notNull(),
-    workshopId: uuid("workshop_id").references(() => workshops.id, { onDelete: "set null" }),
-    updatedAt: timestamp("updated_at", { mode: "date" })
-        .defaultNow()
-        .notNull()
-        .$onUpdate(() => new Date()),
-});
+export const workspaces = pgTable(
+    "workspaces",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        userId: varchar("user_id", { length: 256 }).notNull(),
+        name: varchar("name", { length: 256 }).notNull(),
+        public: boolean("public").default(false).notNull(),
+        workshopId: uuid("workshop_id").references(() => workshops.id, { onDelete: "set null" }),
+        updatedAt: timestamp("updated_at", { mode: "date" })
+            .defaultNow()
+            .notNull()
+            .$onUpdate(() => new Date()),
+    },
+    // One workspace per (participant, workshop): makes concurrent join-link
+    // clicks converge on a single workspace instead of racing check-then-act.
+    // NULL workshopId rows (normal workspaces) are unconstrained — both pg and
+    // sqlite treat NULLs as distinct in unique indexes.
+    (table) => [uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId)],
+);
 
 export const chartTypes = ["line", "heatmap"] as const;
 

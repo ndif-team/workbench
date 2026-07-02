@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 
@@ -34,17 +34,26 @@ export const workshops = sqliteTable("workshops", {
         .$onUpdate(() => new Date()),
 });
 
-export const workspaces = sqliteTable("workspaces", {
-    id: text("id").primaryKey().$defaultFn(generateUUID),
-    userId: text("user_id").notNull(),
-    name: text("name").notNull(),
-    public: integer("public", { mode: "boolean" }).default(false).notNull(),
-    workshopId: text("workshop_id"),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
-        .$defaultFn(() => new Date())
-        .notNull()
-        .$onUpdate(() => new Date()),
-});
+export const workspaces = sqliteTable(
+    "workspaces",
+    {
+        id: text("id").primaryKey().$defaultFn(generateUUID),
+        userId: text("user_id").notNull(),
+        name: text("name").notNull(),
+        public: integer("public", { mode: "boolean" }).default(false).notNull(),
+        // Plain column (no FK ref) — sqlite mirrors don't carry FK refs by repo
+        // convention; deleteWorkshop nulls these pointers explicitly instead of
+        // relying on pg's "on delete set null".
+        workshopId: text("workshop_id"),
+        updatedAt: integer("updated_at", { mode: "timestamp" })
+            .$defaultFn(() => new Date())
+            .notNull()
+            .$onUpdate(() => new Date()),
+    },
+    // Mirrors the pg unique index: one workspace per (participant, workshop);
+    // NULL workshopId rows are unconstrained (NULLs are distinct).
+    (table) => [uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId)],
+);
 
 export const chartTypes = ["line", "heatmap"] as const;
 

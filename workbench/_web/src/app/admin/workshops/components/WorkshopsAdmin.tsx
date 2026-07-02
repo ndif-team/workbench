@@ -37,7 +37,10 @@ export function WorkshopsAdmin() {
             </div>
 
             {isLoading && (
-                <div className="flex items-center gap-2 rounded-md border p-4 text-sm text-muted-foreground">
+                <div
+                    aria-live="polite"
+                    className="flex items-center gap-2 rounded-md border p-4 text-sm text-muted-foreground"
+                >
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading workshops…
                 </div>

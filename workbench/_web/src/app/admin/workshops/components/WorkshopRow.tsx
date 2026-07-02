@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { Link2, Pencil, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { WorkshopWithCount } from "@/lib/queries/workshopDb";
 import type { WorkshopTool } from "@/db/schema";
+import { copyWorkshopJoinLink } from "@/lib/workshopLink";
 import { splitRepo } from "@/components/model-selector/status";
 
 export const WORKSHOP_TOOL_LABELS: Record<WorkshopTool, string> = {
@@ -34,12 +34,6 @@ export function WorkshopRow({
 }) {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const expired = new Date(workshop.expiresAt) < new Date();
-
-    const copyJoinLink = async () => {
-        const url = `${window.location.origin}/w/${workshop.slug}`;
-        await navigator.clipboard.writeText(url);
-        toast.success("Join link copied");
-    };
 
     return (
         <div data-testid="workshop-row" className="rounded-md border bg-card p-4 shadow-xs">
@@ -73,7 +67,7 @@ export function WorkshopRow({
                         size="icon"
                         className="h-7 w-7 text-muted-foreground/40 hover:text-foreground"
                         title="Copy join link"
-                        onClick={copyJoinLink}
+                        onClick={() => copyWorkshopJoinLink(workshop.slug)}
                     >
                         <Link2 className="h-4 w-4" />
                     </Button>

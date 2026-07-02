@@ -8,6 +8,8 @@ import {
     seedWorkshopChart,
 } from "@/lib/queries/workshopQueries";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
+import { isUniqueViolation } from "@/lib/queries/workshopDb";
+import { isWorkshopExpired } from "@/lib/workshop";
 
 export type JoinWorkshopResult =
     | { ok: true; redirectTo: string }
@@ -32,7 +34,7 @@ export async function joinWorkshopAction(
         return { ok: false, error: "Workshop not found" };
     }
     // Re-check expiry: page render and this action are separate requests.
-    if (workshop.expiresAt < new Date()) {
+    if (isWorkshopExpired(workshop)) {
         return { ok: false, error: "This workshop has ended" };
     }
 
@@ -80,7 +82,18 @@ export async function joinWorkshopAction(
         return { ok: true, redirectTo: `/workbench/${existing.id}` };
     }
 
-    const workspace = await createWorkspace(user.id, workshop.name, workshop.id);
+    // The lookup above is check-then-act; the unique index on
+    // (userId, workshopId) makes concurrent joins converge — the loser's
+    // insert conflicts and it reuses the winner's workspace.
+    let workspace;
+    try {
+        workspace = await createWorkspace(user.id, workshop.name, workshop.id);
+    } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
+        const winner = await getWorkshopWorkspaceForUser(user.id, workshop.id);
+        if (!winner) throw err;
+        return { ok: true, redirectTo: `/workbench/${winner.id}` };
+    }
     const { chart, tool } = await seedWorkshopChart(workspace.id, workshop);
     return { ok: true, redirectTo: `/workbench/${workspace.id}/${tool}/${chart.id}` };
 }

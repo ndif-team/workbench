@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Link2 } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useCreateWorkshop, useUpdateWorkshop } from "@/lib/api/workshopApi";
 import type { WorkshopWithCount } from "@/lib/queries/workshopDb";
+import { copyWorkshopJoinLink } from "@/lib/workshopLink";
 import { workshopTools, type WorkshopTool } from "@/db/schema";
 import { WORKSHOP_TOOL_LABELS } from "./WorkshopRow";
 
@@ -86,7 +86,11 @@ export function WorkshopFormDialog({
         setTools((prev) => (checked ? [...prev, tool] : prev.filter((t) => t !== tool)));
     };
 
-    const canSubmit = name.trim() !== "" && tools.length > 0 && model !== "" && expiresAt !== "";
+    // New workshops must expire in the future (a link that's dead on arrival is
+    // always a mistake). On edit, past dates are allowed on purpose — setting
+    // the expiry to now is how an admin ends a workshop early.
+    const expiryValid = expiresAt !== "" && (isEdit || new Date(expiresAt).getTime() > Date.now());
+    const canSubmit = name.trim() !== "" && tools.length > 0 && model !== "" && expiryValid;
 
     const handleSubmit = () => {
         if (!canSubmit) return;
@@ -104,20 +108,11 @@ export function WorkshopFormDialog({
         } else {
             createWorkshop(payload, {
                 onSuccess: (created) => {
-                    navigator.clipboard
-                        .writeText(`${window.location.origin}/w/${created.slug}`)
-                        .then(() => toast.success("Workshop created — join link copied"))
-                        .catch(() => toast.success("Workshop created"));
+                    void copyWorkshopJoinLink(created.slug, "Workshop created — join link copied");
                     onClose();
                 },
             });
         }
-    };
-
-    const copyJoinLink = async () => {
-        if (!isEdit) return;
-        await navigator.clipboard.writeText(`${window.location.origin}/w/${target.slug}`);
-        toast.success("Join link copied");
     };
 
     return (
@@ -146,7 +141,7 @@ export function WorkshopFormDialog({
                         <Label>Tools</Label>
                         <div className="flex flex-col gap-2">
                             {workshopTools.map((tool) => (
-                                <label
+                                <Label
                                     key={tool}
                                     className="flex items-center gap-2 text-sm font-normal"
                                 >
@@ -157,7 +152,7 @@ export function WorkshopFormDialog({
                                         }
                                     />
                                     {WORKSHOP_TOOL_LABELS[tool]}
-                                </label>
+                                </Label>
                             ))}
                         </div>
                     </div>
@@ -203,6 +198,7 @@ export function WorkshopFormDialog({
                         <Input
                             id="workshop-expiry"
                             type="datetime-local"
+                            min={isEdit ? undefined : toDatetimeLocal(new Date())}
                             value={expiresAt}
                             onChange={(e) => setExpiresAt(e.target.value)}
                         />
@@ -222,7 +218,7 @@ export function WorkshopFormDialog({
                                     variant="outline"
                                     size="icon"
                                     title="Copy join link"
-                                    onClick={copyJoinLink}
+                                    onClick={() => copyWorkshopJoinLink(target.slug)}
                                 >
                                     <Link2 className="h-4 w-4" />
                                 </Button>

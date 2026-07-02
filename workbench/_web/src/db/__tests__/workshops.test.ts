@@ -68,8 +68,16 @@ describe("workshops", () => {
         expect(a.slug).not.toBe(b.slug);
     });
 
-    it("rejects a workshop with no valid tools", async () => {
-        expect(createWorkshop(input({ allowedTools: [] }))).rejects.toThrow("at least one tool");
+    it("rejects a workshop with no tools", async () => {
+        await expect(createWorkshop(input({ allowedTools: [] }))).rejects.toThrow(
+            "at least one tool",
+        );
+    });
+
+    it("rejects unknown tool values instead of silently dropping them", async () => {
+        await expect(
+            createWorkshop(input({ allowedTools: ["lens2", "not-a-tool" as WorkshopTool] })),
+        ).rejects.toThrow("Unknown workshop tool");
     });
 
     it("resolves a workspace's workshop through workshopId, null otherwise", async () => {
@@ -97,6 +105,19 @@ describe("workshops", () => {
         const found = await getWorkshopWorkspaceForUser(USER, workshop.id);
         expect(found).not.toBeNull();
         expect(found!.id).toBe(ws.id);
+    });
+
+    it("enforces one workspace per (user, workshop); NULL workshopId is unconstrained", async () => {
+        const workshop = await createWorkshop(input());
+        await createWorkspace(USER, "First join", workshop.id);
+
+        // Second insert for the same pair conflicts — this is what makes
+        // concurrent join-link clicks converge in joinWorkshopAction.
+        await expect(createWorkspace(USER, "Racing join", workshop.id)).rejects.toThrow(/unique/i);
+
+        // Normal workspaces (NULL workshopId) stay unconstrained.
+        await createWorkspace(USER, "Personal 1");
+        await createWorkspace(USER, "Personal 2");
     });
 
     it("lists workshops with participant counts", async () => {
