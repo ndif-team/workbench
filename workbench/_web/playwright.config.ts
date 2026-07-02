@@ -3,6 +3,8 @@ import { createArgosReporterOptions } from "@argos-ci/playwright/reporter";
 
 export default defineConfig({
     testDir: "./tests",
+    // Warm gpt2 on NDIF before the real-NDIF specs (no-op when already hot).
+    globalSetup: "./tests/global-setup.ts",
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,

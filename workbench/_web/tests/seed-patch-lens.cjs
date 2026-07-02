@@ -23,6 +23,20 @@ const MODEL = "meta-llama/Llama-3.1-8B";
 // The newest run id — the chart's activeLensRunId points here.
 const NEWEST_RUN_ID = "33333333-3333-4333-8333-333333333333";
 
+// Second chart: a source+target pair with a persisted intervention + patched
+// result, so the E2E can exercise the full activation-patching view (result
+// grid, auto-scroll, patched-cell styling) via the restore path — no NDIF.
+const PATCHED_CHART_ID = "22222222-2222-4222-8222-222222222223";
+const PATCHED_RUN_ID = "44444444-4444-4444-8444-444444444444";
+
+// Third chart: an identical clone of the first, used ONLY by the F1
+// history-restore test. Restoring a strip PERSISTS onto the chart row
+// (prompts + activeLensRunId), so giving the mutating test its own chart
+// keeps the other specs (and the Argos screenshots) deterministic under
+// fullyParallel workers.
+const HISTORY_CHART_ID = "22222222-2222-4222-8222-222222222224";
+const HISTORY_RUN_PREFIX = "55555555-5555-4555-8555-55555555555";
+
 // A 12-token prompt over 32 layers — big enough that the OLD auto-fit clipped
 // the final row at a constrained viewport height (the B1 condition).
 const TOKENS = [
@@ -45,8 +59,8 @@ const LAYERS = Array.from({ length: N_LAYERS }, (_, i) => i);
 // Build nnsightful-shaped LogitLensData: input, layers, tracked, topk.
 // For each position, a couple of candidate tokens with per-layer probabilities
 // that ramp toward the final layer (so cells have visible color).
-function buildLensData(finalToken) {
-    const input = TOKENS.slice();
+function buildLensData(finalToken, tokens = TOKENS) {
+    const input = tokens.slice();
     const topk = LAYERS.map((li) =>
         input.map((_, pos) => {
             const cand =
@@ -90,10 +104,21 @@ const chartData = {
 };
 
 const db = new Database(DB_PATH);
+// Multiple Playwright workers run this concurrently (each describe block's
+// beforeAll). Serialize writers: wait out a peer's transaction instead of
+// throwing SQLITE_BUSY, and make the whole DELETE-then-INSERT atomic so a
+// half-seeded state is never visible (racing DELETE/INSERT threw UNIQUE
+// constraint failures on lens_runs.id).
+db.pragma("busy_timeout = 15000");
+db.exec("BEGIN IMMEDIATE");
 const now = Date.now();
 
 db.exec("DELETE FROM lens_runs WHERE chart_id = '" + CHART_ID + "'");
+db.exec("DELETE FROM lens_runs WHERE chart_id = '" + PATCHED_CHART_ID + "'");
+db.exec("DELETE FROM lens_runs WHERE chart_id = '" + HISTORY_CHART_ID + "'");
 db.prepare("DELETE FROM charts WHERE id = ?").run(CHART_ID);
+db.prepare("DELETE FROM charts WHERE id = ?").run(PATCHED_CHART_ID);
+db.prepare("DELETE FROM charts WHERE id = ?").run(HISTORY_CHART_ID);
 db.prepare("DELETE FROM workspaces WHERE id = ?").run(WS_ID);
 
 db.prepare(
@@ -144,9 +169,102 @@ versions.forEach((v, i) => {
         JSON.stringify(data),
         now + i * 1000,
     );
+    // Mirror the same history onto the F1-only chart (distinct run ids).
+    insRun.run(
+        `${HISTORY_RUN_PREFIX}${i + 1}`,
+        WS_ID,
+        HISTORY_CHART_ID,
+        MODEL,
+        JSON.stringify(summary),
+        JSON.stringify(data),
+        now + i * 1000,
+    );
 });
 
+// The F1-only clone of the first chart (see HISTORY_CHART_ID above).
+db.prepare(
+    "INSERT INTO charts (id, workspace_id, name, data, type, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+).run(
+    HISTORY_CHART_ID,
+    WS_ID,
+    "Eiffel Tower (history)",
+    JSON.stringify({ ...chartData, activeLensRunId: `${HISTORY_RUN_PREFIX}3` }),
+    "patch-lens",
+    2,
+    now,
+    now,
+);
+
+// ---------------------------------------------------------------------------
+// Patched chart: source + target + a persisted intervention whose patched
+// heatmap is stored on the run row. PatchLensDisplay restores this as a
+// controlled result, so the explorer renders the full intervention view
+// (cone, arrow, result grid + sidebar) straight from the DB.
+const SRC_TOKENS = ["The", " Eiffel", " Tower", " is", " in", " the", " city", " of"];
+const TGT_TOKENS = ["The", " Big", " Ben", " is", " in", " the", " city", " of"];
+// Layer 8 stays visible at Layer Step 8 (the spec pins steps via the toolbar);
+// the last token position is always rendered regardless of token step.
+const INTERVENTION = { srcTokenPos: 7, srcLayer: 8, tgtTokenPos: 7, tgtLayer: 8 };
+
+function promptSummary(tokens, finalToken) {
+    const cells = LAYERS.map((li) => ({
+        token: li > N_LAYERS / 2 ? finalToken : " the",
+        prob: Math.round((0.15 + (0.8 * li) / (N_LAYERS - 1)) * 1000) / 1000,
+    }));
+    return {
+        prompt: tokens.join(""),
+        finalToken,
+        lastRow: { layers: LAYERS, cells },
+    };
+}
+
+const patchedChartData = {
+    sourcePrompt: SRC_TOKENS.join(""),
+    targetPrompt: TGT_TOKENS.join(""),
+    lastRunSourcePrompt: SRC_TOKENS.join(""),
+    lastRunTargetPrompt: TGT_TOKENS.join(""),
+    intervention: INTERVENTION,
+    activeLensRunId: PATCHED_RUN_ID,
+};
+
+db.prepare(
+    "INSERT INTO charts (id, workspace_id, name, data, type, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+).run(
+    PATCHED_CHART_ID,
+    WS_ID,
+    "Eiffel vs Big Ben (patched)",
+    JSON.stringify(patchedChartData),
+    "patch-lens",
+    1,
+    now,
+    now,
+);
+
+const patchedSummary = {
+    source: promptSummary(SRC_TOKENS, " Paris"),
+    target: promptSummary(TGT_TOKENS, " London"),
+    intervention: INTERVENTION,
+    // The classic outcome: the patched target now predicts the source answer.
+    interventionResult: promptSummary(TGT_TOKENS, " Paris"),
+    params: { topk: 10, includeEntropy: true },
+};
+const patchedData = {
+    source: buildLensData(" Paris", SRC_TOKENS),
+    target: buildLensData(" London", TGT_TOKENS),
+    interventionResult: buildLensData(" Paris", TGT_TOKENS),
+};
+insRun.run(
+    PATCHED_RUN_ID,
+    WS_ID,
+    PATCHED_CHART_ID,
+    MODEL,
+    JSON.stringify(patchedSummary),
+    JSON.stringify(patchedData),
+    now,
+);
+
+db.exec("COMMIT");
 console.log(
-    `Seeded workspace ${WS_ID}, chart ${CHART_ID} (patch-lens), ${versions.length} history rows -> ${DB_PATH}`,
+    `Seeded workspace ${WS_ID}, charts ${CHART_ID} + ${PATCHED_CHART_ID} (patch-lens), ${versions.length + 1} run rows -> ${DB_PATH}`,
 );
 db.close();
