@@ -215,6 +215,10 @@ export function Lens2Controls({
                 setTokenData(tokens);
                 setTokenizedModel(selectedModel);
                 setEditingText(false);
+                // Keep the textarea state aligned with the trimmed value so
+                // tokensInSync (which compares against `prompt`) and the Run
+                // button stay correct after auto-run.
+                setPrompt(trimmedPrompt);
                 lastTokenizedPromptRef.current = trimmedPrompt;
                 const config: Lens2ConfigData = {
                     model: selectedModel,
