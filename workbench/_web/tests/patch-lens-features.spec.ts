@@ -45,14 +45,13 @@ const tokenLabels = (page: Page) =>
     page.locator("#patch-lens-display .text-gray-700.truncate[title]");
 const historyStrips = (page: Page) => page.locator('[data-testid="lens-history-strip"]');
 
-const seed = () => {
-    // CI runs the default Playwright config with no seed step and no
-    // globalSetup, so seed the fixed charts + history here. seed-patch-lens.cjs
-    // loads .env and writes to the same SQLite DB the server reads (e2e.db in
-    // CI, local.db locally); its DELETE-then-INSERT is idempotent across
-    // retries. Runs after the webServer is up, so the server sees the committed
-    // rows on the next query.
-    execFileSync("node", ["tests/seed-patch-lens.cjs"], { stdio: "inherit" });
+// The full seed runs ONCE in tests/global-setup.ts, before any worker starts
+// — reseeding from per-describe beforeAll hooks raced parallel workers (a
+// later describe's DELETE-then-INSERT could reset a chart another worker was
+// mid-test on). Only the F1 restore test mutates its chart, so it reseeds
+// itself, scoped to its own chart.
+const reseedHistoryChart = () => {
+    execFileSync("node", ["tests/seed-patch-lens.cjs", "--history-only"], { stdio: "inherit" });
 };
 
 /** Pin the shared toolbar steps so the grid density (and Argos screenshots)
@@ -65,8 +64,6 @@ async function pinSteps(page: Page, tokenStep: number, layerStep: number) {
 }
 
 test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
-    test.beforeAll(seed);
-
     test.beforeEach(async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 720 });
         // The Patch Lens tutorial auto-starts on first visit (reactour) and
@@ -95,7 +92,9 @@ test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
         page,
     }) => {
         // Restoring persists onto the chart row — run against the F1-only
-        // clone so the shared chart stays pristine for the other specs.
+        // clone so the shared chart stays pristine for the other specs, and
+        // reseed that clone so retries start from the un-restored state.
+        reseedHistoryChart();
         await page.goto(HISTORY_URL);
         await expect(tokenLabels(page).first()).toBeVisible({ timeout: 30_000 });
 
@@ -216,8 +215,6 @@ test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
 });
 
 test.describe("patch-lens intervention (seeded restore, no NDIF)", () => {
-    test.beforeAll(seed);
-
     test.beforeEach(async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 720 });
         await page.addInitScript(([key]) => localStorage.setItem(key, "true"), [TUTORIAL_KEY]);
@@ -258,8 +255,6 @@ test.describe("patch-lens intervention (seeded restore, no NDIF)", () => {
 });
 
 test.describe("patch-lens tutorial", () => {
-    test.beforeAll(seed);
-
     test.beforeEach(async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 720 });
         // No completed flag → the tour auto-starts (fresh browser context).

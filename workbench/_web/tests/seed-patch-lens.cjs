@@ -103,31 +103,40 @@ const chartData = {
     activeLensRunId: NEWEST_RUN_ID,
 };
 
+// --history-only: reset ONLY the F1 chart (and its runs). The F1 restore test
+// mutates its chart row, so it reseeds itself before each attempt — scoped to
+// its own chart so a reseed can never yank shared charts out from under the
+// other specs running in parallel workers (the full seed runs once, in
+// tests/global-setup.ts, before any worker starts).
+const historyOnly = process.argv.includes("--history-only");
+
 const db = new Database(DB_PATH);
-// Multiple Playwright workers run this concurrently (each describe block's
-// beforeAll). Serialize writers: wait out a peer's transaction instead of
-// throwing SQLITE_BUSY, and make the whole DELETE-then-INSERT atomic so a
-// half-seeded state is never visible (racing DELETE/INSERT threw UNIQUE
-// constraint failures on lens_runs.id).
+// Serialize concurrent writers (e.g. an F1 retry reseeding while another
+// worker reads): wait out a peer's transaction instead of throwing
+// SQLITE_BUSY, and make the whole DELETE-then-INSERT atomic so a half-seeded
+// state is never visible (racing DELETE/INSERT threw UNIQUE constraint
+// failures on lens_runs.id).
 db.pragma("busy_timeout = 15000");
 db.exec("BEGIN IMMEDIATE");
 const now = Date.now();
 
-db.exec("DELETE FROM lens_runs WHERE chart_id = '" + CHART_ID + "'");
-db.exec("DELETE FROM lens_runs WHERE chart_id = '" + PATCHED_CHART_ID + "'");
 db.exec("DELETE FROM lens_runs WHERE chart_id = '" + HISTORY_CHART_ID + "'");
-db.prepare("DELETE FROM charts WHERE id = ?").run(CHART_ID);
-db.prepare("DELETE FROM charts WHERE id = ?").run(PATCHED_CHART_ID);
 db.prepare("DELETE FROM charts WHERE id = ?").run(HISTORY_CHART_ID);
-db.prepare("DELETE FROM workspaces WHERE id = ?").run(WS_ID);
+if (!historyOnly) {
+    db.exec("DELETE FROM lens_runs WHERE chart_id = '" + CHART_ID + "'");
+    db.exec("DELETE FROM lens_runs WHERE chart_id = '" + PATCHED_CHART_ID + "'");
+    db.prepare("DELETE FROM charts WHERE id = ?").run(CHART_ID);
+    db.prepare("DELETE FROM charts WHERE id = ?").run(PATCHED_CHART_ID);
+    db.prepare("DELETE FROM workspaces WHERE id = ?").run(WS_ID);
 
-db.prepare(
-    "INSERT INTO workspaces (id, user_id, name, public, updated_at) VALUES (?, ?, ?, ?, ?)",
-).run(WS_ID, "dev@localhost", "E2E Patch Lens", 0, now);
+    db.prepare(
+        "INSERT INTO workspaces (id, user_id, name, public, updated_at) VALUES (?, ?, ?, ?, ?)",
+    ).run(WS_ID, "dev@localhost", "E2E Patch Lens", 0, now);
 
-db.prepare(
-    "INSERT INTO charts (id, workspace_id, name, data, type, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-).run(CHART_ID, WS_ID, "Eiffel Tower", JSON.stringify(chartData), "patch-lens", 0, now, now);
+    db.prepare(
+        "INSERT INTO charts (id, workspace_id, name, data, type, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    ).run(CHART_ID, WS_ID, "Eiffel Tower", JSON.stringify(chartData), "patch-lens", 0, now, now);
+}
 
 // Three history entries (successive prompt versions) with distinct timestamps.
 const insRun = db.prepare(
@@ -160,15 +169,17 @@ versions.forEach((v, i) => {
         params: { topk: 10, includeEntropy: true },
     };
     const data = { source: buildLensData(v.tok) };
-    insRun.run(
-        v.id,
-        WS_ID,
-        CHART_ID,
-        MODEL,
-        JSON.stringify(summary),
-        JSON.stringify(data),
-        now + i * 1000,
-    );
+    if (!historyOnly) {
+        insRun.run(
+            v.id,
+            WS_ID,
+            CHART_ID,
+            MODEL,
+            JSON.stringify(summary),
+            JSON.stringify(data),
+            now + i * 1000,
+        );
+    }
     // Mirror the same history onto the F1-only chart (distinct run ids).
     insRun.run(
         `${HISTORY_RUN_PREFIX}${i + 1}`,
@@ -194,6 +205,15 @@ db.prepare(
     now,
     now,
 );
+
+if (historyOnly) {
+    db.exec("COMMIT");
+    console.log(
+        `Reseeded history chart ${HISTORY_CHART_ID} (${versions.length} run rows) -> ${DB_PATH}`,
+    );
+    db.close();
+    process.exit(0);
+}
 
 // ---------------------------------------------------------------------------
 // Patched chart: source + target + a persisted intervention whose patched
@@ -264,7 +284,9 @@ insRun.run(
 );
 
 db.exec("COMMIT");
+// Run rows: versions on the main chart + their history-chart mirrors + the
+// patched run.
 console.log(
-    `Seeded workspace ${WS_ID}, charts ${CHART_ID} + ${PATCHED_CHART_ID} (patch-lens), ${versions.length + 1} run rows -> ${DB_PATH}`,
+    `Seeded workspace ${WS_ID}, charts ${CHART_ID} + ${PATCHED_CHART_ID} + ${HISTORY_CHART_ID} (patch-lens), ${versions.length * 2 + 1} run rows -> ${DB_PATH}`,
 );
 db.close();
