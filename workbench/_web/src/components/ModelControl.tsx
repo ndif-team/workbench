@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useParams } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -8,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useModelsQuery } from "@/lib/api/modelsApi";
+import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import type { ModelStatus } from "@/types/models";
 import { MODEL_STATUS, deriveHeat, splitRepo } from "@/components/model-selector/status";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
@@ -70,8 +72,13 @@ interface ModelControlProps {
 
 export function ModelControl({ className }: ModelControlProps) {
     const { selectedModelIdx, setSelectedModelIdx, jobStatus } = useWorkspace();
+    const { workspaceId } = useParams<{ workspaceId?: string }>();
 
     const { data: models, isLoading: modelsLoading, isError: modelsError } = useModelsQuery();
+
+    // Workshop workspaces pin the workshop's model: the selection is forced
+    // and the picker popover is replaced with a locked pill.
+    const { data: workshop } = useWorkspaceWorkshop(workspaceId);
 
     const [open, setOpen] = React.useState(false);
 
@@ -84,6 +91,15 @@ export function ModelControl({ className }: ModelControlProps) {
     React.useEffect(() => {
         if (isJobActive && open) setOpen(false);
     }, [isJobActive, open]);
+
+    // Keep the workspace selection on the pinned model. The picker is locked
+    // below, but other surfaces (e.g. patch-lens's intro default) share the
+    // same store, so enforce rather than set-once.
+    React.useEffect(() => {
+        if (!workshop || !models || models.length === 0) return;
+        const idx = models.findIndex((m) => m.name === workshop.model);
+        if (idx !== -1 && idx !== selectedModelIdx) setSelectedModelIdx(idx);
+    }, [workshop, models, selectedModelIdx, setSelectedModelIdx]);
 
     const handleSelect = (name: string) => {
         if (!models) return;
@@ -141,6 +157,37 @@ export function ModelControl({ className }: ModelControlProps) {
     const selectedModel = models[selectedModelIdx] ?? models[0];
     const heat = deriveHeat(selectedModel);
     const display = splitRepo(selectedModel.name);
+
+    // Locked pill for workshop workspaces — same shape, no popover trigger.
+    if (workshop) {
+        return (
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <div
+                        role="group"
+                        aria-disabled
+                        aria-label="Model is set by the workshop"
+                        className={cn(TRIGGER_CLASSES, "max-w-[28rem] cursor-default", className)}
+                    >
+                        <HeatBadge heat={heat} />
+                        <span
+                            className="font-mono text-xs px-0.5 truncate min-w-0 text-foreground"
+                            title={selectedModel.name}
+                        >
+                            {display.label}
+                        </span>
+                        {job && (
+                            <>
+                                <span aria-hidden className="w-px h-[18px] bg-border shrink-0" />
+                                <JobBadge state={job.state} count={job.count} />
+                            </>
+                        )}
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Model is set by the workshop</TooltipContent>
+            </Tooltip>
+        );
+    }
 
     return (
         <Popover open={open} onOpenChange={setOpen}>

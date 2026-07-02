@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { hasWorkshopClaim, workshopEmailFor } from "@/lib/workshop";
 
 /**
  * Server action to get the current user's email using server-side Supabase client
@@ -19,11 +20,22 @@ export async function getCurrentUserEmailAction(): Promise<string | null> {
             return null;
         }
 
-        if (!user || user.email === "") {
+        if (!user) {
             return "guest@localhost";
         }
 
-        return user.email;
+        if (user.email) {
+            return user.email;
+        }
+
+        // Anonymous workshop participants get a unique synthetic identity so
+        // the backend treats them as signed in (gated models) and telemetry
+        // stays per-participant; plain anonymous guests keep the shared one.
+        if (hasWorkshopClaim(user)) {
+            return workshopEmailFor(user.id);
+        }
+
+        return "guest@localhost";
     } catch (error) {
         console.warn("Server: Failed to get user email:", error);
         return null;

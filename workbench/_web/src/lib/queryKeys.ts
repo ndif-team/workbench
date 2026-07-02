@@ -25,4 +25,8 @@ export const queryKeys = {
     models: {
         all: ["models"] as const,
     },
+    workshops: {
+        all: ["workshops"] as const,
+        byWorkspace: (workspaceId: string) => ["workshop-for-workspace", workspaceId] as const,
+    },
 };

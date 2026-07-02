@@ -16,7 +16,9 @@ import {
     useGetDocumentsForWorkspace,
 } from "@/lib/api/documentApi";
 import { useReorderWorkspaceItems } from "@/lib/api/workspaceApi";
+import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { queryKeys } from "@/lib/queryKeys";
+import type { WorkshopTool } from "@/db/schema";
 import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
 import { DeployCard, type DeployCardState } from "./DeployCard";
@@ -69,6 +71,9 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     const { data: reports, isLoading: isReportsLoading } = useGetDocumentsForWorkspace(
         workspaceId as string,
     );
+
+    // Workshop workspaces only offer the tools their workshop allows.
+    const { data: workshop } = useWorkspaceWorkshop(workspaceId as string);
 
     const { mutate: createLens2Pair, isPending: isCreatingLens2 } = useCreateLens2ChartPair();
     const { mutate: createPatchLensPair, isPending: isCreatingPatchLens } =
@@ -209,6 +214,9 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     };
 
     const handleCreate = (toolType: "lens2" | "patch" | "activation-patching" | "patch-lens") => {
+        // Guard against stale UI / programmatic calls; the buttons below are
+        // already filtered. createChartConfigPair re-checks server-side.
+        if (workshop && !workshop.allowedTools.includes(toolType as WorkshopTool)) return;
         if (toolType === "lens2") {
             createLens2Pair(
                 { workspaceId: workspaceId as string },
@@ -329,50 +337,51 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         isCreatingActivationPatching ||
         isCreatingDocument;
 
+    // One registry for both sidebar variants (expanded list + collapsed strip),
+    // filtered down to the workshop's allowed tools for workshop workspaces.
+    const toolButtons = [
+        {
+            tool: "lens2" as const,
+            label: "Logit Lens",
+            title: "New Logit Lens visualization",
+            Icon: Layers,
+            isCreating: isCreatingLens2,
+        },
+        {
+            tool: "activation-patching" as const,
+            label: "Activation Patching",
+            title: "New Activation Patching",
+            Icon: GitBranch,
+            isCreating: isCreatingActivationPatching,
+        },
+        {
+            tool: "patch-lens" as const,
+            label: "Patch Lens",
+            title: "New Patch Lens",
+            Icon: PatchLensIcon,
+            isCreating: isCreatingPatchLens,
+        },
+    ].filter(({ tool }) => !workshop || workshop.allowedTools.includes(tool));
+
     const actionButtons = (
         <div className="flex flex-col w-full gap-2 text-sm">
-            <Button
-                variant="outline"
-                onClick={() => handleCreate("lens2")}
-                disabled={isCreatingAny}
-                className="w-full"
-                title="New Logit Lens visualization"
-            >
-                {isCreatingLens2 ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                    <Layers className="w-4 h-4" />
-                )}
-                <span>Logit Lens</span>
-            </Button>
-            <Button
-                variant="outline"
-                onClick={() => handleCreate("activation-patching")}
-                disabled={isCreatingAny}
-                className="w-full"
-                title="Activation Patching"
-            >
-                {isCreatingActivationPatching ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                    <GitBranch className="w-4 h-4" />
-                )}
-                <span>Activation Patching</span>
-            </Button>
-            <Button
-                variant="outline"
-                onClick={() => handleCreate("patch-lens")}
-                disabled={isCreatingAny}
-                className="w-full"
-                title="Patch Lens"
-            >
-                {isCreatingPatchLens ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                    <PatchLensIcon className="w-4 h-4" />
-                )}
-                <span>Patch Lens</span>
-            </Button>
+            {toolButtons.map(({ tool, label, title, Icon, isCreating }) => (
+                <Button
+                    key={tool}
+                    variant="outline"
+                    onClick={() => handleCreate(tool)}
+                    disabled={isCreatingAny}
+                    className="w-full"
+                    title={title}
+                >
+                    {isCreating ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                        <Icon className="w-4 h-4" />
+                    )}
+                    <span>{label}</span>
+                </Button>
+            ))}
             <Button
                 variant="outline"
                 onClick={handleOverviewClick}
@@ -406,48 +415,23 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
 
                 {/* Action buttons - below expand */}
                 <div className="flex flex-col items-center gap-2 mt-3">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleCreate("lens2")}
-                        disabled={isCreatingAny}
-                        className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
-                        title="New Logit Lens visualization"
-                    >
-                        {isCreatingLens2 ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <Layers className="h-4 w-4" />
-                        )}
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleCreate("activation-patching")}
-                        disabled={isCreatingAny}
-                        className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
-                        title="New Activation Patching"
-                    >
-                        {isCreatingActivationPatching ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <GitBranch className="h-4 w-4" />
-                        )}
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleCreate("patch-lens")}
-                        disabled={isCreatingAny}
-                        className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
-                        title="New Patch Lens"
-                    >
-                        {isCreatingPatchLens ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <PatchLensIcon className="h-4 w-4" />
-                        )}
-                    </Button>
+                    {toolButtons.map(({ tool, title, Icon, isCreating }) => (
+                        <Button
+                            key={tool}
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleCreate(tool)}
+                            disabled={isCreatingAny}
+                            className="h-7 w-7 hover:bg-muted opacity-60 hover:opacity-100 transition-opacity"
+                            title={title}
+                        >
+                            {isCreating ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Icon className="h-4 w-4" />
+                            )}
+                        </Button>
+                    ))}
                     <Button
                         variant="ghost"
                         size="icon"

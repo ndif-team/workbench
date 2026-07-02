@@ -106,12 +106,13 @@ export const reorderWorkspaceItems = async (
 };
 
 // Wrapped versions for use with server actions/components that use withAuth
-export const createWorkspace = async (userId: string, name: string) => {
+export const createWorkspace = async (userId: string, name: string, workshopId?: string) => {
     const [workspace] = await db
         .insert(workspaces)
         .values({
             userId,
             name,
+            workshopId: workshopId ?? null,
         })
         .returning();
 

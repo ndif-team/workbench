@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { getWorkspaces } from "@/lib/queries/workspaceQueries";
+import { hasWorkshopClaim } from "@/lib/workshop";
 import { useModelDeployment } from "@/stores/useModelDeployment";
 import {
     ToolPill,
@@ -71,7 +72,9 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
         };
     }, [open]);
 
-    const isSignedIn = AUTH_DISABLED || (!!user && !user.is_anonymous);
+    // Anonymous workshop participants count as signed in — their app_metadata
+    // claim unlocks gated models, so don't bounce them to /login.
+    const isSignedIn = AUTH_DISABLED || (!!user && !user.is_anonymous) || hasWorkshopClaim(user);
 
     const { data: workspaces } = useQuery({
         queryKey: ["workspaces", user?.id],

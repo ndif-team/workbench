@@ -41,7 +41,11 @@ export async function updateSession(request: NextRequest) {
     if (
         !user &&
         !request.nextUrl.pathname.startsWith("/login") &&
-        !request.nextUrl.pathname.startsWith("/auth")
+        !request.nextUrl.pathname.startsWith("/auth") &&
+        // Workshop join links must be reachable pre-auth: the page signs the
+        // visitor in anonymously. Covers the server-action POST too (actions
+        // POST to the page URL).
+        !request.nextUrl.pathname.startsWith("/w/")
     ) {
         // no user, potentially respond by redirecting the user to the login page
         const url = request.nextUrl.clone();

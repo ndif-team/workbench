@@ -11,11 +11,35 @@ const generateUUID = () => {
     });
 };
 
+export const workshopTools = ["lens2", "activation-patching", "patch-lens"] as const;
+export type WorkshopTool = (typeof workshopTools)[number];
+
+// Workshop = a shareable join link (/w/{slug}) plus the constraints applied to
+// workspaces created through it. Mirrors the pg table; see schema.pg.ts.
+export const workshops = sqliteTable("workshops", {
+    id: text("id").primaryKey().$defaultFn(generateUUID),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    allowedTools: text("allowed_tools", { mode: "json" }).$type<WorkshopTool[]>().notNull(),
+    model: text("model").notNull(),
+    starterPrompt: text("starter_prompt").notNull().default(""),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+        .$defaultFn(() => new Date())
+        .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+        .$defaultFn(() => new Date())
+        .notNull()
+        .$onUpdate(() => new Date()),
+});
+
 export const workspaces = sqliteTable("workspaces", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
     userId: text("user_id").notNull(),
     name: text("name").notNull(),
     public: integer("public", { mode: "boolean" }).default(false).notNull(),
+    workshopId: text("workshop_id"),
     updatedAt: integer("updated_at", { mode: "timestamp" })
         .$defaultFn(() => new Date())
         .notNull()
@@ -101,6 +125,9 @@ export const lensRuns = sqliteTable("lens_runs", {
 });
 
 // Generate types from schema
+export type Workshop = typeof workshops.$inferSelect;
+export type NewWorkshop = typeof workshops.$inferInsert;
+
 export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
 

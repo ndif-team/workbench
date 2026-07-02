@@ -9,6 +9,9 @@ import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { eq, asc, desc, sql } from "drizzle-orm";
 import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
+// From workshopDb (not workshopQueries) — workshopQueries imports the chart
+// pair creators below, so importing it back here would be circular.
+import { getWorkshopForWorkspace } from "@/lib/queries/workshopDb";
 
 export const setChartData = async (chartId: string, chartData: ChartData, chartType: ChartType) => {
     const [chart] = await db
@@ -65,6 +68,13 @@ const createChartConfigPair = async (
     workspaceId: string,
     payload: ConfigPayload,
 ): Promise<{ chart: Chart; config: Config }> => {
+    // Workshop workspaces only allow their configured tools. The sidebar
+    // filters its buttons, but every create wrapper here is a public server
+    // action, so the allowlist is enforced at the single shared entry point.
+    const workshop = await getWorkshopForWorkspace(workspaceId);
+    if (workshop && !(workshop.allowedTools as string[]).includes(payload.type)) {
+        throw new Error(`This workshop does not allow the "${payload.type}" tool`);
+    }
     const position = await getNextWorkspaceItemPosition(workspaceId);
     const [newChart] = await db.insert(charts).values({ workspaceId, position }).returning();
     const [newConfig] = await db
