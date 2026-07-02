@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
@@ -16,6 +16,7 @@ import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { NotebookExporter } from "@/components/NotebookExporter";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
+import { isVisualTestMode, maskActivationPatchingDataForVisualTest } from "@/lib/visualTest";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 
@@ -78,6 +79,14 @@ export function ActivationPatchingDisplay() {
     const patchingConfig = config as ActivationPatchingConfig | undefined;
     const hasData =
         patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
+
+    // In visual-test mode, flatten the noisy plotted series so Argos snapshots
+    // are deterministic against real NDIF (chart chrome stays, lines ignored).
+    const widgetData = useMemo(() => {
+        const raw = patchingChart?.data;
+        if (!raw || !hasData) return raw;
+        return isVisualTestMode() ? maskActivationPatchingDataForVisualTest(raw) : raw;
+    }, [patchingChart?.data, hasData]);
 
     // Get the chart's saved name (treat "Untitled Chart" default as empty)
     const rawChartName = patchingChart?.name || "";
@@ -280,7 +289,7 @@ export function ActivationPatchingDisplay() {
             {/* Chart area */}
             <div className="flex-1 p-4 min-h-0">
                 <ActivationPatchingWidget
-                    data={patchingChart!.data!}
+                    data={widgetData!}
                     darkMode={isDarkMode}
                     transparentBackground
                     mode={
