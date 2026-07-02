@@ -1,6 +1,9 @@
 import { create } from "zustand";
 
-const STORAGE_KEY = "workbench:patch-lens-tutorial-completed:v1";
+// v2: the tutorial was split into "Reading the lens" (auto-run) +
+// "Activation patching" (manual); bumping the key re-triggers the auto-run
+// once for users who completed the old single-chapter version.
+const STORAGE_KEY = "workbench:patch-lens-tutorial-completed:v2";
 
 interface PatchLensTutorialState {
     completed: boolean;

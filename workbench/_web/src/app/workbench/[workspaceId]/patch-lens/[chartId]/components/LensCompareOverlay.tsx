@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { LogitLensGrid } from "edulogitlens";
+import { LogitLensGrid, formatTokenDisplay } from "edulogitlens";
 import {
     Dialog,
     DialogContent,
@@ -187,7 +187,7 @@ function LastRowTable({ model, refs }: { model: string; refs: PromptResultRef[] 
                                                     : "text-foreground/80",
                                             )}
                                         >
-                                            {cell.token.trim() || "·"}
+                                            {formatTokenDisplay(cell.token)}
                                         </span>
                                     </div>
                                 );

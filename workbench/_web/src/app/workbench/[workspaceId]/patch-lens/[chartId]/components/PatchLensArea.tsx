@@ -6,6 +6,12 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2, Play, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTour } from "@reactour/tour";
 import { PatchLensTutorial } from "@/tutorials/patchLens";
 import { usePatchLensTutorial, hydratePatchLensTutorial } from "@/stores/usePatchLensTutorial";
@@ -67,9 +73,9 @@ function useTutorialAutoStart() {
         return () => clearTimeout(id);
     }, [completed, isOpen, setSteps, setIsOpen, markCompleted]);
 
-    const startTutorial = () => {
+    const startTutorial = (chapterIdx: number = 0) => {
         if (!setSteps || !setIsOpen) return;
-        const steps = PatchLensTutorial.chapters[0]?.steps ?? [];
+        const steps = PatchLensTutorial.chapters[chapterIdx]?.steps ?? [];
         setSteps(steps);
         setIsOpen(true);
     };
@@ -383,14 +389,27 @@ export default function PatchLensArea({
                             </TooltipContent>
                         </Tooltip>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs text-muted-foreground"
-                        onClick={startTutorial}
-                    >
-                        Tutorial
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-muted-foreground"
+                            >
+                                Tutorial
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {PatchLensTutorial.chapters.map((chapter, idx) => (
+                                <DropdownMenuItem
+                                    key={chapter.title}
+                                    onSelect={() => startTutorial(idx)}
+                                >
+                                    {chapter.title}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 
