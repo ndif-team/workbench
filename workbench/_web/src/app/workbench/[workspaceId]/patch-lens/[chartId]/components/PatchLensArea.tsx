@@ -20,6 +20,7 @@ import { usePatchLensLogitLens, PatchLensResult } from "@/lib/api/patchLensApi";
 import { finalPrediction } from "@/lib/lens-last-row";
 import type { NormalizedRun } from "@/lib/lensRun";
 import { LensHistoryRail } from "./LensHistoryRail";
+import { SpinOutButton } from "@/app/workbench/[workspaceId]/components/chat/SpinOutButton";
 
 // Default model for the CM intro. 32 layers reads as a manageable heatmap;
 // index 0 in the model list is the 70B (80 layers), far too many for a primer.
@@ -391,6 +392,10 @@ export default function PatchLensArea({
                             </TooltipContent>
                         </Tooltip>
                     )}
+                    <SpinOutButton
+                        getText={() => sourcePrompt}
+                        disabled={!sourcePrompt.trim() || isRunning}
+                    />
                     <Button
                         variant="ghost"
                         size="sm"

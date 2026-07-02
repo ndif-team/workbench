@@ -9,6 +9,7 @@ import { ModelControl } from "@/components/ModelControl";
 import { CaptureProvider } from "@/components/providers/CaptureProvider";
 import { Button } from "@/components/ui/button";
 import { WorkspaceNameEditor } from "@/components/WorkspaceNameEditor";
+import { WorkbenchChat } from "./components/chat/WorkbenchChat";
 
 export default function WorkbenchLayout({
     children,
@@ -91,7 +92,9 @@ export default function WorkbenchLayout({
                 </nav>
             </header>
             <main className="flex-1 min-h-0 overflow-hidden">
-                <CaptureProvider>{children}</CaptureProvider>
+                <CaptureProvider>
+                    <WorkbenchChat>{children}</WorkbenchChat>
+                </CaptureProvider>
             </main>
         </div>
     );
