@@ -43,9 +43,7 @@ export function maskLogitLensDataForVisualTest(data: LogitLensData): LogitLensDa
 
     // topk is indexed [layer][position]; keep only the final-prediction cell.
     const topk = data.topk.map((layerRow, layerIdx) =>
-        layerRow.map((cell, pos) =>
-            layerIdx === lastLayer && pos === lastPos ? cell : [""],
-        ),
+        layerRow.map((cell, pos) => (layerIdx === lastLayer && pos === lastPos ? cell : [""])),
     );
 
     // Flatten every tracked trajectory to a constant. The final cell reads its
