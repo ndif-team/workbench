@@ -32,7 +32,10 @@ export type TestingUser = { email: string; user_id: string };
  * is passed; `admin` uses E2E_ADMIN_EMAIL so the run's allowlisted admin address
  * (ADMIN_EMAILS in CI) resolves. Idempotent: reuses an existing account by email.
  */
-export async function createTestUser(opts?: { email?: string; admin?: boolean }): Promise<TestingUser> {
+export async function createTestUser(opts?: {
+    email?: string;
+    admin?: boolean;
+}): Promise<TestingUser> {
     const worker = process.env.TEST_WORKER_INDEX ?? "0";
     const rand = Math.random().toString(36).slice(2, 12);
     const email =
@@ -84,7 +87,9 @@ async function generateMagicLinkWithRetry(email: string) {
             lastErr = err instanceof Error ? err.message : String(err);
             if (attempt === delaysMs.length) throw err;
         }
-        await new Promise((r) => setTimeout(r, delaysMs[attempt] + Math.floor(Math.random() * 250)));
+        await new Promise((r) =>
+            setTimeout(r, delaysMs[attempt] + Math.floor(Math.random() * 250)),
+        );
     }
     throw new Error(`generateMagicLinkWithRetry exhausted (${lastErr})`);
 }
@@ -142,10 +147,14 @@ export async function loginAsUser(page: Page, user: TestingUser, retries = 4): P
             outcomes.push(`exception:${err instanceof Error ? err.message : String(err)}`);
         }
         if (attempt < retries) {
-            await new Promise((r) => setTimeout(r, 250 * (attempt + 1) + Math.floor(Math.random() * 250)));
+            await new Promise((r) =>
+                setTimeout(r, 250 * (attempt + 1) + Math.floor(Math.random() * 250)),
+            );
         }
     }
-    throw new Error(`loginAsUser(${user.email}) failed after ${retries + 1} attempts: ${outcomes.join("; ")}`);
+    throw new Error(
+        `loginAsUser(${user.email}) failed after ${retries + 1} attempts: ${outcomes.join("; ")}`,
+    );
 }
 
 /** A user-scoped supabase-js client (for assertions/seeding that must run AS the user). */
@@ -158,7 +167,9 @@ export async function createAuthenticatedClient(user: TestingUser): Promise<Supa
     if (error || !tokenHash) throw new Error(`auth client: ${error?.message ?? "no token"}`);
     const verified = await userClient.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
     if (verified.error || !verified.data.session) {
-        throw new Error(`verifyOtp failed for ${user.email}: ${verified.error?.message ?? "no session"}`);
+        throw new Error(
+            `verifyOtp failed for ${user.email}: ${verified.error?.message ?? "no session"}`,
+        );
     }
     await userClient.auth.setSession(verified.data.session);
     return userClient;
@@ -202,8 +213,20 @@ export async function seedWorkshops(): Promise<void> {
         created_by: "e2e@seed.local",
     };
     const { error } = await supabase.from("workshops").insert([
-        { id: ACTIVE_WORKSHOP_ID, name: "E2E Active Workshop", slug: ACTIVE_WORKSHOP_SLUG, expires_at: inAWeek, ...base },
-        { id: EXPIRED_WORKSHOP_ID, name: "E2E Expired Workshop", slug: EXPIRED_WORKSHOP_SLUG, expires_at: anHourAgo, ...base },
+        {
+            id: ACTIVE_WORKSHOP_ID,
+            name: "E2E Active Workshop",
+            slug: ACTIVE_WORKSHOP_SLUG,
+            expires_at: inAWeek,
+            ...base,
+        },
+        {
+            id: EXPIRED_WORKSHOP_ID,
+            name: "E2E Expired Workshop",
+            slug: EXPIRED_WORKSHOP_SLUG,
+            expires_at: anHourAgo,
+            ...base,
+        },
     ]);
     if (error) throw new Error(`seedWorkshops failed: ${error.message}`);
 }
@@ -212,7 +235,20 @@ const PL_WS_ID = "11111111-1111-4111-8111-111111111111";
 const PL_CHART_ID = "22222222-2222-4222-8222-222222222222";
 const PL_NEWEST_RUN_ID = "33333333-3333-4333-8333-333333333333";
 const PL_MODEL = "meta-llama/Llama-3.1-8B";
-const PL_TOKENS = ["The", " Eiffel", " Tower", " is", " in", " the", " city", " of", " Rome", " not", " Paris", ":"];
+const PL_TOKENS = [
+    "The",
+    " Eiffel",
+    " Tower",
+    " is",
+    " in",
+    " the",
+    " city",
+    " of",
+    " Rome",
+    " not",
+    " Paris",
+    ":",
+];
 const PL_N_LAYERS = 32;
 const PL_LAYERS = Array.from({ length: PL_N_LAYERS }, (_, i) => i);
 
@@ -220,15 +256,23 @@ function buildLensData(finalToken: string) {
     const input = PL_TOKENS.slice();
     const topk = PL_LAYERS.map(() =>
         input.map((_, pos) =>
-            pos === input.length - 1 ? [finalToken, " the"] : [input[(pos + 1) % input.length], " a"],
+            pos === input.length - 1
+                ? [finalToken, " the"]
+                : [input[(pos + 1) % input.length], " a"],
         ),
     );
     const tracked = input.map((_, pos) => {
-        const cand = pos === input.length - 1 ? [finalToken, " the"] : [input[(pos + 1) % input.length], " a"];
+        const cand =
+            pos === input.length - 1
+                ? [finalToken, " the"]
+                : [input[(pos + 1) % input.length], " a"];
         const map: Record<string, number[]> = {};
         for (const tok of cand) {
-            map[tok] = PL_LAYERS.map((li) =>
-                Math.round((tok === cand[0] ? 0.2 + (0.7 * li) / (PL_N_LAYERS - 1) : 0.1) * 1000) / 1000,
+            map[tok] = PL_LAYERS.map(
+                (li) =>
+                    Math.round(
+                        (tok === cand[0] ? 0.2 + (0.7 * li) / (PL_N_LAYERS - 1) : 0.1) * 1000,
+                    ) / 1000,
             );
         }
         return map;
@@ -263,30 +307,42 @@ export async function seedPatchLensChart(userId: string): Promise<void> {
         activeLensRunId: PL_NEWEST_RUN_ID,
     };
 
-    let err = (await supabase.from("workspaces").insert({
-        id: PL_WS_ID,
-        user_id: userId,
-        name: "E2E Patch Lens",
-        public: false,
-        updated_at: nowIso,
-    })).error;
+    let err = (
+        await supabase.from("workspaces").insert({
+            id: PL_WS_ID,
+            user_id: userId,
+            name: "E2E Patch Lens",
+            public: false,
+            updated_at: nowIso,
+        })
+    ).error;
     if (err) throw new Error(`seedPatchLensChart workspace failed: ${err.message}`);
 
-    err = (await supabase.from("charts").insert({
-        id: PL_CHART_ID,
-        workspace_id: PL_WS_ID,
-        name: "Eiffel Tower",
-        data: chartData,
-        type: "patch-lens",
-        position: 0,
-        created_at: nowIso,
-        updated_at: nowIso,
-    })).error;
+    err = (
+        await supabase.from("charts").insert({
+            id: PL_CHART_ID,
+            workspace_id: PL_WS_ID,
+            name: "Eiffel Tower",
+            data: chartData,
+            type: "patch-lens",
+            position: 0,
+            created_at: nowIso,
+            updated_at: nowIso,
+        })
+    ).error;
     if (err) throw new Error(`seedPatchLensChart chart failed: ${err.message}`);
 
     const versions = [
-        { id: "33333333-3333-4333-8333-333333333331", prompt: "The Eiffel Tower is in the city of", tok: " Paris" },
-        { id: "33333333-3333-4333-8333-333333333332", prompt: "The Eiffel Tower is in the city of Rome,", tok: " Rome" },
+        {
+            id: "33333333-3333-4333-8333-333333333331",
+            prompt: "The Eiffel Tower is in the city of",
+            tok: " Paris",
+        },
+        {
+            id: "33333333-3333-4333-8333-333333333332",
+            prompt: "The Eiffel Tower is in the city of Rome,",
+            tok: " Rome",
+        },
         { id: PL_NEWEST_RUN_ID, prompt: PL_TOKENS.join(""), tok: " Paris" },
     ];
     const now = Date.now();
@@ -300,7 +356,14 @@ export async function seedPatchLensChart(userId: string): Promise<void> {
             workspace_id: PL_WS_ID,
             chart_id: PL_CHART_ID,
             model: PL_MODEL,
-            summary: { source: { prompt: v.prompt, finalToken: v.tok, lastRow: { layers: PL_LAYERS, cells } }, params: { topk: 10, includeEntropy: true } },
+            summary: {
+                source: {
+                    prompt: v.prompt,
+                    finalToken: v.tok,
+                    lastRow: { layers: PL_LAYERS, cells },
+                },
+                params: { topk: 10, includeEntropy: true },
+            },
             data: { source: buildLensData(v.tok) },
             created_at: new Date(now + i * 1000).toISOString(),
         };

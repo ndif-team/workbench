@@ -78,10 +78,7 @@ async function upsertUser(email, isAdmin) {
 }
 
 (async () => {
-    const results = [
-        await upsertUser(adminEmail, true),
-        await upsertUser(regularEmail, false),
-    ];
+    const results = [await upsertUser(adminEmail, true), await upsertUser(regularEmail, false)];
     for (const r of results) {
         console.log(`  ${r.status.padEnd(7)} ${r.email}  (${r.id})`);
     }
