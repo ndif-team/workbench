@@ -2,6 +2,8 @@
 
 import { TourProvider as ReactourTourProvider, type PopoverContentProps } from "@reactour/tour";
 import React, { type ReactNode } from "react";
+import { Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TourProviderProps {
     children: ReactNode;
@@ -28,9 +30,26 @@ function ContentComponent({ currentStep, steps, setIsOpen, setCurrentStep }: Pop
                 {renderTextWithBackticks(content as string)}
             </div>
             <div className="flex items-center justify-between gap-2 border-t pt-2">
-                <span className="text-xs text-muted-foreground">
-                    {currentStep + 1} / {steps.length}
-                </span>
+                <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">
+                        {currentStep + 1} / {steps.length}
+                    </span>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                type="button"
+                                aria-label="How to use this walkthrough"
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                <Info className="h-3.5 w-3.5" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[240px]">
+                            Use Prev / Next to step through. Close with Done or ✕ — you can
+                            reopen this walkthrough anytime from the Tutorial menu.
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
                 <div className="flex items-center gap-2">
                     {!isFirst && (
                         <button

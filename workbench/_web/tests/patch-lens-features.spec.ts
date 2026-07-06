@@ -284,4 +284,26 @@ test.describe("patch-lens tutorial", () => {
         ).toBeVisible();
         await page.getByRole("button", { name: "Close tour" }).click();
     });
+
+    test("reopening the tutorial restarts at step 1 (not the step it was closed on)", async ({
+        page,
+    }) => {
+        // Auto-start opens chapter 1 at step 1.
+        await expect(page.getByText(/Welcome to Patch Lens\./)).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText("1 / 6")).toBeVisible();
+
+        // Advance a couple of steps, then close mid-tour.
+        await page.getByRole("button", { name: "Next", exact: true }).click();
+        await page.getByRole("button", { name: "Next", exact: true }).click();
+        await expect(page.getByText("3 / 6")).toBeVisible();
+        await page.getByRole("button", { name: "Close tour" }).click();
+
+        // Reopen the same chapter from the Tutorial menu: it must restart at
+        // step 1, not resume at step 3 (reactour retains the last step index).
+        await page.getByRole("button", { name: "Tutorial" }).click();
+        await page.getByRole("menuitem", { name: "Reading the lens" }).click();
+        await expect(page.getByText(/Welcome to Patch Lens\./)).toBeVisible();
+        await expect(page.getByText("1 / 6")).toBeVisible();
+        await page.getByRole("button", { name: "Close tour" }).click();
+    });
 });

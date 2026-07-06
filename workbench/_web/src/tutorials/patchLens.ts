@@ -21,7 +21,7 @@ const ReadingTheLensSteps: ExtendedStepType[] = [
     {
         selector: "#patch-lens-source-prompt",
         content:
-            "Enter a Source prompt. Pick something that produces a clear, specific prediction (e.g. 'The Eiffel Tower is in the city of').\n\nLeave Target blank for now — with a single prompt, Patch Lens is a pure logit-lens viewer.",
+            "Enter a Source prompt. Click 'Try an example' to load a known-good prompt ('The Eiffel Tower is in the city of'), or type your own — pick something that produces a clear, specific prediction.\n\nLeave Target blank for now — with a single prompt, Patch Lens is a pure logit-lens viewer.",
     },
     {
         selector: "#patch-lens-run",
@@ -63,7 +63,7 @@ const ActivationPatchingSteps: ExtendedStepType[] = [
     {
         selector: "#patch-lens-source-prompt",
         content:
-            "Start with a Source prompt — the prompt whose internal state you want to STEAL from. Pick something that produces a clear, specific prediction (e.g. 'The Eiffel Tower is in the city of').",
+            "Start with a Source prompt — the prompt whose internal state you want to STEAL from. Click 'Try an example' to load 'The Eiffel Tower is in the city of', or type your own prompt that produces a clear, specific prediction.",
     },
     {
         selector: "#patch-lens-target-prompt",
