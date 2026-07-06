@@ -36,10 +36,20 @@ test.describe("workshop join flow (seeded)", () => {
         // lens2 chart (the workshop's only allowed tool).
         await page.waitForURL(/\/workbench\/[^/]+\/lens2\/[^/]+/, { timeout: 30_000 });
 
-        // Starter prompt is seeded into the chart config.
+        // Starter prompt is seeded into the chart config. The seeded prompt has
+        // no existing data, so lens2 auto-runs on open and collapses the editable
+        // textarea into the tokenized chip view — reveal the editor (click the
+        // chip container when the textarea isn't showing) before asserting value.
         const promptBox = page.getByPlaceholder(/Enter your prompt here/);
-        await expect(promptBox).toBeVisible({ timeout: 15_000 });
-        await expect(promptBox).toHaveValue(STARTER_PROMPT);
+        const tokenBox = page.locator("div.min-h-32.cursor-text, div.min-h-32.cursor-progress");
+        await expect(promptBox.or(tokenBox).first()).toBeVisible({ timeout: 30_000 });
+        await expect(async () => {
+            if (!(await promptBox.isVisible().catch(() => false))) {
+                await tokenBox.first().click();
+            }
+            await expect(promptBox).toBeVisible({ timeout: 2_000 });
+            await expect(promptBox).toHaveValue(STARTER_PROMPT);
+        }).toPass({ timeout: 30_000 });
 
         // Tool gating: only the Logit Lens create button renders. (getByTitle
         // matches the visible list plus the sidebar's hidden measuring copy,

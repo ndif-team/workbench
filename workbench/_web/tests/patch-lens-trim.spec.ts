@@ -1,6 +1,6 @@
 import { test, expect, Page } from "@playwright/test";
-import { execFileSync } from "node:child_process";
 import { waitForModelsLoaded, REAL_NDIF_TIMEOUT_MS } from "./fixtures";
+import { createTestUser, loginAsUser, seedPatchLensChart, type TestingUser } from "./TestingUtils";
 
 /**
  * Regression E2E for the patch-lens prompt-trim behavior.
@@ -14,7 +14,7 @@ import { waitForModelsLoaded, REAL_NDIF_TIMEOUT_MS } from "./fixtures";
  * Correct behavior (asserted here): running rewrites the source box to the
  * trimmed prompt, so the textbox matches what was actually run.
  *
- * Uses the seeded chart (tests/seed-patch-lens.cjs) as a landing point, then
+ * Uses the seeded chart (seedPatchLensChart in TestingUtils) as a landing point, then
  * does a real gpt2 run against NDIF (same pattern as logit-lens.spec.ts).
  */
 
@@ -41,8 +41,12 @@ test.describe("patch-lens prompt trimming (real NDIF)", () => {
     // Real NDIF jobs can take a while to start, run, and round-trip.
     test.setTimeout(REAL_NDIF_TIMEOUT_MS * 4);
 
-    test.beforeAll(() => {
-        execFileSync("node", ["tests/seed-patch-lens.cjs"], { stdio: "inherit" });
+    // Fresh user per file (real auth), then seed the fixed chart OWNED by that
+    // user so the chart route's owner check passes.
+    let user: TestingUser;
+    test.beforeAll(async () => {
+        user = await createTestUser();
+        await seedPatchLensChart(user.user_id);
     });
 
     test.beforeEach(async ({ page }) => {
@@ -51,6 +55,7 @@ test.describe("patch-lens prompt trimming (real NDIF)", () => {
         await page.addInitScript(() =>
             localStorage.setItem("workbench:patch-lens-tutorial-completed:v1", "true"),
         );
+        await loginAsUser(page, user);
         await page.goto(URL);
     });
 

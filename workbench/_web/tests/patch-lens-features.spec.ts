@@ -3,7 +3,7 @@ import { createTestUser, loginAsUser, seedPatchLensChart, type TestingUser } fro
 
 /**
  * UI E2E for the patch-lens workshop features. These run against seeded chart +
- * history data (see tests/seed-patch-lens.cjs) so they exercise the real
+ * history data (see seedPatchLensChart in TestingUtils) so they exercise the real
  * edulogitlens widget and the F1 history rail WITHOUT a model run / NDIF —
  * the behaviors under test are all front-end.
  *
