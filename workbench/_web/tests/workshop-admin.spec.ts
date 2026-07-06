@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { createTestUser, loginAsUser, type TestingUser } from "./TestingUtils";
 
 /**
- * UI E2E for the /admin/workshops CRUD surface. Requires ADMIN_EMAILS to
- * include the DISABLE_AUTH stub user (dev@localhost) in the server's env —
- * without it the route 404s (which is itself the negative-path behavior, but
- * this suite assumes the local dev config where it's allowlisted).
+ * UI E2E for the /admin/workshops CRUD surface. Runs under real auth as a
+ * freshly-created admin user whose email is E2E_ADMIN_EMAIL — the address CI
+ * puts in ADMIN_EMAILS, so getAdminEmail() allowlists it. Without an allowlisted
+ * session the route 404s (the negative path); this suite covers the happy path.
  *
  * Creates a workshop through the dialog, checks the row, and deletes it via
  * the confirmation popover. Uses a unique name per run so leftovers from
@@ -15,6 +16,15 @@ const NAME = `E2E Admin Workshop ${Date.now()}`;
 
 // Serial: create → assert → delete share state.
 test.describe.configure({ mode: "serial" });
+
+// Fresh admin user per file; log in before each test.
+let admin: TestingUser;
+test.beforeAll(async () => {
+    admin = await createTestUser({ admin: true });
+});
+test.beforeEach(async ({ page }) => {
+    await loginAsUser(page, admin);
+});
 
 test.describe("workshop admin CRUD", () => {
     test("create, list, and delete a workshop", async ({ page, context }) => {

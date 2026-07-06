@@ -1,29 +1,30 @@
 import { test, expect } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import {
+    seedWorkshops,
+    supabase,
+    ACTIVE_WORKSHOP_SLUG as ACTIVE_SLUG,
+    EXPIRED_WORKSHOP_SLUG as EXPIRED_SLUG,
+    WORKSHOP_STARTER_PROMPT as STARTER_PROMPT,
+} from "./TestingUtils";
 
 /**
- * UI E2E for the workshop join flow. Runs against seeded workshop rows (see
- * tests/seed-workshop.cjs) under NEXT_PUBLIC_DISABLE_AUTH — so it exercises
- * slug validation, expiry, workspace + chart seeding, tool gating, and model
- * pinning, but NOT real anonymous sign-up / claim stamping (those need a live
- * Supabase project and are verified manually).
+ * UI E2E for the workshop join flow. Runs against seeded workshop rows under
+ * REAL auth with anonymous sign-ins enabled — so visiting /w/{slug} in a fresh
+ * (cookieless) context exercises the actual anonymous sign-in + service-role
+ * claim stamping, plus slug validation, expiry, workspace + chart seeding, tool
+ * gating, and model pinning. No user is logged in here on purpose.
  */
 
-const ACTIVE_SLUG = "e2e-workshop-active-0001";
-const EXPIRED_SLUG = "e2e-workshop-expired-001";
-const STARTER_PROMPT = "The Eiffel Tower is in";
-
-// Serial: these tests CREATE data (join mints a workspace) and the per-worker
-// beforeAll seed DELETES prior participant workspaces — parallel workers would
-// race each other's state.
+// Serial: these tests CREATE data (join mints a workspace) and the beforeAll
+// seed DELETES prior participant workspaces — parallel workers would race.
 test.describe.configure({ mode: "serial" });
 
 test.describe("workshop join flow (seeded)", () => {
-    // Seed here rather than in a globalSetup so retries re-seed (the script's
-    // delete-then-insert is idempotent and clears prior participant workspaces
-    // so each run takes the fresh-join path).
-    test.beforeAll(() => {
-        execFileSync("node", ["tests/seed-workshop.cjs"], { stdio: "inherit" });
+    // Seed here rather than in a globalSetup so retries re-seed (delete-then-
+    // insert is idempotent and clears prior participant workspaces so each run
+    // takes the fresh-join path).
+    test.beforeAll(async () => {
+        await seedWorkshops();
     });
 
     test("join link creates a workspace seeded with the workshop's tool + prompt", async ({
@@ -51,6 +52,23 @@ test.describe("workshop join flow (seeded)", () => {
         const lockedPill = page.getByLabel("Model is set by the workshop");
         await expect(lockedPill).toBeVisible({ timeout: 15_000 });
         await expect(lockedPill).toContainText("gpt2");
+    });
+
+    test("anonymous join stamps the workshop claim on the new user", async ({ page }) => {
+        // Fresh cookieless context → the join action signs the visitor in
+        // anonymously and stamps app_metadata.workshop_slug via the service role.
+        await page.goto(`/w/${ACTIVE_SLUG}`);
+        await page.waitForURL(/\/workbench\/[^/]+\/lens2\/[^/]+/, { timeout: 30_000 });
+
+        // The anonymous participant now exists in GoTrue carrying the claim.
+        const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        expect(error).toBeNull();
+        const claimed = data.users.filter(
+            (u) => (u.app_metadata as { workshop_slug?: string })?.workshop_slug === ACTIVE_SLUG,
+        );
+        expect(claimed.length).toBeGreaterThan(0);
+        // The claim sits on an emailless (anonymous) account, not a real login.
+        expect(claimed.some((u) => !u.email)).toBe(true);
     });
 
     test("re-clicking the join link reuses the existing workspace", async ({ page }) => {

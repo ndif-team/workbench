@@ -1,5 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { createTestUser, loginAsUser, seedPatchLensChart, type TestingUser } from "./TestingUtils";
 
 /**
  * UI E2E for the patch-lens workshop features. These run against seeded chart +
@@ -22,14 +22,14 @@ const tokenLabels = (page: Page) =>
 const historyStrips = (page: Page) => page.locator('[data-testid="lens-history-strip"]');
 
 test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
-    // CI runs the default Playwright config with no seed step and no
-    // globalSetup, so seed the fixed chart + history here. seed-patch-lens.cjs
-    // loads .env and writes to the same SQLite DB the server reads (e2e.db in
-    // CI, local.db locally); its DELETE-then-INSERT is idempotent across
-    // retries. Runs after the webServer is up, so the server sees the committed
-    // rows on the next query.
-    test.beforeAll(() => {
-        execFileSync("node", ["tests/seed-patch-lens.cjs"], { stdio: "inherit" });
+    // Fresh user per file (real auth), then seed the fixed chart + history OWNED
+    // by that user (so the chart route's owner check passes). Seeds via the
+    // service-role client (delete-then-insert, idempotent across retries) — runs
+    // after the webServer is up, so the server sees the rows on the next query.
+    let user: TestingUser;
+    test.beforeAll(async () => {
+        user = await createTestUser();
+        await seedPatchLensChart(user.user_id);
     });
 
     test.beforeEach(async ({ page }) => {
@@ -40,6 +40,7 @@ test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
         await page.addInitScript(() =>
             localStorage.setItem("workbench:patch-lens-tutorial-completed:v1", "true"),
         );
+        await loginAsUser(page, user);
         await page.goto(URL);
         // Heatmap rendered once token labels appear.
         await expect(tokenLabels(page).first()).toBeVisible({ timeout: 30_000 });
