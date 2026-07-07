@@ -187,9 +187,7 @@ export function WorkshopFormDialog({
                         <Label className="flex items-center gap-2 text-sm font-normal">
                             <Checkbox
                                 checked={allowModelChange}
-                                onCheckedChange={(checked) =>
-                                    setAllowModelChange(checked === true)
-                                }
+                                onCheckedChange={(checked) => setAllowModelChange(checked === true)}
                             />
                             Let participants change the model (this is just the default)
                         </Label>
