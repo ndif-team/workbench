@@ -35,7 +35,7 @@
         "d3-delaunay": "^6.0.4",
         "dotenv": "^17.2.1",
         "drizzle-orm": "^0.44.4",
-        "edulogitlens": "github:jon-bell/edulogitlens#29ace9f",
+        "edulogitlens": "github:jon-bell/edulogitlens#38d582a",
         "framer-motion": "^12.23.22",
         "html-to-image": "^1.11.13",
         "lexical": "^0.34.0",
@@ -1100,7 +1100,7 @@
 
     "easy-table": ["easy-table@1.1.0", "", { "optionalDependencies": { "wcwidth": ">=1.0.1" } }, "sha512-oq33hWOSSnl2Hoh00tZWaIPi1ievrD9aFG82/IgjlycAnW9hHx5PkJiXpxPsgEE+H7BsbVQXFVFST8TEXS6/pA=="],
 
-    "edulogitlens": ["edulogitlens@github:jon-bell/edulogitlens#29ace9f", { "dependencies": { "lucide-react": "^0.487.0", "motion": "^12.23.24", "react-dnd": "^16.0.1", "react-dnd-html5-backend": "^16.0.1" }, "peerDependencies": { "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" } }, "jon-bell-edulogitlens-29ace9f", "sha512-SMQztgq6KGvC9zGI13UZxkwk42eA+PpE2Vsr/wT5TAPmJ//+lMqeHSqaBqBOCa3gc7uVz35Er8GZcAbT6uOZBQ=="],
+    "edulogitlens": ["edulogitlens@github:jon-bell/edulogitlens#38d582a", { "dependencies": { "lucide-react": "^0.487.0", "motion": "^12.23.24", "react-dnd": "^16.0.1", "react-dnd-html5-backend": "^16.0.1" }, "peerDependencies": { "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" } }, "jon-bell-edulogitlens-38d582a", "sha512-scafsTvOezDAjBsr2HB6GNO3xcHrGmdEz5jjmaX/+BXwECprscg9R8WlvXxJ0i+m7MydbBOEPAyWzIi8spjb+g=="],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.200", "", {}, "sha512-rFCxROw7aOe4uPTfIAx+rXv9cEcGx+buAF4npnhtTqCJk5KDFRnh3+KYj7rdVh6lsFt5/aPs+Irj9rZ33WMA7w=="],
 
