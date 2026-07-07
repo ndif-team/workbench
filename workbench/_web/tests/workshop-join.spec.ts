@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { argosScreenshot } from "@argos-ci/playwright";
 import {
     seedWorkshops,
     supabase,
@@ -63,6 +64,13 @@ test.describe("workshop join flow (seeded)", () => {
         const lockedPill = page.getByLabel("Model is set by the workshop");
         await expect(lockedPill).toBeVisible({ timeout: 15_000 });
         await expect(lockedPill).toContainText(E2E_MODEL_LABEL);
+
+        // Visual snapshot of the end-user's seeded workshop workspace: locked
+        // model pill, gated sidebar (Logit Lens only), and the starter prompt.
+        // Small settle for layout/animations (avoid networkidle — the auto-run
+        // polls NDIF, so the page may never go network-idle).
+        await page.waitForTimeout(800);
+        await argosScreenshot(page, "workshop-join-workspace", { fullPage: false });
     });
 
     test("anonymous join stamps the workshop claim on the new user", async ({ page }) => {
@@ -97,6 +105,10 @@ test.describe("workshop join flow (seeded)", () => {
         await expect(page.getByText("This workshop has ended")).toBeVisible({ timeout: 15_000 });
         // Stays on the join URL — no workspace redirect.
         expect(page.url()).toContain(`/w/${EXPIRED_SLUG}`);
+
+        // Visual snapshot of the end-user's "workshop ended" card (deterministic,
+        // no model run).
+        await argosScreenshot(page, "workshop-ended", { fullPage: false });
     });
 
     test("unknown slug 404s", async ({ page }) => {

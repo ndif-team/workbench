@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { argosScreenshot } from "@argos-ci/playwright";
 import { createTestUser, loginAsUser, type TestingUser } from "./TestingUtils";
 import { E2E_MODEL } from "./fixtures";
 
@@ -39,6 +40,13 @@ test.describe("workshop admin CRUD", () => {
 
         // Create
         await page.getByRole("button", { name: "New workshop" }).click();
+        // Visual snapshot of the pristine create dialog (deterministic: empty
+        // name, lens2 pre-checked, model unselected), once the model combobox
+        // has swapped in from its loading fallback.
+        await expect(page.getByRole("combobox", { name: "Model" })).toBeVisible({
+            timeout: 15_000,
+        });
+        await argosScreenshot(page, "workshop-admin-create-dialog", { fullPage: false });
         await page.getByLabel("Name").fill(NAME);
         // lens2 is pre-checked; add Patch Lens.
         await page.getByRole("checkbox").nth(2).check();
