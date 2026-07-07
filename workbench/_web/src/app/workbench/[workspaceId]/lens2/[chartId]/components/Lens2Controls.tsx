@@ -21,6 +21,8 @@ import { useDraftModel } from "@/hooks/useDraftModel";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/workbench/[workspaceId]/components/ToolPanelHeader";
+import { SpinOutButton } from "@/app/workbench/[workspaceId]/components/chat/SpinOutButton";
+import { useChat } from "@/stores/useChat";
 
 interface Lens2Config {
     id: string;
@@ -141,6 +143,31 @@ export function Lens2Controls({
             lastSyncedPromptRef.current = configPrompt;
         }
     }, [initialConfig.data?.prompt]);
+
+    // Chat handoff: a "Send to Logit Lens" from the chat rail drops its captured
+    // text into the editor here. We only load it into the draft (not the saved
+    // config) and open the editor so the user can review/run — the auto-run
+    // path is gated on the saved prompt, so this won't fire a run on its own.
+    const injection = useChat((s) => s.injection);
+    const consumeInjection = useChat((s) => s.consumeInjection);
+    const injectionNonceRef = useRef(0);
+    useEffect(() => {
+        if (!injection || injection.target !== "lens2") return;
+        if (injection.nonce === injectionNonceRef.current) return;
+        injectionNonceRef.current = injection.nonce;
+        const text = injection.text;
+        setPrompt(text);
+        setEditingText(true);
+        lastSyncedPromptRef.current = text;
+        consumeInjection();
+        setTimeout(() => {
+            const el = textareaRef.current;
+            if (el) {
+                el.focus();
+                el.setSelectionRange(el.value.length, el.value.length);
+            }
+        }, 0);
+    }, [injection, consumeInjection]);
 
     // Auto-retokenize on selected-model change when the chart has no data
     // yet. During initial composition the user has no committed visualization
@@ -522,7 +549,13 @@ export function Lens2Controls({
             />
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                    <Label className="text-sm font-medium">Prompt</Label>
+                    <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">Prompt</Label>
+                        <SpinOutButton
+                            getText={() => prompt}
+                            disabled={!prompt.trim() || isExecuting}
+                        />
+                    </div>
                     <div className="relative">
                         {editingText ? (
                             <Textarea

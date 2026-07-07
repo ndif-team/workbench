@@ -19,6 +19,7 @@ import { getLensRunHeatmapsByIds } from "@/lib/queries/lensRunQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import type { PatchLensChartData } from "@/types/patchLens";
 import type { NormalizedRun } from "@/lib/lensRun";
+import { useChat } from "@/stores/useChat";
 
 const PROMPT_AUTOSAVE_DEBOUNCE_MS = 600;
 
@@ -163,6 +164,20 @@ export default function PatchLensChartPage() {
         }, PROMPT_AUTOSAVE_DEBOUNCE_MS);
         return () => clearTimeout(handle);
     }, [sourcePrompt, targetPrompt, chartId, queryClient]);
+
+    // Chat handoff: a "Send to Patch Lens" from the chat rail loads its captured
+    // text into the source prompt and re-tokenizes it (via restoreNonce).
+    const injection = useChat((s) => s.injection);
+    const consumeInjection = useChat((s) => s.consumeInjection);
+    const injectionNonceRef = useRef(0);
+    useEffect(() => {
+        if (!injection || injection.target !== "patch-lens") return;
+        if (injection.nonce === injectionNonceRef.current) return;
+        injectionNonceRef.current = injection.nonce;
+        setSourcePrompt(injection.text);
+        setRestoreNonce((n) => n + 1);
+        consumeInjection();
+    }, [injection, consumeInjection]);
 
     if (isMobile === undefined) return null;
 

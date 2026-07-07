@@ -36,7 +36,7 @@ export const usePrediction = () => {
     });
 };
 
-interface Completion {
+interface GenerationRequest {
     prompt: string;
     max_new_tokens: number;
     model: string;
@@ -47,7 +47,18 @@ export interface GenerationResponse {
     last_token_prediction: Prediction;
 }
 
-const generate = async (request: Completion): Promise<GenerationResponse> => {
+/**
+ * Bare generation call (no toast). Runs a completion of `max_new_tokens` on the
+ * given model and resolves the two-step NDIF start→poll→results flow into a
+ * single promise.
+ *
+ * Exported so features that render their own inline error UI (the chat rail)
+ * can call it without the `useGenerate` toast — same convention as the other
+ * tool APIs (see CLAUDE.md §7).
+ */
+export const generateCompletion = async (
+    request: GenerationRequest,
+): Promise<GenerationResponse> => {
     const headers = await createUserHeadersAction();
     return await startAndPoll<GenerationResponse>(
         config.endpoints.startGenerate,
@@ -59,7 +70,7 @@ const generate = async (request: Completion): Promise<GenerationResponse> => {
 
 export const useGenerate = () => {
     return useMutation({
-        mutationFn: generate,
+        mutationFn: generateCompletion,
         onError: (error, variables, context) => {
             toast.error(`Error: ${error}`);
         },
