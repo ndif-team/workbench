@@ -46,7 +46,7 @@
         "d3-delaunay": "^6.0.4",
         "dotenv": "^17.2.1",
         "drizzle-orm": "^0.44.4",
-        "edulogitlens": "github:jon-bell/edulogitlens#488b200",
+        "edulogitlens": "github:jon-bell/edulogitlens#29ace9f",
         "framer-motion": "^12.23.22",
         "html-to-image": "^1.11.13",
         "lexical": "^0.34.0",
