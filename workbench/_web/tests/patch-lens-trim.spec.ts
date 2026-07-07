@@ -48,8 +48,10 @@ test.describe("patch-lens prompt trimming (real NDIF)", () => {
     test.beforeEach(async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 900 });
         // Keep the auto-starting tutorial closed so it doesn't overlay the controls.
+        // Key must match usePatchLensTutorial.ts (bumped to v2 for the two-chapter
+        // split); the stale v1 key let the tour auto-open and block these controls.
         await page.addInitScript(() =>
-            localStorage.setItem("workbench:patch-lens-tutorial-completed:v1", "true"),
+            localStorage.setItem("workbench:patch-lens-tutorial-completed:v2", "true"),
         );
         await page.goto(URL);
     });

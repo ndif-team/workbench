@@ -45,8 +45,8 @@ function ContentComponent({ currentStep, steps, setIsOpen, setCurrentStep }: Pop
                             </button>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-[240px]">
-                            Use Prev / Next to step through. Close with Done or ✕ — you can
-                            reopen this walkthrough anytime from the Tutorial menu.
+                            Use Prev / Next to step through. Close with Done or ✕ — you can reopen
+                            this walkthrough anytime from the Tutorial menu.
                         </TooltipContent>
                     </Tooltip>
                 </div>
