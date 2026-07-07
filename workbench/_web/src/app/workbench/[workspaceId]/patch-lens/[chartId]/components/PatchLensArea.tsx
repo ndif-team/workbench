@@ -361,6 +361,12 @@ export default function PatchLensArea({
         // token and collapses the model's prediction onto whitespace/digits.
         const src = sourcePrompt.trim();
         const tgt = targetPrompt.trim();
+        // Reflect the trimmed text back into the editors so the textbox matches
+        // what was actually run (and the heatmap): otherwise sourcePrompt still
+        // holds the trailing space while lastRun snapshots the trimmed prompt,
+        // and the prompt-vs-heatmap mismatch hides the prediction hint.
+        if (src !== sourcePrompt) onSourcePromptChange(src);
+        if (tgt !== targetPrompt) onTargetPromptChange(tgt);
 
         if (!chartId) {
             toast.error("Missing chart id.");
@@ -386,6 +392,8 @@ export default function PatchLensArea({
         selectedModel,
         sourcePrompt,
         targetPrompt,
+        onSourcePromptChange,
+        onTargetPromptChange,
         runLogitLens,
         onLensResult,
         chartId,

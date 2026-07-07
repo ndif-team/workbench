@@ -306,7 +306,7 @@ jobs:
             --set ingress.host="${HOST}" \
             --set ingress.className="${INGRESS_CLASS}" \
             --atomic --cleanup-on-fail \
-            --wait --timeout 10m
+            --wait --timeout 20m
 
       - name: Write job summary
         run: |

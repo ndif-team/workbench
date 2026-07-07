@@ -35,9 +35,14 @@ ingress:
     enabled: true
     host: auth.ndif-preview.ripley.cloud
 
+# CPU request == limit (Guaranteed QoS) so a preview isn't left waiting
+# on the burst pool when a shared node is contended. Next.js's first
+# render after a cold start (SSR + hydrate for /workbench/[…]/[…])
+# spikes to ~1 CPU for a few seconds; being throttled during that spike
+# is what made readiness probes time out on PR 125.
 resources:
   requests:
-    cpu: 100m
+    cpu: 1000m
     memory: 256Mi
   limits:
     cpu: 1000m
@@ -64,9 +69,12 @@ api:
     targetPort: 8000
   host: ""                        # set by workflow, e.g. pr-123-api.ndif-preview.ripley.cloud
   replicaCount: 1
+  # CPU request == limit (Guaranteed QoS); same rationale as the web
+  # pod. Uvicorn+nnsight startup imports transformers/torch on first
+  # request, which is CPU-heavy for a couple of seconds.
   resources:
-    requests: { cpu: 200m, memory: 1Gi }
-    limits:   { cpu: "2",  memory: 4Gi }
+    requests: { cpu: "2", memory: 1Gi }
+    limits:   { cpu: "2", memory: 4Gi }
   env:
     # dev.toml points remote=true at api.ndif.us — model inference runs on
     # the real NDIF backend, not in-cluster.

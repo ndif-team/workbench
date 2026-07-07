@@ -38,15 +38,21 @@ spec:
                 # secretName; an empty value would produce a Pod that
                 # crash-loops on missing env vars.
                 name: {{ required "api.secretName is required when api.enabled=true" .Values.api.secretName }}
+          # FastAPI's /docs handler imports the router modules on first
+          # hit; on a contended shared node the default 1s probe
+          # timeout can trip while imports finish. Match the web pod's
+          # 5s probe budget.
           readinessProbe:
             httpGet: { path: /docs, port: http }
-            initialDelaySeconds: 15
+            initialDelaySeconds: 20
             periodSeconds: 5
-            failureThreshold: 12
+            timeoutSeconds: 5
+            failureThreshold: 24
           livenessProbe:
             httpGet: { path: /docs, port: http }
             initialDelaySeconds: 60
             periodSeconds: 30
+            timeoutSeconds: 5
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
 {{- end }}
