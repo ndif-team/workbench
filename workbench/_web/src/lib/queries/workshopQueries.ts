@@ -83,8 +83,12 @@ export async function seedWorkshopChart(
 
     if (tool === "patch-lens") {
         // Patch-lens configs are empty ({}); its model comes from the workspace
-        // store, which ModelControl pins for workshop workspaces.
-        const { chart } = await createPatchLensChartPair(workspaceId);
+        // store, which ModelControl pins for workshop workspaces. The prompts
+        // live on the chart row's `data`, so the starter prompt seeds there.
+        const { chart } = await createPatchLensChartPair(workspaceId, {
+            sourcePrompt: workshop.starterPrompt,
+            targetPrompt: "",
+        });
         return { chart, tool };
     }
 

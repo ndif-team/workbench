@@ -94,13 +94,20 @@ export function ModelControl({ className }: ModelControlProps) {
         if (isJobActive && open) setOpen(false);
     }, [isJobActive, open]);
 
-    // Keep the workspace selection on the pinned model. The picker is locked
-    // below, but other surfaces (e.g. patch-lens's intro default) share the
-    // same store, so enforce rather than set-once.
+    // Apply the workshop's model. When the workshop locks the model we enforce
+    // it on every render (the picker is a locked pill below, but other surfaces
+    // share the same store). When the workshop allows changes, its model is only
+    // the participant's default: seed it once, then leave their choice alone.
+    const defaultAppliedRef = React.useRef(false);
     React.useEffect(() => {
         if (!workshop || !models || models.length === 0) return;
         const idx = models.findIndex((m) => m.name === workshop.model);
-        if (idx !== -1 && idx !== selectedModelIdx) setSelectedModelIdx(idx);
+        if (idx === -1) return;
+        if (workshop.allowModelChange) {
+            if (defaultAppliedRef.current) return;
+            defaultAppliedRef.current = true;
+        }
+        if (idx !== selectedModelIdx) setSelectedModelIdx(idx);
     }, [workshop, models, selectedModelIdx, setSelectedModelIdx]);
 
     const handleSelect = (name: string) => {
@@ -161,8 +168,10 @@ export function ModelControl({ className }: ModelControlProps) {
     const heat = deriveHeat(selectedModel);
     const display = splitRepo(selectedModel.name);
 
-    // Locked pill for workshop workspaces — same shape, no popover trigger.
-    if (workshop) {
+    // Locked pill for workshop workspaces that pin their model — same shape, no
+    // popover trigger. Workshops that allow model changes fall through to the
+    // normal picker below (seeded to the workshop's model as the default).
+    if (workshop && !workshop.allowModelChange) {
         return (
             <Tooltip>
                 <TooltipTrigger asChild>

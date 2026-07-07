@@ -21,6 +21,7 @@ export type WorkshopInput = {
     allowedTools: WorkshopTool[];
     model: string;
     starterPrompt: string;
+    allowModelChange: boolean;
     expiresAt: Date;
     createdBy: string;
 };

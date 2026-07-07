@@ -7,6 +7,7 @@ import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
+import { PatchLensChartData } from "@/types/patchLens";
 import { eq, asc, desc, sql } from "drizzle-orm";
 import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
 // From workshopDb (not workshopQueries) — workshopQueries imports the chart
@@ -67,6 +68,10 @@ type ConfigPayload =
 const createChartConfigPair = async (
     workspaceId: string,
     payload: ConfigPayload,
+    // Optional seed for the chart row's `data` column. patch-lens stores its
+    // prompts on the chart (not the config), so seeding a starter prompt for a
+    // patch-lens chart flows through here.
+    chartData?: ChartData,
 ): Promise<{ chart: Chart; config: Config }> => {
     // Workshop workspaces only allow their configured tools. The sidebar
     // filters its buttons, but every create wrapper here is a public server
@@ -76,7 +81,10 @@ const createChartConfigPair = async (
         throw new Error(`This workshop does not allow the "${payload.type}" tool`);
     }
     const position = await getNextWorkspaceItemPosition(workspaceId);
-    const [newChart] = await db.insert(charts).values({ workspaceId, position }).returning();
+    const [newChart] = await db
+        .insert(charts)
+        .values({ workspaceId, position, ...(chartData !== undefined ? { data: chartData } : {}) })
+        .returning();
     const [newConfig] = await db
         .insert(configs)
         .values({ workspaceId, type: payload.type, data: payload.data })
@@ -97,8 +105,10 @@ export const createLensChartPair = async (
 export const createLens2ChartPair = async (workspaceId: string, defaultConfig: Lens2ConfigData) =>
     createChartConfigPair(workspaceId, { type: "lens2", data: defaultConfig });
 
-export const createPatchLensChartPair = async (workspaceId: string) =>
-    createChartConfigPair(workspaceId, { type: "patch-lens", data: {} });
+export const createPatchLensChartPair = async (
+    workspaceId: string,
+    chartData?: PatchLensChartData,
+) => createChartConfigPair(workspaceId, { type: "patch-lens", data: {} }, chartData);
 
 export const createPatchChartPair = async (workspaceId: string, defaultConfig: PatchingConfig) =>
     createChartConfigPair(workspaceId, { type: "patch", data: defaultConfig });

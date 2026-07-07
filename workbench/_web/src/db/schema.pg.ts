@@ -27,6 +27,9 @@ export const workshops = pgTable("workshops", {
     allowedTools: jsonb("allowed_tools").$type<WorkshopTool[]>().notNull(),
     model: varchar("model", { length: 256 }).notNull(),
     starterPrompt: varchar("starter_prompt", { length: 2048 }).notNull().default(""),
+    // When true the workshop model is only the participant's default; they may
+    // switch models. When false (default) the model is locked to the workshop's.
+    allowModelChange: boolean("allow_model_change").notNull().default(false),
     expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
     createdBy: varchar("created_by", { length: 256 }).notNull(),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),

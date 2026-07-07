@@ -61,6 +61,7 @@ export function WorkshopFormDialog({
     const [name, setName] = useState("");
     const [tools, setTools] = useState<WorkshopTool[]>(["lens2"]);
     const [model, setModel] = useState("");
+    const [allowModelChange, setAllowModelChange] = useState(false);
     const [starterPrompt, setStarterPrompt] = useState("");
     const [expiresAt, setExpiresAt] = useState(toDatetimeLocal(defaultExpiry()));
 
@@ -71,12 +72,14 @@ export function WorkshopFormDialog({
             setName("");
             setTools(["lens2"]);
             setModel("");
+            setAllowModelChange(false);
             setStarterPrompt("");
             setExpiresAt(toDatetimeLocal(defaultExpiry()));
         } else {
             setName(target.name);
             setTools(target.allowedTools);
             setModel(target.model);
+            setAllowModelChange(target.allowModelChange);
             setStarterPrompt(target.starterPrompt);
             setExpiresAt(toDatetimeLocal(new Date(target.expiresAt)));
         }
@@ -100,6 +103,7 @@ export function WorkshopFormDialog({
             name: name.trim(),
             allowedTools: orderedTools,
             model,
+            allowModelChange,
             starterPrompt,
             expiresAt: new Date(expiresAt),
         };
@@ -117,7 +121,7 @@ export function WorkshopFormDialog({
 
     return (
         <Dialog open={target !== null} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{isEdit ? "Edit workshop" : "New workshop"}</DialogTitle>
                     <DialogDescription>
@@ -164,7 +168,7 @@ export function WorkshopFormDialog({
                                 <SelectTrigger id="workshop-model">
                                     <SelectValue placeholder="Select a model" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="max-h-72">
                                     {models.map((m) => (
                                         <SelectItem key={m.name} value={m.name}>
                                             {m.name}
@@ -180,6 +184,15 @@ export function WorkshopFormDialog({
                                 placeholder="meta-llama/Llama-3.1-8B"
                             />
                         )}
+                        <Label className="flex items-center gap-2 text-sm font-normal">
+                            <Checkbox
+                                checked={allowModelChange}
+                                onCheckedChange={(checked) =>
+                                    setAllowModelChange(checked === true)
+                                }
+                            />
+                            Let participants change the model (this is just the default)
+                        </Label>
                     </div>
 
                     <div className="flex flex-col gap-2">

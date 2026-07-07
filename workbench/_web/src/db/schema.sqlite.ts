@@ -23,6 +23,9 @@ export const workshops = sqliteTable("workshops", {
     allowedTools: text("allowed_tools", { mode: "json" }).$type<WorkshopTool[]>().notNull(),
     model: text("model").notNull(),
     starterPrompt: text("starter_prompt").notNull().default(""),
+    // When true the workshop model is only the participant's default; they may
+    // switch models. When false (default) the model is locked to the workshop's.
+    allowModelChange: integer("allow_model_change", { mode: "boolean" }).notNull().default(false),
     expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
     createdBy: text("created_by").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" })

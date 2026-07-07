@@ -30,6 +30,7 @@ const input = (overrides: Partial<Parameters<typeof createWorkshop>[0]> = {}) =>
     allowedTools: ["patch-lens"] as WorkshopTool[],
     model: "meta-llama/Llama-3.1-8B",
     starterPrompt: "The Eiffel Tower is in",
+    allowModelChange: false,
     expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
     createdBy: "admin@example.edu",
     ...overrides,
