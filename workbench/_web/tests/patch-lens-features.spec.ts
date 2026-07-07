@@ -75,8 +75,7 @@ test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
         await expect(strips.filter({ hasText: "Rome," })).toHaveCount(1);
 
         // Clicking the "Rome," version restores it into the source composer.
-        // A restore shows the tokenized CHIP view (not the raw textarea) — and on
-        // the gpt2-only CI backend the run's model isn't re-selectable — so assert
+        // A restore shows the tokenized CHIP view (not the raw textarea), so assert
         // against the source SECTION's text rather than a textarea value: it must
         // show the Rome prompt and NOT the "Rome not Paris" run (the only other
         // strip containing "Rome").

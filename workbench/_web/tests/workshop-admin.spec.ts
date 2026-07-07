@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { createTestUser, loginAsUser, type TestingUser } from "./TestingUtils";
+import { E2E_MODEL } from "./fixtures";
 
 /**
  * UI E2E for the /admin/workshops CRUD surface. Runs under real auth as a
@@ -45,15 +46,13 @@ test.describe("workshop admin CRUD", () => {
         // query resolves the field is a plain-Input fallback, so wait for the
         // Select (combobox) to swap in. The list is long and Radix Select
         // scrolls via its own buttons (unreachable for a plain click), so
-        // select gpt2 via the built-in typeahead instead.
+        // select the E2E model via the built-in typeahead instead.
         const modelSelect = page.getByRole("combobox", { name: "Model" });
         await expect(modelSelect).toBeVisible({ timeout: 15_000 });
         await modelSelect.click();
         await expect(page.getByRole("option").first()).toBeVisible();
-        await page.keyboard.type("openai-community/gpt2");
-        await expect(
-            page.getByRole("option", { name: "openai-community/gpt2", exact: true }),
-        ).toBeFocused();
+        await page.keyboard.type(E2E_MODEL);
+        await expect(page.getByRole("option", { name: E2E_MODEL, exact: true })).toBeFocused();
         await page.keyboard.press("Enter");
         await page.getByLabel("Starter prompt").fill("The Eiffel Tower is in");
         await page.getByRole("button", { name: "Create workshop" }).click();

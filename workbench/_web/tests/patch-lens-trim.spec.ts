@@ -15,7 +15,7 @@ import { createTestUser, loginAsUser, seedPatchLensChart, type TestingUser } fro
  * trimmed prompt, so the textbox matches what was actually run.
  *
  * Uses the seeded chart (seedPatchLensChart in TestingUtils) as a landing point, then
- * does a real gpt2 run against NDIF (same pattern as logit-lens.spec.ts).
+ * does a real model run against NDIF (same pattern as logit-lens.spec.ts).
  */
 
 const WS = "11111111-1111-4111-8111-111111111111";
@@ -62,7 +62,7 @@ test.describe("patch-lens prompt trimming (real NDIF)", () => {
     test("running a trailing-space prompt rewrites the source box to the trimmed text", async ({
         page,
     }) => {
-        await waitForModelsLoaded(page); // pick gpt2 — small + always deployed
+        await waitForModelsLoaded(page); // select the hot E2E model
 
         // Enter a source prompt WITH a trailing space.
         const textarea = await openSourceEditor(page);

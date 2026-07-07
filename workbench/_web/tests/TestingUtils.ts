@@ -13,6 +13,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Page } from "@playwright/test";
 import dotenv from "dotenv";
+import { E2E_MODEL } from "./fixtures";
 
 dotenv.config({ path: ".env" });
 
@@ -179,7 +180,7 @@ export async function createAuthenticatedClient(user: TestingUser): Promise<Supa
 // Seeds (ported from tests/seed-*.cjs; write Postgres via the service client).
 // ---------------------------------------------------------------------------
 
-const MODEL = "openai-community/gpt2";
+const MODEL = E2E_MODEL;
 export const WORKSHOP_STARTER_PROMPT = "The Eiffel Tower is in";
 export const ACTIVE_WORKSHOP_SLUG = "e2e-workshop-active-0001";
 export const EXPIRED_WORKSHOP_SLUG = "e2e-workshop-expired-001";

@@ -6,6 +6,7 @@ import {
     EXPIRED_WORKSHOP_SLUG as EXPIRED_SLUG,
     WORKSHOP_STARTER_PROMPT as STARTER_PROMPT,
 } from "./TestingUtils";
+import { E2E_MODEL_LABEL } from "./fixtures";
 
 /**
  * UI E2E for the workshop join flow. Runs against seeded workshop rows under
@@ -61,7 +62,7 @@ test.describe("workshop join flow (seeded)", () => {
         // Model pinning: the header pill is locked to the workshop model.
         const lockedPill = page.getByLabel("Model is set by the workshop");
         await expect(lockedPill).toBeVisible({ timeout: 15_000 });
-        await expect(lockedPill).toContainText("gpt2");
+        await expect(lockedPill).toContainText(E2E_MODEL_LABEL);
     });
 
     test("anonymous join stamps the workshop claim on the new user", async ({ page }) => {
