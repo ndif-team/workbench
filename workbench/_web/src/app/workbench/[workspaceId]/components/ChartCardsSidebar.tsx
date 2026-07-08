@@ -31,12 +31,13 @@ import {
     Loader2,
     Plus,
     PanelLeftClose,
-    PanelLeft,
+    PanelLeftOpen,
     FileText,
     Layers,
     GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { PatchLensIcon } from "@/components/PatchLensIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -393,7 +394,9 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     if (isCollapsed && !fillWidth) {
         return (
             <div className="flex h-full flex-col w-10 p-2 pt-0 items-center transition-all duration-300 ease-in-out">
-                {/* Expand button - top */}
+                {/* Expand button - top. Full opacity + a distinct "open" icon and a
+                    separator set it apart from the create-action icons below, which
+                    otherwise look identical and hide the way to reopen the sidebar. */}
                 <Button
                     variant="ghost"
                     size="icon"
@@ -401,11 +404,13 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                     className="mt-2 h-7 w-7 hover:bg-muted"
                     title="Expand sidebar"
                 >
-                    <PanelLeft className="h-4 w-4" />
+                    <PanelLeftOpen className="h-4 w-4" />
                 </Button>
 
+                <Separator className="my-2 w-6" />
+
                 {/* Action buttons - below expand */}
-                <div className="flex flex-col items-center gap-2 mt-3">
+                <div className="flex flex-col items-center gap-2">
                     <Button
                         variant="ghost"
                         size="icon"
@@ -483,7 +488,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                     variant="ghost"
                     size="icon"
                     onClick={toggleCollapse}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-6 w-6 rounded-full bg-background/60 hover:bg-background/90 border border-border/50 opacity-40 hover:opacity-100 transition-opacity z-10"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-6 w-6 rounded-full bg-background/60 hover:bg-background/90 border border-border/50 opacity-70 hover:opacity-100 transition-opacity z-10"
                     title="Collapse sidebar"
                 >
                     <PanelLeftClose className="h-3 w-3" />

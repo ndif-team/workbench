@@ -6,6 +6,12 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2, Play, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTour } from "@reactour/tour";
 import { PatchLensTutorial } from "@/tutorials/patchLens";
 import { usePatchLensTutorial, hydratePatchLensTutorial } from "@/stores/usePatchLensTutorial";
@@ -24,6 +30,12 @@ import { LensHistoryRail } from "./LensHistoryRail";
 // Default model for the CM intro. 32 layers reads as a manageable heatmap;
 // index 0 in the model list is the 70B (80 layers), far too many for a primer.
 const DEFAULT_INTRO_MODEL = "meta-llama/Llama-3.1-8B";
+
+// A known-good source prompt for the tutorial / first-time users. On the
+// default intro model it produces a clear "Paris" prediction, so the lens
+// heatmap reads well. Source only — the "Reading the lens" chapter wants the
+// target left blank, and the patching chapter walks the user through adding it.
+const EXAMPLE_SOURCE = "The Eiffel Tower is in the city of";
 
 interface PatchLensAreaProps {
     sourcePrompt: string;
@@ -44,7 +56,7 @@ interface PatchLensAreaProps {
 }
 
 function useTutorialAutoStart() {
-    const { setSteps, setIsOpen, isOpen } = useTour();
+    const { setSteps, setIsOpen, setCurrentStep, isOpen } = useTour();
     const { completed, markCompleted } = usePatchLensTutorial();
     // Auto-start fires at most once per mount; dismissing then resaving the
     // localStorage flag prevents a popup loop (same pattern as lens-intro).
@@ -60,17 +72,24 @@ function useTutorialAutoStart() {
         autoStartedRef.current = true;
         const steps = PatchLensTutorial.chapters[0]?.steps ?? [];
         setSteps(steps);
+        // reactour keeps currentStep at the provider level, so reset to the
+        // start explicitly rather than relying on the (already-0) default.
+        setCurrentStep(0);
         const id = setTimeout(() => {
             setIsOpen(true);
             markCompleted();
         }, 600);
         return () => clearTimeout(id);
-    }, [completed, isOpen, setSteps, setIsOpen, markCompleted]);
+    }, [completed, isOpen, setSteps, setIsOpen, setCurrentStep, markCompleted]);
 
-    const startTutorial = () => {
+    const startTutorial = (chapterIdx: number = 0) => {
         if (!setSteps || !setIsOpen) return;
-        const steps = PatchLensTutorial.chapters[0]?.steps ?? [];
+        const steps = PatchLensTutorial.chapters[chapterIdx]?.steps ?? [];
         setSteps(steps);
+        // Always restart from step 1. reactour retains the last step index across
+        // opens, so without this a reopen (e.g. after clicking Done on the last
+        // step) resumes at the end instead of the beginning.
+        setCurrentStep(0);
         setIsOpen(true);
     };
 
@@ -291,6 +310,16 @@ export default function PatchLensArea({
         setTimeout(() => tgtTextareaRef.current?.focus(), 0);
     }, [onTargetPromptChange]);
 
+    // Load a known-good example into the source prompt so first-time users (and
+    // the tutorial) have something that works to follow along with. Source only:
+    // the lens chapter wants the target blank. Focusing after the fill lets the
+    // blur-driven tokenization show the token chips.
+    const handleTryExample = useCallback(() => {
+        onSourcePromptChange(EXAMPLE_SOURCE);
+        setSrcEditing(true);
+        setTimeout(() => srcTextareaRef.current?.focus(), 0);
+    }, [onSourcePromptChange]);
+
     // Flag stale tokenization for EITHER prompt: the source or the target may
     // have been tokenized with a model that's no longer selected.
     const configModelUnavailable =
@@ -391,20 +420,33 @@ export default function PatchLensArea({
                             </TooltipContent>
                         </Tooltip>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs text-muted-foreground"
-                        onClick={startTutorial}
-                    >
-                        Tutorial
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-muted-foreground"
+                            >
+                                Tutorial
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {PatchLensTutorial.chapters.map((chapter, idx) => (
+                                <DropdownMenuItem
+                                    key={chapter.title}
+                                    onSelect={() => startTutorial(idx)}
+                                >
+                                    {chapter.title}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
                 <div id="patch-lens-source-prompt" className="flex flex-col gap-1.5 relative">
-                    {sourcePrompt && (
+                    {sourcePrompt ? (
                         <button
                             type="button"
                             onClick={handleClearSrc}
@@ -414,6 +456,16 @@ export default function PatchLensArea({
                         >
                             <X className="h-3 w-3" />
                             <span>Clear</span>
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={handleTryExample}
+                            disabled={isRunning}
+                            className="absolute top-0 right-0 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 h-5 px-1"
+                            title={`Load an example prompt: "${EXAMPLE_SOURCE}"`}
+                        >
+                            Try an example
                         </button>
                     )}
                     <PatchPromptSection
