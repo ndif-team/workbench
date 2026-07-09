@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
+import { useCapture } from "@/lib/analytics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getModels } from "@/lib/api/modelsApi";
 import { getChartById, setChartData } from "@/lib/queries/chartQueries";
@@ -64,6 +65,7 @@ export function PatchLensDisplay({
     lensResult,
 }: PatchLensDisplayProps) {
     const { chartId } = useParams<{ chartId: string }>();
+    const capture = useCapture();
     const { selectedModelIdx } = useWorkspace();
     const queryClient = useQueryClient();
 
@@ -168,6 +170,12 @@ export function PatchLensDisplay({
     const handleIntervention = useCallback(
         async (i: Intervention): Promise<LogitLensData | null> => {
             if (!chartId || !selectedModel) return null;
+            capture("patch_lens_intervention_applied", {
+                source_layer: i.sourceLayer,
+                source_token_position: i.sourceTokenPosition,
+                target_layer: i.targetLayer,
+                target_token_position: i.targetTokenPosition,
+            });
             try {
                 const result = await runIntervention({
                     model: selectedModel,
@@ -186,7 +194,7 @@ export function PatchLensDisplay({
                 return null;
             }
         },
-        [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention],
+        [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention, capture],
     );
 
     // Clear the persisted patch when the user resets the intervention, so the
@@ -197,6 +205,7 @@ export function PatchLensDisplay({
         const existing = await getChartById(chartId);
         const existingData = (existing?.data ?? {}) as Partial<PatchLensChartData>;
         if (existingData.intervention === undefined) return;
+        capture("patch_lens_intervention_reset", {});
         const next = { ...existingData };
         delete next.intervention;
         await setChartData(chartId, next as PatchLensChartData, "patch-lens");
@@ -206,7 +215,7 @@ export function PatchLensDisplay({
                 prev ? { ...prev, data: next } : prev,
         );
         queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(chartId) });
-    }, [chartId, queryClient]);
+    }, [chartId, queryClient, capture]);
 
     // A run is attached but its heatmaps haven't arrived yet (revisit / restore,
     // no ephemeral result). Show the skeleton rather than the "no analysis"

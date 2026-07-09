@@ -4,6 +4,7 @@
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
 import { useEffect } from "react";
+import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
@@ -20,49 +21,40 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    // Track Supabase auth changes and identify users in PostHog
+    // Track Supabase auth changes and identify users in PostHog.
     useEffect(() => {
-        const isPostHogEnabled = posthog.__loaded;
-        if (!isPostHogEnabled) {
-            console.log("PostHog is disabled in development");
-            return;
-        }
+        if (!posthog.__loaded) return;
 
-        console.log("Tracking Supabase auth changes and identifying users in PostHog");
         const supabase = createClient();
 
-        // Get initial user
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            console.log("Initial user:", user);
+        // Real (email) users are identified by email. Anonymous workshop
+        // participants have no email — identify them by their Supabase user id
+        // ONLY. We never send workshop/Prolific identifiers to PostHog; the id
+        // is the sole key, and correlation to a Prolific participant is an
+        // offline DB join on it (app_metadata / workspaces.prolific).
+        const identify = (user: User | null | undefined) => {
             if (user?.email) {
-                // Add $email so PostHog displays it properly in UI
+                // $email/$name so PostHog displays the person properly.
                 posthog.identify(user.email, {
                     userId: user.id,
                     email: user.email,
                     $name: user.email,
                     $email: user.email,
                 });
+            } else if (user?.app_metadata?.workshop_slug) {
+                // workshop_slug only detects a participant; it is NOT sent.
+                posthog.identify(user.id, { userId: user.id });
             }
-        });
+        };
 
-        // Listen for auth state changes
+        supabase.auth.getUser().then(({ data: { user } }) => identify(user));
+
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((event, session) => {
-            const user = session?.user;
-            console.log("Auth state changed:", event, user);
-            console.log("PostHog identified:", posthog.get_distinct_id());
-            if (user?.email) {
-                // Identify user in PostHog with their email
-                // Add $email so PostHog displays it properly in UI
-                posthog.identify(user.email, {
-                    userId: user.id,
-                    email: user.email,
-                    $name: user.email,
-                    $email: user.email,
-                });
+            if (session?.user) {
+                identify(session.user);
             } else if (event === "SIGNED_OUT") {
-                // Reset PostHog identity on sign out
                 posthog.reset();
             }
         });

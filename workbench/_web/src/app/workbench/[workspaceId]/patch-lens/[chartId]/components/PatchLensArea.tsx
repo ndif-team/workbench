@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
+import { useCapture } from "@/lib/analytics";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2, Play, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -91,6 +92,7 @@ export default function PatchLensArea({
     onSelectRun,
 }: PatchLensAreaProps) {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
+    const capture = useCapture();
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
 
     const { data: models } = useQuery({
@@ -353,6 +355,13 @@ export default function PatchLensArea({
             return;
         }
 
+        capture("run_submitted", {
+            tool: "patch-lens",
+            model: selectedModel,
+            source_prompt_length: src.length,
+            target_prompt_length: tgt.length,
+        });
+
         try {
             const result = await runLogitLens({
                 sourcePrompt: src,
@@ -367,6 +376,7 @@ export default function PatchLensArea({
             );
         } catch (error) {
             // Error toast handled by the mutation's onError.
+            capture("run_failed", { tool: "patch-lens", error: String(error) });
         }
     }, [
         selectedModel,
@@ -378,6 +388,7 @@ export default function PatchLensArea({
         onLensResult,
         chartId,
         workspaceId,
+        capture,
     ]);
 
     const { startTutorial } = useTutorialAutoStart();

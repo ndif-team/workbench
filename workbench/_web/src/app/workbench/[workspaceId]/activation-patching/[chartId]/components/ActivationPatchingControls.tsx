@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Play, X, Snowflake, ChevronDown } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
+import { useCapture } from "@/lib/analytics";
 import {
     ActivationPatchingConfigData,
     ActivationPatchingData,
@@ -194,6 +195,14 @@ export function ActivationPatchingControls({
     hasExistingData = false,
 }: ActivationPatchingControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
+    const capture = useCapture();
+
+    const openedRef = useRef(false);
+    useEffect(() => {
+        if (openedRef.current) return;
+        openedRef.current = true;
+        capture("tool_opened", { tool: "activation-patching" });
+    }, [capture]);
 
     // Get initial values from config with fallbacks
     const initialSrcPrompt = initialConfig.data?.srcPrompt ?? "";
@@ -770,6 +779,14 @@ export function ActivationPatchingControls({
             tgtFreeze,
         };
 
+        capture("run_submitted", {
+            tool: "activation-patching",
+            model: selectedModel,
+            num_source_tokens: Array.isArray(srcPos) ? srcPos.length : undefined,
+            num_target_tokens: Array.isArray(tgtPos) ? tgtPos.length : undefined,
+            auto: false,
+        });
+
         try {
             // Save config first with reset token selection — new run means new tokens.
             // This must happen before computePatching so the widget uses [0,1] when
@@ -791,6 +808,7 @@ export function ActivationPatchingControls({
                 },
                 configId: initialConfig.id,
             });
+            capture("run_completed", { tool: "activation-patching", model: selectedModel });
 
             // Land draftModel on the model that just persisted so the banner
             // doesn't flash between the run completing and the refetch arriving.
@@ -802,6 +820,7 @@ export function ActivationPatchingControls({
             setSrcEditing(false);
             setTgtEditing(false);
         } catch (error) {
+            capture("run_failed", { tool: "activation-patching", error: String(error) });
             toast.error("Failed to run activation patching.");
         }
     }, [
@@ -817,6 +836,7 @@ export function ActivationPatchingControls({
         workspaceId,
         computePatching,
         updateConfig,
+        capture,
     ]);
 
     // Auto-run effect for when coming from landing page
@@ -862,6 +882,18 @@ export function ActivationPatchingControls({
                         tgtFreeze: initialTgtFreeze,
                     };
 
+                    capture("run_submitted", {
+                        tool: "activation-patching",
+                        model: selectedModel,
+                        num_source_tokens: Array.isArray(initialSrcPos)
+                            ? initialSrcPos.length
+                            : undefined,
+                        num_target_tokens: Array.isArray(initialTgtPos)
+                            ? initialTgtPos.length
+                            : undefined,
+                        auto: true,
+                    });
+
                     // Save config with reset selection before compute
                     await updateConfig({
                         configId: initialConfig.id,
@@ -880,6 +912,10 @@ export function ActivationPatchingControls({
                         },
                         configId: initialConfig.id,
                     });
+                    capture("run_completed", {
+                        tool: "activation-patching",
+                        model: selectedModel,
+                    });
 
                     setPatchTableExpanded(false);
                     setLastRunSrcPrompt(initialSrcPrompt);
@@ -887,6 +923,10 @@ export function ActivationPatchingControls({
                     setLastRunModel(selectedModel);
                 } catch (error) {
                     // Don't reset flags - we only try once
+                    capture("run_failed", {
+                        tool: "activation-patching",
+                        error: String(error),
+                    });
                 }
             }
         };
@@ -907,6 +947,7 @@ export function ActivationPatchingControls({
         initialConfig.data,
         computePatching,
         updateConfig,
+        capture,
     ]);
 
     // Both prompts must be tokenized under the selected model AND the

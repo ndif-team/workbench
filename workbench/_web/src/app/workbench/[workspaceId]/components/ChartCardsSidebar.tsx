@@ -18,6 +18,7 @@ import {
 import { useReorderWorkspaceItems } from "@/lib/api/workspaceApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { queryKeys } from "@/lib/queryKeys";
+import { useCapture } from "@/lib/analytics";
 import type { WorkshopTool } from "@/db/schema";
 import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
@@ -62,6 +63,7 @@ const SIDEBAR_COLLAPSED_KEY = "workbench_sidebar_collapsed";
 export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: boolean }) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId?: string }>();
     const router = useRouter();
+    const capture = useCapture();
 
     const { data: charts, isLoading: isChartsLoading } = useQuery<ChartMetadata[]>({
         queryKey: queryKeys.charts.sidebar(workspaceId as string),
@@ -217,6 +219,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         // Guard against stale UI / programmatic calls; the buttons below are
         // already filtered. createChartConfigPair re-checks server-side.
         if (workshop && !workshop.allowedTools.includes(toolType as WorkshopTool)) return;
+        capture("chart_created", { tool: toolType });
         if (toolType === "lens2") {
             createLens2Pair(
                 { workspaceId: workspaceId as string },
