@@ -76,12 +76,16 @@ export default async function globalSetup() {
     for (;;) {
         if (Date.now() > jobDeadline) throw new Error("[global-setup] gpt2 warmup timed out");
         const r = await fetchWithTimeout(`${NDIF}/response/${body.job_id}`).catch(() => null);
-        if (r?.ok) {
-            const job = (await r.json()) as { status?: string };
-            if (job.status === "COMPLETED") break;
-            if (job.status === "ERROR" || job.status === "NNSIGHT_ERROR") {
-                throw new Error(`[global-setup] gpt2 warmup job failed: ${job.status}`);
-            }
+        // Guard the parse separately from the fetch: a 200 with a non-JSON body
+        // (e.g. a proxy's HTML error page) would otherwise throw and crash the
+        // whole setup. Treat an unparseable body as transient and keep polling;
+        // only a real ERROR/NNSIGHT_ERROR status aborts.
+        const job = r?.ok
+            ? ((await r.json().catch(() => null)) as { status?: string } | null)
+            : null;
+        if (job?.status === "COMPLETED") break;
+        if (job?.status === "ERROR" || job?.status === "NNSIGHT_ERROR") {
+            throw new Error(`[global-setup] gpt2 warmup job failed: ${job.status}`);
         }
         await sleep(3000);
     }
