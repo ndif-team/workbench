@@ -10,7 +10,7 @@ import { useLensRunHeatmaps } from "@/lib/api/lensRunApi";
 import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { CausalMediationExplorer } from "edulogitlens";
-import type { LogitLensData, Intervention } from "edulogitlens";
+import type { LogitLensData, Intervention, CausalMediationEvent } from "edulogitlens";
 import { PatchLensResult, usePatchLensIntervention } from "@/lib/api/patchLensApi";
 import { transformToEduFormat } from "@/lib/edu-lens";
 import type { PatchLensChartData } from "@/types/patchLens";
@@ -217,6 +217,42 @@ export function PatchLensDisplay({
         queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(chartId) });
     }, [chartId, queryClient, capture]);
 
+    // Map the widget's in-chart interactions to product analytics. Cell
+    // expansions become cell_expanded; token/layer step changes become
+    // param_changed. Coordinates only — never token text.
+    const handleWidgetEvent = useCallback(
+        (event: CausalMediationEvent) => {
+            if (event.type === "cell_click") {
+                capture("cell_expanded", {
+                    tool: "patch-lens",
+                    grid: event.promptId,
+                    token_position: event.tokenPosition,
+                    layer: event.layer,
+                });
+            } else if (event.type === "result_cell_click") {
+                capture("cell_expanded", {
+                    tool: "patch-lens",
+                    grid: "result",
+                    token_position: event.tokenPosition,
+                    layer: event.layer,
+                });
+            } else if (event.type === "token_step_change") {
+                capture("param_changed", {
+                    tool: "patch-lens",
+                    param: "token_step",
+                    value: event.step,
+                });
+            } else if (event.type === "layer_step_change") {
+                capture("param_changed", {
+                    tool: "patch-lens",
+                    param: "layer_step",
+                    value: event.step,
+                });
+            }
+        },
+        [capture],
+    );
+
     // A run is attached but its heatmaps haven't arrived yet (revisit / restore,
     // no ephemeral result). Show the skeleton rather than the "no analysis"
     // placeholder so we don't flash an empty state before the cache resolves.
@@ -251,6 +287,7 @@ export function PatchLensDisplay({
                 intervention={interventionForWidget}
                 onResetIntervention={handleResetIntervention}
                 isInterventionPending={isInterventionPending}
+                onEvent={handleWidgetEvent}
             />
         </div>
     );
