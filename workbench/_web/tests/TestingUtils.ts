@@ -253,8 +253,23 @@ const PL_TOKENS = [
 const PL_N_LAYERS = 32;
 const PL_LAYERS = Array.from({ length: PL_N_LAYERS }, (_, i) => i);
 
-function buildLensData(finalToken: string) {
-    const input = PL_TOKENS.slice();
+// Second chart: a source+target pair with a persisted intervention + patched
+// result, so the E2E exercises the full activation-patching view via the
+// restore path (no NDIF). Third chart: a clone of the first, used ONLY by the
+// F1 history-restore test (which mutates its chart row), so the mutating test
+// can reseed just its own chart under fullyParallel workers.
+const PL_PATCHED_CHART_ID = "22222222-2222-4222-8222-222222222223";
+const PL_PATCHED_RUN_ID = "44444444-4444-4444-8444-444444444444";
+const PL_HISTORY_CHART_ID = "22222222-2222-4222-8222-222222222224";
+const PL_HISTORY_RUN_PREFIX = "55555555-5555-4555-8555-55555555555";
+const PL_SRC_TOKENS = ["The", " Eiffel", " Tower", " is", " in", " the", " city", " of"];
+const PL_TGT_TOKENS = ["The", " Big", " Ben", " is", " in", " the", " city", " of"];
+// Layer 8 stays visible at Layer Step 8 (the spec pins steps via the toolbar);
+// the last token position is always rendered regardless of token step.
+const PL_INTERVENTION = { srcTokenPos: 7, srcLayer: 8, tgtTokenPos: 7, tgtLayer: 8 };
+
+function buildLensData(finalToken: string, tokens: string[] = PL_TOKENS) {
+    const input = tokens.slice();
     const topk = PL_LAYERS.map(() =>
         input.map((_, pos) =>
             pos === input.length - 1
@@ -289,24 +304,124 @@ function buildLensData(finalToken: string) {
     };
 }
 
+// The lastRow-cells shape shared by run summaries: color ramps toward the
+// final layers, final token wins in the top half.
+function plLastRowCells(finalToken: string) {
+    return PL_LAYERS.map((li) => ({
+        token: li > PL_N_LAYERS / 2 ? finalToken : " the",
+        prob: Math.round((0.15 + (0.8 * li) / (PL_N_LAYERS - 1)) * 1000) / 1000,
+    }));
+}
+
+function plPromptSummary(tokens: string[], finalToken: string) {
+    return {
+        prompt: tokens.join(""),
+        finalToken,
+        lastRow: { layers: PL_LAYERS, cells: plLastRowCells(finalToken) },
+    };
+}
+
+// The three prompt-history versions (successive prompt edits) shown in the
+// history rail. Seeded onto the base chart and mirrored onto the F1 chart.
+const PL_VERSIONS = [
+    {
+        id: "33333333-3333-4333-8333-333333333331",
+        prompt: "The Eiffel Tower is in the city of",
+        tok: " Paris",
+    },
+    {
+        id: "33333333-3333-4333-8333-333333333332",
+        prompt: "The Eiffel Tower is in the city of Rome,",
+        tok: " Rome",
+    },
+    { id: PL_NEWEST_RUN_ID, prompt: PL_TOKENS.join(""), tok: " Paris" },
+];
+
+function plHistoryRunRow(
+    v: (typeof PL_VERSIONS)[number],
+    chartId: string,
+    runId: string,
+    createdAtMs: number,
+) {
+    return {
+        id: runId,
+        workspace_id: PL_WS_ID,
+        chart_id: chartId,
+        model: PL_MODEL,
+        summary: {
+            source: {
+                prompt: v.prompt,
+                finalToken: v.tok,
+                lastRow: { layers: PL_LAYERS, cells: plLastRowCells(v.tok) },
+            },
+            params: { topk: 10, includeEntropy: true },
+        },
+        data: { source: buildLensData(v.tok) },
+        created_at: new Date(createdAtMs).toISOString(),
+    };
+}
+
+// The F1-only history chart + its mirror runs. Split out so the F1 restore
+// test can reseed ONLY this chart (it mutates its row) without disturbing the
+// shared charts other tests read under parallel workers.
+async function seedPatchLensHistoryChart(nowMs: number): Promise<void> {
+    await supabase.from("lens_runs").delete().eq("chart_id", PL_HISTORY_CHART_ID);
+    await supabase.from("charts").delete().eq("id", PL_HISTORY_CHART_ID);
+
+    const nowIso = new Date(nowMs).toISOString();
+    let err = (
+        await supabase.from("charts").insert({
+            id: PL_HISTORY_CHART_ID,
+            workspace_id: PL_WS_ID,
+            name: "Eiffel Tower (history)",
+            data: {
+                sourcePrompt: PL_TOKENS.join(""),
+                targetPrompt: "",
+                lastRunSourcePrompt: PL_TOKENS.join(""),
+                activeLensRunId: `${PL_HISTORY_RUN_PREFIX}3`,
+            },
+            type: "patch-lens",
+            position: 2,
+            created_at: nowIso,
+            updated_at: nowIso,
+        })
+    ).error;
+    if (err) throw new Error(`seedPatchLensHistoryChart chart failed: ${err.message}`);
+
+    const rows = PL_VERSIONS.map((v, i) =>
+        plHistoryRunRow(
+            v,
+            PL_HISTORY_CHART_ID,
+            `${PL_HISTORY_RUN_PREFIX}${i + 1}`,
+            nowMs + i * 1000,
+        ),
+    );
+    err = (await supabase.from("lens_runs").insert(rows)).error;
+    if (err) throw new Error(`seedPatchLensHistoryChart runs failed: ${err.message}`);
+}
+
+/** Reseed ONLY the F1 history chart (its row is mutated by the restore test). */
+export async function reseedPatchLensHistory(): Promise<void> {
+    await seedPatchLensHistoryChart(Date.now());
+}
+
 /**
- * Seed a patch-lens chart + 3 prompt-history runs owned by `userId`, so the
- * patch-lens UI E2E exercises the heatmap + history rail without a model run.
+ * Seed the patch-lens E2E fixture owned by `userId`, so the UI E2E exercises the
+ * heatmap, the history rail, and the restored-intervention view without a model
+ * run. Three charts: the base lens chart (+3 history runs), a patched
+ * source→target chart with a persisted intervention, and an F1-only clone.
  * Ownership is parameterized (was hardcoded dev@localhost) so the chart route's
- * owner check passes under real auth.
+ * owner check passes under real auth. Delete-then-insert, idempotent on retry.
  */
 export async function seedPatchLensChart(userId: string): Promise<void> {
-    await supabase.from("lens_runs").delete().eq("chart_id", PL_CHART_ID);
-    await supabase.from("charts").delete().eq("id", PL_CHART_ID);
+    for (const id of [PL_CHART_ID, PL_PATCHED_CHART_ID, PL_HISTORY_CHART_ID]) {
+        await supabase.from("lens_runs").delete().eq("chart_id", id);
+        await supabase.from("charts").delete().eq("id", id);
+    }
     await supabase.from("workspaces").delete().eq("id", PL_WS_ID);
 
-    const nowIso = new Date().toISOString();
-    const chartData = {
-        sourcePrompt: PL_TOKENS.join(""),
-        targetPrompt: "",
-        lastRunSourcePrompt: PL_TOKENS.join(""),
-        activeLensRunId: PL_NEWEST_RUN_ID,
-    };
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
 
     let err = (
         await supabase.from("workspaces").insert({
@@ -319,12 +434,18 @@ export async function seedPatchLensChart(userId: string): Promise<void> {
     ).error;
     if (err) throw new Error(`seedPatchLensChart workspace failed: ${err.message}`);
 
+    // Base chart + its 3 history runs.
     err = (
         await supabase.from("charts").insert({
             id: PL_CHART_ID,
             workspace_id: PL_WS_ID,
             name: "Eiffel Tower",
-            data: chartData,
+            data: {
+                sourcePrompt: PL_TOKENS.join(""),
+                targetPrompt: "",
+                lastRunSourcePrompt: PL_TOKENS.join(""),
+                activeLensRunId: PL_NEWEST_RUN_ID,
+            },
             type: "patch-lens",
             position: 0,
             created_at: nowIso,
@@ -333,42 +454,63 @@ export async function seedPatchLensChart(userId: string): Promise<void> {
     ).error;
     if (err) throw new Error(`seedPatchLensChart chart failed: ${err.message}`);
 
-    const versions = [
-        {
-            id: "33333333-3333-4333-8333-333333333331",
-            prompt: "The Eiffel Tower is in the city of",
-            tok: " Paris",
-        },
-        {
-            id: "33333333-3333-4333-8333-333333333332",
-            prompt: "The Eiffel Tower is in the city of Rome,",
-            tok: " Rome",
-        },
-        { id: PL_NEWEST_RUN_ID, prompt: PL_TOKENS.join(""), tok: " Paris" },
-    ];
-    const now = Date.now();
-    const rows = versions.map((v, i) => {
-        const cells = PL_LAYERS.map((li) => ({
-            token: li > PL_N_LAYERS / 2 ? v.tok : " the",
-            prob: Math.round((0.15 + (0.8 * li) / (PL_N_LAYERS - 1)) * 1000) / 1000,
-        }));
-        return {
-            id: v.id,
+    err = (
+        await supabase
+            .from("lens_runs")
+            .insert(
+                PL_VERSIONS.map((v, i) => plHistoryRunRow(v, PL_CHART_ID, v.id, now + i * 1000)),
+            )
+    ).error;
+    if (err) throw new Error(`seedPatchLensChart lens_runs failed: ${err.message}`);
+
+    // Patched chart: source + target + a persisted intervention whose patched
+    // heatmap is stored on the run, restored by PatchLensDisplay as a controlled
+    // result (renders the full cone/arrow/result view straight from the DB).
+    err = (
+        await supabase.from("charts").insert({
+            id: PL_PATCHED_CHART_ID,
             workspace_id: PL_WS_ID,
-            chart_id: PL_CHART_ID,
+            name: "Eiffel vs Big Ben (patched)",
+            data: {
+                sourcePrompt: PL_SRC_TOKENS.join(""),
+                targetPrompt: PL_TGT_TOKENS.join(""),
+                lastRunSourcePrompt: PL_SRC_TOKENS.join(""),
+                lastRunTargetPrompt: PL_TGT_TOKENS.join(""),
+                intervention: PL_INTERVENTION,
+                activeLensRunId: PL_PATCHED_RUN_ID,
+            },
+            type: "patch-lens",
+            position: 1,
+            created_at: nowIso,
+            updated_at: nowIso,
+        })
+    ).error;
+    if (err) throw new Error(`seedPatchLensChart patched chart failed: ${err.message}`);
+
+    err = (
+        await supabase.from("lens_runs").insert({
+            id: PL_PATCHED_RUN_ID,
+            workspace_id: PL_WS_ID,
+            chart_id: PL_PATCHED_CHART_ID,
             model: PL_MODEL,
             summary: {
-                source: {
-                    prompt: v.prompt,
-                    finalToken: v.tok,
-                    lastRow: { layers: PL_LAYERS, cells },
-                },
+                source: plPromptSummary(PL_SRC_TOKENS, " Paris"),
+                target: plPromptSummary(PL_TGT_TOKENS, " London"),
+                intervention: PL_INTERVENTION,
+                // The classic outcome: the patched target now predicts the source answer.
+                interventionResult: plPromptSummary(PL_TGT_TOKENS, " Paris"),
                 params: { topk: 10, includeEntropy: true },
             },
-            data: { source: buildLensData(v.tok) },
-            created_at: new Date(now + i * 1000).toISOString(),
-        };
-    });
-    err = (await supabase.from("lens_runs").insert(rows)).error;
-    if (err) throw new Error(`seedPatchLensChart lens_runs failed: ${err.message}`);
+            data: {
+                source: buildLensData(" Paris", PL_SRC_TOKENS),
+                target: buildLensData(" London", PL_TGT_TOKENS),
+                interventionResult: buildLensData(" Paris", PL_TGT_TOKENS),
+            },
+            created_at: nowIso,
+        })
+    ).error;
+    if (err) throw new Error(`seedPatchLensChart patched run failed: ${err.message}`);
+
+    // F1-only history clone (base chart + mirror runs, its own chart id).
+    await seedPatchLensHistoryChart(now);
 }

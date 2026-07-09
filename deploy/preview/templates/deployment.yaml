@@ -45,18 +45,26 @@ spec:
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          # Next.js prod cold start SSRs `/` on the first probe hit; on a
+          # busy shared node that render can take several seconds, so
+          # the default 1s probe timeout was tripping and kubelet was
+          # killing the container mid-startup. Give both probes a 5s
+          # timeout, and pad initialDelay so we don't sample during the
+          # first slow render.
           readinessProbe:
             httpGet:
               path: /
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 20
             periodSeconds: 10
-            failureThreshold: 6
+            timeoutSeconds: 5
+            failureThreshold: 12
           livenessProbe:
             httpGet:
               path: /
               port: http
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 30
+            timeoutSeconds: 5
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
