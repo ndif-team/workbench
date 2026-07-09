@@ -7,9 +7,11 @@ import {
     getWorkshopWorkspaceForUser,
     seedWorkshopChart,
 } from "@/lib/queries/workshopQueries";
-import { createWorkspace } from "@/lib/queries/workspaceQueries";
+import { createWorkspace, setWorkspaceProlificIfEmpty } from "@/lib/queries/workspaceQueries";
 import { isUniqueViolation } from "@/lib/queries/workshopDb";
 import { isWorkshopExpired } from "@/lib/workshop";
+import { getPostHogServer } from "@/lib/posthog-server";
+import type { ProlificParams } from "@/lib/prolific";
 
 export type JoinWorkshopResult =
     | { ok: true; redirectTo: string }
@@ -28,6 +30,7 @@ export type JoinWorkshopResult =
 export async function joinWorkshopAction(
     slug: string,
     captchaToken?: string,
+    prolific?: ProlificParams | null,
 ): Promise<JoinWorkshopResult> {
     const workshop = await getWorkshopBySlug(slug);
     if (!workshop) {
@@ -61,13 +64,20 @@ export async function joinWorkshopAction(
         return { ok: false, error: "Could not sign you in" };
     }
 
-    // Stamp the gated-model claim on anonymous participants. Real (OAuth)
-    // accounts already pass the backend's gated check via their email, so
-    // their metadata is left untouched. Re-stamping on a re-click is a no-op.
+    // Stamp the gated-model claim on anonymous participants, plus any Prolific
+    // study IDs (the offline join key back to the participant — see
+    // workspaces.prolific). Real (OAuth) accounts already pass the backend's
+    // gated check via their email, so their metadata is left untouched.
+    // Re-stamping on a re-click is a no-op.
     if (!authDisabled && !user.email) {
+        const appMetadata: Record<string, string> = { workshop_slug: slug };
+        if (prolific?.prolificPid) appMetadata.prolific_pid = prolific.prolificPid;
+        if (prolific?.studyId) appMetadata.study_id = prolific.studyId;
+        if (prolific?.sessionId) appMetadata.session_id = prolific.sessionId;
+
         const admin = createAdminClient();
         const { error } = await admin.auth.admin.updateUserById(user.id, {
-            app_metadata: { workshop_slug: slug },
+            app_metadata: appMetadata,
         });
         if (error) {
             console.error("Failed to stamp workshop claim:", error.message);
@@ -79,6 +89,11 @@ export async function joinWorkshopAction(
     // workspace page routes to its most recent chart.
     const existing = await getWorkshopWorkspaceForUser(user.id, workshop.id);
     if (existing) {
+        // Backfill Prolific IDs if this participant first joined without them
+        // (first-touch wins, so this is a no-op once any are recorded).
+        if (prolific) {
+            await setWorkspaceProlificIfEmpty(existing.id, prolific);
+        }
         return { ok: true, redirectTo: `/workbench/${existing.id}` };
     }
 
@@ -87,7 +102,7 @@ export async function joinWorkshopAction(
     // insert conflicts and it reuses the winner's workspace.
     let workspace;
     try {
-        workspace = await createWorkspace(user.id, workshop.name, workshop.id);
+        workspace = await createWorkspace(user.id, workshop.name, workshop.id, prolific);
     } catch (err) {
         if (!isUniqueViolation(err)) throw err;
         const winner = await getWorkshopWorkspaceForUser(user.id, workshop.id);
@@ -95,5 +110,15 @@ export async function joinWorkshopAction(
         return { ok: true, redirectTo: `/workbench/${winner.id}` };
     }
     const { chart, tool } = await seedWorkshopChart(workspace.id, workshop);
+
+    // Server-truth join event (the funnel entry point). Keyed by the Supabase
+    // user id — the only identifier PostHog holds; Prolific correlation is an
+    // offline DB join on this id, so no study params are sent here.
+    getPostHogServer()?.capture({
+        distinctId: user.id,
+        event: "workshop_joined",
+        properties: { tool },
+    });
+
     return { ok: true, redirectTo: `/workbench/${workspace.id}/${tool}/${chart.id}` };
 }

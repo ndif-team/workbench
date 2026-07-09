@@ -11,6 +11,7 @@ import {
 import type { ConfigData, ChartData, ChartView } from "@/types/charts";
 import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
+import type { ProlificParams } from "@/lib/prolific";
 
 export const workshopTools = ["lens2", "activation-patching", "patch-lens"] as const;
 export type WorkshopTool = (typeof workshopTools)[number];
@@ -47,6 +48,10 @@ export const workspaces = pgTable(
         name: varchar("name", { length: 256 }).notNull(),
         public: boolean("public").default(false).notNull(),
         workshopId: uuid("workshop_id").references(() => workshops.id, { onDelete: "set null" }),
+        // Prolific study identifiers captured from the join-link query params on
+        // first arrival, retained for matching runs back to the study. Null for
+        // normal (non-workshop) workspaces and workshop joins without Prolific.
+        prolific: jsonb("prolific").$type<ProlificParams>(),
         updatedAt: timestamp("updated_at", { mode: "date" })
             .defaultNow()
             .notNull()

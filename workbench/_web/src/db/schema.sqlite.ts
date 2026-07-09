@@ -1,6 +1,7 @@
 import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
+import type { ProlificParams } from "@/lib/prolific";
 
 // Helper function to generate UUIDs for SQLite
 const generateUUID = () => {
@@ -48,6 +49,9 @@ export const workspaces = sqliteTable(
         // convention; deleteWorkshop nulls these pointers explicitly instead of
         // relying on pg's "on delete set null".
         workshopId: text("workshop_id"),
+        // Mirrors pg: Prolific study identifiers captured from the join link,
+        // null when absent. See schema.pg.ts.
+        prolific: text("prolific", { mode: "json" }).$type<ProlificParams>(),
         updatedAt: integer("updated_at", { mode: "timestamp" })
             .$defaultFn(() => new Date())
             .notNull()

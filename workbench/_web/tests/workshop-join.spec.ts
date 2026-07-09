@@ -90,6 +90,52 @@ test.describe("workshop join flow (seeded)", () => {
         expect(claimed.some((u) => !u.email)).toBe(true);
     });
 
+    test("join link retains Prolific study params on the workspace", async ({ page }) => {
+        // A participant arriving from Prolific carries PROLIFIC_PID/STUDY_ID/
+        // SESSION_ID on the join URL. Unique per run so we can find this exact
+        // workspace and not collide with other joins in the serial file.
+        const stamp = `${Date.now()}`;
+        const prolific = {
+            prolificPid: `pid-${stamp}`,
+            studyId: `study-${stamp}`,
+            sessionId: `sess-${stamp}`,
+        };
+        await page.goto(
+            `/w/${ACTIVE_SLUG}?PROLIFIC_PID=${prolific.prolificPid}` +
+                `&STUDY_ID=${prolific.studyId}&SESSION_ID=${prolific.sessionId}`,
+        );
+        await page.waitForURL(/\/workbench\/[^/]+\/lens2\/[^/]+/, { timeout: 30_000 });
+
+        // The minted workspace row carries the identifiers for later analysis.
+        const workspaceId = page.url().match(/\/workbench\/([^/]+)\//)?.[1];
+        expect(workspaceId).toBeTruthy();
+        const { data, error } = await supabase
+            .from("workspaces")
+            .select("prolific, user_id")
+            .eq("id", workspaceId!)
+            .single();
+        expect(error).toBeNull();
+        expect(data?.prolific).toEqual(prolific);
+
+        // The same IDs are stamped onto the anonymous user's app_metadata — the
+        // offline join key PostHog events correlate back through (user_id →
+        // app_metadata). We never send these to PostHog directly.
+        const owner = data && (data as { user_id?: string }).user_id;
+        const { data: userList } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        const stamped = userList.users.find(
+            (u) =>
+                (u.app_metadata as { prolific_pid?: string })?.prolific_pid ===
+                prolific.prolificPid,
+        );
+        expect(stamped).toBeTruthy();
+        expect((stamped!.app_metadata as { study_id?: string }).study_id).toBe(prolific.studyId);
+        expect((stamped!.app_metadata as { session_id?: string }).session_id).toBe(
+            prolific.sessionId,
+        );
+        // Stamped on the participant who owns the minted workspace.
+        if (owner) expect(stamped!.id).toBe(owner);
+    });
+
     test("re-clicking the join link reuses the existing workspace", async ({ page }) => {
         await page.goto(`/w/${ACTIVE_SLUG}`);
         await page.waitForURL(/\/workbench\/[^/]+\/lens2\/[^/]+/, { timeout: 30_000 });

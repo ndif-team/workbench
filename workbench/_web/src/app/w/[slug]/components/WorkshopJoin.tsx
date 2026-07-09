@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { joinWorkshopAction } from "@/actions/workshop";
+import type { ProlificParams } from "@/lib/prolific";
 
 /**
  * Container for the join flow: calls the join action on mount and redirects
@@ -14,7 +15,15 @@ import { joinWorkshopAction } from "@/actions/workshop";
  * anonymous sign-ins, the token-less attempt comes back captchaRequired and
  * the widget is shown (mirrors the guest path on the login page).
  */
-export function WorkshopJoin({ slug, workshopName }: { slug: string; workshopName: string }) {
+export function WorkshopJoin({
+    slug,
+    workshopName,
+    prolific,
+}: {
+    slug: string;
+    workshopName: string;
+    prolific?: ProlificParams | null;
+}) {
     const [error, setError] = useState<string | null>(null);
     const [showCaptcha, setShowCaptcha] = useState(false);
     const captchaRef = useRef<ElementRef<typeof HCaptcha> | null>(null);
@@ -25,7 +34,7 @@ export function WorkshopJoin({ slug, workshopName }: { slug: string; workshopNam
         async (captchaToken?: string) => {
             setError(null);
             try {
-                const result = await joinWorkshopAction(slug, captchaToken);
+                const result = await joinWorkshopAction(slug, captchaToken, prolific);
                 if (result.ok) {
                     router.push(result.redirectTo);
                     return;
@@ -40,7 +49,7 @@ export function WorkshopJoin({ slug, workshopName }: { slug: string; workshopNam
                 setError(err instanceof Error ? err.message : "Failed to join workshop");
             }
         },
-        [slug, router],
+        [slug, router, prolific],
     );
 
     useEffect(() => {
