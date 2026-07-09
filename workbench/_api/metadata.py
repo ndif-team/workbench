@@ -33,6 +33,7 @@ import json
 import logging
 import os
 import re
+from typing import Literal
 
 from huggingface_hub import get_safetensors_metadata
 from pydantic import BaseModel
@@ -129,6 +130,11 @@ class ModelMetadata(BaseModel):
         gated: Workbench access-control flag. True when parameter count is at
             or above ``GATED_THRESHOLD_PARAMS`` (guests cannot use gated
             models). This replaces HuggingFace Hub's native gated field.
+
+    Architectural fields — consumed by the transformer-explainer bundle to
+    drive its runtime probe (order candidates by size) and its arch-specific
+    embedding branch (absolute lookup vs RoPE). Defaults are safe (all-zero /
+    "other") so a model whose config we can't fully introspect still lists.
     """
 
     name: str
@@ -136,6 +142,13 @@ class ModelMetadata(BaseModel):
     n_layers: int
     params: str
     gated: bool
+    n_heads: int = 0
+    n_kv_heads: int = 0
+    d_model: int = 0
+    d_head: int = 0
+    vocab_size: int = 0
+    positional_kind: Literal["absolute", "rope"] = "absolute"
+    arch_kind: Literal["gpt2", "llama", "gptj", "other"] = "other"
 
 
 # ----- raw fetch + helpers -----------------------------------------------
@@ -252,6 +265,36 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
 
     n_layers = getattr(config, "num_hidden_layers", None) or getattr(config, "n_layer", 0)
 
+    # Arch fields — consumed by the transformer-explainer bundle. These are
+    # all best-effort: a config missing a field falls back to zero / "other",
+    # which the TE runtime probe treats as "sort last, don't switch branch".
+    n_heads = int(getattr(config, "num_attention_heads", 0) or getattr(config, "n_head", 0))
+    n_kv_heads = int(getattr(config, "num_key_value_heads", n_heads) or n_heads)
+    d_model = int(getattr(config, "hidden_size", 0) or getattr(config, "n_embd", 0))
+    d_head = int(getattr(config, "head_dim", 0) or (d_model // n_heads if n_heads else 0))
+    vocab_size = int(getattr(config, "vocab_size", 0))
+    # GPT-J uses partial RoPE keyed off `rotary_dim` rather than rope_theta /
+    # rope_parameters (which are Llama-era config knobs). Check all three.
+    positional_kind: Literal["absolute", "rope"] = (
+        "rope"
+        if (
+            getattr(config, "rope_theta", None) is not None
+            or getattr(config, "rope_parameters", None) is not None
+            or getattr(config, "rotary_dim", None) is not None
+        )
+        else "absolute"
+    )
+    _model_type = (getattr(config, "model_type", "") or "").lower()
+    arch_kind: Literal["gpt2", "llama", "gptj", "other"]
+    if "gpt2" in _model_type:
+        arch_kind = "gpt2"
+    elif _model_type == "gptj":
+        arch_kind = "gptj"
+    elif _model_type in ("llama", "mistral", "qwen2"):
+        arch_kind = "llama"
+    else:
+        arch_kind = "other"
+
     # Parameter count from safetensors header (no weights download)
     try:
         num_params = _get_param_count(model_name)
@@ -272,6 +315,13 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
         n_layers=n_layers,
         params=_format_params(num_params) if num_params > 0 else "unknown",
         gated=gated,
+        n_heads=n_heads,
+        n_kv_heads=n_kv_heads,
+        d_model=d_model,
+        d_head=d_head,
+        vocab_size=vocab_size,
+        positional_kind=positional_kind,
+        arch_kind=arch_kind,
     )
 
 

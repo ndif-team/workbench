@@ -166,6 +166,10 @@ jobs:
             ${{ env.IMAGE_NAME }}:pr-${{ steps.meta.outputs.preview_id }}
           build-args: |
             NEXT_PUBLIC_BACKEND_URL=https://${{ steps.meta.outputs.api_host }}
+            VITE_WORKBENCH_API=https://${{ steps.meta.outputs.api_host }}
+            VITE_USER_EMAIL=dev@localhost
+            TE_REPO=https://github.com/ndif-team/transformer-explainer.git
+            TE_REF=${{ vars.TRANSFORMER_EXPLAINER_REF || '7599b64dae7615039b6b1854af65cf3e4b73971b' }}
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
