@@ -43,7 +43,6 @@ env:
   PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}         # e.g. ndif-preview.ripley.cloud
   PREVIEW_NAMESPACE_PREFIX: ${{ vars.PREVIEW_NAMESPACE_PREFIX || 'workbench-preview' }}
   INGRESS_CLASS: ${{ vars.PREVIEW_INGRESS_CLASS || 'nginx' }}
-  CLUSTER_ISSUER: ${{ vars.PREVIEW_CLUSTER_ISSUER || 'letsencrypt-prod' }}
   # In-cluster ARC runners use a glibc image; some JS actions still ship
   # Node 20 binaries that won't load. Force them to Node 24.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -125,7 +124,10 @@ jobs:
             echo "sha=${sha}"
             echo "tag=pr-${{ steps.pre.outputs.preview_id }}-${sha}"
             echo "host=pr-${{ steps.pre.outputs.preview_id }}.${PREVIEW_DOMAIN}"
-            echo "api_host=api.pr-${{ steps.pre.outputs.preview_id }}.${PREVIEW_DOMAIN}"
+            # Sibling subdomain of `host`, not a child — so one
+            # `*.${PREVIEW_DOMAIN}` wildcard TLS cert covers both. (DNS
+            # wildcards only span one label.)
+            echo "api_host=pr-${{ steps.pre.outputs.preview_id }}-api.${PREVIEW_DOMAIN}"
             echo "namespace=${PREVIEW_NAMESPACE_PREFIX}-pr-${{ steps.pre.outputs.preview_id }}"
           } | tee -a "$GITHUB_OUTPUT"
 
@@ -146,6 +148,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Build cache lives in GHCR (registry-backed) rather than the GHA
+      # cache service. Why: GHA cache is capped at 10 GiB per repo, and
+      # `mode=max` here pushes the full multi-layer cache (~1.5 GiB per
+      # build) every preview run. We were filling the cap within a week
+      # of activity, which then started failing every new preview with
+      # `error writing layer blob: failed to reserve cache`. GHCR has no
+      # such cap and we already authenticate to it for image pushes.
       - name: Build & push web image
         uses: docker/build-push-action@v6
         with:
@@ -161,8 +170,8 @@ jobs:
             VITE_USER_EMAIL=dev@localhost
             TE_REPO=https://github.com/ndif-team/transformer-explainer.git
             TE_REF=${{ vars.TRANSFORMER_EXPLAINER_REF || '7599b64dae7615039b6b1854af65cf3e4b73971b' }}
-          cache-from: type=gha,scope=preview-web
-          cache-to: type=gha,mode=max,scope=preview-web
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
       - name: Build & push api image
         uses: docker/build-push-action@v6
@@ -173,8 +182,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME_API }}:${{ steps.meta.outputs.tag }}
             ${{ env.IMAGE_NAME_API }}:pr-${{ steps.meta.outputs.preview_id }}
-          cache-from: type=gha,scope=preview-api
-          cache-to: type=gha,mode=max,scope=preview-api
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME_API }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME_API }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
       - name: Set up kubectl & helm
         uses: azure/setup-helm@v4
@@ -220,6 +229,59 @@ jobs:
             --from-literal=HF_TOKEN="$HF_TOKEN" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      # When a prior run gets killed mid-flight (runner OOMKilled,
+      # workflow cancelled, ctrl-c'd before helm finished), the helm
+      # release is left in `pending-upgrade` / `pending-install` /
+      # `pending-rollback`. Every subsequent `helm upgrade --install`
+      # then fails with:
+      #   Error: UPGRADE FAILED: another operation (install/upgrade/rollback) is in progress
+      # `--atomic` on the upgrade below handles the case where THIS run
+      # fails (rollback happens before the step exits), but it can't
+      # help when the process is killed externally — no time to clean
+      # up. Detect the leftover pending state and recover here.
+      - name: Recover stuck helm release
+        env:
+          PR_NUM: ${{ steps.meta.outputs.preview_id }}
+          NS: ${{ steps.meta.outputs.namespace }}
+        run: |
+          set -euo pipefail
+          release="pr-${PR_NUM}"
+
+          if ! helm -n "$NS" status "$release" >/dev/null 2>&1; then
+            echo "No existing release $release; nothing to recover."
+            exit 0
+          fi
+
+          status=$(helm -n "$NS" status "$release" -o json \
+            | python3 -c 'import sys, json; print(json.load(sys.stdin).get("info", {}).get("status", ""))')
+          echo "Current release status: $status"
+
+          case "$status" in
+            pending-upgrade|pending-rollback)
+              # Roll forward to the last successful revision. `helm
+              # rollback` writes a new revision mirroring the target,
+              # which clears the pending state.
+              last_deployed=$(helm -n "$NS" history "$release" -o json \
+                | python3 -c 'import sys, json; r=[x["revision"] for x in json.load(sys.stdin) if x["status"]=="deployed"]; print(r[-1] if r else "")')
+              if [ -z "$last_deployed" ]; then
+                echo "::warning::release in $status with no deployed revision in history — uninstalling"
+                helm -n "$NS" uninstall "$release" --wait --timeout 5m
+              else
+                echo "::warning::release in $status — rolling back to revision $last_deployed"
+                helm -n "$NS" rollback "$release" "$last_deployed" --wait --timeout 5m
+              fi
+              ;;
+            pending-install)
+              # First install never completed; no prior good state.
+              # Uninstall so the next upgrade --install starts clean.
+              echo "::warning::release in pending-install — uninstalling"
+              helm -n "$NS" uninstall "$release" --wait --timeout 5m
+              ;;
+            *)
+              echo "Release status OK; no recovery needed."
+              ;;
+          esac
+
       - name: Helm upgrade --install
         env:
           PR_NUM: ${{ steps.meta.outputs.preview_id }}
@@ -229,6 +291,13 @@ jobs:
           API_HOST: ${{ steps.meta.outputs.api_host }}
           TAG: ${{ steps.meta.outputs.tag }}
         run: |
+          # --atomic: if the upgrade fails before --timeout, helm rolls
+          #   back to the prior revision in the same shell invocation,
+          #   leaving the release in `deployed` (not `failed`) state so
+          #   the next run isn't wedged.
+          # --cleanup-on-fail: also deletes any new resources the failed
+          #   upgrade created (implied by --atomic, set explicitly for
+          #   clarity).
           helm upgrade --install "pr-${PR_NUM}" deploy/preview \
             --namespace "$NS" \
             --set image.repository="${IMAGE_NAME}" \
@@ -240,8 +309,8 @@ jobs:
             --set commitSha="${SHA}" \
             --set ingress.host="${HOST}" \
             --set ingress.className="${INGRESS_CLASS}" \
-            --set ingress.clusterIssuer="${CLUSTER_ISSUER}" \
-            --wait --timeout 10m
+            --atomic --cleanup-on-fail \
+            --wait --timeout 20m
 
       - name: Write job summary
         run: |

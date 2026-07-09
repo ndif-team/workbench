@@ -5,7 +5,15 @@ import logging
 import os
 import anyio
 
-from .routes import lens, patch, models, logit_lens, activation_patching, forward_pass
+from .routes import (
+    lens,
+    patch,
+    models,
+    logit_lens,
+    activation_patching,
+    forward_pass,
+    causal_mediation,
+)
 from .state import AppState
 
 from dotenv import load_dotenv; load_dotenv()
@@ -22,16 +30,11 @@ ALLOWED_ORIGINS = [
     "https://workbench.ndif.us"
 ]
 
-if os.environ.get('CONFIG') != "prod":
-    ALLOWED_ORIGINS.extend([
-        "http://localhost:3000",
-        "http://localhost:5173",  # vite dev (transformer-explainer)
-        "http://localhost:4173",  # vite preview
-    ])
-
 ALLOWED_ORIGIN_REGEX = (
-    # Vercel dev/staging previews + ripley-cluster PR previews.
-    r"^https://(workbench-[a-z0-9\-]*-ndif\.vercel\.app|pr-[a-z0-9\-]+\.ndif-preview\.ripley\.cloud)$"
+    # Non-prod: any localhost / 127.0.0.1 port (local dev, multiple instances),
+    # plus Vercel dev/staging previews and ripley-cluster PR previews.
+    r"^(http://(localhost|127\.0\.0\.1)(:\d+)?"
+    r"|https://(workbench-[a-z0-9\-]*-ndif\.vercel\.app|pr-[a-z0-9\-]+\.ndif-preview\.ripley\.cloud))$"
     if os.environ.get('CONFIG') != "prod"
     else None  # in prod, rely on the fixed list above
 )
@@ -68,6 +71,7 @@ def fastapi_app():
     app.include_router(logit_lens, prefix="/logit_lens")
     app.include_router(activation_patching, prefix="/activation_patching")
     app.include_router(forward_pass, prefix="/forward_pass")
+    app.include_router(causal_mediation, prefix="/causal_mediation", tags=["causal_mediation"])
     app.include_router(patch, prefix="/patch")
     app.include_router(models, prefix="/models")
 

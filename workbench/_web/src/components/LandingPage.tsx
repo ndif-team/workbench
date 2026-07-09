@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, type ElementRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ModeToggle } from "@/components/ui/mode-toggle";
-import { ArrowRight, Sparkles, Layers, Plus } from "lucide-react";
+import { ArrowRight, Sparkles, Layers, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { UserDropdown } from "@/components/UserDropdown";
@@ -13,26 +13,25 @@ import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { getModels } from "@/lib/api/modelsApi";
+import { useModelsQuery } from "@/lib/api/modelsApi";
 import { getWorkspaces } from "@/lib/queries/workspaceQueries";
-
-type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number];
+import { Select, SelectTrigger } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ModelPopover } from "@/components/model-selector/ModelPopover";
 import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectTrigger,
-    SelectValue,
-    SelectSeparator,
-} from "@/components/ui/select";
+    ToolPill,
+    WorkspacePill,
+    PILL_TRIGGER as SHARED_PILL_TRIGGER,
+} from "@/components/selectors/LaunchSelectors";
+import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
 import type { Model, Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
 import { ActivationPatchingLandingInput } from "@/components/ActivationPatchingLandingInput";
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
+
+const PILL_TRIGGER = SHARED_PILL_TRIGGER;
 
 function ModelPillOrSelect({
     modelsLoading,
@@ -42,6 +41,7 @@ function ModelPillOrSelect({
     selectedModel,
     onModelChange,
     disabled,
+    loggedIn,
 }: {
     modelsLoading: boolean;
     modelsError: boolean;
@@ -50,9 +50,9 @@ function ModelPillOrSelect({
     selectedModel: string;
     onModelChange: (value: string) => void;
     disabled: boolean;
+    loggedIn: boolean;
 }) {
-    const triggerClass =
-        "h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2";
+    const triggerClass = PILL_TRIGGER;
 
     if (modelsLoading) {
         return (
@@ -91,34 +91,114 @@ function ModelPillOrSelect({
         );
     }
 
+    // Landing-page policy: surface every hot model (ready-to-run on NDIF
+    // right now), including gated ones — those render with a purple gated
+    // dot (via deriveHeat → "gated" for an anonymous visitor) so users see
+    // they need to sign in rather than having them silently hidden.
+    // Warm/cold models stay behind the "N more models" footer link.
+    const hotModels = modelsToSelect.filter((m) => m.status === "hot");
+    const moreCount = modelsToSelect.length - hotModels.length;
+
     return (
-        <Select value={selectedModel} onValueChange={onModelChange} disabled={disabled}>
-            <SelectTrigger className={triggerClass}>
-                <SelectValue placeholder="Select model..." />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-                <SelectGroup>
-                    <SelectLabel>Models</SelectLabel>
-                    {modelsToSelect.map((model) =>
-                        model.gated && !model.allowed ? (
-                            <SelectItem key={model.name} value={model.name} className="text-xs">
-                                <div className="flex items-center gap-2">
-                                    {model.name}
-                                    <div
-                                        className="w-1.5 h-1.5 rounded-full bg-purple-500"
-                                        title="Requires sign-in"
-                                    />
-                                </div>
-                            </SelectItem>
-                        ) : (
-                            <SelectItem key={model.name} value={model.name} className="text-xs">
-                                {model.name}
-                            </SelectItem>
-                        ),
-                    )}
-                </SelectGroup>
-            </SelectContent>
-        </Select>
+        <ModelTriggerPopover
+            triggerClass={triggerClass}
+            models={hotModels}
+            moreCount={moreCount}
+            selectedModel={selectedModel}
+            onModelChange={onModelChange}
+            disabled={disabled}
+            loggedIn={loggedIn}
+        />
+    );
+}
+
+/**
+ * Landing-page model picker: keeps the existing tiny inline-pill trigger
+ * but opens the same rich Base/Chat/heat-sorted/searchable Popover used in
+ * the workspace `ModelControl`. Single source of truth for the picker UI.
+ */
+function ModelTriggerPopover({
+    triggerClass,
+    models,
+    moreCount,
+    selectedModel,
+    onModelChange,
+    disabled,
+    loggedIn,
+}: {
+    triggerClass: string;
+    models: Model[];
+    moreCount: number;
+    selectedModel: string;
+    onModelChange: (value: string) => void;
+    disabled: boolean;
+    loggedIn: boolean;
+}) {
+    const [open, setOpen] = useState(false);
+
+    const display = selectedModel || "Select model...";
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <button
+                    type="button"
+                    disabled={disabled}
+                    className={cn(triggerClass, "max-w-[16rem]")}
+                    aria-label="Select model"
+                >
+                    <span className="truncate">{display}</span>
+                    <ChevronDown className="size-3 opacity-50 shrink-0" />
+                </button>
+            </PopoverTrigger>
+            <PopoverContent
+                align="start"
+                side="bottom"
+                // Never flip up — the menu caps to the room below (the shell
+                // reads --radix-popover-content-available-height) and scrolls.
+                // This also disables horizontal shift; fine here since the
+                // trigger is left-aligned with room to the right.
+                avoidCollisions={false}
+                collisionPadding={8}
+                sideOffset={6}
+                style={{ maxHeight: "var(--radix-popover-content-available-height)" }}
+                className="p-0 border-0 bg-transparent shadow-none w-auto"
+                onCloseAutoFocus={(e) => e.preventDefault()}
+            >
+                <ModelPopover
+                    models={models}
+                    selectedName={selectedModel}
+                    onSelect={(name) => {
+                        onModelChange(name);
+                        setOpen(false);
+                    }}
+                    showSearch={false}
+                    compact
+                    footer={
+                        moreCount > 0 ? (
+                            <Link
+                                href={loggedIn ? "/workbench?models=open" : "/login"}
+                                className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors group"
+                            >
+                                <span>
+                                    <span className="text-foreground font-medium tabular-nums">
+                                        {moreCount}
+                                    </span>{" "}
+                                    more model{moreCount === 1 ? "" : "s"}
+                                    {!loggedIn && (
+                                        <span className="text-muted-foreground/70">
+                                            {" "}
+                                            — sign in to use
+                                        </span>
+                                    )}
+                                </span>
+                                <ArrowRight className="size-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+                            </Link>
+                        ) : null
+                    }
+                />
+            </PopoverContent>
+        </Popover>
     );
 }
 
@@ -164,26 +244,22 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
         enabled: !!isSignedInUser,
     });
 
-    const {
-        data: models,
-        isLoading: modelsLoading,
-        isError: modelsError,
-    } = useQuery({
-        queryKey: ["models"],
-        queryFn: getModels,
-        refetchInterval: 120000,
-    });
+    const { data: models, isLoading: modelsLoading, isError: modelsError } = useModelsQuery();
     const modelsToSelect: Model[] = models && models.length > 0 ? models : [];
     const hasModels = modelsToSelect.length > 0;
 
-    // Default to first model when models load
+    // Default to a hot model the current user can actually run when models
+    // load — prefer hot+allowed (skips gated models a guest can't use),
+    // then any hot, then the first available.
     useEffect(() => {
         if (
             models &&
             models.length > 0 &&
             (!selectedModel || !models.some((m) => m.name === selectedModel))
         ) {
-            setSelectedModel(models[0].name);
+            const firstUsableHot = models.find((m) => m.status === "hot" && m.allowed);
+            const firstHot = models.find((m) => m.status === "hot");
+            setSelectedModel((firstUsableHot ?? firstHot ?? models[0]).name);
         }
     }, [models, selectedModel]);
 
@@ -322,13 +398,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     };
 
     return (
-        <div className="h-screen w-screen bg-gradient-to-br from-background via-background to-primary/5 dark:to-primary/10 relative overflow-hidden flex flex-col">
-            {/* Animated background elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-3xl" />
-                <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-purple-500/10 to-transparent rounded-full blur-3xl" />
-            </div>
-
+        <div className="h-screen w-screen aurora-bg relative overflow-hidden flex flex-col">
             {/* Header */}
             <header className="relative z-10 flex justify-between items-center p-6 w-full shrink-0">
                 <motion.div
@@ -485,97 +555,18 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                 {isSignedInUser &&
                                                     workspacesList &&
                                                     workspacesList.length > 0 && (
-                                                        <Select
+                                                        <WorkspacePill
                                                             value={selectedWorkspace}
-                                                            onValueChange={setSelectedWorkspace}
+                                                            onChange={setSelectedWorkspace}
                                                             disabled={showCaptcha || isSubmitting}
-                                                        >
-                                                            <SelectTrigger className="h-5 w-fit max-w-[180px] text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <Layers className="w-3.5 h-3.5 shrink-0 text-current" />
-                                                                    {selectedWorkspace ===
-                                                                        "new" && (
-                                                                        <span className="truncate">
-                                                                            New Workspace
-                                                                        </span>
-                                                                    )}
-                                                                    {selectedWorkspace &&
-                                                                        selectedWorkspace !==
-                                                                            "new" && (
-                                                                            <span className="truncate">
-                                                                                {
-                                                                                    workspacesList.find(
-                                                                                        (
-                                                                                            ws: WorkspaceListItem,
-                                                                                        ) =>
-                                                                                            ws.id ===
-                                                                                            selectedWorkspace,
-                                                                                    )?.name
-                                                                                }
-                                                                            </span>
-                                                                        )}
-                                                                </span>
-                                                            </SelectTrigger>
-                                                            <SelectContent className="rounded-xl max-h-60 overflow-y-auto max-w-[220px]">
-                                                                <SelectItem
-                                                                    value="new"
-                                                                    className="text-xs font-medium text-primary"
-                                                                >
-                                                                    <span className="flex items-center gap-1.5">
-                                                                        <Plus className="w-3 h-3" />
-                                                                        New Workspace
-                                                                    </span>
-                                                                </SelectItem>
-                                                                <SelectSeparator />
-                                                                <SelectGroup>
-                                                                    <SelectLabel>
-                                                                        Workspaces
-                                                                    </SelectLabel>
-                                                                    {workspacesList.map(
-                                                                        (ws: WorkspaceListItem) => (
-                                                                            <SelectItem
-                                                                                key={ws.id}
-                                                                                value={ws.id}
-                                                                                className="text-xs"
-                                                                            >
-                                                                                <span className="truncate">
-                                                                                    {ws.name}
-                                                                                </span>
-                                                                            </SelectItem>
-                                                                        ),
-                                                                    )}
-                                                                </SelectGroup>
-                                                            </SelectContent>
-                                                        </Select>
+                                                            workspaces={workspacesList}
+                                                        />
                                                     )}
-                                                <Select
+                                                <ToolPill
                                                     value={selectedTool}
-                                                    onValueChange={setSelectedTool}
+                                                    onChange={setSelectedTool}
                                                     disabled={showCaptcha || isSubmitting}
-                                                >
-                                                    <SelectTrigger className="h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
-                                                        <SelectValue placeholder="Select Tool..." />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="rounded-xl">
-                                                        <SelectGroup>
-                                                            <SelectLabel>Tools</SelectLabel>
-                                                            <SelectItem
-                                                                key="Logit Lens"
-                                                                value="Logit Lens"
-                                                                className="text-xs"
-                                                            >
-                                                                Logit Lens
-                                                            </SelectItem>
-                                                            <SelectItem
-                                                                key="Activation Patching"
-                                                                value="Activation Patching"
-                                                                className="text-xs"
-                                                            >
-                                                                Activation Patching
-                                                            </SelectItem>
-                                                        </SelectGroup>
-                                                    </SelectContent>
-                                                </Select>
+                                                />
                                                 <ModelPillOrSelect
                                                     modelsLoading={modelsLoading}
                                                     modelsError={modelsError}
@@ -584,6 +575,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                     selectedModel={selectedModel}
                                                     onModelChange={setSelectedModel}
                                                     disabled={showCaptcha || isSubmitting}
+                                                    loggedIn={loggedIn}
                                                 />
                                             </div>
 
@@ -621,97 +613,18 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                 {isSignedInUser &&
                                                     workspacesList &&
                                                     workspacesList.length > 0 && (
-                                                        <Select
+                                                        <WorkspacePill
                                                             value={selectedWorkspace}
-                                                            onValueChange={setSelectedWorkspace}
+                                                            onChange={setSelectedWorkspace}
                                                             disabled={showCaptcha || isSubmitting}
-                                                        >
-                                                            <SelectTrigger className="h-5 w-fit max-w-[180px] text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <Layers className="w-3.5 h-3.5 shrink-0 text-current" />
-                                                                    {selectedWorkspace ===
-                                                                        "new" && (
-                                                                        <span className="truncate">
-                                                                            New Workspace
-                                                                        </span>
-                                                                    )}
-                                                                    {selectedWorkspace &&
-                                                                        selectedWorkspace !==
-                                                                            "new" && (
-                                                                            <span className="truncate">
-                                                                                {
-                                                                                    workspacesList.find(
-                                                                                        (
-                                                                                            ws: WorkspaceListItem,
-                                                                                        ) =>
-                                                                                            ws.id ===
-                                                                                            selectedWorkspace,
-                                                                                    )?.name
-                                                                                }
-                                                                            </span>
-                                                                        )}
-                                                                </span>
-                                                            </SelectTrigger>
-                                                            <SelectContent className="rounded-xl max-h-60 overflow-y-auto max-w-[220px]">
-                                                                <SelectItem
-                                                                    value="new"
-                                                                    className="text-xs font-medium text-primary"
-                                                                >
-                                                                    <span className="flex items-center gap-1.5">
-                                                                        <Plus className="w-3 h-3" />
-                                                                        New Workspace
-                                                                    </span>
-                                                                </SelectItem>
-                                                                <SelectSeparator />
-                                                                <SelectGroup>
-                                                                    <SelectLabel>
-                                                                        Workspaces
-                                                                    </SelectLabel>
-                                                                    {workspacesList.map(
-                                                                        (ws: WorkspaceListItem) => (
-                                                                            <SelectItem
-                                                                                key={ws.id}
-                                                                                value={ws.id}
-                                                                                className="text-xs"
-                                                                            >
-                                                                                <span className="truncate">
-                                                                                    {ws.name}
-                                                                                </span>
-                                                                            </SelectItem>
-                                                                        ),
-                                                                    )}
-                                                                </SelectGroup>
-                                                            </SelectContent>
-                                                        </Select>
+                                                            workspaces={workspacesList}
+                                                        />
                                                     )}
-                                                <Select
+                                                <ToolPill
                                                     value={selectedTool}
-                                                    onValueChange={setSelectedTool}
+                                                    onChange={setSelectedTool}
                                                     disabled={showCaptcha || isSubmitting}
-                                                >
-                                                    <SelectTrigger className="h-5 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full focus:ring-0 focus:ring-offset-0 px-2">
-                                                        <SelectValue placeholder="Select Tool..." />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="rounded-xl">
-                                                        <SelectGroup>
-                                                            <SelectLabel>Tools</SelectLabel>
-                                                            <SelectItem
-                                                                key="Logit Lens"
-                                                                value="Logit Lens"
-                                                                className="text-xs"
-                                                            >
-                                                                Logit Lens
-                                                            </SelectItem>
-                                                            <SelectItem
-                                                                key="Activation Patching"
-                                                                value="Activation Patching"
-                                                                className="text-xs"
-                                                            >
-                                                                Activation Patching
-                                                            </SelectItem>
-                                                        </SelectGroup>
-                                                    </SelectContent>
-                                                </Select>
+                                                />
                                                 <ModelPillOrSelect
                                                     modelsLoading={modelsLoading}
                                                     modelsError={modelsError}
@@ -720,6 +633,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                     selectedModel={selectedModel}
                                                     onModelChange={setSelectedModel}
                                                     disabled={showCaptcha || isSubmitting}
+                                                    loggedIn={loggedIn}
                                                 />
                                             </div>
                                         </div>
@@ -807,12 +721,17 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                 </div>
             </main>
 
-            {/* Footer */}
-            {/* <footer className="relative z-10 py-4 border-t border-border/50 shrink-0">
-                <div className="w-full px-6 text-center text-xs text-muted-foreground">
-                    <p>Powered by advanced interpretability techniques</p>
-                </div>
-            </footer> */}
+            {/* Footer — discreet dofollow credit for the Argos open-source
+                program (a bare external link is dofollow; no rel="nofollow"). */}
+            <footer className="relative z-10 shrink-0 pb-3 text-center">
+                <Link
+                    href="https://argos-ci.com?utm_source=ndif&utm_campaign=oss"
+                    target="_blank"
+                    className="text-xs text-muted-foreground/50 transition-colors hover:text-muted-foreground"
+                >
+                    Visual testing by Argos
+                </Link>
+            </footer>
         </div>
     );
 }

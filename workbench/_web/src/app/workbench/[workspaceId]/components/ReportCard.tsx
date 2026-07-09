@@ -2,10 +2,9 @@
 
 import { useParams } from "next/navigation";
 import { FileText, MoreVertical, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
+import { sidebarCardShell } from "./sidebarCardShell";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
 
 export default function ReportCard({
     report,
@@ -27,56 +26,59 @@ export default function ReportCard({
 
     return (
         <div
-            className={cn("flex items-center border h-24 rounded", isSelected && "border-primary")}
+            role="button"
+            tabIndex={0}
+            aria-pressed={isSelected}
+            className={sidebarCardShell({ selected: isSelected })}
             onClick={onClick}
-            draggable={false}
+            onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onClick();
+                }
+            }}
         >
-            <div
-                className={cn(
-                    "relative w-[35%] h-24 overflow-hidden rounded-l text-muted-foreground border-y border-r flex flex-col bg-background items-center justify-center",
-                    isSelected && "border-primary",
-                )}
-            >
-                <FileText className="h-5 w-5" />
-                <span className="text-xs font-medium capitalize">Report</span>
+            {/* line 1: title + overflow menu */}
+            <div className="flex items-center justify-between gap-2">
+                <span
+                    className={
+                        isSelected
+                            ? "truncate text-sm font-semibold leading-tight text-foreground"
+                            : "truncate text-sm font-medium leading-tight text-foreground"
+                    }
+                >
+                    {report.derivedTitle || "Untitled"}
+                </span>
+
+                <Popover>
+                    <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <button
+                            type="button"
+                            aria-label="Report actions"
+                            className="-m-0.5 shrink-0 rounded p-0.5 text-muted-foreground/40 transition-colors hover:bg-accent hover:text-foreground focus-visible:text-foreground group-hover:text-muted-foreground"
+                        >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-40 p-1" align="end">
+                        <button
+                            className="flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-destructive hover:bg-accent"
+                            onClick={onDelete}
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Delete</span>
+                        </button>
+                    </PopoverContent>
+                </Popover>
             </div>
-            <div
-                key={report.id}
-                className={cn(
-                    "p-3 cursor-pointer transition-all h-full w-[65%]",
-                    isSelected ? "bg-primary/5" : "hover:bg-muted/50",
-                )}
-            >
-                <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-1">
-                            <span className="text-sm font-medium truncate max-w-36">
-                                {report.derivedTitle || "Untitled"}
-                            </span>
-                        </div>
-                        <div className="text-xs text-muted-foreground break-words flex items-center gap-3">
-                            {updatedAt && (
-                                <span className="text-xs text-muted-foreground">{updatedAt}</span>
-                            )}
-                        </div>
-                    </div>
-                    <Popover>
-                        <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                <MoreVertical className="h-4 w-4" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-40 p-1" align="end">
-                            <button
-                                className="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-accent rounded-sm text-destructive"
-                                onClick={onDelete}
-                            >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                <span>Delete</span>
-                            </button>
-                        </PopoverContent>
-                    </Popover>
-                </div>
+
+            {/* line 2: kind (left) · date (right) */}
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span className="flex min-w-0 items-center gap-1.5 truncate">
+                    <FileText className="h-3 w-3 shrink-0 opacity-80" />
+                    <span className="truncate">Report</span>
+                </span>
+                {updatedAt && <span className="shrink-0 tabular-nums">{updatedAt}</span>}
             </div>
         </div>
     );

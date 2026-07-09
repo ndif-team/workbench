@@ -2,12 +2,16 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 // import { pushTutorialChart } from "@/lib/queries/tutorialChart";
 import {
     createLens2ChartPair,
     createActivationPatchingChartPair,
 } from "@/lib/queries/chartQueries";
+import { queryKeys } from "@/lib/queryKeys";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { Lens2ConfigData } from "@/types/lens2";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 
@@ -24,6 +28,9 @@ interface AutoWorkspaceCreatorProps {
     srcPos?: string; // JSON-encoded source positions
     tgtPos?: string; // JSON-encoded target positions
     tgtFreeze?: string; // JSON-encoded frozen positions
+    deploy?: boolean; // Cold-model deploy: create an empty chart (no prompt) so
+    // the chart renders its deploying state and, once hot, ready controls —
+    // without auto-running anything.
 }
 
 export function AutoWorkspaceCreator({
@@ -39,10 +46,12 @@ export function AutoWorkspaceCreator({
     srcPos,
     tgtPos,
     tgtFreeze,
+    deploy = false,
 }: AutoWorkspaceCreatorProps) {
     const [error, setError] = useState<string | null>(null);
     const hasStartedRef = useRef(false);
     const router = useRouter();
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         const createAndRedirect = async () => {
@@ -82,7 +91,43 @@ export function AutoWorkspaceCreator({
                 let userChartId: string | null = null;
                 let chartType: string = "lens2";
 
-                if (tool === "Activation Patching" && srcPrompt && tgtPrompt && srcPos && tgtPos) {
+                if (deploy) {
+                    // Cold-model deploy: create an EMPTY chart of the chosen
+                    // tool so the user lands in the chart's deploying state and,
+                    // once the model is hot, ready (un-run) controls.
+                    const model = initialModel || "openai-community/gpt2";
+                    if (tool === "Activation Patching") {
+                        const apConfig: ActivationPatchingConfigData = {
+                            model,
+                            srcPrompt: "",
+                            tgtPrompt: "",
+                            srcPos: [],
+                            tgtPos: [],
+                            tgtFreeze: [],
+                        };
+                        const { chart } = await createActivationPatchingChartPair(
+                            targetWorkspaceId,
+                            apConfig,
+                        );
+                        userChartId = chart.id;
+                        chartType = "activation-patching";
+                    } else {
+                        const lensConfig: Lens2ConfigData = {
+                            model,
+                            prompt: "",
+                            topk: 5,
+                            includeEntropy: true,
+                        };
+                        const { chart } = await createLens2ChartPair(targetWorkspaceId, lensConfig);
+                        userChartId = chart.id;
+                    }
+                } else if (
+                    tool === "Activation Patching" &&
+                    srcPrompt &&
+                    tgtPrompt &&
+                    srcPos &&
+                    tgtPos
+                ) {
                     // Create activation patching chart
                     console.log("Creating activation patching chart");
                     const parsedSrcPos: SourcePosition[] = JSON.parse(srcPos);
@@ -122,6 +167,17 @@ export function AutoWorkspaceCreator({
                     console.log("Created user lens2 chart:", userChartId);
                 }
 
+                // The chart was created via the server action directly (not the
+                // mutation hooks), so nothing invalidated the sidebar list.
+                // Refresh it, otherwise the new chart exists but has no card in
+                // the sidebar — unreachable once you navigate away — until a
+                // full reload.
+                if (userChartId) {
+                    queryClient.invalidateQueries({
+                        queryKey: queryKeys.charts.sidebar(targetWorkspaceId),
+                    });
+                }
+
                 // Small delay to ensure the workspace is fully created
                 setTimeout(() => {
                     if (userChartId) {
@@ -158,40 +214,45 @@ export function AutoWorkspaceCreator({
         srcPos,
         tgtPos,
         tgtFreeze,
+        deploy,
+        queryClient,
     ]);
 
     if (error) {
         return (
-            <div className="p-4 border rounded bg-red-50 border-red-200">
-                <h2 className="text-lg font-semibold mb-2 text-red-700">
-                    Error Creating Workspace
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
+                <h2 className="mb-2 text-lg font-semibold text-destructive">
+                    Error creating workspace
                 </h2>
-                <p className="mb-4 text-red-600">{error}</p>
-                <button
+                <p className="mb-4 text-sm text-muted-foreground">{error}</p>
+                <Button
+                    type="button"
+                    size="sm"
                     onClick={() => {
                         setError(null);
                         hasStartedRef.current = false;
                         // Force re-render to trigger useEffect
                         window.location.reload();
                     }}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                 >
-                    Try Again
-                </button>
+                    Try again
+                </Button>
             </div>
         );
     }
 
     const statusMessage = existingWorkspaceId
-        ? "Adding new chart to your workspace..."
-        : `Creating ${workspaceName === "Untitled" ? "new" : "default"} workspace...`;
+        ? "Adding new chart to your workspace…"
+        : `Creating ${workspaceName === "Untitled" ? "new" : "default"} workspace…`;
 
     return (
-        <div className="p-4 border rounded bg-blue-50 border-blue-200">
-            <h2 className="text-lg font-semibold mb-2">Setting up your workspace...</h2>
-            <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                <p className="text-gray-600">{statusMessage}</p>
+        <div className="rounded-md border border-primary/20 bg-primary/5 p-4">
+            <h2 className="mb-2 text-lg font-semibold text-foreground">
+                Setting up your workspace…
+            </h2>
+            <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">{statusMessage}</p>
             </div>
         </div>
     );

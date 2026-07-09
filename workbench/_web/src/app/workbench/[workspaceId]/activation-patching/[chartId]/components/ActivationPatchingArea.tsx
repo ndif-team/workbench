@@ -1,17 +1,8 @@
 "use client";
 
-import { ModelSelector } from "@/components/ModelSelector";
-import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
-import { queryKeys } from "@/lib/queryKeys";
-import { useMemo, useEffect, useState } from "react";
-import { getModels } from "@/lib/api/modelsApi";
-import { useWorkspace } from "@/stores/useWorkspace";
-import { AlertCircle } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToolArea } from "@/hooks/useToolArea";
 import { ActivationPatchingControls } from "./ActivationPatchingControls";
-import { ActivationPatchingConfigData } from "@/types/activationPatching";
+import { ActivationPatchingConfigData, ActivationPatchingData } from "@/types/activationPatching";
 
 interface ActivationPatchingConfig {
     id: string;
@@ -19,80 +10,28 @@ interface ActivationPatchingConfig {
     type: string;
 }
 
+interface ActivationPatchingChart {
+    id: string;
+    data: ActivationPatchingData | null;
+    type: string;
+}
+
 export default function ActivationPatchingArea() {
-    const { chartId } = useParams<{ chartId: string }>();
+    const {
+        config,
+        isChartLoading,
+        modelsAvailable,
+        modelsFetching,
+        effectiveModel,
+        hasExistingData,
+        modelRunnable,
+    } = useToolArea<ActivationPatchingConfig, ActivationPatchingChart>();
 
-    const { data: config } = useQuery({
-        queryKey: queryKeys.charts.configByChart(chartId),
-        queryFn: () => getConfigForChart(chartId),
-        enabled: !!chartId,
-    });
-
-    const { data: chart, isLoading: isChartLoading } = useQuery({
-        queryKey: queryKeys.charts.chart(chartId),
-        queryFn: () => getChartById(chartId as string),
-        enabled: !!chartId,
-    });
-
-    const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
-    const [configModelUnavailable, setConfigModelUnavailable] = useState<string | null>(null);
-
-    const { data: models } = useQuery({
-        queryKey: ["models"],
-        queryFn: getModels,
-        refetchInterval: 120000,
-    });
-
-    // Sync the model selector with the model stored in the config when chart loads
-    useEffect(() => {
-        if (config && models && models.length > 0) {
-            const apConfig = config as ActivationPatchingConfig;
-            const configModel = apConfig.data?.model;
-
-            if (configModel && configModel.length > 0) {
-                const modelIndex = models.findIndex((m) => m.name === configModel);
-                if (modelIndex !== -1) {
-                    setSelectedModelIdx(modelIndex);
-                    setConfigModelUnavailable(null);
-                } else {
-                    setConfigModelUnavailable(configModel);
-                }
-            } else {
-                setConfigModelUnavailable(null);
-            }
-        }
-        // Track the full config reference (not just config?.id) so the
-        // effect re-runs when config.data.model changes — the value the
-        // effect actually reads.
-    }, [config, models, setSelectedModelIdx]);
-
-    const selectedModel = useMemo(() => {
-        if (!models || models.length === 0) return undefined;
-        return models[selectedModelIdx]?.name || models[0].name;
-    }, [models, selectedModelIdx]);
-
-    // Wait for both config and chart to load to ensure hasExistingData is accurate
-    if (!config || !selectedModel || isChartLoading) {
+    if (!config || isChartLoading) {
         return (
             <div className="h-full flex flex-col md:min-w-64">
                 <div className="p-3 border-b flex items-center justify-between">
                     <h2 className="text-sm pl-2 font-medium">Activation Patching</h2>
-                    <div className="flex items-center gap-2">
-                        {configModelUnavailable && (
-                            <Tooltip>
-                                <TooltipTrigger>
-                                    <AlertCircle className="w-4 h-4 text-yellow-500" />
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom" className="max-w-xs">
-                                    <p>
-                                        Model &quot;{configModelUnavailable}&quot; is not currently
-                                        available. Please select a different model.
-                                    </p>
-                                </TooltipContent>
-                            </Tooltip>
-                        )}
-                        <ModelSelector />
-                    </div>
                 </div>
                 <div className="h-48 animate-pulse bg-muted/50 m-3 rounded" />
             </div>
@@ -101,34 +40,16 @@ export default function ActivationPatchingArea() {
 
     return (
         <div className="h-full flex flex-col md:min-w-64">
-            <div className="p-3 border-b flex items-center justify-between">
-                <h2 className="text-sm pl-2 font-medium">Activation Patching</h2>
-                <div className="flex items-center gap-2">
-                    {configModelUnavailable && (
-                        <Tooltip>
-                            <TooltipTrigger>
-                                <AlertCircle className="w-4 h-4 text-yellow-500" />
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-xs">
-                                <p>
-                                    Model &quot;{configModelUnavailable}&quot; is not currently
-                                    available. Please select a different model.
-                                </p>
-                            </TooltipContent>
-                        </Tooltip>
-                    )}
-                    <ModelSelector />
-                </div>
-            </div>
-
-            <div className="p-3 flex-1 overflow-auto">
-                <ActivationPatchingControls
-                    key={config.id}
-                    initialConfig={config as ActivationPatchingConfig}
-                    selectedModel={selectedModel}
-                    hasExistingData={!!(chart as { data?: unknown })?.data}
-                />
-            </div>
+            <ActivationPatchingControls
+                key={config.id}
+                initialConfig={config}
+                selectedModel={effectiveModel}
+                // Cold/gone saved model → read-only (reuses the existing
+                // models-unavailable path); the saved result still renders.
+                modelsAvailable={modelsAvailable && modelRunnable}
+                modelsLoading={modelsFetching}
+                hasExistingData={hasExistingData}
+            />
         </div>
     );
 }

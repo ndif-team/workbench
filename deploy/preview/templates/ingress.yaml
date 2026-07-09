@@ -6,7 +6,6 @@ metadata:
   labels:
     {{- include "preview.labels" . | nindent 4 }}
   annotations:
-    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | quote }}
     {{- if .Values.ingress.authGate.enabled }}
     # Forward-auth via oauth2-proxy (ndif-team org-gated). See
     # k8s/apps/workbench-preview-auth/ in the cluster repo.
@@ -25,7 +24,11 @@ spec:
   tls:
     - hosts:
         - {{ .Values.ingress.host | quote }}
-      secretName: {{ include "preview.name" . }}-tls
+      # Shared *.ndif-preview.ripley.cloud wildcard, mirrored into every
+      # workbench-preview-pr-* namespace by emberstack/reflector. See
+      # k8s/apps/workbench-preview-auth/wildcard-certificate.yaml in the
+      # cluster repo.
+      secretName: {{ .Values.ingress.tlsSecretName }}
   rules:
     - host: {{ .Values.ingress.host | quote }}
       http:

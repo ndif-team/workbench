@@ -5,6 +5,7 @@ import {
     chartConfigLinks as sqliteChartConfigLinks,
     views as sqliteViews,
     documents as sqliteDocuments,
+    lensRuns as sqliteLensRuns,
 } from "./schema.sqlite";
 import {
     workspaces as pgWorkspaces,
@@ -13,6 +14,7 @@ import {
     chartConfigLinks as pgChartConfigLinks,
     views as pgViews,
     documents as pgDocuments,
+    lensRuns as pgLensRuns,
 } from "./schema.pg";
 import type { LensConfigData } from "@/types/lens";
 import type { HeatmapRow, HeatmapViewData, LineViewData, Line } from "@/types/charts";
@@ -26,6 +28,7 @@ export const configs = isLocal ? sqliteConfigs : pgConfigs;
 export const chartConfigLinks = isLocal ? sqliteChartConfigLinks : pgChartConfigLinks;
 export const documents = isLocal ? sqliteDocuments : pgDocuments;
 export const views = isLocal ? sqliteViews : pgViews;
+export const lensRuns = isLocal ? sqliteLensRuns : pgLensRuns;
 
 // Generate types from schema
 export type Workspace = typeof workspaces.$inferSelect;
@@ -45,6 +48,9 @@ export type NewDocument = typeof documents.$inferInsert;
 
 export type View = typeof views.$inferSelect;
 export type NewView = typeof views.$inferInsert;
+
+export type LensRun = typeof lensRuns.$inferSelect;
+export type NewLensRun = typeof lensRuns.$inferInsert;
 
 export type HeatmapView = Omit<View, "data"> & {
     data: HeatmapViewData;

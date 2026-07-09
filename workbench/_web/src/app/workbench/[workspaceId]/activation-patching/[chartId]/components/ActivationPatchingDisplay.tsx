@@ -14,6 +14,10 @@ import { useTheme } from "next-themes";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { NotebookExporter } from "@/components/NotebookExporter";
+import { ChartModelPill } from "@/components/charts/ChartModelPill";
+import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
+import { useModelsQuery } from "@/lib/api/modelsApi";
+import { useWorkspace } from "@/stores/useWorkspace";
 
 const validModes = new Set<string>(["probability", "rank", "prob_diff"]);
 
@@ -60,6 +64,12 @@ export function ActivationPatchingDisplay() {
         queryFn: () => getWorkspaceById(workspaceId),
         enabled: !!workspaceId,
     });
+
+    const { data: models } = useModelsQuery();
+
+    const { selectedModelIdx } = useWorkspace();
+    const selectedModel = models?.[selectedModelIdx]?.name ?? models?.[0]?.name ?? null;
+    const modelsAvailable = !!models && models.length > 0;
 
     const { mutate: updateChartName } = useUpdateChartName();
     const { mutateAsync: updateConfig } = useUpdateChartConfig();
@@ -215,41 +225,47 @@ export function ActivationPatchingDisplay() {
         );
     }
 
+    const chartModel = chartModelFromConfig(patchingConfig);
+    const stale = isChartStale(chartModel, selectedModel, modelsAvailable);
+
     return (
         <div className="size-full overflow-auto flex flex-col">
             {/* Title + export */}
             <div className="px-4 pt-4 pb-2 flex items-center gap-2">
-                <div className="flex-1 min-w-0">
-                    {isEditingTitle ? (
-                        <input
-                            ref={titleInputRef}
-                            type="text"
-                            value={displayTitle}
-                            onChange={handleTitleChange}
-                            onBlur={handleTitleBlur}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.currentTarget.blur();
-                                }
-                            }}
-                            placeholder="Untitled Chart"
-                            className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
-                        />
-                    ) : hasTitle ? (
-                        <h2
-                            onClick={handleTitleClick}
-                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold truncate"
-                        >
-                            {displayTitle}
-                        </h2>
-                    ) : (
-                        <h2
-                            onClick={handleTitleClick}
-                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
-                        >
-                            Untitled Chart
-                        </h2>
-                    )}
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                        {isEditingTitle ? (
+                            <input
+                                ref={titleInputRef}
+                                type="text"
+                                value={displayTitle}
+                                onChange={handleTitleChange}
+                                onBlur={handleTitleBlur}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                    }
+                                }}
+                                placeholder="Untitled Chart"
+                                className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
+                            />
+                        ) : hasTitle ? (
+                            <h2
+                                onClick={handleTitleClick}
+                                className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold truncate"
+                            >
+                                {displayTitle}
+                            </h2>
+                        ) : (
+                            <h2
+                                onClick={handleTitleClick}
+                                className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
+                            >
+                                Untitled Chart
+                            </h2>
+                        )}
+                    </div>
+                    {stale && chartModel && <ChartModelPill modelName={chartModel} />}
                 </div>
                 <NotebookExporter
                     configType="activation-patching"

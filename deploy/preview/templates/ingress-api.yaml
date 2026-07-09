@@ -6,7 +6,6 @@ metadata:
   labels:
     {{- include "preview.api.labels" . | nindent 4 }}
   annotations:
-    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | quote }}
     {{- if .Values.ingress.authGate.enabled }}
     # Same forward-auth gate as the web ingress — relies on the shared
     # cookie domain (.ndif-preview.ripley.cloud) so a single login covers
@@ -32,7 +31,11 @@ spec:
   tls:
     - hosts:
         - {{ .Values.api.host | quote }}
-      secretName: {{ include "preview.api.name" . }}-tls
+      # Same wildcard secret as the web ingress — works because the api
+      # host is a sibling subdomain of the app host (pr-N-api.<domain>
+      # instead of api.pr-N.<domain>), so *.ndif-preview.ripley.cloud
+      # covers both.
+      secretName: {{ .Values.ingress.tlsSecretName }}
   rules:
     - host: {{ .Values.api.host | quote }}
       http:

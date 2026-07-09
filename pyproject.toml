@@ -16,6 +16,12 @@ dependencies = [
     "influxdb-client>=1.49.0",
     "uvicorn>=0.33.0",
     "torch>=2.9.0",
+    # Pulled in transitively by nnsight/nnterp, but pinned here so recent model
+    # architectures land in our env: OLMo 3, recent Gemma, etc.
+    "transformers>=5.11.0",
+    # Fork with the forward_pass payload trim (scores-only wire format).
+    # See ndif-team/transformer-explainer's deriveAttention.ts for the
+    # client-side derivation of masked + softmax views.
     "nnsightful @ git+https://github.com/jon-bell/nnsightful.git@3204cba6a91763f03e9e9bd363f84dc69b04d7ed",
 ]
 
