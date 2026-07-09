@@ -54,13 +54,12 @@ const reseedHistoryChart = () => {
     execFileSync("node", ["tests/seed-patch-lens.cjs", "--history-only"], { stdio: "inherit" });
 };
 
-/** Pin the shared toolbar steps so the grid density (and Argos screenshots)
- *  don't depend on the autofit's viewport-derived downsampling. The toolbar
- *  renders exactly two number inputs: Token Step then Layer Step. */
-async function pinSteps(page: Page, tokenStep: number, layerStep: number) {
-    const inputs = page.locator('#patch-lens-display input[type="number"]');
-    await inputs.nth(0).fill(String(tokenStep));
-    await inputs.nth(1).fill(String(layerStep));
+/** Pin the layer-step density so the grid (and Argos screenshots) don't depend
+ *  on the autofit's viewport-derived downsampling. Token rows are always shown
+ *  (no token-step control), so the toolbar renders one number input: Layer Step. */
+async function pinLayerStep(page: Page, layerStep: number) {
+    const input = page.locator('#patch-lens-display input[type="number"]').first();
+    await input.fill(String(layerStep));
 }
 
 test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
@@ -123,9 +122,9 @@ test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
     });
 
     test("tokens render their spaces as ␣ (row labels and cells)", async ({ page }) => {
-        // Show every row: autofit hides odd token indices at this viewport,
-        // and " Eiffel" is row index 1.
-        await pinSteps(page, 1, 8);
+        // Every token row is always shown now; pin the layer density for a
+        // stable layout. " Eiffel" is row index 1.
+        await pinLayerStep(page, 8);
 
         // Row label for the " Eiffel" token: raw token stays in title, display
         // shows the open-box marker.
@@ -142,35 +141,30 @@ test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
         await expect(eiffelCell).toHaveText("␣Eiffel");
     });
 
-    test("axis titles show the token/layer step", async ({ page }) => {
+    test("axis titles show the layer step; token axis has no step", async ({ page }) => {
         const display = page.locator("#patch-lens-display");
         // "Layer (Step: X)" renders above AND below the grid.
         await expect(display.getByText(/^Layer \(Step: \d+\)$/)).toHaveCount(2);
-        // Rotated y-axis title outside the scroll container.
-        await expect(display.getByText(/^Tokens \(Step: \d+\)$/)).toHaveCount(1);
+        // Token rows are never downsampled now, so the y-axis title is just
+        // "Tokens" (no step) and no "Tokens (Step: N)" appears.
+        await expect(display.getByText("Tokens", { exact: true })).toHaveCount(1);
+        await expect(display.getByText(/^Tokens \(Step:/)).toHaveCount(0);
     });
 
-    test("collapsed rows/columns show amber labeled expanders that expand on click", async ({
+    test("collapsed columns show an amber labeled expander that expands on click", async ({
         page,
     }) => {
-        // The 12-token × 32-layer fixture at 1280×720 always downsamples, so
-        // both gap expanders exist. The row expander carries a legible count
-        // label ("⋯ N hidden"), not the old faint 9px text.
-        const rowExpander = page.getByTestId("token-gap-expander").first();
-        await expect(rowExpander).toBeVisible();
-        await expect(rowExpander).toHaveText(/⋯ \d+ hidden/);
+        // Token rows are always shown (no token-step downsampling), so there is
+        // no token-gap-expander. Layers still downsample on the 32-layer fixture.
+        await expect(page.getByTestId("token-gap-expander")).toHaveCount(0);
 
         const colExpander = page.getByTestId("layer-gap-expander").first();
         await expect(colExpander).toBeVisible();
 
-        // Clicking an expander reveals the hidden rows/columns.
-        const rowsBefore = await tokenLabels(page).count();
-        await rowExpander.click();
-        expect(await tokenLabels(page).count()).toBeGreaterThan(rowsBefore);
-
+        // Clicking a column expander reveals the hidden layers (its own expander
+        // disappears once those layers are shown).
         const colsBefore = await page.getByTestId("layer-gap-expander").count();
         await colExpander.click();
-        // Expanding a column gap removes that expander (its layers are shown).
         expect(await page.getByTestId("layer-gap-expander").count()).toBeLessThan(colsBefore);
     });
 
@@ -194,9 +188,10 @@ test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
     });
 
     test("visual: lens heatmap view", async ({ page }) => {
-        // Pin the density so the screenshot doesn't ride on autofit.
-        await pinSteps(page, 2, 8);
-        await expect(page.getByTestId("token-gap-expander").first()).toBeVisible();
+        // Pin the layer density so the screenshot doesn't ride on autofit. All
+        // token rows are shown; layers still downsample (amber column expander).
+        await pinLayerStep(page, 8);
+        await expect(page.getByTestId("layer-gap-expander").first()).toBeVisible();
         await argosScreenshot(page, "patch-lens-lens-view", { fullPage: false });
     });
 
@@ -244,9 +239,9 @@ test.describe("patch-lens intervention (seeded restore, no NDIF)", () => {
     test("visual: intervention (patching) view", async ({ page }) => {
         const resultHeader = page.getByRole("heading", { name: "Result (Intervened)" });
         await expect(resultHeader).toBeVisible();
-        // Pin the density (re-laying out the grids), then bring the result
+        // Pin the layer density (re-laying out the grids), then bring the result
         // into frame ourselves — the auto-scroll behavior has its own test.
-        await pinSteps(page, 1, 8);
+        await pinLayerStep(page, 8);
         await resultHeader.scrollIntoViewIfNeeded();
         // Let the reveal/cascade animations settle so the screenshot is stable.
         await page.waitForTimeout(1500);
