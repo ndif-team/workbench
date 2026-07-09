@@ -34,7 +34,7 @@ const ReadingTheLensSteps: ExtendedStepType[] = [
     {
         selector: "#patch-lens-display",
         content:
-            "Reading the heatmap: each row is a token position in your prompt (a ␣ marks a space that is part of a token), and each column is a layer. Each cell shows the model's top guess at that point — darker fill means higher probability.\n\nLarge models get downsampled to fit: amber bands mark hidden rows or columns, and the axis labels show the current step. Click an amber band to expand what it hides.",
+            "Reading the heatmap: each row is a token position in your prompt (a ␣ marks a space that is part of a token), and each column is a layer. Each cell shows the model's top guess at that point — darker fill means higher probability.\n\nEvery token row is shown. Wide models downsample layers to fit: amber bands mark hidden layers, and the axis label shows the layer step. Click an amber band to expand the hidden layers.",
         // The display mounts asynchronously (skeleton → widget) and grows as cells
         // animate in; without these reactour would size the highlight against a
         // missing/half-rendered element. The observers recompute on mount + resize.
