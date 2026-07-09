@@ -91,6 +91,7 @@ jobs:
             "NEXT_PUBLIC_BASE_URL=http://localhost:3000" \
             "NEXT_PUBLIC_BACKEND_URL=http://localhost:8000" \
             "HF_TOKEN=${HF_TOKEN}" \
+            "NEXT_PUBLIC_VISUAL_TEST=true" \
             > .env
           cp .env workbench/_web/.env
           # Backend reads its own .env; mirror the secrets so CONFIG=e2e
