@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
+import { useCapture } from "@/lib/analytics";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2, Play, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -16,6 +17,7 @@ import { useTour } from "@reactour/tour";
 import { PatchLensTutorial } from "@/tutorials/patchLens";
 import { usePatchLensTutorial, hydratePatchLensTutorial } from "@/stores/usePatchLensTutorial";
 import { getModels } from "@/lib/api/modelsApi";
+import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
@@ -109,6 +111,7 @@ export default function PatchLensArea({
     onSelectRun,
 }: PatchLensAreaProps) {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
+    const capture = useCapture();
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
 
     const { data: models } = useQuery({
@@ -117,18 +120,26 @@ export default function PatchLensArea({
         refetchInterval: 120000,
     });
 
+    // Workshop workspaces pin the workshop's model; don't fight the pin with
+    // the intro default below.
+    const { data: workshop, isLoading: workshopLoading } = useWorkspaceWorkshop(
+        workspaceId as string,
+    );
+
     // Default to Llama-3.1-8B once when models load, rather than leaving the
     // workspace default at index 0 (the 70B, 80 layers). Guarded so a later
-    // manual model choice is not overridden.
+    // manual model choice is not overridden. Waits for the workshop lookup so
+    // a workshop's pinned model wins the race over the intro default.
     const didDefaultModel = useRef(false);
     useEffect(() => {
-        if (didDefaultModel.current || !models || models.length === 0) return;
+        if (didDefaultModel.current || !models || models.length === 0 || workshopLoading) return;
         didDefaultModel.current = true;
-        const idx = models.findIndex((m) => m.name === DEFAULT_INTRO_MODEL);
+        const targetModel = workshop ? workshop.model : DEFAULT_INTRO_MODEL;
+        const idx = models.findIndex((m) => m.name === targetModel);
         if (idx !== -1 && idx !== selectedModelIdx) {
             setSelectedModelIdx(idx);
         }
-    }, [models, selectedModelIdx, setSelectedModelIdx]);
+    }, [models, selectedModelIdx, setSelectedModelIdx, workshop, workshopLoading]);
 
     const selectedModel = useMemo(() => {
         if (!models || models.length === 0) return undefined;
@@ -373,6 +384,13 @@ export default function PatchLensArea({
             return;
         }
 
+        capture("run_submitted", {
+            tool: "patch-lens",
+            model: selectedModel,
+            source_prompt_length: src.length,
+            target_prompt_length: tgt.length,
+        });
+
         try {
             const result = await runLogitLens({
                 sourcePrompt: src,
@@ -387,6 +405,7 @@ export default function PatchLensArea({
             );
         } catch (error) {
             // Error toast handled by the mutation's onError.
+            capture("run_failed", { tool: "patch-lens", error: String(error) });
         }
     }, [
         selectedModel,
@@ -398,6 +417,7 @@ export default function PatchLensArea({
         onLensResult,
         chartId,
         workspaceId,
+        capture,
     ]);
 
     const { startTutorial } = useTutorialAutoStart();

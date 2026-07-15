@@ -5,8 +5,19 @@ import {
     gotoFreshLensWorkspace,
     REAL_NDIF_TIMEOUT_MS,
 } from "./fixtures";
+import { createTestUser, loginAsUser, type TestingUser } from "./TestingUtils";
 
 const PROMPT = "The Eiffel Tower is in the city of";
+
+// Fresh user per file (real auth); log in before each test so workspaces are
+// created under a real identity.
+let user: TestingUser;
+test.beforeAll(async () => {
+    user = await createTestUser();
+});
+test.beforeEach(async ({ page }) => {
+    await loginAsUser(page, user);
+});
 
 /**
  * Lens2 UI primer (what these tests anchor on — see

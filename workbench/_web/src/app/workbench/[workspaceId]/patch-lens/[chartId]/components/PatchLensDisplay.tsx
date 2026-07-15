@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
+import { useCapture } from "@/lib/analytics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getModels } from "@/lib/api/modelsApi";
 import { getChartById, setChartData } from "@/lib/queries/chartQueries";
@@ -9,7 +10,7 @@ import { useLensRunHeatmaps } from "@/lib/api/lensRunApi";
 import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { CausalMediationExplorer } from "edulogitlens";
-import type { LogitLensData, Intervention } from "edulogitlens";
+import type { LogitLensData, Intervention, CausalMediationEvent } from "edulogitlens";
 import { PatchLensResult, usePatchLensIntervention } from "@/lib/api/patchLensApi";
 import { transformToEduFormat } from "@/lib/edu-lens";
 import type { PatchLensChartData } from "@/types/patchLens";
@@ -64,6 +65,7 @@ export function PatchLensDisplay({
     lensResult,
 }: PatchLensDisplayProps) {
     const { chartId } = useParams<{ chartId: string }>();
+    const capture = useCapture();
     const { selectedModelIdx } = useWorkspace();
     const queryClient = useQueryClient();
 
@@ -168,6 +170,12 @@ export function PatchLensDisplay({
     const handleIntervention = useCallback(
         async (i: Intervention): Promise<LogitLensData | null> => {
             if (!chartId || !selectedModel) return null;
+            capture("patch_lens_intervention_applied", {
+                source_layer: i.sourceLayer,
+                source_token_position: i.sourceTokenPosition,
+                target_layer: i.targetLayer,
+                target_token_position: i.targetTokenPosition,
+            });
             try {
                 const result = await runIntervention({
                     model: selectedModel,
@@ -186,7 +194,7 @@ export function PatchLensDisplay({
                 return null;
             }
         },
-        [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention],
+        [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention, capture],
     );
 
     // Clear the persisted patch when the user resets the intervention, so the
@@ -197,6 +205,7 @@ export function PatchLensDisplay({
         const existing = await getChartById(chartId);
         const existingData = (existing?.data ?? {}) as Partial<PatchLensChartData>;
         if (existingData.intervention === undefined) return;
+        capture("patch_lens_intervention_reset", {});
         const next = { ...existingData };
         delete next.intervention;
         await setChartData(chartId, next as PatchLensChartData, "patch-lens");
@@ -206,7 +215,43 @@ export function PatchLensDisplay({
                 prev ? { ...prev, data: next } : prev,
         );
         queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(chartId) });
-    }, [chartId, queryClient]);
+    }, [chartId, queryClient, capture]);
+
+    // Map the widget's in-chart interactions to product analytics. Cell
+    // expansions become cell_expanded; token/layer step changes become
+    // param_changed. Coordinates only — never token text.
+    const handleWidgetEvent = useCallback(
+        (event: CausalMediationEvent) => {
+            if (event.type === "cell_click") {
+                capture("cell_expanded", {
+                    tool: "patch-lens",
+                    grid: event.promptId,
+                    token_position: event.tokenPosition,
+                    layer: event.layer,
+                });
+            } else if (event.type === "result_cell_click") {
+                capture("cell_expanded", {
+                    tool: "patch-lens",
+                    grid: "result",
+                    token_position: event.tokenPosition,
+                    layer: event.layer,
+                });
+            } else if (event.type === "token_step_change") {
+                capture("param_changed", {
+                    tool: "patch-lens",
+                    param: "token_step",
+                    value: event.step,
+                });
+            } else if (event.type === "layer_step_change") {
+                capture("param_changed", {
+                    tool: "patch-lens",
+                    param: "layer_step",
+                    value: event.step,
+                });
+            }
+        },
+        [capture],
+    );
 
     // A run is attached but its heatmaps haven't arrived yet (revisit / restore,
     // no ephemeral result). Show the skeleton rather than the "no analysis"
@@ -242,6 +287,7 @@ export function PatchLensDisplay({
                 intervention={interventionForWidget}
                 onResetIntervention={handleResetIntervention}
                 isInterventionPending={isInterventionPending}
+                onEvent={handleWidgetEvent}
             />
         </div>
     );

@@ -49,6 +49,7 @@ export const clearDatabase = async () => {
         DELETE FROM configs;
         DELETE FROM charts;
         DELETE FROM workspaces;
+        DELETE FROM workshops;
     `;
 
     sqliteClient.exec(clearStatements);

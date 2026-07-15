@@ -5,9 +5,19 @@ import {
     gotoFreshAPWorkspace,
     REAL_NDIF_TIMEOUT_MS,
 } from "./fixtures";
+import { createTestUser, loginAsUser, type TestingUser } from "./TestingUtils";
 
 const SRC_PROMPT = "The Eiffel Tower is in the city of";
 const TGT_PROMPT = "The Colosseum is in the city of";
+
+// Fresh user per file (real auth); log in before each test.
+let user: TestingUser;
+test.beforeAll(async () => {
+    user = await createTestUser();
+});
+test.beforeEach(async ({ page }) => {
+    await loginAsUser(page, user);
+});
 
 test.describe("Notebook export (real NDIF)", () => {
     test.setTimeout(REAL_NDIF_TIMEOUT_MS * 5);

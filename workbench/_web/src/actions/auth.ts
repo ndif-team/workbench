@@ -1,6 +1,33 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { hasWorkshopClaim, workshopEmailFor } from "@/lib/workshop";
+
+/**
+ * Consume a magic-link `token_hash` and establish a session. Driven by the
+ * button on /auth/magic-link (a two-step so link prefetchers don't burn the
+ * single-use token). verifyOtp runs on the SSR server client so @supabase/ssr
+ * writes the session cookies; on success we land in the workbench, on failure
+ * we bounce back to the page with the error surfaced.
+ */
+export async function signInWithMagicLinkAction(formData: FormData): Promise<void> {
+    const tokenHash = String(formData.get("token_hash") ?? "");
+    if (!tokenHash) {
+        redirect(`/auth/magic-link?error=${encodeURIComponent("Missing sign-in token")}`);
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: "magiclink",
+    });
+    if (error) {
+        redirect(`/auth/magic-link?error=${encodeURIComponent(error.message)}`);
+    }
+
+    redirect("/workbench");
+}
 
 /**
  * Server action to get the current user's email using server-side Supabase client
@@ -19,11 +46,22 @@ export async function getCurrentUserEmailAction(): Promise<string | null> {
             return null;
         }
 
-        if (!user || user.email === "") {
+        if (!user) {
             return "guest@localhost";
         }
 
-        return user.email;
+        if (user.email) {
+            return user.email;
+        }
+
+        // Anonymous workshop participants get a unique synthetic identity so
+        // the backend treats them as signed in (gated models) and telemetry
+        // stays per-participant; plain anonymous guests keep the shared one.
+        if (hasWorkshopClaim(user)) {
+            return workshopEmailFor(user.id);
+        }
+
+        return "guest@localhost";
     } catch (error) {
         console.warn("Server: Failed to get user email:", error);
         return null;

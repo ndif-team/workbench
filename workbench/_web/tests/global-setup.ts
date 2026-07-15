@@ -1,12 +1,8 @@
 /**
- * Playwright global setup: seed the patch-lens fixtures once, and make sure
- * gpt2 is actually deployed on NDIF before the real-NDIF specs run.
- *
- * Seeding lives here (not in per-describe beforeAll hooks) because the seed
- * script deletes/reinserts the fixed charts — under fullyParallel workers a
- * later describe's reseed could reset a chart another worker was mid-test on.
- * Global setup runs before any worker starts. The one test that MUTATES its
- * chart (the F1 history restore) re-runs the seed scoped to its own chart.
+ * Playwright global setup: make sure gpt2 is actually deployed on NDIF before
+ * the real-NDIF specs run. (Fixture seeding is per-file: each spec's beforeAll
+ * creates a fresh user and seeds its charts via TestingUtils — see
+ * seedPatchLensChart.)
  *
  * The fixtures pick gpt2 in the header model selector, but since the
  * model-selector redesign the picker hides non-runnable (cold) models — so if
@@ -20,8 +16,6 @@
  * Backend unreachable → warn and continue: the seeded patch-lens specs don't
  * need a backend, and the NDIF specs will fail with their own clear errors.
  */
-
-import { execFileSync } from "node:child_process";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 const NDIF = process.env.NEXT_PUBLIC_NDIF_URL || "https://api.ndif.us";
@@ -54,11 +48,6 @@ async function modelStatus(): Promise<string | null> {
 }
 
 export default async function globalSetup() {
-    // Seed the fixed patch-lens charts + history once, before any worker
-    // starts. The script writes directly to the SQLite DB the server reads
-    // (e2e.db in CI, local.db locally) inside one transaction.
-    execFileSync("node", ["tests/seed-patch-lens.cjs"], { stdio: "inherit" });
-
     const status = await modelStatus();
     if (status === null) {
         console.warn(`[global-setup] backend ${BACKEND} unreachable — skipping gpt2 warmup`);
@@ -87,12 +76,16 @@ export default async function globalSetup() {
     for (;;) {
         if (Date.now() > jobDeadline) throw new Error("[global-setup] gpt2 warmup timed out");
         const r = await fetchWithTimeout(`${NDIF}/response/${body.job_id}`).catch(() => null);
-        if (r?.ok) {
-            const job = (await r.json()) as { status?: string };
-            if (job.status === "COMPLETED") break;
-            if (job.status === "ERROR" || job.status === "NNSIGHT_ERROR") {
-                throw new Error(`[global-setup] gpt2 warmup job failed: ${job.status}`);
-            }
+        // Guard the parse separately from the fetch: a 200 with a non-JSON body
+        // (e.g. a proxy's HTML error page) would otherwise throw and crash the
+        // whole setup. Treat an unparseable body as transient and keep polling;
+        // only a real ERROR/NNSIGHT_ERROR status aborts.
+        const job = r?.ok
+            ? ((await r.json().catch(() => null)) as { status?: string } | null)
+            : null;
+        if (job?.status === "COMPLETED") break;
+        if (job?.status === "ERROR" || job?.status === "NNSIGHT_ERROR") {
+            throw new Error(`[global-setup] gpt2 warmup job failed: ${job.status}`);
         }
         await sleep(3000);
     }

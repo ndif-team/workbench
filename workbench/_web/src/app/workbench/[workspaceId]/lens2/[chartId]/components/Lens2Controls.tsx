@@ -21,6 +21,7 @@ import { useDraftModel } from "@/hooks/useDraftModel";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/workbench/[workspaceId]/components/ToolPanelHeader";
+import { useCapture } from "@/lib/analytics";
 
 interface Lens2Config {
     id: string;
@@ -89,6 +90,14 @@ export function Lens2Controls({
     hasExistingData = false,
 }: Lens2ControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
+    const capture = useCapture();
+
+    const openedRef = useRef(false);
+    useEffect(() => {
+        if (openedRef.current) return;
+        openedRef.current = true;
+        capture("tool_opened", { tool: "lens2" });
+    }, [capture]);
 
     const savedPrompt = initialConfig.data?.prompt || "";
     const savedTopk = initialConfig.data?.topk ?? 5;
@@ -226,11 +235,20 @@ export function Lens2Controls({
                     topk: savedTopk,
                     includeEntropy: savedIncludeEntropy,
                 };
+                capture("run_submitted", {
+                    tool: "lens2",
+                    model: selectedModel,
+                    prompt_length: trimmedPrompt.length,
+                    topk: savedTopk,
+                    include_entropy: savedIncludeEntropy,
+                    auto: true,
+                });
                 await computeLens2({
                     lensRequest: { completion: config, chartId },
                     configId: initialConfig.id,
                 });
                 if (isCancelled) return;
+                capture("run_completed", { tool: "lens2", model: selectedModel });
                 await updateConfig({
                     configId: initialConfig.id,
                     chartId,
@@ -238,8 +256,9 @@ export function Lens2Controls({
                 });
                 if (isCancelled) return;
                 lastSyncedPromptRef.current = trimmedPrompt;
-            } catch {
-                /* one-shot auto-run; swallow */
+            } catch (err) {
+                /* one-shot auto-run; swallow, but record the failure */
+                if (!isCancelled) capture("run_failed", { tool: "lens2", error: String(err) });
             }
         };
         const timer = setTimeout(autoRunLens2, 800);
@@ -258,6 +277,7 @@ export function Lens2Controls({
         workspaceId,
         computeLens2,
         updateConfig,
+        capture,
     ]);
 
     const autoResizeTextarea = useCallback(() => {
@@ -352,10 +372,24 @@ export function Lens2Controls({
             includeEntropy,
         };
 
-        await computeLens2({
-            lensRequest: { completion: config, chartId },
-            configId: initialConfig.id,
+        capture("run_submitted", {
+            tool: "lens2",
+            model: selectedModel,
+            prompt_length: trimmedPrompt.length,
+            topk,
+            include_entropy: includeEntropy,
+            auto: false,
         });
+        try {
+            await computeLens2({
+                lensRequest: { completion: config, chartId },
+                configId: initialConfig.id,
+            });
+            capture("run_completed", { tool: "lens2", model: selectedModel });
+        } catch (err) {
+            capture("run_failed", { tool: "lens2", error: String(err) });
+            throw err;
+        }
         await updateConfig({
             configId: initialConfig.id,
             chartId,
@@ -376,6 +410,7 @@ export function Lens2Controls({
         workspaceId,
         computeLens2,
         updateConfig,
+        capture,
     ]);
 
     const handlePromptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -568,7 +603,14 @@ export function Lens2Controls({
                         max={10}
                         step={1}
                         value={[topk]}
-                        onValueChange={([value]) => setTopk(value)}
+                        onValueChange={([value]) => {
+                            setTopk(value);
+                            capture("param_changed", {
+                                tool: "lens2",
+                                param: "topk",
+                                value,
+                            });
+                        }}
                         disabled={!interactive}
                         className="w-full"
                     />
@@ -578,7 +620,14 @@ export function Lens2Controls({
                     <Checkbox
                         id="entropy"
                         checked={includeEntropy}
-                        onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
+                        onCheckedChange={(checked) => {
+                            setIncludeEntropy(checked === true);
+                            capture("param_changed", {
+                                tool: "lens2",
+                                param: "include_entropy",
+                                value: checked === true,
+                            });
+                        }}
                         disabled={!interactive}
                     />
                     <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">

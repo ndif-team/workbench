@@ -4,6 +4,7 @@ import {
     createLens2ChartPair,
     getConfigForChart,
 } from "@/lib/queries/chartQueries";
+import { getWorkshopForWorkspace, seedWorkshopChart } from "@/lib/queries/workshopQueries";
 import { Lens2ConfigData } from "@/types/lens2";
 
 export default async function Page({
@@ -21,17 +22,25 @@ export default async function Page({
     // Check if there's an existing chart
     let chart = await getMostRecentChartForWorkspace(workspaceId);
 
-    // If no chart exists, create a new Logit Lens chart pair with default config
+    // If no chart exists, create a new Logit Lens chart pair with default
+    // config — except in workshop workspaces, which seed their workshop's
+    // first allowed tool with its pinned model and starter prompt.
     if (!chart) {
-        const defaultConfig: Lens2ConfigData = {
-            prompt: initialPrompt,
-            model: initialModel,
-            topk: 5,
-            includeEntropy: true,
-        };
+        const workshop = await getWorkshopForWorkspace(workspaceId);
+        if (workshop) {
+            const result = await seedWorkshopChart(workspaceId, workshop);
+            chart = result.chart;
+        } else {
+            const defaultConfig: Lens2ConfigData = {
+                prompt: initialPrompt,
+                model: initialModel,
+                topk: 5,
+                includeEntropy: true,
+            };
 
-        const result = await createLens2ChartPair(workspaceId, defaultConfig);
-        chart = result.chart;
+            const result = await createLens2ChartPair(workspaceId, defaultConfig);
+            chart = result.chart;
+        }
     }
 
     // Check the chart/config type to determine the route

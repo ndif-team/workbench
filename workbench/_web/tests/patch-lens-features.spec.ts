@@ -1,10 +1,16 @@
 import { test, expect, Page } from "@playwright/test";
 import { argosScreenshot } from "@argos-ci/playwright";
-import { execFileSync } from "node:child_process";
+import {
+    createTestUser,
+    loginAsUser,
+    seedPatchLensChart,
+    reseedPatchLensHistory,
+    type TestingUser,
+} from "./TestingUtils";
 
 /**
  * UI E2E for the patch-lens workshop features. These run against seeded chart +
- * history data (see tests/seed-patch-lens.cjs) so they exercise the real
+ * history data (see seedPatchLensChart in TestingUtils) so they exercise the real
  * edulogitlens widget and the F1 history rail WITHOUT a model run / NDIF —
  * the behaviors under test are all front-end.
  *
@@ -45,14 +51,18 @@ const tokenLabels = (page: Page) =>
     page.locator("#patch-lens-display .text-gray-700.truncate[title]");
 const historyStrips = (page: Page) => page.locator('[data-testid="lens-history-strip"]');
 
-// The full seed runs ONCE in tests/global-setup.ts, before any worker starts
-// — reseeding from per-describe beforeAll hooks raced parallel workers (a
-// later describe's DELETE-then-INSERT could reset a chart another worker was
-// mid-test on). Only the F1 restore test mutates its chart, so it reseeds
-// itself, scoped to its own chart.
-const reseedHistoryChart = () => {
-    execFileSync("node", ["tests/seed-patch-lens.cjs", "--history-only"], { stdio: "inherit" });
-};
+// Fresh user per file (real auth), then seed the fixture (base + patched + F1
+// charts) OWNED by that user so the chart route's owner check passes. Seeds via
+// the service-role client (delete-then-insert, idempotent across retries) —
+// runs after the webServer is up, so the server sees the rows on the next query.
+// Only the F1 restore test mutates its chart row; it reseeds just that chart
+// (reseedPatchLensHistory) so it can never yank a shared chart out from under
+// another test under fullyParallel workers.
+let user: TestingUser;
+test.beforeAll(async () => {
+    user = await createTestUser();
+    await seedPatchLensChart(user.user_id);
+});
 
 /** Pin the layer-step density so the grid (and Argos screenshots) don't depend
  *  on the autofit's viewport-derived downsampling. Token rows are always shown
@@ -64,6 +74,7 @@ async function pinLayerStep(page: Page, layerStep: number) {
 
 test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
     test.beforeEach(async ({ page }) => {
+        await loginAsUser(page, user);
         await page.setViewportSize({ width: 1280, height: 720 });
         // The Patch Lens tutorial auto-starts on first visit (reactour) and
         // overlays the page, blocking the heatmap + rail. Mark it completed so
@@ -93,7 +104,7 @@ test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
         // Restoring persists onto the chart row — run against the F1-only
         // clone so the shared chart stays pristine for the other specs, and
         // reseed that clone so retries start from the un-restored state.
-        reseedHistoryChart();
+        await reseedPatchLensHistory();
         await page.goto(HISTORY_URL);
         await expect(tokenLabels(page).first()).toBeVisible({ timeout: 30_000 });
 
@@ -211,6 +222,7 @@ test.describe("patch-lens workshop features (seeded, no NDIF)", () => {
 
 test.describe("patch-lens intervention (seeded restore, no NDIF)", () => {
     test.beforeEach(async ({ page }) => {
+        await loginAsUser(page, user);
         await page.setViewportSize({ width: 1280, height: 720 });
         await page.addInitScript(([key]) => localStorage.setItem(key, "true"), [TUTORIAL_KEY]);
         await page.goto(PATCHED_URL);
@@ -251,6 +263,7 @@ test.describe("patch-lens intervention (seeded restore, no NDIF)", () => {
 
 test.describe("patch-lens tutorial", () => {
     test.beforeEach(async ({ page }) => {
+        await loginAsUser(page, user);
         await page.setViewportSize({ width: 1280, height: 720 });
         // No completed flag → the tour auto-starts (fresh browser context).
         await page.goto(URL);

@@ -9,6 +9,14 @@ import { argosScreenshot } from "@argos-ci/playwright";
 
 const REAL_NDIF_TIMEOUT_MS = 90_000;
 
+// The model the E2E suite runs against. Must be one NDIF currently serves "hot";
+// gpt2 dropped out of the hot set, so the suite uses gpt-j-6b. E2E_MODEL is the
+// full HF id (URL params, workshop config, model-select option); E2E_MODEL_LABEL
+// is the short name shown in the picker/pill.
+export const E2E_MODEL = "EleutherAI/gpt-j-6b";
+export const E2E_MODEL_LABEL = "gpt-j-6b";
+const E2E_MODEL_RE = new RegExp(E2E_MODEL_LABEL, "i");
+
 const DEBUG_NETWORK = !!process.env.DEBUG_TESTS;
 
 export const test = base.extend<{ workbenchPage: Page }>({
@@ -47,7 +55,7 @@ export const test = base.extend<{ workbenchPage: Page }>({
 
 /**
  * Wait for the model selector to populate, then make sure the workspace is on
- * gpt2 — selecting it from the picker if it isn't already.
+ * the E2E model — selecting it from the picker if it isn't already.
  *
  * The workspace-header ModelControl shows a "Fetching models…" pill while
  * loading and only swaps in the real trigger button once `/models/` resolves
@@ -56,22 +64,23 @@ export const test = base.extend<{ workbenchPage: Page }>({
  * Against real NDIF the catalog is the full live roster — the e2e config's
  * model list doesn't restrict it in remote mode (the catalog is rebuilt from
  * NDIF's /status), and the header defaults to whichever model sorts first, not
- * necessarily gpt2. So we pick gpt2 explicitly (it's small + always deployed),
- * which keeps the run and downstream assertions deterministic. `handleSelect`
- * sets the workspace's selected model, so this also drives what the chart runs.
+ * necessarily our model. So we pick E2E_MODEL explicitly (a currently-hot
+ * deployment), which keeps the run and downstream assertions deterministic.
+ * `handleSelect` sets the workspace's selected model, so this also drives what
+ * the chart runs.
  */
 export async function waitForModelsLoaded(page: Page) {
     const trigger = page.getByTestId("model-select-trigger");
     await expect(trigger).toBeVisible({ timeout: REAL_NDIF_TIMEOUT_MS });
 
-    // Already on gpt2 — nothing to do (e.g. a workspace opened with model=gpt2).
-    if ((await trigger.filter({ hasText: /gpt2/i }).count()) > 0) return;
+    // Already on the E2E model — nothing to do (e.g. a workspace opened with it).
+    if ((await trigger.filter({ hasText: E2E_MODEL_RE }).count()) > 0) return;
 
-    // Open the picker, filter to gpt2 via its search box, and select it.
+    // Open the picker, filter to the E2E model via its search box, and select it.
     await trigger.click();
-    await page.getByPlaceholder(/search models/i).fill("gpt2");
-    await page.getByRole("menuitem", { name: /gpt2/i }).first().click();
-    await expect(trigger).toContainText(/gpt2/i);
+    await page.getByPlaceholder(/search models/i).fill(E2E_MODEL_LABEL);
+    await page.getByRole("menuitem", { name: E2E_MODEL_RE }).first().click();
+    await expect(trigger).toContainText(E2E_MODEL_RE);
 }
 
 /** Navigate to a fresh workspace with a lens chart. */
@@ -99,7 +108,7 @@ export async function gotoFreshAPWorkspace(
         srcPos: JSON.stringify(opts?.srcPos ?? []),
         tgtPos: JSON.stringify(opts?.tgtPos ?? []),
         tgtFreeze: JSON.stringify([]),
-        model: "openai-community/gpt2",
+        model: E2E_MODEL,
     });
     await page.goto(`/workbench?${params.toString()}`);
     await page.waitForURL(/\/activation-patching\//, { timeout: 30_000 });

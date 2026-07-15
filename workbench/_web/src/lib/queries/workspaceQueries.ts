@@ -2,7 +2,8 @@
 
 import { db } from "@/db/client";
 import { workspaces, charts, documents } from "@/db/schema";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, isNull } from "drizzle-orm";
+import type { ProlificParams } from "@/lib/prolific";
 
 export async function getWorkspaceById(workspaceId: string) {
     const [workspace] = await db
@@ -106,14 +107,35 @@ export const reorderWorkspaceItems = async (
 };
 
 // Wrapped versions for use with server actions/components that use withAuth
-export const createWorkspace = async (userId: string, name: string) => {
+export const createWorkspace = async (
+    userId: string,
+    name: string,
+    workshopId?: string,
+    prolific?: ProlificParams | null,
+) => {
     const [workspace] = await db
         .insert(workspaces)
         .values({
             userId,
             name,
+            workshopId: workshopId ?? null,
+            prolific: prolific ?? null,
         })
         .returning();
 
     return workspace;
+};
+
+// Backfills Prolific identifiers onto an existing workspace, but only if none
+// were captured before — first-touch wins, so a re-join carrying a fresh
+// Prolific session doesn't clobber the original attribution. No-op when the
+// workspace already has params.
+export const setWorkspaceProlificIfEmpty = async (
+    workspaceId: string,
+    prolific: ProlificParams,
+) => {
+    await db
+        .update(workspaces)
+        .set({ prolific })
+        .where(and(eq(workspaces.id, workspaceId), isNull(workspaces.prolific)));
 };

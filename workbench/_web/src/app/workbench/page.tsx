@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
+import { hasWorkshopClaim } from "@/lib/workshop";
 import { Suspense } from "react";
 
 import { redirect } from "next/navigation";
@@ -40,9 +41,12 @@ export default async function WorkbenchPage({
     } = await supabase.auth.getUser();
 
     // A real (non-anonymous) sign-in is required to deploy cold models. When
-    // absent, ModelsSection renders cold models as gated and inert.
+    // absent, ModelsSection renders cold models as gated and inert. Anonymous
+    // workshop participants count as signed in — their claim unlocks gated models.
     const isSignedIn =
-        process.env.NEXT_PUBLIC_DISABLE_AUTH === "true" || (!!user && !user.is_anonymous);
+        process.env.NEXT_PUBLIC_DISABLE_AUTH === "true" ||
+        (!!user && !user.is_anonymous) ||
+        hasWorkshopClaim(user);
 
     // Check if user has any workspaces
     const workspaces = await getWorkspaces(user.id);

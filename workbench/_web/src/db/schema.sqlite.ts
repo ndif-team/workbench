@@ -1,6 +1,7 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
+import type { ProlificParams } from "@/lib/prolific";
 
 // Helper function to generate UUIDs for SQLite
 const generateUUID = () => {
@@ -11,16 +12,55 @@ const generateUUID = () => {
     });
 };
 
-export const workspaces = sqliteTable("workspaces", {
+export const workshopTools = ["lens2", "activation-patching", "patch-lens"] as const;
+export type WorkshopTool = (typeof workshopTools)[number];
+
+// Workshop = a shareable join link (/w/{slug}) plus the constraints applied to
+// workspaces created through it. Mirrors the pg table; see schema.pg.ts.
+export const workshops = sqliteTable("workshops", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
-    userId: text("user_id").notNull(),
     name: text("name").notNull(),
-    public: integer("public", { mode: "boolean" }).default(false).notNull(),
+    slug: text("slug").notNull().unique(),
+    allowedTools: text("allowed_tools", { mode: "json" }).$type<WorkshopTool[]>().notNull(),
+    model: text("model").notNull(),
+    starterPrompt: text("starter_prompt").notNull().default(""),
+    // When true the workshop model is only the participant's default; they may
+    // switch models. When false (default) the model is locked to the workshop's.
+    allowModelChange: integer("allow_model_change", { mode: "boolean" }).notNull().default(false),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+        .$defaultFn(() => new Date())
+        .notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" })
         .$defaultFn(() => new Date())
         .notNull()
         .$onUpdate(() => new Date()),
 });
+
+export const workspaces = sqliteTable(
+    "workspaces",
+    {
+        id: text("id").primaryKey().$defaultFn(generateUUID),
+        userId: text("user_id").notNull(),
+        name: text("name").notNull(),
+        public: integer("public", { mode: "boolean" }).default(false).notNull(),
+        // Plain column (no FK ref) — sqlite mirrors don't carry FK refs by repo
+        // convention; deleteWorkshop nulls these pointers explicitly instead of
+        // relying on pg's "on delete set null".
+        workshopId: text("workshop_id"),
+        // Mirrors pg: Prolific study identifiers captured from the join link,
+        // null when absent. See schema.pg.ts.
+        prolific: text("prolific", { mode: "json" }).$type<ProlificParams>(),
+        updatedAt: integer("updated_at", { mode: "timestamp" })
+            .$defaultFn(() => new Date())
+            .notNull()
+            .$onUpdate(() => new Date()),
+    },
+    // Mirrors the pg unique index: one workspace per (participant, workshop);
+    // NULL workshopId rows are unconstrained (NULLs are distinct).
+    (table) => [uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId)],
+);
 
 export const chartTypes = ["line", "heatmap"] as const;
 
@@ -101,6 +141,9 @@ export const lensRuns = sqliteTable("lens_runs", {
 });
 
 // Generate types from schema
+export type Workshop = typeof workshops.$inferSelect;
+export type NewWorkshop = typeof workshops.$inferInsert;
+
 export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
 

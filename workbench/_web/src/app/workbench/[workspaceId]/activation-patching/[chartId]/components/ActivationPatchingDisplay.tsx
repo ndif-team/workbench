@@ -6,6 +6,7 @@ import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { queryKeys } from "@/lib/queryKeys";
+import { useCapture } from "@/lib/analytics";
 import { ActivationPatchingData, ActivationPatchingConfigData } from "@/types/activationPatching";
 import type { ActivationPatchingMode } from "nnsightful";
 import { Loader2 } from "lucide-react";
@@ -38,6 +39,7 @@ interface ActivationPatchingConfig {
 
 export function ActivationPatchingDisplay() {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
+    const capture = useCapture();
     const { resolvedTheme } = useTheme();
     const isDarkMode = resolvedTheme === "dark";
     const [localTitle, setLocalTitle] = useState<string | null>(null); // null means use chart name
@@ -141,6 +143,11 @@ export function ActivationPatchingDisplay() {
 
     const handleTokenSelectionChange = useCallback(
         (indices: number[]) => {
+            capture("param_changed", {
+                tool: "activation-patching",
+                param: "token_selection",
+                value: indices.length,
+            });
             if (saveTokenTimeoutRef.current) clearTimeout(saveTokenTimeoutRef.current);
             saveTokenTimeoutRef.current = setTimeout(() => {
                 const cfg = patchingConfigRef.current;
@@ -156,13 +163,18 @@ export function ActivationPatchingDisplay() {
                 });
             }, 500);
         },
-        [chartId, workspaceId, updateConfig],
+        [chartId, workspaceId, updateConfig, capture],
     );
 
     // Debounced save of mode to config
     const saveModeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const handleModeChange = useCallback(
         (mode: ActivationPatchingMode) => {
+            capture("param_changed", {
+                tool: "activation-patching",
+                param: "mode",
+                value: mode,
+            });
             if (saveModeTimeoutRef.current) clearTimeout(saveModeTimeoutRef.current);
             saveModeTimeoutRef.current = setTimeout(() => {
                 const cfg = patchingConfigRef.current;
@@ -178,7 +190,7 @@ export function ActivationPatchingDisplay() {
                 });
             }, 300);
         },
-        [chartId, workspaceId, updateConfig],
+        [chartId, workspaceId, updateConfig, capture],
     );
 
     // Clear pending saves on unmount

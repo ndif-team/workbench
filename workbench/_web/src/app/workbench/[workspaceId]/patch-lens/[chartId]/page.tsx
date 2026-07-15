@@ -17,6 +17,7 @@ import { useWorkspace } from "@/stores/useWorkspace";
 import { getChartById, setChartData } from "@/lib/queries/chartQueries";
 import { getLensRunHeatmapsByIds } from "@/lib/queries/lensRunQueries";
 import { queryKeys } from "@/lib/queryKeys";
+import { useCapture } from "@/lib/analytics";
 import type { PatchLensChartData } from "@/types/patchLens";
 import type { NormalizedRun } from "@/lib/lensRun";
 
@@ -27,6 +28,7 @@ export default function PatchLensChartPage() {
     const { chartId } = useParams<{ chartId: string }>();
     const queryClient = useQueryClient();
     const { setSelectedModelIdx } = useWorkspace();
+    const capture = useCapture();
     // Model list (shares the React Query cache with PatchLensArea/Display) so a
     // history restore can re-select the model the entry was computed with.
     const { data: models } = useQuery({ queryKey: ["models"], queryFn: getModels });
@@ -41,6 +43,15 @@ export default function PatchLensChartPage() {
     // Bumped on each history restore so PatchLensArea re-tokenizes the swapped-in
     // prompts and shows the chip view.
     const [restoreNonce, setRestoreNonce] = useState(0);
+
+    // One tool_opened per chart opened (refires when navigating to another
+    // patch-lens chart within this page component).
+    const openedChartRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (!chartId || openedChartRef.current === chartId) return;
+        openedChartRef.current = chartId;
+        capture("tool_opened", { tool: "patch-lens" });
+    }, [chartId, capture]);
 
     const { data: chart } = useQuery({
         queryKey: queryKeys.charts.chart(chartId as string),
@@ -74,8 +85,13 @@ export default function PatchLensChartPage() {
             setLensResult(result);
             setLastRunSrcPrompt(runSrc);
             setLastRunTgtPrompt(runTgt);
+            capture("run_completed", {
+                tool: "patch-lens",
+                source_prompt_length: runSrc.length,
+                target_prompt_length: runTgt.length,
+            });
         },
-        [],
+        [capture],
     );
 
     // Restore a whole history entry onto patch-lens: its source + target prompts
@@ -86,6 +102,7 @@ export default function PatchLensChartPage() {
         async (run: NormalizedRun) => {
             const src = run.source.prompt;
             const tgt = run.target?.prompt ?? "";
+            capture("run_restored", { tool: "patch-lens", model: run.model });
             // Re-select the model this entry was computed with, so the restored
             // heatmaps, the predicted-next-token, and re-tokenization all line up
             // with the historical run rather than the currently-selected model.
@@ -129,7 +146,7 @@ export default function PatchLensChartPage() {
             );
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(chartId) });
         },
-        [chartId, queryClient, models, setSelectedModelIdx],
+        [chartId, queryClient, models, setSelectedModelIdx, capture],
     );
 
     // Autosave the prompts into the chart row so they survive navigation even
