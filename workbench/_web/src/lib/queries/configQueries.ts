@@ -47,7 +47,10 @@ export const getConfigs = async (chartId: string): Promise<Config[]> => {
         .from(configs)
         .innerJoin(chartConfigLinks, eq(configs.id, chartConfigLinks.configId))
         .where(
-            and(eq(chartConfigLinks.chartId, chartId), ownedByWorkspace(configs.workspaceId, userId)),
+            and(
+                eq(chartConfigLinks.chartId, chartId),
+                ownedByWorkspace(configs.workspaceId, userId),
+            ),
         );
     // Explicit element type: the correlated EXISTS in the WHERE tips drizzle's
     // dual-schema inference into widening the joined row to `any` (same quirk as

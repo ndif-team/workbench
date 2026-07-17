@@ -647,9 +647,9 @@ describe("Ownership enforcement (scoped queries reject other users)", () => {
 
     it("refuses to create a chart in another user's workspace", async () => {
         setDevUserId(OTHER_USER_ID);
-        await expect(
-            createLensChartPair(workspaceId, createTestLensConfig()),
-        ).rejects.toThrow(/not found or access denied/i);
+        await expect(createLensChartPair(workspaceId, createTestLensConfig())).rejects.toThrow(
+            /not found or access denied/i,
+        );
     });
 
     it("refuses to create a document in another user's workspace", async () => {

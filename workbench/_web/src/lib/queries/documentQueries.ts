@@ -28,7 +28,10 @@ export const getDocumentByWorkspaceId = async (workspaceId: string): Promise<Doc
         .select()
         .from(documents)
         .where(
-            and(eq(documents.workspaceId, workspaceId), ownedByWorkspace(documents.workspaceId, userId)),
+            and(
+                eq(documents.workspaceId, workspaceId),
+                ownedByWorkspace(documents.workspaceId, userId),
+            ),
         );
 
     return document ?? null;
@@ -120,7 +123,10 @@ export const getDocumentsForWorkspace = async (
         .select()
         .from(documents)
         .where(
-            and(eq(documents.workspaceId, workspaceId), ownedByWorkspace(documents.workspaceId, userId)),
+            and(
+                eq(documents.workspaceId, workspaceId),
+                ownedByWorkspace(documents.workspaceId, userId),
+            ),
         )
         .orderBy(asc(documents.position), asc(documents.createdAt));
 

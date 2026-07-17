@@ -2,7 +2,15 @@
 
 import type { ChartData, ChartMetadata, ChartView, ChartType, ToolType } from "@/types/charts";
 import { db } from "@/db/client";
-import { charts, configs, chartConfigLinks, workspaces, Chart, LensConfig, Config } from "@/db/schema";
+import {
+    charts,
+    configs,
+    chartConfigLinks,
+    workspaces,
+    Chart,
+    LensConfig,
+    Config,
+} from "@/db/schema";
 import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
 import { PatchingConfig } from "@/types/patching";
@@ -78,7 +86,10 @@ export const getConfigForChart = async (chartId: string): Promise<Config | null>
         .from(configs)
         .innerJoin(chartConfigLinks, eq(configs.id, chartConfigLinks.configId))
         .where(
-            and(eq(chartConfigLinks.chartId, chartId), ownedByWorkspace(configs.workspaceId, userId)),
+            and(
+                eq(chartConfigLinks.chartId, chartId),
+                ownedByWorkspace(configs.workspaceId, userId),
+            ),
         )
         .limit(1);
     if (rows.length === 0) return null;
@@ -212,7 +223,9 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
         .from(charts)
         .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
         .leftJoin(configs, eq(chartConfigLinks.configId, configs.id))
-        .where(and(eq(charts.workspaceId, workspaceId), ownedByWorkspace(charts.workspaceId, userId)))
+        .where(
+            and(eq(charts.workspaceId, workspaceId), ownedByWorkspace(charts.workspaceId, userId)),
+        )
         .groupBy(
             charts.id,
             charts.createdAt,
@@ -258,7 +271,9 @@ export const getMostRecentChartForWorkspace = async (
     const [chart] = await db
         .select()
         .from(charts)
-        .where(and(eq(charts.workspaceId, workspaceId), ownedByWorkspace(charts.workspaceId, userId)))
+        .where(
+            and(eq(charts.workspaceId, workspaceId), ownedByWorkspace(charts.workspaceId, userId)),
+        )
         .orderBy(desc(charts.updatedAt))
         .limit(1);
 
