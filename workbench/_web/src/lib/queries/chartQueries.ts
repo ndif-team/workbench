@@ -17,7 +17,7 @@ import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { PatchLensChartData } from "@/types/patchLens";
 import { eq, and, asc, desc, sql } from "drizzle-orm";
-import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/internal";
+import { touchWorkspace, nextWorkspaceItemPositionSql } from "@/lib/queries/internal";
 import {
     requireUserId,
     requireWorkspaceOwner,
@@ -123,10 +123,13 @@ const createChartConfigPair = async (
     if (workshop && !(workshop.allowedTools as string[]).includes(payload.type)) {
         throw new Error(`This workshop does not allow the "${payload.type}" tool`);
     }
-    const position = await getNextWorkspaceItemPosition(workspaceId);
     const [newChart] = await db
         .insert(charts)
-        .values({ workspaceId, position, ...(chartData !== undefined ? { data: chartData } : {}) })
+        .values({
+            workspaceId,
+            position: nextWorkspaceItemPositionSql(workspaceId),
+            ...(chartData !== undefined ? { data: chartData } : {}),
+        })
         .returning();
     const [newConfig] = await db
         .insert(configs)
@@ -296,7 +299,10 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
     }
     const originalChart = row.charts;
 
-    // Get the config associated with the original chart
+    // Get the config associated with the original chart, scoped to the chart's
+    // own (owned) workspace. A link created by the previously-unguarded
+    // addChartConfigLink could point at another tenant's config; refusing to copy
+    // a cross-workspace config keeps the disclosure closed here too.
     const [originalLink] = await db
         .select()
         .from(chartConfigLinks)
@@ -305,7 +311,15 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
     const [originalConfig] = await db
         .select()
         .from(configs)
-        .where(eq(configs.id, originalLink.configId));
+        .where(
+            and(
+                eq(configs.id, originalLink.configId),
+                eq(configs.workspaceId, originalChart.workspaceId),
+            ),
+        );
+    if (!originalConfig) {
+        throw new ForbiddenError("Config not found or access denied");
+    }
 
     // Create the new chart with copied data. For patch-lens, drop the pointer to
     // the source chart's active lens run so the copy starts without history.
@@ -316,7 +330,6 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
         copiedData = rest as typeof originalChart.data;
     }
 
-    const position = await getNextWorkspaceItemPosition(originalChart.workspaceId);
     const [newChart] = await db
         .insert(charts)
         .values({
@@ -325,7 +338,7 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
             data: copiedData,
             type: originalChart.type,
             view: originalChart.view,
-            position,
+            position: nextWorkspaceItemPositionSql(originalChart.workspaceId),
         })
         .returning();
 

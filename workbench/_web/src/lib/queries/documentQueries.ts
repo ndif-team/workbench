@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { documents, Document } from "@/db/schema";
 import { and, asc, eq } from "drizzle-orm";
 import { SerializedEditorState } from "lexical";
-import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/internal";
+import { touchWorkspace, nextWorkspaceItemPositionSql } from "@/lib/queries/internal";
 import {
     requireUserId,
     requireWorkspaceOwner,
@@ -185,14 +185,13 @@ export const createDocument = async (workspaceId: string): Promise<Document> => 
     // INSERT: confirm the parent workspace is owned before adding a document.
     await requireWorkspaceOwner(workspaceId);
     const initialContent = defaultInitialContent;
-    const position = await getNextWorkspaceItemPosition(workspaceId);
 
     const [document] = await db
         .insert(documents)
         .values({
             workspaceId,
             content: initialContent,
-            position,
+            position: nextWorkspaceItemPositionSql(workspaceId),
         })
         .returning();
 

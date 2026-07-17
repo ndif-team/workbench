@@ -124,22 +124,29 @@ create policy documents_owner_all on public.documents
         )
     );
 
--- ── lens_runs : owned via workspace_id ───────────────────────────────────────
+-- ── lens_runs : owned via workspace_id, and chart_id must agree ──────────────
+-- Validating workspace_id alone would let an owner insert a run under their
+-- workspace while pointing chart_id at another user's chart; join charts and
+-- require both columns resolve to the same owned workspace.
 drop policy if exists lens_runs_owner_all on public.lens_runs;
 create policy lens_runs_owner_all on public.lens_runs
     for all
     to authenticated
     using (
         exists (
-            select 1 from public.workspaces w
-            where w.id = lens_runs.workspace_id
+            select 1 from public.charts c
+            join public.workspaces w on w.id = c.workspace_id
+            where c.id = lens_runs.chart_id
+              and c.workspace_id = lens_runs.workspace_id
               and w.user_id = (select auth.uid())::text
         )
     )
     with check (
         exists (
-            select 1 from public.workspaces w
-            where w.id = lens_runs.workspace_id
+            select 1 from public.charts c
+            join public.workspaces w on w.id = c.workspace_id
+            where c.id = lens_runs.chart_id
+              and c.workspace_id = lens_runs.workspace_id
               and w.user_id = (select auth.uid())::text
         )
     );
@@ -166,7 +173,10 @@ create policy views_owner_all on public.views
         )
     );
 
--- ── chart_config_links : owned via chart_id -> charts -> workspace ───────────
+-- ── chart_config_links : chart AND config must share one owned workspace ─────
+-- Validating chart_id alone would let an owner link their chart to another
+-- user's config (cross-tenant disclosure via copyChart); require the config to
+-- live in the same owned workspace as the chart.
 drop policy if exists chart_config_links_owner_all on public.chart_config_links;
 create policy chart_config_links_owner_all on public.chart_config_links
     for all
@@ -175,7 +185,9 @@ create policy chart_config_links_owner_all on public.chart_config_links
         exists (
             select 1 from public.charts c
             join public.workspaces w on w.id = c.workspace_id
+            join public.configs cfg on cfg.id = chart_config_links.config_id
             where c.id = chart_config_links.chart_id
+              and cfg.workspace_id = c.workspace_id
               and w.user_id = (select auth.uid())::text
         )
     )
@@ -183,7 +195,9 @@ create policy chart_config_links_owner_all on public.chart_config_links
         exists (
             select 1 from public.charts c
             join public.workspaces w on w.id = c.workspace_id
+            join public.configs cfg on cfg.id = chart_config_links.config_id
             where c.id = chart_config_links.chart_id
+              and cfg.workspace_id = c.workspace_id
               and w.user_id = (select auth.uid())::text
         )
     );

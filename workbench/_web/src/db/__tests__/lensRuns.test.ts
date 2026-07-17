@@ -274,4 +274,63 @@ describe("lens_runs (F1 prompt history)", () => {
         expect(tokens).not.toContain(" t2");
         expect(tokens).toContain(` t${total - 1}`);
     });
+
+    // The outer beforeEach owns WS/CHART_A as USER; these switch to an attacker
+    // to prove the chart-derived authorization contract holds across every op.
+    describe("ownership (cross-user isolation)", () => {
+        const ATTACKER = "lens-run-attacker";
+
+        // Seed one run in the victim's chart, then return its id.
+        const seedVictimRun = async (): Promise<string> => {
+            const run = await createLensRun({
+                chartId: CHART_A,
+                model: "m1",
+                summary: summary(" Paris"),
+                heatmaps: heatmaps(),
+            });
+            return run.id;
+        };
+
+        it("rejects createLensRun against another user's chart", async () => {
+            setDevUserId(ATTACKER);
+            await expect(
+                createLensRun({
+                    chartId: CHART_A,
+                    model: "m1",
+                    summary: summary(" Paris"),
+                    heatmaps: heatmaps(),
+                }),
+            ).rejects.toThrow(/not found or access denied/i);
+        });
+
+        it("hides another user's runs from list and heatmap fetches", async () => {
+            const runId = await seedVictimRun();
+
+            setDevUserId(ATTACKER);
+            expect(await getLensRunsByChart(WS, CHART_A)).toHaveLength(0);
+            expect(await getLensRunHeatmaps(runId)).toBeNull();
+            expect(await getLensRunHeatmapsByIds([runId])).toHaveLength(0);
+        });
+
+        it("does not let another user patch, clear, or delete the victim's runs", async () => {
+            const runId = await seedVictimRun();
+
+            setDevUserId(ATTACKER);
+            await updateLensRunIntervention(
+                runId,
+                { kind: "noop" } as never,
+                promptSummary("x", " y"),
+                fakeLens(" y"),
+            );
+            await clearLensRunsForChart(WS, CHART_A);
+            await deleteLensRun(WS, runId);
+
+            // The owner still sees an untouched run.
+            setDevUserId(USER);
+            const rows = await getLensRunsByChart(WS, CHART_A);
+            expect(rows).toHaveLength(1);
+            expect(rows[0].summary.source.finalToken).toBe(" Paris");
+            expect(rows[0].summary.intervention).toBeUndefined();
+        });
+    });
 });

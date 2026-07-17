@@ -43,6 +43,12 @@ export class ForbiddenError extends Error {
  */
 export async function requireUserId(): Promise<string> {
     if (process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
+        // Fail closed: DISABLE_AUTH hands every public server action the synthetic
+        // dev identity, so it must never be honored in a production build — a
+        // misconfigured deploy would otherwise bypass session auth entirely.
+        if (process.env.NODE_ENV === "production") {
+            throw new ForbiddenError("Authentication cannot be disabled in production");
+        }
         // Lazy import so the dev-identity module isn't bundled into prod paths.
         const { getDevUserId } = await import("./devUser");
         return getDevUserId();

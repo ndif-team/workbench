@@ -20,7 +20,7 @@ export const useCreateWorkspace = () => {
             return newWorkspace;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
             console.log("Successfully created workspace");
         },
         onError: (error) => {
@@ -37,7 +37,7 @@ export const useDeleteWorkspace = () => {
             await deleteWorkspace(workspaceId);
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
             console.log("Successfully deleted workspace");
         },
         onError: (error) => {

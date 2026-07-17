@@ -8,6 +8,7 @@ import {
     requireWorkspaceOwner,
     requireChartOwner,
     ownedByWorkspace,
+    ForbiddenError,
 } from "@/lib/auth/ownership";
 
 export const setConfig = async (configId: string, config: NewConfig): Promise<void> => {
@@ -35,8 +36,17 @@ export const deleteConfig = async (configId: string): Promise<void> => {
 };
 
 export const addChartConfigLink = async (configId: string, chartId: string): Promise<void> => {
-    // INSERT: linking a config to a chart — the caller must own the chart.
-    await requireChartOwner(chartId);
+    // INSERT: linking a config to a chart. The caller must own the chart, AND the
+    // config must live in that same owned workspace — chart ownership alone
+    // doesn't establish config ownership, so without this a caller could link
+    // their chart to another tenant's config and read it back (e.g. via copyChart).
+    const { workspaceId } = await requireChartOwner(chartId);
+    const [config] = await db
+        .select({ id: configs.id })
+        .from(configs)
+        .where(and(eq(configs.id, configId), eq(configs.workspaceId, workspaceId)))
+        .limit(1);
+    if (!config) throw new ForbiddenError("Config not found or access denied");
     await db.insert(chartConfigLinks).values({ configId, chartId });
 };
 

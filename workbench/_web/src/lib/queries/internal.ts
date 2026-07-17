@@ -11,7 +11,7 @@
  */
 import { db } from "@/db/client";
 import { charts, documents, workspaces } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, type SQL } from "drizzle-orm";
 
 /** Bump a workspace's updatedAt so recency ordering reflects child edits. */
 export const touchWorkspace = async (workspaceId: string) => {
@@ -21,18 +21,25 @@ export const touchWorkspace = async (workspaceId: string) => {
         .where(eq(workspaces.id, workspaceId));
 };
 
-/** Next position at the bottom of a workspace's unified chart+document list. */
-export const getNextWorkspaceItemPosition = async (workspaceId: string): Promise<number> => {
-    const [chartRows, docRows] = await Promise.all([
-        db
-            .select({ max: sql<number | null>`max(${charts.position})` })
-            .from(charts)
-            .where(eq(charts.workspaceId, workspaceId)),
-        db
-            .select({ max: sql<number | null>`max(${documents.position})` })
-            .from(documents)
-            .where(eq(documents.workspaceId, workspaceId)),
-    ]);
-    const maxPos = Math.max(Number(chartRows[0]?.max ?? -1), Number(docRows[0]?.max ?? -1));
-    return maxPos + 1;
-};
+/**
+ * SQL scalar for the next position at the bottom of a workspace's unified
+ * chart+document list, meant to be evaluated *inside* the INSERT that consumes
+ * it. Folding allocation into the write removes the read-then-write gap the old
+ * async helper had — where two concurrent creates round-trip a `max(position)`
+ * read, both see the same value, and insert colliding positions.
+ *
+ * SQLite serializes writers, so this is exact there. Under Postgres READ
+ * COMMITTED two truly-simultaneous inserts can still read the same max before
+ * either commits; fully serializing would need a row lock, which the create path
+ * intentionally avoids (see createChartConfigPair / the bun:sqlite async-tx note
+ * in lensRunQueries). This closes the wide app-level window without a lock.
+ */
+export const nextWorkspaceItemPositionSql = (workspaceId: string): SQL<number> =>
+    sql<number>`(
+        select coalesce(max(pos), -1) + 1
+        from (
+            select ${charts.position} as pos from ${charts} where ${charts.workspaceId} = ${workspaceId}
+            union all
+            select ${documents.position} as pos from ${documents} where ${documents.workspaceId} = ${workspaceId}
+        ) as workspace_positions
+    )`;
