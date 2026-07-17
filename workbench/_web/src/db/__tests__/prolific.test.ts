@@ -14,6 +14,7 @@ import {
     getWorkspaceById,
     setWorkspaceProlificIfEmpty,
 } from "@/lib/queries/workspaceQueries";
+import { setDevUserId } from "@/lib/auth/devUser";
 
 const USER = "anon-user-1";
 
@@ -52,24 +53,26 @@ describe("parseProlificParams", () => {
 describe("workspace Prolific persistence", () => {
     beforeEach(async () => {
         await clearDatabase();
+        // getWorkspaceById is owner-scoped; act as the user these rows belong to.
+        setDevUserId(USER);
     });
 
     it("stores Prolific params on the workspace at creation", async () => {
         const params = { prolificPid: "pid-1", studyId: "study-1", sessionId: "sess-1" };
-        const ws = await createWorkspace(USER, "Faculty Pilot", undefined, params);
+        const ws = await createWorkspace("Faculty Pilot", undefined, params);
 
         const fetched = await getWorkspaceById(ws.id);
         expect(fetched!.prolific).toEqual(params);
     });
 
     it("defaults prolific to null when none are captured", async () => {
-        const ws = await createWorkspace(USER, "Personal");
+        const ws = await createWorkspace("Personal");
         const fetched = await getWorkspaceById(ws.id);
         expect(fetched!.prolific).toBeNull();
     });
 
     it("backfills params onto a workspace that has none", async () => {
-        const ws = await createWorkspace(USER, "Joined without params");
+        const ws = await createWorkspace("Joined without params");
         expect((await getWorkspaceById(ws.id))!.prolific).toBeNull();
 
         const params = { prolificPid: "late-pid" };
@@ -79,9 +82,23 @@ describe("workspace Prolific persistence", () => {
 
     it("first-touch wins: backfill does not clobber existing params", async () => {
         const original = { prolificPid: "first", studyId: "study-1" };
-        const ws = await createWorkspace(USER, "Faculty Pilot", undefined, original);
+        const ws = await createWorkspace("Faculty Pilot", undefined, original);
 
         await setWorkspaceProlificIfEmpty(ws.id, { prolificPid: "second" });
         expect((await getWorkspaceById(ws.id))!.prolific).toEqual(original);
+    });
+
+    it("rejects a non-owner backfilling Prolific params onto someone else's workspace", async () => {
+        const ws = await createWorkspace("Victim");
+
+        // A different caller must not be able to stamp attribution onto a
+        // workspace they don't own — the ownership guard rejects it.
+        setDevUserId("attacker-999");
+        await expect(
+            setWorkspaceProlificIfEmpty(ws.id, { prolificPid: "planted" }),
+        ).rejects.toThrow("Workspace not found or access denied");
+
+        setDevUserId(USER);
+        expect((await getWorkspaceById(ws.id))!.prolific).toBeNull();
     });
 });

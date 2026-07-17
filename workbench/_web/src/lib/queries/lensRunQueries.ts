@@ -6,6 +6,7 @@ import type { LensRunSummary, LensRunHeatmaps, LensRunPromptSummary } from "@/ty
 import type { PatchLensInterventionSpec } from "@/types/patchLens";
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { requireUserId, requireChartOwner, ownedByWorkspace } from "@/lib/auth/ownership";
 
 /**
  * F1 prompt-history persistence. One row per successful patch-lens lens run,
@@ -24,7 +25,6 @@ export type LensRunListItem = Omit<LensRun, "data">;
 const RETENTION_CAP = 50;
 
 export interface CreateLensRunInput {
-    workspaceId: string;
     chartId: string;
     model: string;
     summary: LensRunSummary;
@@ -32,10 +32,14 @@ export interface CreateLensRunInput {
 }
 
 export const createLensRun = async (input: CreateLensRunInput): Promise<LensRunListItem> => {
+    // INSERT: a run belongs to a chart; the caller must own it. The verified
+    // workspace is used for the row so a spoofed input.workspaceId can't detach
+    // the run from its chart's real owner.
+    const { workspaceId } = await requireChartOwner(input.chartId);
     const [row] = await db
         .insert(lensRuns)
         .values({
-            workspaceId: input.workspaceId,
+            workspaceId,
             chartId: input.chartId,
             model: input.model,
             summary: input.summary,
@@ -82,9 +86,14 @@ export const getLensRunsByChart = async (
     chartId: string,
     model?: string,
 ): Promise<LensRunListItem[]> => {
-    // Scope by workspace AND chart so a chart id alone can't read another
-    // workspace's runs (defense-in-depth; the caller has both from the route).
-    const conds = [eq(lensRuns.workspaceId, workspaceId), eq(lensRuns.chartId, chartId)];
+    const userId = await requireUserId();
+    // Scope by owner + workspace AND chart so neither a chart id nor a workspace
+    // id alone can read another user's runs.
+    const conds = [
+        eq(lensRuns.workspaceId, workspaceId),
+        eq(lensRuns.chartId, chartId),
+        ownedByWorkspace(lensRuns.workspaceId, userId),
+    ];
     if (model) conds.push(eq(lensRuns.model, model));
     const where = and(...conds);
     const rows = await db
@@ -112,10 +121,11 @@ export const getLensRunHeatmapsByIds = async (
     ids: string[],
 ): Promise<{ id: string; summary: LensRunSummary; data: LensRunHeatmaps }[]> => {
     if (!ids.length) return [];
+    const userId = await requireUserId();
     const rows = await db
         .select({ id: lensRuns.id, summary: lensRuns.summary, data: lensRuns.data })
         .from(lensRuns)
-        .where(inArray(lensRuns.id, ids));
+        .where(and(inArray(lensRuns.id, ids), ownedByWorkspace(lensRuns.workspaceId, userId)));
     return rows as { id: string; summary: LensRunSummary; data: LensRunHeatmaps }[];
 };
 
@@ -127,10 +137,17 @@ export const getLensRunHeatmaps = async (
 };
 
 export const deleteLensRun = async (workspaceId: string, id: string): Promise<void> => {
-    // Scope by workspace so a run id alone can't delete another workspace's row.
+    const userId = await requireUserId();
+    // Scope by owner + workspace so a run id alone can't delete another user's row.
     await db
         .delete(lensRuns)
-        .where(and(eq(lensRuns.id, id), eq(lensRuns.workspaceId, workspaceId)));
+        .where(
+            and(
+                eq(lensRuns.id, id),
+                eq(lensRuns.workspaceId, workspaceId),
+                ownedByWorkspace(lensRuns.workspaceId, userId),
+            ),
+        );
 };
 
 /** Clear a chart's history (used by the rail's "Clear" affordance). Scoped by
@@ -139,9 +156,16 @@ export const clearLensRunsForChart = async (
     workspaceId: string,
     chartId: string,
 ): Promise<void> => {
+    const userId = await requireUserId();
     await db
         .delete(lensRuns)
-        .where(and(eq(lensRuns.workspaceId, workspaceId), eq(lensRuns.chartId, chartId)));
+        .where(
+            and(
+                eq(lensRuns.workspaceId, workspaceId),
+                eq(lensRuns.chartId, chartId),
+                ownedByWorkspace(lensRuns.workspaceId, userId),
+            ),
+        );
 };
 
 /**
@@ -157,10 +181,11 @@ export const updateLensRunIntervention = async (
     interventionSummary: LensRunPromptSummary,
     interventionHeatmap: LogitLensIntroData,
 ): Promise<void> => {
+    const userId = await requireUserId();
     const [existing] = await db
         .select({ summary: lensRuns.summary, data: lensRuns.data })
         .from(lensRuns)
-        .where(eq(lensRuns.id, id));
+        .where(and(eq(lensRuns.id, id), ownedByWorkspace(lensRuns.workspaceId, userId)));
     if (!existing) return;
     const summary: LensRunSummary = {
         ...(existing.summary as LensRunSummary),
@@ -171,5 +196,8 @@ export const updateLensRunIntervention = async (
         ...(existing.data as LensRunHeatmaps),
         interventionResult: interventionHeatmap,
     };
-    await db.update(lensRuns).set({ summary, data }).where(eq(lensRuns.id, id));
+    await db
+        .update(lensRuns)
+        .set({ summary, data })
+        .where(and(eq(lensRuns.id, id), ownedByWorkspace(lensRuns.workspaceId, userId)));
 };

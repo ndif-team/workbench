@@ -2,21 +2,37 @@
 
 import { db } from "@/db/client";
 import { documents, Document } from "@/db/schema";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { SerializedEditorState } from "lexical";
-import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
+import { touchWorkspace, nextWorkspaceItemPositionSql } from "@/lib/queries/internal";
+import {
+    requireUserId,
+    requireWorkspaceOwner,
+    ownedByWorkspace,
+    ForbiddenError,
+} from "@/lib/auth/ownership";
 
 export const getDocumentById = async (documentId: string): Promise<Document | null> => {
-    const [document] = await db.select().from(documents).where(eq(documents.id, documentId));
+    const userId = await requireUserId();
+    const [document] = await db
+        .select()
+        .from(documents)
+        .where(and(eq(documents.id, documentId), ownedByWorkspace(documents.workspaceId, userId)));
 
     return document ?? null;
 };
 
 export const getDocumentByWorkspaceId = async (workspaceId: string): Promise<Document | null> => {
+    const userId = await requireUserId();
     const [document] = await db
         .select()
         .from(documents)
-        .where(eq(documents.workspaceId, workspaceId));
+        .where(
+            and(
+                eq(documents.workspaceId, workspaceId),
+                ownedByWorkspace(documents.workspaceId, userId),
+            ),
+        );
 
     return document ?? null;
 };
@@ -26,11 +42,13 @@ export const updateDocument = async (
     documentId: string,
     content: SerializedEditorState,
 ): Promise<Document> => {
+    const userId = await requireUserId();
     const [updated] = await db
         .update(documents)
         .set({ content })
-        .where(eq(documents.id, documentId))
+        .where(and(eq(documents.id, documentId), ownedByWorkspace(documents.workspaceId, userId)))
         .returning();
+    if (!updated) throw new ForbiddenError("Document not found or access denied");
     await touchWorkspace(updated.workspaceId);
     return updated;
 };
@@ -100,13 +118,21 @@ export type DocumentListItem = Pick<Document, "id" | "workspaceId" | "createdAt"
 export const getDocumentsForWorkspace = async (
     workspaceId: string,
 ): Promise<DocumentListItem[]> => {
+    const userId = await requireUserId();
     const docs = await db
         .select()
         .from(documents)
-        .where(eq(documents.workspaceId, workspaceId))
+        .where(
+            and(
+                eq(documents.workspaceId, workspaceId),
+                ownedByWorkspace(documents.workspaceId, userId),
+            ),
+        )
         .orderBy(asc(documents.position), asc(documents.createdAt));
 
-    return docs.map((d) => ({
+    // Explicit element type: the correlated EXISTS widens drizzle's inferred row
+    // to `any` (same quirk as getChartsMetadata); the projection is unchanged.
+    return (docs as Document[]).map((d) => ({
         id: d.id,
         workspaceId: d.workspaceId,
         position: d.position,
@@ -156,15 +182,16 @@ const defaultInitialContent = {
 } as unknown as SerializedEditorState;
 
 export const createDocument = async (workspaceId: string): Promise<Document> => {
+    // INSERT: confirm the parent workspace is owned before adding a document.
+    await requireWorkspaceOwner(workspaceId);
     const initialContent = defaultInitialContent;
-    const position = await getNextWorkspaceItemPosition(workspaceId);
 
     const [document] = await db
         .insert(documents)
         .values({
             workspaceId,
             content: initialContent,
-            position,
+            position: nextWorkspaceItemPositionSql(workspaceId),
         })
         .returning();
 
@@ -173,5 +200,8 @@ export const createDocument = async (workspaceId: string): Promise<Document> => 
 };
 
 export const deleteDocument = async (documentId: string): Promise<void> => {
-    await db.delete(documents).where(eq(documents.id, documentId));
+    const userId = await requireUserId();
+    await db
+        .delete(documents)
+        .where(and(eq(documents.id, documentId), ownedByWorkspace(documents.workspaceId, userId)));
 };

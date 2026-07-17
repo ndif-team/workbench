@@ -11,6 +11,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { db, clearDatabase } from "../client";
+import { setDevUserId } from "@/lib/auth/devUser";
 
 // Import actual query functions
 import {
@@ -31,6 +32,7 @@ import {
     getConfigForChart,
     getMostRecentChartForWorkspace,
     getChartsMetadata,
+    getAllChartsByType,
     copyChart,
 } from "@/lib/queries/chartQueries";
 
@@ -66,6 +68,10 @@ const createTestLensConfig = (prompt: string = "test"): LensConfigData => ({
 beforeEach(async () => {
     // Clear all tables before each test
     await clearDatabase();
+    // The scoped query actions derive the caller via requireUserId(), which under
+    // DISABLE_AUTH returns the dev identity. Point it at the id these tests own
+    // their rows under so the folded ownership predicates match.
+    setDevUserId(TEST_USER_ID);
 });
 
 describe("Database Client", () => {
@@ -77,7 +83,7 @@ describe("Database Client", () => {
 
 describe("Workspace Queries", () => {
     it("should create a workspace with auto-generated UUID", async () => {
-        const workspace = await createWorkspace(TEST_USER_ID, "Test Workspace");
+        const workspace = await createWorkspace("Test Workspace");
 
         expect(workspace).toBeDefined();
         expect(workspace.id).toMatch(
@@ -88,7 +94,7 @@ describe("Workspace Queries", () => {
     });
 
     it("should get workspace by ID", async () => {
-        const created = await createWorkspace(TEST_USER_ID, "Find Me");
+        const created = await createWorkspace("Find Me");
         const found = await getWorkspaceById(created.id);
 
         expect(found).not.toBeNull();
@@ -102,8 +108,8 @@ describe("Workspace Queries", () => {
 
     it("should get all workspaces for a user with chart and document counts", async () => {
         // Create workspaces
-        const ws1 = await createWorkspace(TEST_USER_ID, "Workspace 1");
-        const ws2 = await createWorkspace(TEST_USER_ID, "Workspace 2");
+        const ws1 = await createWorkspace("Workspace 1");
+        const ws2 = await createWorkspace("Workspace 2");
 
         // Add charts to workspace 1
         await createLensChartPair(ws1.id, createTestLensConfig());
@@ -112,7 +118,7 @@ describe("Workspace Queries", () => {
         // Add document to workspace 2
         await createDocument(ws2.id);
 
-        const workspaces = await getWorkspaces(TEST_USER_ID);
+        const workspaces = await getWorkspaces();
 
         expect(workspaces).toHaveLength(2);
 
@@ -126,37 +132,44 @@ describe("Workspace Queries", () => {
     });
 
     it("should update a workspace", async () => {
-        const workspace = await createWorkspace(TEST_USER_ID, "Original Name");
+        const workspace = await createWorkspace("Original Name");
 
-        const updated = await updateWorkspace(
-            workspace.id,
-            { name: "Updated Name", public: true },
-            TEST_USER_ID,
-        );
+        const updated = await updateWorkspace(workspace.id, {
+            name: "Updated Name",
+            public: true,
+        });
 
         expect(updated.name).toBe("Updated Name");
         expect(updated.public).toBe(true);
     });
 
     it("should not update workspace for wrong user", async () => {
-        const workspace = await createWorkspace(TEST_USER_ID, "My Workspace");
+        const workspace = await createWorkspace("My Workspace");
 
-        await expect(
-            updateWorkspace(workspace.id, { name: "Hacked" }, "wrong-user"),
-        ).rejects.toThrow("Workspace not found or access denied");
+        // A different caller can't satisfy the folded owner predicate: zero rows
+        // match and the update throws.
+        setDevUserId("wrong-user");
+        await expect(updateWorkspace(workspace.id, { name: "Hacked" })).rejects.toThrow(
+            "Workspace not found or access denied",
+        );
+        setDevUserId(TEST_USER_ID);
     });
 
     it("should delete a workspace", async () => {
-        const workspace = await createWorkspace(TEST_USER_ID, "To Delete");
-        await deleteWorkspace(TEST_USER_ID, workspace.id);
+        const workspace = await createWorkspace("To Delete");
+        await deleteWorkspace(workspace.id);
 
         const found = await getWorkspaceById(workspace.id);
         expect(found).toBeNull();
     });
 
     it("should not delete workspace for wrong user", async () => {
-        const workspace = await createWorkspace(TEST_USER_ID, "Protected");
-        await deleteWorkspace("wrong-user", workspace.id);
+        const workspace = await createWorkspace("Protected");
+
+        // A different caller's delete matches zero rows — the workspace survives.
+        setDevUserId("wrong-user");
+        await deleteWorkspace(workspace.id);
+        setDevUserId(TEST_USER_ID);
 
         const found = await getWorkspaceById(workspace.id);
         expect(found).not.toBeNull();
@@ -168,7 +181,7 @@ describe("Chart Queries", () => {
 
     beforeEach(async () => {
         await clearDatabase();
-        const workspace = await createWorkspace(TEST_USER_ID, "Charts Test Workspace");
+        const workspace = await createWorkspace("Charts Test Workspace");
         workspaceId = workspace.id;
     });
 
@@ -308,7 +321,7 @@ describe("Config Queries", () => {
 
     beforeEach(async () => {
         await clearDatabase();
-        const workspace = await createWorkspace(TEST_USER_ID, "Config Test Workspace");
+        const workspace = await createWorkspace("Config Test Workspace");
         workspaceId = workspace.id;
         const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
         chartId = chart.id;
@@ -359,7 +372,7 @@ describe("View Queries", () => {
 
     beforeEach(async () => {
         await clearDatabase();
-        const workspace = await createWorkspace(TEST_USER_ID, "View Test Workspace");
+        const workspace = await createWorkspace("View Test Workspace");
         workspaceId = workspace.id;
         const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
         chartId = chart.id;
@@ -396,7 +409,7 @@ describe("View Queries", () => {
 
         const updated = await updateView(view.id, { updated: true, zoom: 2 } as any);
 
-        expect(updated.data).toEqual({ updated: true, zoom: 2 });
+        expect(updated!.data).toEqual({ updated: true, zoom: 2 });
     });
 
     it("should delete a view", async () => {
@@ -413,7 +426,7 @@ describe("Document Queries", () => {
 
     beforeEach(async () => {
         await clearDatabase();
-        const workspace = await createWorkspace(TEST_USER_ID, "Document Test Workspace");
+        const workspace = await createWorkspace("Document Test Workspace");
         workspaceId = workspace.id;
     });
 
@@ -488,7 +501,7 @@ describe("JSON Storage in SQLite", () => {
 
     beforeEach(async () => {
         await clearDatabase();
-        const workspace = await createWorkspace(TEST_USER_ID, "JSON Test Workspace");
+        const workspace = await createWorkspace("JSON Test Workspace");
         workspaceId = workspace.id;
     });
 
@@ -549,7 +562,7 @@ describe("JSON Storage in SQLite", () => {
 
 describe("Cross-Table Relationships", () => {
     it("should maintain workspace -> charts -> configs relationship", async () => {
-        const workspace = await createWorkspace(TEST_USER_ID, "Relationship Test");
+        const workspace = await createWorkspace("Relationship Test");
 
         // Create multiple charts with configs
         const { chart: chart1 } = await createLensChartPair(
@@ -571,12 +584,12 @@ describe("Cross-Table Relationships", () => {
         expect(config2!.type).toBe("patch");
 
         // Verify workspace count includes charts
-        const workspaces = await getWorkspaces(TEST_USER_ID);
+        const workspaces = await getWorkspaces();
         expect(workspaces[0].chartCount).toBe(2);
     });
 
     it("should handle multiple documents per workspace", async () => {
-        const workspace = await createWorkspace(TEST_USER_ID, "Multi-Doc Test");
+        const workspace = await createWorkspace("Multi-Doc Test");
 
         await createDocument(workspace.id);
         await createDocument(workspace.id);
@@ -585,7 +598,86 @@ describe("Cross-Table Relationships", () => {
         const docs = await getDocumentsForWorkspace(workspace.id);
         expect(docs).toHaveLength(3);
 
-        const workspaces = await getWorkspaces(TEST_USER_ID);
+        const workspaces = await getWorkspaces();
         expect(workspaces[0].documentCount).toBe(3);
+    });
+});
+
+describe("Ownership enforcement (scoped queries reject other users)", () => {
+    const OTHER_USER_ID = "attacker-999";
+    let workspaceId: string;
+    let chartId: string;
+
+    beforeEach(async () => {
+        // The module-level beforeEach already clears the DB and sets the dev user
+        // to TEST_USER_ID; this hook only adds the victim fixtures.
+        const workspace = await createWorkspace("Victim Workspace");
+        workspaceId = workspace.id;
+        const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
+        chartId = chart.id;
+    });
+
+    it("hides another user's workspace from getWorkspaceById", async () => {
+        setDevUserId(OTHER_USER_ID);
+        expect(await getWorkspaceById(workspaceId)).toBeNull();
+    });
+
+    it("hides another user's chart from getChartById", async () => {
+        setDevUserId(OTHER_USER_ID);
+        expect(await getChartById(chartId)).toBeNull();
+    });
+
+    it("does not delete another user's chart", async () => {
+        setDevUserId(OTHER_USER_ID);
+        await deleteChart(chartId); // no-op: predicate matches nothing
+
+        // The owner can still see it.
+        setDevUserId(TEST_USER_ID);
+        expect(await getChartById(chartId)).not.toBeNull();
+    });
+
+    it("does not update another user's chart name", async () => {
+        setDevUserId(OTHER_USER_ID);
+        await updateChartName(chartId, "hacked");
+
+        setDevUserId(TEST_USER_ID);
+        const chart = await getChartById(chartId);
+        expect(chart!.name).not.toBe("hacked");
+    });
+
+    it("refuses to create a chart in another user's workspace", async () => {
+        setDevUserId(OTHER_USER_ID);
+        await expect(createLensChartPair(workspaceId, createTestLensConfig())).rejects.toThrow(
+            /not found or access denied/i,
+        );
+    });
+
+    it("refuses to create a document in another user's workspace", async () => {
+        setDevUserId(OTHER_USER_ID);
+        await expect(createDocument(workspaceId)).rejects.toThrow(/not found or access denied/i);
+    });
+
+    it("keeps another user's charts out of getChartsMetadata / getAllChartsByType", async () => {
+        setDevUserId(OTHER_USER_ID);
+        expect(await getChartsMetadata(workspaceId)).toHaveLength(0);
+        // Un-scoped (no workspaceId) must still only return the caller's charts.
+        const byType = await getAllChartsByType();
+        expect(Object.values(byType).flat()).toHaveLength(0);
+    });
+
+    it("keeps another user's workspaces out of getWorkspaces", async () => {
+        setDevUserId(OTHER_USER_ID);
+        // The attacker sees only their own list — never the victim's workspace.
+        expect(await getWorkspaces()).toHaveLength(0);
+    });
+
+    it("stamps the calling user as owner (createWorkspace ignores any client identity)", async () => {
+        setDevUserId(OTHER_USER_ID);
+        const mine = await createWorkspace("Attacker's own");
+        // It lands under the caller's identity, and the victim never sees it.
+        expect(await getWorkspaceById(mine.id)).not.toBeNull();
+
+        setDevUserId(TEST_USER_ID);
+        expect(await getWorkspaceById(mine.id)).toBeNull();
     });
 });
