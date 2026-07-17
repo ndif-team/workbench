@@ -16,7 +16,6 @@ import type { Lens2ConfigData } from "@/types/lens2";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 
 interface AutoWorkspaceCreatorProps {
-    userId: string;
     initialPrompt?: string;
     initialModel?: string;
     seedWithExamples?: boolean; // New prop to control seeding
@@ -34,7 +33,6 @@ interface AutoWorkspaceCreatorProps {
 }
 
 export function AutoWorkspaceCreator({
-    userId,
     initialPrompt,
     initialModel,
     seedWithExamples = true, // Default to true for new users
@@ -68,13 +66,8 @@ export function AutoWorkspaceCreator({
                     console.log("Using existing workspace:", existingWorkspaceId);
                     targetWorkspaceId = existingWorkspaceId;
                 } else {
-                    console.log(
-                        "Creating workspace for user:",
-                        userId,
-                        "with name:",
-                        workspaceName,
-                    );
-                    const newWorkspace = await createWorkspace(userId, workspaceName);
+                    console.log("Creating workspace with name:", workspaceName);
+                    const newWorkspace = await createWorkspace(workspaceName);
                     console.log("Created workspace:", newWorkspace);
                     targetWorkspaceId = newWorkspace.id;
 
@@ -201,7 +194,6 @@ export function AutoWorkspaceCreator({
 
         createAndRedirect();
     }, [
-        userId,
         router,
         initialPrompt,
         initialModel,

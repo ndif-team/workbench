@@ -78,7 +78,7 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
 
     const { data: workspaces } = useQuery({
         queryKey: ["workspaces", user?.id],
-        queryFn: () => getWorkspaces(user!.id),
+        queryFn: () => getWorkspaces(),
         enabled: open && isSignedIn && !!user?.id,
     });
 

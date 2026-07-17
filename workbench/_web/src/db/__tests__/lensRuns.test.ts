@@ -18,12 +18,29 @@ import {
     deleteLensRun,
     updateLensRunIntervention,
 } from "@/lib/queries/lensRunQueries";
+import { createWorkspace } from "@/lib/queries/workspaceQueries";
+import { createLensChartPair } from "@/lib/queries/chartQueries";
+import { setDevUserId } from "@/lib/auth/devUser";
+import { Metrics } from "@/types/lens";
+import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps, LensRunPromptSummary } from "@/types/lensRun";
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
 
-const WS = "ws-test-1";
-const CHART_A = "chart-aaaa";
-const CHART_B = "chart-bbbb";
+const USER = "lens-run-user";
+
+// lens_runs are owner-scoped via their workspace, and createLensRun verifies the
+// caller owns the parent chart — so these tests build a real workspace + two
+// charts and use their ids rather than synthetic strings.
+let WS: string;
+let CHART_A: string;
+let CHART_B: string;
+
+const lensConfig = (prompt: string): LensConfigData => ({
+    prompt,
+    model: "gpt2",
+    statisticType: Metrics.PROBABILITY,
+    token: { idx: 0, id: 0, text: "", targetIds: [] },
+});
 
 // A minimal but well-formed full lens payload (1 layer, 1 token).
 const fakeLens = (finalToken: string): LogitLensIntroData =>
@@ -64,12 +81,19 @@ const heatmaps = (srcTok = " Paris", tgtTok?: string): LensRunHeatmaps => ({
 describe("lens_runs (F1 prompt history)", () => {
     beforeEach(async () => {
         await clearDatabase();
+        setDevUserId(USER);
+        const ws = await createWorkspace("Lens Run Workspace");
+        WS = ws.id;
+        const [{ chart: a }, { chart: b }] = [
+            await createLensChartPair(WS, lensConfig("chart a")),
+            await createLensChartPair(WS, lensConfig("chart b")),
+        ];
+        CHART_A = a.id;
+        CHART_B = b.id;
     });
 
     it("creates a run and reads back the compact summary payload intact", async () => {
-        const created = await createLensRun({
-            workspaceId: WS,
-            chartId: CHART_A,
+        const created = await createLensRun({            chartId: CHART_A,
             model: "meta-llama/Llama-3.1-8B",
             summary: summary(" Paris", " Rome"),
             heatmaps: heatmaps(" Paris", " Rome"),
@@ -85,9 +109,7 @@ describe("lens_runs (F1 prompt history)", () => {
     });
 
     it("never returns the heavy `data` heatmaps from list queries", async () => {
-        await createLensRun({
-            workspaceId: WS,
-            chartId: CHART_A,
+        await createLensRun({            chartId: CHART_A,
             model: "m1",
             summary: summary(" Paris"),
             heatmaps: heatmaps(" Paris"),
@@ -97,9 +119,7 @@ describe("lens_runs (F1 prompt history)", () => {
     });
 
     it("fetches full heatmaps on demand by id", async () => {
-        const created = await createLensRun({
-            workspaceId: WS,
-            chartId: CHART_A,
+        const created = await createLensRun({            chartId: CHART_A,
             model: "m1",
             summary: summary(" Paris", " Rome"),
             heatmaps: heatmaps(" Paris", " Rome"),
@@ -121,9 +141,7 @@ describe("lens_runs (F1 prompt history)", () => {
     });
 
     it("attaches a patch to an existing run via updateLensRunIntervention", async () => {
-        const created = await createLensRun({
-            workspaceId: WS,
-            chartId: CHART_A,
+        const created = await createLensRun({            chartId: CHART_A,
             model: "m1",
             summary: summary(" Paris", " Rome"),
             heatmaps: heatmaps(" Paris", " Rome"),
@@ -149,9 +167,7 @@ describe("lens_runs (F1 prompt history)", () => {
 
     it("returns runs oldest → newest for a chart (createdAt asc, id asc)", async () => {
         for (const tok of [" A", " B", " C"]) {
-            await createLensRun({
-                workspaceId: WS,
-                chartId: CHART_A,
+            await createLensRun({                chartId: CHART_A,
                 model: "m1",
                 summary: summary(tok),
                 heatmaps: heatmaps(tok),
@@ -163,23 +179,17 @@ describe("lens_runs (F1 prompt history)", () => {
     });
 
     it("scopes history by chart and (optionally) model", async () => {
-        await createLensRun({
-            workspaceId: WS,
-            chartId: CHART_A,
+        await createLensRun({            chartId: CHART_A,
             model: "m1",
             summary: summary(" x"),
             heatmaps: heatmaps(" x"),
         });
-        await createLensRun({
-            workspaceId: WS,
-            chartId: CHART_A,
+        await createLensRun({            chartId: CHART_A,
             model: "m2",
             summary: summary(" y"),
             heatmaps: heatmaps(" y"),
         });
-        await createLensRun({
-            workspaceId: WS,
-            chartId: CHART_B,
+        await createLensRun({            chartId: CHART_B,
             model: "m1",
             summary: summary(" z"),
             heatmaps: heatmaps(" z"),
@@ -193,16 +203,12 @@ describe("lens_runs (F1 prompt history)", () => {
     });
 
     it("clears a chart's history without touching another chart", async () => {
-        await createLensRun({
-            workspaceId: WS,
-            chartId: CHART_A,
+        await createLensRun({            chartId: CHART_A,
             model: "m1",
             summary: summary(" x"),
             heatmaps: heatmaps(" x"),
         });
-        await createLensRun({
-            workspaceId: WS,
-            chartId: CHART_B,
+        await createLensRun({            chartId: CHART_B,
             model: "m1",
             summary: summary(" y"),
             heatmaps: heatmaps(" y"),
@@ -214,17 +220,13 @@ describe("lens_runs (F1 prompt history)", () => {
     });
 
     it("deletes a single run by id", async () => {
-        const a = await createLensRun({
-            workspaceId: WS,
-            chartId: CHART_A,
+        const a = await createLensRun({            chartId: CHART_A,
             model: "m1",
             summary: summary(" x"),
             heatmaps: heatmaps(" x"),
         });
         await new Promise((r) => setTimeout(r, 5));
-        await createLensRun({
-            workspaceId: WS,
-            chartId: CHART_A,
+        await createLensRun({            chartId: CHART_A,
             model: "m1",
             summary: summary(" y"),
             heatmaps: heatmaps(" y"),
@@ -240,9 +242,7 @@ describe("lens_runs (F1 prompt history)", () => {
         const RETENTION_CAP = 50;
         const total = RETENTION_CAP + 3;
         for (let i = 0; i < total; i++) {
-            await createLensRun({
-                workspaceId: WS,
-                chartId: CHART_A,
+            await createLensRun({                chartId: CHART_A,
                 model: "m1",
                 summary: summary(` t${i}`),
                 heatmaps: heatmaps(),

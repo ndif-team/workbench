@@ -14,9 +14,9 @@ export const useCreateWorkspace = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ userId, name }: { userId: string; name: string }) => {
-            // This calls the server action which handles authentication
-            const newWorkspace = await createWorkspace(userId, name);
+        mutationFn: async ({ name }: { name: string }) => {
+            // The server action derives the caller from the session.
+            const newWorkspace = await createWorkspace(name);
             return newWorkspace;
         },
         onSuccess: () => {
@@ -33,8 +33,8 @@ export const useDeleteWorkspace = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ userId, workspaceId }: { userId: string; workspaceId: string }) => {
-            await deleteWorkspace(userId, workspaceId);
+        mutationFn: async ({ workspaceId }: { workspaceId: string }) => {
+            await deleteWorkspace(workspaceId);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["workspaces"] });
@@ -114,16 +114,8 @@ export const useUpdateWorkspaceName = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({
-            workspaceId,
-            name,
-            userId,
-        }: {
-            workspaceId: string;
-            name: string;
-            userId: string;
-        }) => {
-            const updated = await updateWorkspace(workspaceId, { name }, userId);
+        mutationFn: async ({ workspaceId, name }: { workspaceId: string; name: string }) => {
+            const updated = await updateWorkspace(workspaceId, { name });
             return updated;
         },
         onSuccess: (data, variables) => {

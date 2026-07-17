@@ -190,8 +190,8 @@ create policy chart_config_links_owner_all on public.chart_config_links
 
 -- ── workshops : admin-managed metadata, no client access ─────────────────────
 -- Created and read only through server actions (Drizzle `postgres` role) and
--- the /w/{slug} join flow (also server-side). RLS on with NO policy => anon and
--- authenticated are both fully denied over PostgREST; only bypass roles reach it.
-alter table public.workshops enable row level security;
+-- the /w/{slug} join flow (also server-side). RLS is already enabled by the
+-- do-loop above; with NO policy defined, anon and authenticated are both fully
+-- denied over PostgREST — only bypass roles reach it. No ALTER needed here.
 
 commit;
