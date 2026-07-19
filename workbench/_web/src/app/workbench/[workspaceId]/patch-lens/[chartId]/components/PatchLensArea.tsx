@@ -16,6 +16,9 @@ import {
 import { useTour } from "@reactour/tour";
 import { PatchLensTutorial } from "@/tutorials/patchLens";
 import { usePatchLensTutorial, hydratePatchLensTutorial } from "@/stores/usePatchLensTutorial";
+import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
+import { useProlificTutorial } from "@/stores/useProlificTutorial";
+import { TutorialActivityPanel } from "./tutorial/TutorialActivityPanel";
 import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { useWorkspace } from "@/stores/useWorkspace";
@@ -25,7 +28,8 @@ import { Token } from "@/types/models";
 import { PatchPromptSection } from "@/components/activation-patching/toolkit";
 import { toast } from "sonner";
 import { usePatchLensLogitLens, PatchLensResult } from "@/lib/api/patchLensApi";
-import { finalPrediction } from "@/lib/lens-last-row";
+import { finalPrediction, finalTopKTokens } from "@/lib/lens-last-row";
+import { promptPhrasingWarning } from "@/lib/promptPhrasing";
 import type { NormalizedRun } from "@/lib/lensRun";
 import { LensHistoryRail } from "./LensHistoryRail";
 
@@ -112,7 +116,24 @@ export default function PatchLensArea({
 }: PatchLensAreaProps) {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
     const capture = useCapture();
+    const { emit: emitTutorialEvent } = useTutorialEmit();
+    const prolificTutorial = useProlificTutorial();
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
+
+    // Bind the guided-tutorial store to this workspace (resets on workspace change).
+    useEffect(() => {
+        if (workspaceId) prolificTutorial.setWorkspace(workspaceId);
+        // setWorkspace is stable-by-value; only re-bind when the workspace changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workspaceId]);
+
+    // Top-1 / top-2 next tokens from the last run, captured atomically with a
+    // nonce so the guided-tutorial panel scores each run exactly once (§4.7).
+    const [runTokens, setRunTokens] = useState<{
+        nonce: number;
+        top: string | null;
+        second: string | null;
+    }>({ nonce: 0, top: null, second: null });
 
     const { data: models } = useQuery({
         queryKey: ["models"],
@@ -352,6 +373,11 @@ export default function PatchLensArea({
         return finalPrediction(lensResult.target);
     }, [lensResult, targetPrompt, lastRunTgtPrompt]);
 
+    // Soft phrasing guardrail (spec §4.2): when the source prompt's top predicted
+    // token is punctuation/newline/EOS, the model thinks the text is complete —
+    // nudge the user to rephrase so the answer comes next. Non-blocking.
+    const phrasingWarning = useMemo(() => promptPhrasingWarning(srcPrediction), [srcPrediction]);
+
     const { mutateAsync: runLogitLens, isPending: isRunning } = usePatchLensLogitLens();
 
     // Target is optional: when blank, Patch Lens runs in single-prompt mode and
@@ -391,6 +417,10 @@ export default function PatchLensArea({
             target_prompt_length: tgt.length,
         });
 
+        // Advance any tutorial step gated on clicking Run (the click trigger was
+        // dead until the event bus was wired — see TutorialEventProvider).
+        emitTutorialEvent({ type: "click", target: "#patch-lens-run" });
+
         try {
             const result = await runLogitLens({
                 sourcePrompt: src,
@@ -400,6 +430,16 @@ export default function PatchLensArea({
                 workspaceId,
             });
             onLensResult?.(result, src, tgt);
+            // Advance runCompleted-gated steps; the predicate (if any) inspects
+            // this result (e.g. unit 3's "top prediction ≠ 10").
+            emitTutorialEvent({ type: "runCompleted", result });
+            // Capture the run's top tokens atomically for the guided-tutorial
+            // panel (success predicate + embedded check auto-scoring).
+            setRunTokens((prev) => ({
+                nonce: prev.nonce + 1,
+                top: finalPrediction(result.source),
+                second: finalTopKTokens(result.source, 2)[1] ?? null,
+            }));
             toast.success(
                 tgt.trim() ? "Logit lens computed for both prompts." : "Logit lens computed.",
             );
@@ -418,6 +458,7 @@ export default function PatchLensArea({
         chartId,
         workspaceId,
         capture,
+        emitTutorialEvent,
     ]);
 
     const { startTutorial } = useTutorialAutoStart();
@@ -451,6 +492,9 @@ export default function PatchLensArea({
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => prolificTutorial.start()}>
+                                Guided tutorial (7 steps)
+                            </DropdownMenuItem>
                             {PatchLensTutorial.chapters.map((chapter, idx) => (
                                 <DropdownMenuItem
                                     key={chapter.title}
@@ -572,6 +616,34 @@ export default function PatchLensArea({
                         </>
                     )}
                 </Button>
+
+                {phrasingWarning && (
+                    <p
+                        role="status"
+                        className="flex items-start gap-1.5 text-xs text-yellow-600 dark:text-yellow-500 leading-snug"
+                    >
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                        <span>{phrasingWarning}</span>
+                    </p>
+                )}
+
+                <TutorialActivityPanel
+                    runNonce={runTokens.nonce}
+                    topToken={runTokens.top}
+                    secondToken={runTokens.second}
+                    completionText={workshop?.completionText}
+                    onInsertPrompt={(text) => {
+                        onSourcePromptChange(text);
+                        setSrcEditing(true);
+                        setTimeout(() => srcTextareaRef.current?.focus(), 0);
+                    }}
+                    onInsertPatchPair={({ source, target }) => {
+                        onSourcePromptChange(source);
+                        onTargetPromptChange(target);
+                        setSrcEditing(true);
+                        setTgtEditing(true);
+                    }}
+                />
 
                 {onSelectRun && <LensHistoryRail onSelectRun={onSelectRun} />}
             </div>

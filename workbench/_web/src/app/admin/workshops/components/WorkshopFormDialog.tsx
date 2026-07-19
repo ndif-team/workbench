@@ -63,6 +63,7 @@ export function WorkshopFormDialog({
     const [model, setModel] = useState("");
     const [allowModelChange, setAllowModelChange] = useState(false);
     const [starterPrompt, setStarterPrompt] = useState("");
+    const [completionText, setCompletionText] = useState("");
     const [expiresAt, setExpiresAt] = useState(toDatetimeLocal(defaultExpiry()));
 
     // Re-seed the fields whenever the dialog opens for a different target.
@@ -74,6 +75,7 @@ export function WorkshopFormDialog({
             setModel("");
             setAllowModelChange(false);
             setStarterPrompt("");
+            setCompletionText("");
             setExpiresAt(toDatetimeLocal(defaultExpiry()));
         } else {
             setName(target.name);
@@ -81,6 +83,7 @@ export function WorkshopFormDialog({
             setModel(target.model);
             setAllowModelChange(target.allowModelChange);
             setStarterPrompt(target.starterPrompt);
+            setCompletionText(target.completionText ?? "");
             setExpiresAt(toDatetimeLocal(new Date(target.expiresAt)));
         }
     }, [target]);
@@ -105,6 +108,7 @@ export function WorkshopFormDialog({
             model,
             allowModelChange,
             starterPrompt,
+            completionText,
             expiresAt: new Date(expiresAt),
         };
         if (isEdit) {
@@ -201,6 +205,17 @@ export function WorkshopFormDialog({
                             onChange={(e) => setStarterPrompt(e.target.value)}
                             placeholder="Seeded into the first chart (optional)"
                             className="font-mono min-h-20"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="workshop-completion">Completion text</Label>
+                        <Textarea
+                            id="workshop-completion"
+                            value={completionText}
+                            onChange={(e) => setCompletionText(e.target.value)}
+                            placeholder="Shown when a participant finishes (e.g. Prolific completion code + thanks)"
+                            className="min-h-20"
                         />
                     </div>
 

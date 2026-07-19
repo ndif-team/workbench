@@ -28,5 +28,6 @@ export const queryKeys = {
     workshops: {
         all: ["workshops"] as const,
         byWorkspace: (workspaceId: string) => ["workshop-for-workspace", workspaceId] as const,
+        analytics: (workshopId: string) => ["workshop-analytics", workshopId] as const,
     },
 };

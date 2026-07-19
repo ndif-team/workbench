@@ -1,7 +1,8 @@
-import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
+import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
 
 // Helper function to generate UUIDs for SQLite
 const generateUUID = () => {
@@ -24,6 +25,8 @@ export const workshops = sqliteTable("workshops", {
     allowedTools: text("allowed_tools", { mode: "json" }).$type<WorkshopTool[]>().notNull(),
     model: text("model").notNull(),
     starterPrompt: text("starter_prompt").notNull().default(""),
+    // Mirrors pg: per-workshop finish text (e.g. Prolific completion code).
+    completionText: text("completion_text").notNull().default(""),
     // When true the workshop model is only the participant's default; they may
     // switch models. When false (default) the model is locked to the workshop's.
     allowModelChange: integer("allow_model_change", { mode: "boolean" }).notNull().default(false),
@@ -52,6 +55,9 @@ export const workspaces = sqliteTable(
         // Mirrors pg: Prolific study identifiers captured from the join link,
         // null when absent. See schema.pg.ts.
         prolific: text("prolific", { mode: "json" }).$type<ProlificParams>(),
+        createdAt: integer("created_at", { mode: "timestamp" })
+            .$defaultFn(() => new Date())
+            .notNull(),
         updatedAt: integer("updated_at", { mode: "timestamp" })
             .$defaultFn(() => new Date())
             .notNull()
@@ -140,6 +146,27 @@ export const lensRuns = sqliteTable("lens_runs", {
         .notNull(),
 });
 
+// Append-only tutorial telemetry. Mirrors the pg table (plain columns per the
+// sqlite convention; the pg mirror carries the cascade). Millisecond precision
+// on createdAt like lens_runs — events land in bursts within one second and
+// ordering/funnel derivation break ties on createdAt.
+export const tutorialEvents = sqliteTable(
+    "tutorial_events",
+    {
+        id: text("id").primaryKey().$defaultFn(generateUUID),
+        workspaceId: text("workspace_id").notNull(),
+        stepId: text("step_id").notNull(),
+        eventType: text("event_type").$type<TutorialEventType>().notNull(),
+        payload: text("payload", { mode: "json" }).$type<TutorialEventPayload>(),
+        createdAt: integer("created_at", { mode: "timestamp_ms" })
+            .$defaultFn(() => new Date())
+            .notNull(),
+    },
+    (table) => [
+        index("tutorial_events_workspace_created_idx").on(table.workspaceId, table.createdAt),
+    ],
+);
+
 // Generate types from schema
 export type Workshop = typeof workshops.$inferSelect;
 export type NewWorkshop = typeof workshops.$inferInsert;
@@ -161,3 +188,6 @@ export type NewView = typeof views.$inferInsert;
 
 export type LensRun = typeof lensRuns.$inferSelect;
 export type NewLensRun = typeof lensRuns.$inferInsert;
+
+export type TutorialEvent = typeof tutorialEvents.$inferSelect;
+export type NewTutorialEvent = typeof tutorialEvents.$inferInsert;

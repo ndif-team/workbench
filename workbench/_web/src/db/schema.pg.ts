@@ -7,11 +7,13 @@ import {
     timestamp,
     real,
     uniqueIndex,
+    index,
 } from "drizzle-orm/pg-core";
 import type { ConfigData, ChartData, ChartView } from "@/types/charts";
 import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
+import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
 
 export const workshopTools = ["lens2", "activation-patching", "patch-lens"] as const;
 export type WorkshopTool = (typeof workshopTools)[number];
@@ -28,6 +30,9 @@ export const workshops = pgTable("workshops", {
     allowedTools: jsonb("allowed_tools").$type<WorkshopTool[]>().notNull(),
     model: varchar("model", { length: 256 }).notNull(),
     starterPrompt: varchar("starter_prompt", { length: 2048 }).notNull().default(""),
+    // Text shown to a participant when they finish the tutorial (e.g. the
+    // Prolific completion code + a thank-you). Per-workshop, not an env value.
+    completionText: varchar("completion_text", { length: 4096 }).notNull().default(""),
     // When true the workshop model is only the participant's default; they may
     // switch models. When false (default) the model is locked to the workshop's.
     allowModelChange: boolean("allow_model_change").notNull().default(false),
@@ -52,6 +57,7 @@ export const workspaces = pgTable(
         // first arrival, retained for matching runs back to the study. Null for
         // normal (non-workshop) workspaces and workshop joins without Prolific.
         prolific: jsonb("prolific").$type<ProlificParams>(),
+        createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
         updatedAt: timestamp("updated_at", { mode: "date" })
             .defaultNow()
             .notNull()
@@ -151,6 +157,27 @@ export const lensRuns = pgTable("lens_runs", {
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
+// Append-only tutorial telemetry: one row per participant event during the
+// Prolific tutorial (step_started/completed, hint_shown, observation_submitted,
+// check_answered). Cascades through workspace like lens_runs; funnels and hint
+// counts are derived at query time. App DB only — never PostHog.
+export const tutorialEvents = pgTable(
+    "tutorial_events",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        workspaceId: uuid("workspace_id")
+            .references(() => workspaces.id, { onDelete: "cascade" })
+            .notNull(),
+        stepId: varchar("step_id", { length: 64 }).notNull(),
+        eventType: varchar("event_type", { length: 32 }).$type<TutorialEventType>().notNull(),
+        payload: jsonb("payload").$type<TutorialEventPayload>(),
+        createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    },
+    (table) => [
+        index("tutorial_events_workspace_created_idx").on(table.workspaceId, table.createdAt),
+    ],
+);
+
 // Generate types from schema
 export type Workshop = typeof workshops.$inferSelect;
 export type NewWorkshop = typeof workshops.$inferInsert;
@@ -172,3 +199,6 @@ export type NewView = typeof views.$inferInsert;
 
 export type LensRun = typeof lensRuns.$inferSelect;
 export type NewLensRun = typeof lensRuns.$inferInsert;
+
+export type TutorialEvent = typeof tutorialEvents.$inferSelect;
+export type NewTutorialEvent = typeof tutorialEvents.$inferInsert;

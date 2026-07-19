@@ -61,3 +61,29 @@ export function finalPrediction(data: LogitLensIntroData | undefined | null): st
     const final = lastRow.cells[lastRow.cells.length - 1];
     return final.token || null;
 }
+
+/**
+ * The final-layer top-k next tokens (last position), ranked by probability.
+ * Used by the tutorial's "second-ranked prediction" embedded check (§4.7), which
+ * scores against the participant's own run. Returns [] on malformed data.
+ */
+export function finalTopKTokens(data: LogitLensIntroData | undefined | null, k: number): string[] {
+    if (!data) return [];
+    const raw = data as unknown as {
+        layers?: number[];
+        input?: string[];
+        tracked?: Record<string, number[]>[];
+        topk?: string[][][];
+    };
+    const { layers, input, tracked, topk } = raw;
+    if (!layers?.length || !input?.length || !tracked?.length || !topk?.length) return [];
+    const finalLayerIdx = layers.length - 1;
+    const lastPosIdx = input.length - 1;
+    const candidates = topk[finalLayerIdx]?.[lastPosIdx] ?? [];
+    const posTracked = tracked[lastPosIdx] ?? {};
+    return [...candidates]
+        .sort(
+            (a, b) => (posTracked[b]?.[finalLayerIdx] ?? 0) - (posTracked[a]?.[finalLayerIdx] ?? 0),
+        )
+        .slice(0, k);
+}

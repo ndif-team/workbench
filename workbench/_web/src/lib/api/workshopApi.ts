@@ -8,6 +8,7 @@ import {
     updateWorkshop,
     deleteWorkshop,
 } from "@/lib/queries/workshopQueries";
+import { getWorkshopAnalytics } from "@/lib/queries/workshopAnalyticsQueries";
 import type { WorkshopInput } from "@/lib/queries/workshopDb";
 import { queryKeys } from "../queryKeys";
 
@@ -28,6 +29,14 @@ export const useWorkshops = () =>
     useQuery({
         queryKey: queryKeys.workshops.all,
         queryFn: () => listWorkshops(),
+    });
+
+/** Per-workshop analytics for the /admin/workshops/[id] dashboard. */
+export const useWorkshopAnalytics = (workshopId: string | undefined) =>
+    useQuery({
+        queryKey: queryKeys.workshops.analytics(workshopId ?? ""),
+        queryFn: () => getWorkshopAnalytics(workshopId as string),
+        enabled: !!workshopId,
     });
 
 export const useCreateWorkshop = () => {

@@ -21,6 +21,10 @@ export type WorkshopInput = {
     allowedTools: WorkshopTool[];
     model: string;
     starterPrompt: string;
+    // Finish text shown at the end of the tutorial (Prolific completion code +
+    // thank-you). Optional: the column defaults to "" so existing callers and
+    // tests that omit it still work.
+    completionText?: string;
     allowModelChange: boolean;
     expiresAt: Date;
     createdBy: string;
