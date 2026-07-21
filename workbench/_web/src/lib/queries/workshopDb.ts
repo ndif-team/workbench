@@ -21,9 +21,14 @@ export type WorkshopInput = {
     allowedTools: WorkshopTool[];
     model: string;
     starterPrompt: string;
-    // Finish text shown at the end of the tutorial (Prolific completion code +
-    // thank-you). Optional: the column defaults to "" so existing callers and
-    // tests that omit it still work.
+    // The guided tutorial this workshop runs (null → seeded demo). Optional; the
+    // column is nullable so existing callers/tests that omit it still work.
+    tutorialId?: string | null;
+    // Where the participant is sent after finishing — the survey issues the
+    // Prolific code. Optional: column defaults to "".
+    surveyUrl?: string;
+    // Legacy finish text, repurposed as optional thank-you copy. Optional: the
+    // column defaults to "" so existing callers and tests that omit it still work.
     completionText?: string;
     allowModelChange: boolean;
     expiresAt: Date;

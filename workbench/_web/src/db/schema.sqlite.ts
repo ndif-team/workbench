@@ -3,6 +3,7 @@ import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
+import type { TutorialContent } from "@/types/tutorial-content";
 
 // Helper function to generate UUIDs for SQLite
 const generateUUID = () => {
@@ -16,6 +17,22 @@ const generateUUID = () => {
 export const workshopTools = ["lens2", "activation-patching", "patch-lens"] as const;
 export type WorkshopTool = (typeof workshopTools)[number];
 
+// Tutorial content (guided-activity units). Mirrors the pg table; see schema.pg.ts.
+export const tutorials = sqliteTable("tutorials", {
+    id: text("id").primaryKey().$defaultFn(generateUUID),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    data: text("data", { mode: "json" }).$type<TutorialContent>().notNull(),
+    createdBy: text("created_by").notNull().default(""),
+    createdAt: integer("created_at", { mode: "timestamp" })
+        .$defaultFn(() => new Date())
+        .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+        .$defaultFn(() => new Date())
+        .notNull()
+        .$onUpdate(() => new Date()),
+});
+
 // Workshop = a shareable join link (/w/{slug}) plus the constraints applied to
 // workspaces created through it. Mirrors the pg table; see schema.pg.ts.
 export const workshops = sqliteTable("workshops", {
@@ -25,7 +42,12 @@ export const workshops = sqliteTable("workshops", {
     allowedTools: text("allowed_tools", { mode: "json" }).$type<WorkshopTool[]>().notNull(),
     model: text("model").notNull(),
     starterPrompt: text("starter_prompt").notNull().default(""),
-    // Mirrors pg: per-workshop finish text (e.g. Prolific completion code).
+    // Plain column (no FK ref) per the sqlite convention; pg carries the cascade.
+    tutorialId: text("tutorial_id"),
+    // Mirrors pg: survey the participant is sent to after finishing (issues the
+    // Prolific code). Retires completionText from the finish flow.
+    surveyUrl: text("survey_url").notNull().default(""),
+    // Legacy: per-workshop finish text, kept as optional thank-you copy.
     completionText: text("completion_text").notNull().default(""),
     // When true the workshop model is only the participant's default; they may
     // switch models. When false (default) the model is locked to the workshop's.
@@ -168,6 +190,9 @@ export const tutorialEvents = sqliteTable(
 );
 
 // Generate types from schema
+export type Tutorial = typeof tutorials.$inferSelect;
+export type NewTutorial = typeof tutorials.$inferInsert;
+
 export type Workshop = typeof workshops.$inferSelect;
 export type NewWorkshop = typeof workshops.$inferInsert;
 

@@ -16,6 +16,7 @@ import { transformToEduFormat } from "@/lib/edu-lens";
 import type { PatchLensChartData } from "@/types/patchLens";
 import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
 import { useProlificTutorial } from "@/stores/useProlificTutorial";
+import { useTutorialSpotlight } from "@/components/providers/TutorialSpotlightProvider";
 
 function CMSkeleton({ message, showTarget }: { message: string; showTarget: boolean }) {
     const SkeletonGrid = () => (
@@ -70,6 +71,10 @@ export function PatchLensDisplay({
     const capture = useCapture();
     const { emit: emitTutorialEvent } = useTutorialEmit();
     const markPatchApplied = useProlificTutorial((s) => s.markPatchApplied);
+    // Guided-tutorial "Show me" spotlight. Until the highlight moves into the
+    // edulogitlens widget (its own context/provider), we draw a coarse ring on
+    // the display container so a show-me hint visibly directs attention here.
+    const { target: spotlight } = useTutorialSpotlight();
     const { selectedModelIdx } = useWorkspace();
     const queryClient = useQueryClient();
 
@@ -293,7 +298,19 @@ export function PatchLensDisplay({
     }
 
     return (
-        <div id="patch-lens-display" className="size-full overflow-auto">
+        <div
+            id="patch-lens-display"
+            className={`relative size-full overflow-auto ${
+                spotlight
+                    ? "rounded ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse"
+                    : ""
+            }`}
+        >
+            {spotlight && (
+                <div className="pointer-events-none absolute right-3 top-3 z-10 rounded border border-primary/50 bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                    Look here — patch from a mid-layer {spotlight.grid} cell
+                </div>
+            )}
             <CausalMediationExplorer
                 sourcePromptText={sourcePrompt}
                 targetPromptText={targetPrompt}

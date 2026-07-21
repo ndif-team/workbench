@@ -18,9 +18,11 @@ import { PatchLensTutorial } from "@/tutorials/patchLens";
 import { usePatchLensTutorial, hydratePatchLensTutorial } from "@/stores/usePatchLensTutorial";
 import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
 import { useProlificTutorial } from "@/stores/useProlificTutorial";
+import { useTutorialSpotlight } from "@/components/providers/TutorialSpotlightProvider";
 import { TutorialActivityPanel } from "./tutorial/TutorialActivityPanel";
 import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
+import { useWorkspaceTutorial } from "@/lib/api/tutorialContentApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
@@ -118,6 +120,7 @@ export default function PatchLensArea({
     const capture = useCapture();
     const { emit: emitTutorialEvent } = useTutorialEmit();
     const prolificTutorial = useProlificTutorial();
+    const { setTarget: setSpotlight } = useTutorialSpotlight();
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
 
     // Bind the guided-tutorial store to this workspace (resets on workspace change).
@@ -126,6 +129,15 @@ export default function PatchLensArea({
         // setWorkspace is stable-by-value; only re-bind when the workspace changes.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workspaceId]);
+
+    // Tutorial content is DB-backed (workshop's assigned tutorial, else the demo
+    // seed). Inject the resolved units into the store so the panel can render them.
+    const { data: tutorialContent } = useWorkspaceTutorial(workspaceId as string);
+    useEffect(() => {
+        if (tutorialContent) prolificTutorial.setUnits(tutorialContent.units);
+        // setUnits is stable-by-value; only re-inject when the content changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tutorialContent]);
 
     // Top-1 / top-2 next tokens from the last run, captured atomically with a
     // nonce so the guided-tutorial panel scores each run exactly once (§4.7).
@@ -486,7 +498,11 @@ export default function PatchLensArea({
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 px-2 text-xs text-muted-foreground"
+                                className={`h-7 px-2 text-xs ${
+                                    prolificTutorial.active
+                                        ? "text-primary ring-2 ring-primary/50 ring-offset-1 ring-offset-background"
+                                        : "text-muted-foreground"
+                                }`}
                             >
                                 Tutorial
                             </Button>
@@ -631,7 +647,9 @@ export default function PatchLensArea({
                     runNonce={runTokens.nonce}
                     topToken={runTokens.top}
                     secondToken={runTokens.second}
-                    completionText={workshop?.completionText}
+                    surveyUrl={workshop?.surveyUrl}
+                    completionThanks={workshop?.completionText}
+                    onSpotlight={setSpotlight}
                     onInsertPrompt={(text) => {
                         onSourcePromptChange(text);
                         setSrcEditing(true);

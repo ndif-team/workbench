@@ -6,8 +6,15 @@ import {
     deriveFunnel,
     deriveObservations,
     deriveProgressByWorkspace,
+    deriveChecks,
+    deriveCheckStats,
 } from "@/lib/queries/tutorialEventsDb";
-import type { StepFunnelRow, ObservationRow } from "@/lib/queries/tutorialEventsDb";
+import type {
+    StepFunnelRow,
+    ObservationRow,
+    CheckAnswerRow,
+    CheckStatRow,
+} from "@/lib/queries/tutorialEventsDb";
 import { eq, inArray, sql } from "drizzle-orm";
 
 /**
@@ -26,6 +33,10 @@ export interface ParticipantAnalyticsRow {
     workspaceId: string;
     userIdShort: string;
     prolificPid: string | null;
+    // Full Prolific triple, exported so checks/observations can be joined to the
+    // survey on any of them (PID is the usual key).
+    studyId: string | null;
+    sessionId: string | null;
     charts: number;
     lensRuns: number;
     modelsUsed: string[];
@@ -56,6 +67,8 @@ export interface WorkshopAnalytics {
     tutorial: {
         funnel: StepFunnelRow[];
         observations: ObservationRow[];
+        checks: CheckAnswerRow[];
+        checkStats: CheckStatRow[];
     };
 }
 
@@ -85,7 +98,7 @@ const empty = (): WorkshopAnalytics => ({
     },
     series: { joinsPerDay: [], runsPerDay: [] },
     participants: [],
-    tutorial: { funnel: [], observations: [] },
+    tutorial: { funnel: [], observations: [], checks: [], checkStats: [] },
 });
 
 export const getWorkshopAnalytics = async (
@@ -167,6 +180,8 @@ export const getWorkshopAnalytics = async (
     const tutorialEvents = await getTutorialEventsForWorkshop(workshopId);
     const funnel = deriveFunnel(tutorialEvents, stepOrder);
     const observations = deriveObservations(tutorialEvents);
+    const checks = deriveChecks(tutorialEvents);
+    const checkStats = deriveCheckStats(tutorialEvents, stepOrder);
     const progressByWs = deriveProgressByWorkspace(tutorialEvents, stepOrder);
 
     // 4. Assemble per-participant rows.
@@ -177,6 +192,8 @@ export const getWorkshopAnalytics = async (
             workspaceId: w.id,
             userIdShort: w.userId.slice(0, 8),
             prolificPid: w.prolific?.prolificPid ?? null,
+            studyId: w.prolific?.studyId ?? null,
+            sessionId: w.prolific?.sessionId ?? null,
             charts: chartCountByWs.get(w.id) ?? 0,
             lensRuns: runCountByWs.get(w.id) ?? 0,
             modelsUsed: [...(modelsByWs.get(w.id) ?? [])].sort(),
@@ -203,7 +220,7 @@ export const getWorkshopAnalytics = async (
             runsPerDay: bucketByDay(runRows.map((r) => r.createdAt)),
         },
         participants,
-        tutorial: { funnel, observations },
+        tutorial: { funnel, observations, checks, checkStats },
     };
 };
 
@@ -218,9 +235,11 @@ const csvCell = (value: string | number | null): string => {
 const csvRow = (cells: (string | number | null)[]): string => cells.map(csvCell).join(",");
 
 /**
- * Two-section CSV: one row per participant, then one row per observation. A
- * `record_type` discriminator column keeps both in a single downloadable file
- * (the analysis splits on it). Pure over the analytics object so it's testable.
+ * Multi-section CSV: one row per participant, then one per observation, then one
+ * per embedded-check answer. A `record_type` discriminator keeps all three in a
+ * single downloadable file (the analysis splits on it). Prolific study/session
+ * ids ride the participant rows so checks/observations join to survey responses
+ * on the participant's PID. Pure over the analytics object so it's testable.
  */
 export const buildWorkshopCsv = (analytics: WorkshopAnalytics): string => {
     const lines: string[] = [];
@@ -230,6 +249,8 @@ export const buildWorkshopCsv = (analytics: WorkshopAnalytics): string => {
             "workspace_id",
             "user_id_short",
             "prolific_pid",
+            "study_id",
+            "session_id",
             "charts",
             "lens_runs",
             "models_used",
@@ -237,6 +258,8 @@ export const buildWorkshopCsv = (analytics: WorkshopAnalytics): string => {
             "furthest_step",
             "hints_used",
             "step_id",
+            "answer",
+            "correct",
             "observation_text",
         ]),
     );
@@ -247,12 +270,16 @@ export const buildWorkshopCsv = (analytics: WorkshopAnalytics): string => {
                 p.workspaceId,
                 p.userIdShort,
                 p.prolificPid,
+                p.studyId,
+                p.sessionId,
                 p.charts,
                 p.lensRuns,
                 p.modelsUsed.join(" "),
                 p.lastActiveAt.toISOString(),
                 p.furthestStepId,
                 p.hintsUsed,
+                "",
+                "",
                 "",
                 "",
             ]),
@@ -268,11 +295,37 @@ export const buildWorkshopCsv = (analytics: WorkshopAnalytics): string => {
                 "",
                 "",
                 "",
+                "",
+                "",
                 o.createdAt.toISOString(),
                 "",
                 "",
                 o.stepId,
+                "",
+                "",
                 o.text,
+            ]),
+        );
+    }
+    for (const c of analytics.tutorial.checks) {
+        lines.push(
+            csvRow([
+                "check",
+                c.workspaceId,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                c.createdAt.toISOString(),
+                "",
+                "",
+                c.stepId,
+                c.answer,
+                c.correct ? "1" : "0",
+                "",
             ]),
         );
     }

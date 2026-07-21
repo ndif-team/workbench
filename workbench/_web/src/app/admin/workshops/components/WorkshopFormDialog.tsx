@@ -25,6 +25,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useCreateWorkshop, useUpdateWorkshop } from "@/lib/api/workshopApi";
+import { useTutorials } from "@/lib/api/tutorialContentApi";
 import type { WorkshopWithCount } from "@/lib/queries/workshopDb";
 import { copyWorkshopJoinLink } from "@/lib/workshopLink";
 import { workshopTools, type WorkshopTool } from "@/db/schema";
@@ -54,15 +55,21 @@ export function WorkshopFormDialog({
 }) {
     const isEdit = target !== null && target !== "new";
     const { data: models } = useModelsQuery();
+    const { data: tutorials } = useTutorials();
     const { mutate: createWorkshop, isPending: isCreating } = useCreateWorkshop();
     const { mutate: updateWorkshop, isPending: isUpdating } = useUpdateWorkshop();
     const isPending = isCreating || isUpdating;
+
+    // Sentinel select value for "no explicit tutorial → seeded demo".
+    const DEFAULT_TUTORIAL = "__default__";
 
     const [name, setName] = useState("");
     const [tools, setTools] = useState<WorkshopTool[]>(["lens2"]);
     const [model, setModel] = useState("");
     const [allowModelChange, setAllowModelChange] = useState(false);
     const [starterPrompt, setStarterPrompt] = useState("");
+    const [tutorialId, setTutorialId] = useState<string>(DEFAULT_TUTORIAL);
+    const [surveyUrl, setSurveyUrl] = useState("");
     const [completionText, setCompletionText] = useState("");
     const [expiresAt, setExpiresAt] = useState(toDatetimeLocal(defaultExpiry()));
 
@@ -75,6 +82,8 @@ export function WorkshopFormDialog({
             setModel("");
             setAllowModelChange(false);
             setStarterPrompt("");
+            setTutorialId(DEFAULT_TUTORIAL);
+            setSurveyUrl("");
             setCompletionText("");
             setExpiresAt(toDatetimeLocal(defaultExpiry()));
         } else {
@@ -83,6 +92,8 @@ export function WorkshopFormDialog({
             setModel(target.model);
             setAllowModelChange(target.allowModelChange);
             setStarterPrompt(target.starterPrompt);
+            setTutorialId(target.tutorialId ?? DEFAULT_TUTORIAL);
+            setSurveyUrl(target.surveyUrl ?? "");
             setCompletionText(target.completionText ?? "");
             setExpiresAt(toDatetimeLocal(new Date(target.expiresAt)));
         }
@@ -108,6 +119,8 @@ export function WorkshopFormDialog({
             model,
             allowModelChange,
             starterPrompt,
+            tutorialId: tutorialId === DEFAULT_TUTORIAL ? null : tutorialId,
+            surveyUrl: surveyUrl.trim(),
             completionText,
             expiresAt: new Date(expiresAt),
         };
@@ -209,12 +222,46 @@ export function WorkshopFormDialog({
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <Label htmlFor="workshop-completion">Completion text</Label>
+                        <Label htmlFor="workshop-tutorial">Guided tutorial</Label>
+                        <Select value={tutorialId} onValueChange={setTutorialId}>
+                            <SelectTrigger id="workshop-tutorial">
+                                <SelectValue placeholder="Default (demo tutorial)" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-72">
+                                <SelectItem value={DEFAULT_TUTORIAL}>
+                                    Default (demo tutorial)
+                                </SelectItem>
+                                {(tutorials ?? []).map((t) => (
+                                    <SelectItem key={t.id} value={t.id}>
+                                        {t.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="workshop-survey">Survey URL</Label>
+                        <Input
+                            id="workshop-survey"
+                            value={surveyUrl}
+                            onChange={(e) => setSurveyUrl(e.target.value)}
+                            placeholder="https://…  (the survey issues the Prolific code)"
+                            className="font-mono text-xs"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Where participants go after finishing. The survey — not the tool —
+                            gives them the Prolific completion code.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="workshop-completion">Thank-you note (optional)</Label>
                         <Textarea
                             id="workshop-completion"
                             value={completionText}
                             onChange={(e) => setCompletionText(e.target.value)}
-                            placeholder="Shown when a participant finishes (e.g. Prolific completion code + thanks)"
+                            placeholder="Optional note shown on the finish screen above the survey link"
                             className="min-h-20"
                         />
                     </div>

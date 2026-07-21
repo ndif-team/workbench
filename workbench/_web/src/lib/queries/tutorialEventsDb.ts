@@ -134,6 +134,71 @@ export const deriveObservations = (events: TutorialEvent[]): ObservationRow[] =>
             createdAt: e.createdAt,
         }));
 
+export interface CheckAnswerRow {
+    workspaceId: string;
+    stepId: string;
+    answer: string;
+    correct: boolean;
+    createdAt: Date;
+}
+
+/**
+ * Flattened embedded-check answers (the participant's response + whether it
+ * matched their own run). Joinable to survey responses on the workspace's
+ * Prolific PID — the reason these are surfaced.
+ */
+export const deriveChecks = (events: TutorialEvent[]): CheckAnswerRow[] =>
+    events
+        .filter((e) => e.eventType === "check_answered")
+        .map((e) => ({
+            workspaceId: e.workspaceId,
+            stepId: e.stepId,
+            answer: e.payload?.answer ?? "",
+            correct: !!e.payload?.correct,
+            createdAt: e.createdAt,
+        }));
+
+export interface CheckStatRow {
+    stepId: string;
+    answered: number;
+    correct: number;
+}
+
+/**
+ * Per-step check pass counts, one answer per (workspace, step) — a participant
+ * who re-answers doesn't inflate the totals (the panel already blocks re-answer,
+ * but the aggregation is defensive). Ordered by the supplied canonical step
+ * order when given, else by first appearance.
+ */
+export const deriveCheckStats = (
+    events: TutorialEvent[],
+    stepOrder?: readonly string[],
+): CheckStatRow[] => {
+    const answered = new Map<string, Set<string>>();
+    const correct = new Map<string, Set<string>>();
+    const seenOrder: string[] = [];
+
+    for (const e of events) {
+        if (e.eventType !== "check_answered") continue;
+        if (!answered.has(e.stepId)) {
+            answered.set(e.stepId, new Set());
+            seenOrder.push(e.stepId);
+        }
+        answered.get(e.stepId)!.add(e.workspaceId);
+        if (e.payload?.correct) {
+            if (!correct.has(e.stepId)) correct.set(e.stepId, new Set());
+            correct.get(e.stepId)!.add(e.workspaceId);
+        }
+    }
+
+    const stepIds = stepOrder ? stepOrder.filter((s) => answered.has(s)) : seenOrder;
+    return stepIds.map((stepId) => ({
+        stepId,
+        answered: answered.get(stepId)?.size ?? 0,
+        correct: correct.get(stepId)?.size ?? 0,
+    }));
+};
+
 export interface WorkspaceTutorialProgress {
     completedStepIds: string[];
     furthestStepId: string | null;

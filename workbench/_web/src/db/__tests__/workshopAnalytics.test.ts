@@ -154,6 +154,43 @@ describe("workshop analytics", () => {
         expect(csv).toContain('"It said 5+5 = 11, with commas, and was sure."');
     });
 
+    it("surfaces embedded-check answers, per-step pass rates, and CSV check rows", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const ws1 = await createWorkspace("user-1111", "S1", workshop.id, {
+            prolificPid: "PID-1",
+            studyId: "STUDY-1",
+            sessionId: "SESS-1",
+        });
+        const ws2 = await createWorkspace("user-2222", "S2", workshop.id);
+
+        await insertTutorialEvent({
+            workspaceId: ws1.id,
+            stepId: "u0-orientation",
+            eventType: "check_answered",
+            payload: { answer: "Paris", correct: true },
+        });
+        await insertTutorialEvent({
+            workspaceId: ws2.id,
+            stepId: "u0-orientation",
+            eventType: "check_answered",
+            payload: { answer: "London", correct: false },
+        });
+
+        const a = await getWorkshopAnalytics(workshop.id, TUTORIAL_STEP_ORDER);
+        expect(a.tutorial.checks.length).toBe(2);
+        const u0 = a.tutorial.checkStats.find((c) => c.stepId === "u0-orientation")!;
+        expect(u0.answered).toBe(2);
+        expect(u0.correct).toBe(1);
+
+        const csv = buildWorkshopCsv(a);
+        const lines = csv.split("\n");
+        expect(lines[0]).toContain("study_id");
+        expect(lines[0]).toContain("session_id");
+        // The Prolific triple rides the participant row so checks join on it.
+        expect(lines.some((l) => l.startsWith("participant,") && l.includes("STUDY-1"))).toBe(true);
+        expect(lines.some((l) => l.startsWith("check,") && l.includes("Paris"))).toBe(true);
+    });
+
     it("buckets timestamps into sorted UTC day counts", () => {
         const buckets = bucketByDay([
             new Date("2026-07-16T10:00:00Z"),

@@ -14,9 +14,28 @@ import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
+import type { TutorialContent } from "@/types/tutorial-content";
 
 export const workshopTools = ["lens2", "activation-patching", "patch-lens"] as const;
 export type WorkshopTool = (typeof workshopTools)[number];
+
+// Tutorial = the guided-activity content a workshop runs (the 7-unit Prolific
+// tutorial and any future variants). Content lives in `data` (jsonb) so copy,
+// prompts, hints, and checks are editable through the workshop admin UI without
+// a code change. Workshops reference one tutorial; a null reference falls back
+// to the seeded demo tutorial.
+export const tutorials = pgTable("tutorials", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: 256 }).notNull(),
+    slug: varchar("slug", { length: 64 }).notNull().unique(),
+    data: jsonb("data").$type<TutorialContent>().notNull(),
+    createdBy: varchar("created_by", { length: 256 }).notNull().default(""),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+        .defaultNow()
+        .notNull()
+        .$onUpdate(() => new Date()),
+});
 
 // Workshop = a shareable join link (/w/{slug}) plus the constraints applied to
 // workspaces created through it: which tools participants can use, the model
@@ -30,8 +49,14 @@ export const workshops = pgTable("workshops", {
     allowedTools: jsonb("allowed_tools").$type<WorkshopTool[]>().notNull(),
     model: varchar("model", { length: 256 }).notNull(),
     starterPrompt: varchar("starter_prompt", { length: 2048 }).notNull().default(""),
-    // Text shown to a participant when they finish the tutorial (e.g. the
-    // Prolific completion code + a thank-you). Per-workshop, not an env value.
+    // The guided tutorial this workshop runs. Null → the seeded demo tutorial.
+    tutorialId: uuid("tutorial_id").references(() => tutorials.id, { onDelete: "set null" }),
+    // Where a participant is sent after finishing the tutorial. The survey (not
+    // the tool) issues the Prolific completion code, so the finish screen links
+    // here instead of showing a code.
+    surveyUrl: varchar("survey_url", { length: 2048 }).notNull().default(""),
+    // Legacy: per-workshop finish text. Retired from the finish flow in favor of
+    // surveyUrl; kept as optional thank-you copy for backwards compatibility.
     completionText: varchar("completion_text", { length: 4096 }).notNull().default(""),
     // When true the workshop model is only the participant's default; they may
     // switch models. When false (default) the model is locked to the workshop's.
@@ -179,6 +204,9 @@ export const tutorialEvents = pgTable(
 );
 
 // Generate types from schema
+export type Tutorial = typeof tutorials.$inferSelect;
+export type NewTutorial = typeof tutorials.$inferInsert;
+
 export type Workshop = typeof workshops.$inferSelect;
 export type NewWorkshop = typeof workshops.$inferInsert;
 

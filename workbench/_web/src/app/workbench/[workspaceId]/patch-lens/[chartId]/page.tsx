@@ -19,6 +19,7 @@ import { getLensRunHeatmapsByIds } from "@/lib/queries/lensRunQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { useCapture } from "@/lib/analytics";
 import { TutorialEventProvider } from "@/components/providers/TutorialEventProvider";
+import { TutorialSpotlightProvider } from "@/components/providers/TutorialSpotlightProvider";
 import type { PatchLensChartData } from "@/types/patchLens";
 import type { NormalizedRun } from "@/lib/lensRun";
 
@@ -187,6 +188,7 @@ export default function PatchLensChartPage() {
     if (isMobile) {
         return (
             <TutorialEventProvider>
+                <TutorialSpotlightProvider>
                 <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pb-20 gap-2">
                     <MobileCollapsibleControls
                         label="Patch Lens"
@@ -214,12 +216,14 @@ export default function PatchLensChartPage() {
                     </div>
                     <MobileSidebarDrawer />
                 </div>
+                </TutorialSpotlightProvider>
             </TutorialEventProvider>
         );
     }
 
     return (
         <TutorialEventProvider>
+            <TutorialSpotlightProvider>
             <div className="size-full flex min-h-0">
                 <ChartCardsSidebar />
                 <div className="flex-1 min-w-0 min-h-0 pb-3 pr-3">
@@ -259,6 +263,7 @@ export default function PatchLensChartPage() {
                     </ResizablePanelGroup>
                 </div>
             </div>
+            </TutorialSpotlightProvider>
         </TutorialEventProvider>
     );
 }
