@@ -127,6 +127,19 @@ export function TutorialActivityPanel({
     const hintStage = store.hintStageByUnit[store.unitIdx] ?? 0;
     const completed = store.completedUnits.includes(store.unitIdx);
     const isLast = store.unitIdx === total - 1;
+
+    // Embedded-check answer key + gate. A patch unit scores against the TARGET's
+    // post-patch output (recorded from the widget on a patch applied to THIS
+    // unit); every other unit scores against its own run's top/second token.
+    const isPatchUnit = unit.progression.on === "patch";
+    const checkExpected = isPatchUnit
+        ? store.patchResultToken
+        : unit.check?.kind === "secondToken"
+          ? secondToken
+          : topToken;
+    const checkHasRun = isPatchUnit
+        ? store.patchResultUnitIdx === store.unitIdx && store.patchResultToken != null
+        : runUnitIdx === store.unitIdx && topToken != null;
     // Clamp the persisted position into the current viewport (a window resize or
     // a different monitor could otherwise place it off-screen). Same bounds as
     // the drag-end clamp; reached only after mount, so `window` exists.
@@ -298,16 +311,18 @@ export function TutorialActivityPanel({
                             <EmbeddedCheck
                                 key={`check-${store.unitIdx}`}
                                 question={unit.check.question}
-                                expected={
-                                    unit.check.kind === "secondToken" ? secondToken : topToken
-                                }
+                                expected={checkExpected}
                                 placeholder={unit.answerPlaceholder}
-                                // Only answerable once THIS unit has been run — the
-                                // topToken/secondToken belong to runUnitIdx's run, so
-                                // scoring a different unit's answer against them would
-                                // be wrong. A stale run from a prior unit reads as
-                                // "run a prompt first" rather than auto-scoring.
-                                hasRun={runUnitIdx === store.unitIdx && topToken != null}
+                                // Only answerable once THIS unit's action has run —
+                                // the answer key (a run's tokens, or the patch
+                                // outcome) belongs to this unit, so scoring a
+                                // different unit's answer against it would be wrong.
+                                // A stale result reads as "do the step first" rather
+                                // than auto-scoring.
+                                hasRun={checkHasRun}
+                                notRunMessage={
+                                    isPatchUnit ? "Apply the patch first, then answer." : undefined
+                                }
                                 onAnswer={(answer, correct) => store.answerCheck(answer, correct)}
                                 alreadyAnswered={!!store.checkAnsweredByUnit[store.unitIdx]}
                             />
@@ -446,6 +461,7 @@ function EmbeddedCheck({
     expected,
     placeholder,
     hasRun,
+    notRunMessage,
     alreadyAnswered,
     onAnswer,
 }: {
@@ -453,6 +469,7 @@ function EmbeddedCheck({
     expected: string | null;
     placeholder?: string;
     hasRun: boolean;
+    notRunMessage?: string;
     alreadyAnswered: boolean;
     onAnswer: (answer: string, correct: boolean) => void;
 }) {
@@ -474,7 +491,9 @@ function EmbeddedCheck({
         <div className="rounded border bg-background p-2.5 flex flex-col gap-1.5">
             <p className="text-xs font-medium">{question}</p>
             {!hasRun ? (
-                <p className="text-xs text-muted-foreground">Run a prompt first, then answer.</p>
+                <p className="text-xs text-muted-foreground">
+                    {notRunMessage ?? "Run a prompt first, then answer."}
+                </p>
             ) : (
                 <>
                     <div className="flex items-center gap-1.5">

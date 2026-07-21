@@ -40,6 +40,11 @@ interface ProlificTutorialState {
     completedUnits: number[];
     checkAnsweredByUnit: Record<number, boolean>;
     observationByUnit: Record<number, boolean>;
+    // The TARGET's post-patch top predicted token, and the unit it was applied
+    // on — so a patch unit's embedded check scores against the actual patch
+    // outcome (not the source's pre-patch prediction). Ephemeral (not persisted).
+    patchResultToken: string | null;
+    patchResultUnitIdx: number | null;
     // Floating-overlay UI state (persisted): last drag position + collapsed.
     panelPos: PanelPos | null;
     collapsed: boolean;
@@ -58,6 +63,9 @@ interface ProlificTutorialState {
     recordRun: (topToken: string | null, unitIdx?: number) => void;
     /** A patch was applied (patch-unit progression). */
     markPatchApplied: () => void;
+    /** Feed the TARGET's post-patch top token (from the widget) so a patch unit's
+     * embedded check can score against the actual patch outcome. */
+    recordPatchResult: (topToken: string | null) => void;
     /** Reveal the next hint rung; returns the new highest stage. */
     revealHint: () => number;
     answerCheck: (answer: string, correct: boolean) => void;
@@ -110,6 +118,8 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
             completedUnits: [],
             checkAnsweredByUnit: {},
             observationByUnit: {},
+            patchResultToken: null,
+            patchResultUnitIdx: null,
             panelPos: null,
             collapsed: false,
 
@@ -139,6 +149,8 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                     completedUnits: [],
                     checkAnsweredByUnit: {},
                     observationByUnit: {},
+                    patchResultToken: null,
+                    patchResultUnitIdx: null,
                 });
             },
 
@@ -201,6 +213,20 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 const unit = state.units[state.unitIdx];
                 if (unit?.progression.on !== "patch") return;
                 set(completeUnit(state, state.unitIdx));
+            },
+
+            recordPatchResult: (topToken) => {
+                const state = get();
+                // Only relevant while the guided tutorial is running; pin to the
+                // current unit so the check can require a patch on THIS unit.
+                if (!state.active) return;
+                if (
+                    state.patchResultToken === topToken &&
+                    state.patchResultUnitIdx === state.unitIdx
+                ) {
+                    return;
+                }
+                set({ patchResultToken: topToken, patchResultUnitIdx: state.unitIdx });
             },
 
             revealHint: () => {
@@ -266,6 +292,8 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                     completedUnits: [],
                     checkAnsweredByUnit: {},
                     observationByUnit: {},
+                    patchResultToken: null,
+                    patchResultUnitIdx: null,
                 }),
         }),
         {

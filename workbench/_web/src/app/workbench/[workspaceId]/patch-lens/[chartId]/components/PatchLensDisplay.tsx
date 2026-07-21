@@ -70,6 +70,7 @@ export function PatchLensDisplay({
     const capture = useCapture();
     const { emit: emitTutorialEvent } = useTutorialEmit();
     const markPatchApplied = useProlificTutorial((s) => s.markPatchApplied);
+    const recordPatchResult = useProlificTutorial((s) => s.recordPatchResult);
     const { selectedModelIdx } = useWorkspace();
     const queryClient = useQueryClient();
 
@@ -305,6 +306,11 @@ export function PatchLensDisplay({
                 onResetIntervention={handleResetIntervention}
                 isInterventionPending={isInterventionPending}
                 onEvent={handleWidgetEvent}
+                // The TARGET's post-patch output token, so a guided-tutorial patch
+                // unit's check scores against the actual patch outcome rather than
+                // the source's pre-patch prediction. Not analytics — the store
+                // routes it to the tutorial check, never to capture()/PostHog.
+                onInterventionResult={recordPatchResult}
             />
         </div>
     );
