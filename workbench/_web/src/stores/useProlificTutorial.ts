@@ -102,7 +102,16 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
             panelPos: null,
             collapsed: false,
 
-            setUnits: (units) => set({ units }),
+            setUnits: (units) =>
+                set((s) => ({
+                    units,
+                    // Content is DB-driven and can change (admin edit / shorter
+                    // tutorial) between a participant's visits. Clamp the persisted
+                    // index so `units[unitIdx]` can never be undefined — otherwise
+                    // the panel's `!unit` guard hides the whole tutorial and the
+                    // participant can't advance or reach the survey handoff.
+                    unitIdx: Math.min(s.unitIdx, Math.max(0, units.length - 1)),
+                })),
 
             setWorkspace: (workspaceId) => {
                 const prev = get().workspaceId;
@@ -184,9 +193,15 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 const state = get();
                 const idx = state.unitIdx;
                 const unit = state.units[idx];
-                const maxStage = unit?.hints.length ?? 0;
+                // `hintStageByUnit` is a threshold compared against each rung's
+                // free-form `stage`, so advance to the next actual stage value —
+                // not current+1 — or non-contiguous stages (e.g. [1,2,4]) strand
+                // the last rung when the count cap (hints.length) never reaches it.
+                const stages = [...new Set((unit?.hints ?? []).map((h) => h.stage))].sort(
+                    (a, b) => a - b,
+                );
                 const current = state.hintStageByUnit[idx] ?? 0;
-                const nextStage = Math.min(current + 1, maxStage);
+                const nextStage = stages.find((s) => s > current) ?? current;
                 if (nextStage === current) return current;
                 set({ hintStageByUnit: { ...state.hintStageByUnit, [idx]: nextStage } });
                 emit(state.workspaceId, stepIdForUnit(state, idx), "hint_shown", {

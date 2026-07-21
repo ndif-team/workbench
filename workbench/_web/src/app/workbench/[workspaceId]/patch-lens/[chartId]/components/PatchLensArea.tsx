@@ -509,7 +509,8 @@ export default function PatchLensArea({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={() => prolificTutorial.start()}>
-                                Guided tutorial (7 steps)
+                                Guided tutorial
+                                {tutorialContent ? ` (${tutorialContent.units.length} steps)` : ""}
                             </DropdownMenuItem>
                             {PatchLensTutorial.chapters.map((chapter, idx) => (
                                 <DropdownMenuItem

@@ -126,6 +126,9 @@ export function TutorialActivityPanel({
                     size="icon"
                     className="h-6 w-6 text-muted-foreground/60 hover:text-foreground"
                     title={store.collapsed ? "Expand tutorial" : "Collapse tutorial"}
+                    // Keep the header's drag gesture from swallowing the tap (a few
+                    // px of finger slide on touch would otherwise drag, not click).
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => store.setCollapsed(!store.collapsed)}
                 >
                     {store.collapsed ? (
@@ -139,6 +142,7 @@ export function TutorialActivityPanel({
                     size="icon"
                     className="h-6 w-6 text-muted-foreground/60 hover:text-foreground"
                     title="Exit tutorial"
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={store.stop}
                 >
                     <X className="h-3.5 w-3.5" />
@@ -163,9 +167,16 @@ export function TutorialActivityPanel({
                 dragElastic={0}
                 initial={{ x: initialPos.x, y: initialPos.y }}
                 onDragEnd={(_e, info) => {
+                    // info.offset is the raw pointer delta (dragConstraints only
+                    // pin the element visually), so clamp before persisting — an
+                    // over-drag would otherwise save an off-screen coordinate that
+                    // an in-session exit→reopen remounts to, hiding the panel. Same
+                    // bounds as the store's onRehydrateStorage clamp.
+                    const maxX = Math.max(0, window.innerWidth - 320);
+                    const maxY = Math.max(0, window.innerHeight - 120);
                     store.setPanelPos({
-                        x: initialPos.x + info.offset.x,
-                        y: initialPos.y + info.offset.y,
+                        x: Math.min(Math.max(0, initialPos.x + info.offset.x), maxX),
+                        y: Math.min(Math.max(0, initialPos.y + info.offset.y), maxY),
                     });
                 }}
                 style={{ position: "absolute", top: 0, left: 0 }}
@@ -314,7 +325,9 @@ function HintLadder({
     autoOffer: boolean;
     onReveal: () => void;
 }) {
-    const maxStage = hints.length;
+    // Highest actual rung stage (not the count) — hint stages may be
+    // non-contiguous, so the "more hints" affordance keys off the max value.
+    const maxStage = hints.reduce((m, h) => Math.max(m, h.stage), 0);
     const revealed = hints.filter((h) => h.stage <= revealedStage);
     return (
         <div className="flex flex-col gap-1.5">

@@ -19,17 +19,29 @@ export function CompletionCta({ surveyUrl, thanks }: { surveyUrl?: string; thank
     return (
         <div className="rounded border border-primary/40 bg-primary/5 p-3">
             <p className="text-sm font-medium">You’re done — thank you!</p>
-            {note && <p className="mt-1 text-xs text-muted-foreground leading-snug">{note}</p>}
             {url ? (
-                <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                    Continue to the survey
-                    <ArrowRight className="h-4 w-4" />
-                </a>
+                <>
+                    {note && (
+                        <p className="mt-1 text-xs text-muted-foreground leading-snug">{note}</p>
+                    )}
+                    <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                        Continue to the survey
+                        <ArrowRight className="h-4 w-4" />
+                    </a>
+                </>
+            ) : note ? (
+                // No survey configured: this thank-you copy is the only end-state
+                // signal and may carry a Prolific completion code (legacy
+                // completion_text), so present it legibly and selectable rather
+                // than as a muted aside a participant could close past unsubmitted.
+                <p className="mt-2 select-all whitespace-pre-wrap rounded border bg-background px-2 py-1.5 text-sm leading-snug">
+                    {note}
+                </p>
             ) : (
                 <p className="mt-2 text-xs text-muted-foreground">
                     Thanks for completing the tutorial — you can close this tab.

@@ -69,6 +69,10 @@ export interface WorkshopAnalytics {
         observations: ObservationRow[];
         checks: CheckAnswerRow[];
         checkStats: CheckStatRow[];
+        // The canonical last unit id (from the workshop's step order). Distinct
+        // from the funnel's last row, which is only the furthest step *reached* —
+        // the completion KPI must divide by this step, not by whatever showed up.
+        finalStepId: string | null;
     };
 }
 
@@ -98,7 +102,7 @@ const empty = (): WorkshopAnalytics => ({
     },
     series: { joinsPerDay: [], runsPerDay: [] },
     participants: [],
-    tutorial: { funnel: [], observations: [], checks: [], checkStats: [] },
+    tutorial: { funnel: [], observations: [], checks: [], checkStats: [], finalStepId: null },
 });
 
 export const getWorkshopAnalytics = async (
@@ -220,7 +224,13 @@ export const getWorkshopAnalytics = async (
             runsPerDay: bucketByDay(runRows.map((r) => r.createdAt)),
         },
         participants,
-        tutorial: { funnel, observations, checks, checkStats },
+        tutorial: {
+            funnel,
+            observations,
+            checks,
+            checkStats,
+            finalStepId: stepOrder && stepOrder.length > 0 ? stepOrder[stepOrder.length - 1] : null,
+        },
     };
 };
 
@@ -236,7 +246,9 @@ export const getWorkshopAnalytics = async (
 const csvCell = (value: string | number | null): string => {
     let s = value == null ? "" : String(value);
     if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    // Quote on any record/field separator — a lone \r (not just \n) is treated as
+    // a row terminator by Excel/pandas and would split the row if left unquoted.
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
 const csvRow = (cells: (string | number | null)[]): string => cells.map(csvCell).join(",");

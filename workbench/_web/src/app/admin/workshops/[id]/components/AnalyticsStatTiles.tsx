@@ -17,12 +17,17 @@ function Tile({ label, value }: { label: string; value: string | number }) {
  * started the first unit (0 when nobody has started — avoids NaN).
  */
 function completionPct(analytics: WorkshopAnalytics): number {
-    const funnel = analytics.tutorial.funnel;
+    const { funnel, finalStepId } = analytics.tutorial;
     if (funnel.length === 0) return 0;
     const firstStarted = funnel[0].started;
-    const lastCompleted = funnel[funnel.length - 1].completed;
     if (firstStarted === 0) return 0;
-    return Math.round((lastCompleted / firstStarted) * 100);
+    // Count completions of the *canonical* final unit, not the last funnel row:
+    // deriveFunnel drops steps with no events, so its last row is only the
+    // furthest step reached. If nobody reached the final unit it has no row →
+    // 0 completions → 0%, which is the truthful KPI.
+    const finalRow = finalStepId ? funnel.find((f) => f.stepId === finalStepId) : undefined;
+    const finalCompleted = finalRow?.completed ?? 0;
+    return Math.round((finalCompleted / firstStarted) * 100);
 }
 
 export function AnalyticsStatTiles({ analytics }: { analytics: WorkshopAnalytics }) {

@@ -63,7 +63,12 @@ export const useDeleteTutorial = () => {
     return useMutation({
         mutationFn: (id: string) => deleteTutorial(id),
         onError: () => toast.error("Failed to delete tutorial"),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.tutorials.all }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.tutorials.all });
+            // deleteTutorial nulls workshops.tutorialId; refetch workshops so a
+            // stale edit dialog doesn't re-submit the deleted id (FK violation).
+            queryClient.invalidateQueries({ queryKey: queryKeys.workshops.all });
+        },
     });
 };
 

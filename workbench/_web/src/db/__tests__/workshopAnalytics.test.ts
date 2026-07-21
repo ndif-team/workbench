@@ -131,6 +131,12 @@ describe("workshop analytics", () => {
         const p1 = a.participants.find((p) => p.workspaceId === ws1.id)!;
         expect(p1.furthestStepId).toBe("u1-answers");
         expect(p1.hintsUsed).toBe(1);
+
+        // The canonical final unit is surfaced even though nobody reached it, so
+        // the completion KPI divides by it (0 completions) rather than by the
+        // furthest step actually reached (u1) — no inflated completion %.
+        expect(a.tutorial.finalStepId).toBe("u6-challenge");
+        expect(a.tutorial.funnel.find((f) => f.stepId === "u6-challenge")).toBeUndefined();
     });
 
     it("emits a two-section CSV (participants + observations) with a header", async () => {

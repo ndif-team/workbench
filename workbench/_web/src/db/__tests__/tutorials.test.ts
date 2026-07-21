@@ -16,6 +16,7 @@ import {
     updateTutorial,
     deleteTutorial,
     resolveTutorialForWorkspace,
+    getTutorialStepOrderForWorkshop,
     validateTutorialContent,
 } from "@/lib/queries/tutorialContentDb";
 import { createWorkshop, getWorkshopById } from "@/lib/queries/workshopDb";
@@ -107,5 +108,43 @@ describe("tutorial content", () => {
         const workshop = await createWorkshop(workshopInput({ tutorialId: custom.id }));
         await deleteTutorial(custom.id);
         expect((await getWorkshopById(workshop.id))?.tutorialId ?? null).toBeNull();
+    });
+
+    it("derives the analytics step order from the workshop's assigned tutorial", async () => {
+        const custom = await createTutorial({ name: "Custom", data: tinyContent("only") });
+        const withTutorial = await createWorkshop(workshopInput({ tutorialId: custom.id }));
+        const withoutTutorial = await createWorkshop(workshopInput({ name: "No tutorial" }));
+
+        // Custom tutorial → its own unit ids (not the demo's canonical order).
+        expect(await getTutorialStepOrderForWorkshop(withTutorial.id)).toEqual(["only"]);
+        // No assigned tutorial → falls back to the seed demo's unit ids.
+        expect(await getTutorialStepOrderForWorkshop(withoutTutorial.id)).toEqual(
+            PROLIFIC_TUTORIAL_SEED.units.map((u) => u.id),
+        );
+    });
+
+    it("rejects units missing prompts/hints/progression or with an over-long id", () => {
+        const base = tinyContent().units[0];
+        // Missing hints array → would crash the participant panel.
+        expect(() =>
+            validateTutorialContent({
+                version: 1,
+                units: [{ ...base, hints: undefined as never }],
+            }),
+        ).toThrow();
+        // Over-long id → tutorial_events.stepId (varchar(64)) would drop events.
+        expect(() =>
+            validateTutorialContent({
+                version: 1,
+                units: [{ ...base, id: "x".repeat(65) }],
+            }),
+        ).toThrow();
+        // Unsupported check kind → would silently mis-score.
+        expect(() =>
+            validateTutorialContent({
+                version: 1,
+                units: [{ ...base, check: { question: "?", kind: "layerBand" } }],
+            }),
+        ).toThrow();
     });
 });

@@ -36,7 +36,14 @@ const slugify = (name: string): string =>
 
 const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
 
-/** Content shape guard — rejects empty/duplicate-id unit sets before persisting. */
+/**
+ * Content shape guard for admin-authored JSON (which bypasses the TS types). The
+ * participant panel and store dereference `prompts`, `hints`, and `progression`
+ * on every unit with no runtime guard, so a structurally-incomplete unit would
+ * crash the tutorial to the error boundary; unit ids are stored in
+ * tutorial_events.stepId (varchar(64)), so an over-long id would make telemetry
+ * silently drop that unit's events. Reject all of that at authoring time.
+ */
 export const validateTutorialContent = (content: TutorialContent): TutorialContent => {
     if (!content || !Array.isArray(content.units) || content.units.length === 0) {
         throw new Error("Tutorial must have at least one unit");
@@ -45,8 +52,32 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
     if (new Set(ids).size !== ids.length) {
         throw new Error("Tutorial unit ids must be unique");
     }
+    const validOn = new Set(["run", "patch", "manual"]);
+    // Only the run-derived check kinds are wired up in the panel; layerBand has a
+    // type slot but no scoring, so reject it rather than let it mis-score.
+    const validCheckKinds = new Set(["topToken", "secondToken"]);
     for (const u of content.units) {
         if (!u.id || !u.title) throw new Error("Every unit needs an id and a title");
+        if (u.id.length > 64) {
+            throw new Error(`Unit id "${u.id}" exceeds 64 characters`);
+        }
+        if (!Array.isArray(u.prompts)) {
+            throw new Error(`Unit "${u.id}" needs a prompts array`);
+        }
+        if (!Array.isArray(u.hints)) {
+            throw new Error(`Unit "${u.id}" needs a hints array`);
+        }
+        for (const h of u.hints) {
+            if (typeof h?.stage !== "number" || typeof h?.text !== "string") {
+                throw new Error(`Unit "${u.id}" has a malformed hint rung`);
+            }
+        }
+        if (!u.progression || !validOn.has(u.progression.on)) {
+            throw new Error(`Unit "${u.id}" needs a progression.on of run, patch, or manual`);
+        }
+        if (u.check && !validCheckKinds.has(u.check.kind)) {
+            throw new Error(`Unit "${u.id}" has an unsupported check kind "${u.check.kind}"`);
+        }
     }
     return content;
 };
@@ -150,4 +181,25 @@ export const resolveTutorialForWorkspace = async (
 
     const demo = await getTutorialBySlug(PROLIFIC_TUTORIAL_SLUG);
     return (demo?.data as TutorialContent | undefined) ?? PROLIFIC_TUTORIAL_SEED;
+};
+
+/**
+ * The canonical step-id order for a workshop's analytics — the unit ids of the
+ * tutorial that workshop actually runs (its assigned tutorial, else the seeded
+ * demo). The funnel/check/progress derivations key on this; using it instead of
+ * a hard-coded constant keeps analytics correct for custom or edited tutorials.
+ */
+export const getTutorialStepOrderForWorkshop = async (workshopId: string): Promise<string[]> => {
+    const rows = await db
+        .select({ data: tutorials.data })
+        .from(workshops)
+        .innerJoin(tutorials, eq(workshops.tutorialId, tutorials.id))
+        .where(eq(workshops.id, workshopId))
+        .limit(1);
+    const assigned = rows[0]?.data as TutorialContent | undefined;
+    const content =
+        assigned ??
+        ((await getTutorialBySlug(PROLIFIC_TUTORIAL_SLUG))?.data as TutorialContent | undefined) ??
+        PROLIFIC_TUTORIAL_SEED;
+    return content.units.map((u) => u.id);
 };
