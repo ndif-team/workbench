@@ -3,15 +3,17 @@
 import type { WorkshopAnalytics } from "@/lib/queries/workshopAnalyticsDb";
 import { TUTORIAL_STEP_LABELS, type TutorialStepId } from "@/tutorials/prolificSteps";
 
-const stepLabel = (stepId: string) => TUTORIAL_STEP_LABELS[stepId as TutorialStepId] ?? stepId;
-
 /**
  * Per-step started→completed funnel (plain bars — no chart lib needed) plus the
  * observations list grouped by step. Observation text is app-DB-only research
  * data; admins-only surface.
  */
 export function TutorialSection({ analytics }: { analytics: WorkshopAnalytics }) {
-    const { funnel, observations, checkStats } = analytics.tutorial;
+    const { funnel, observations, checkStats, stepLabels } = analytics.tutorial;
+    // Prefer the workshop tutorial's own unit titles; fall back to the demo id
+    // map, then the raw id, so custom/edited tutorials aren't left unlabeled.
+    const stepLabel = (stepId: string) =>
+        stepLabels[stepId] ?? TUTORIAL_STEP_LABELS[stepId as TutorialStepId] ?? stepId;
     const maxStarted = Math.max(1, ...funnel.map((f) => f.started));
 
     const byStep = new Map<string, typeof observations>();

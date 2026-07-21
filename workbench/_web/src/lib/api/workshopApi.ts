@@ -61,8 +61,11 @@ export const useUpdateWorkshop = () => {
             updates: Partial<Omit<WorkshopInput, "createdBy">>;
         }) => updateWorkshop(id, updates),
         onError: () => toast.error("Failed to update workshop"),
-        onSuccess: () => {
+        onSuccess: (_data, { id }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.workshops.all });
+            // An edit can reassign the tutorial or change gating, both of which
+            // alter the analytics dashboard's step order / funnel.
+            queryClient.invalidateQueries({ queryKey: queryKeys.workshops.analytics(id) });
         },
     });
 };

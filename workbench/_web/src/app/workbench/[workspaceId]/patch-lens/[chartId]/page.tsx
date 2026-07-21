@@ -204,6 +204,7 @@ export default function PatchLensChartPage() {
                                 lensResult={lensResult}
                                 lastRunSrcPrompt={lastRunSrcPrompt}
                                 lastRunTgtPrompt={lastRunTgtPrompt}
+                                restoreNonce={restoreNonce}
                                 onSelectRun={handleSelectRun}
                             />
                         </MobileCollapsibleControls>

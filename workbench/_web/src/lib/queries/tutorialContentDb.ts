@@ -75,6 +75,23 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
         if (!u.progression || !validOn.has(u.progression.on)) {
             throw new Error(`Unit "${u.id}" needs a progression.on of run, patch, or manual`);
         }
+        // A malformed successPredicate silently mis-scores at runtime (an omitted
+        // value makes topTokenNotEqual always-true; a typo'd kind never completes),
+        // so validate it here the same way check.kind is validated below.
+        const pred = u.progression.successPredicate;
+        if (pred !== undefined) {
+            if (pred.kind === "topTokenNotEqual") {
+                if (typeof pred.value !== "string" || pred.value.length === 0) {
+                    throw new Error(
+                        `Unit "${u.id}" topTokenNotEqual predicate needs a non-empty value`,
+                    );
+                }
+            } else if (pred.kind !== "always") {
+                throw new Error(
+                    `Unit "${u.id}" has an unsupported successPredicate kind "${(pred as { kind?: string }).kind}"`,
+                );
+            }
+        }
         if (u.check && !validCheckKinds.has(u.check.kind)) {
             throw new Error(`Unit "${u.id}" has an unsupported check kind "${u.check.kind}"`);
         }
@@ -169,18 +186,26 @@ export const ensureSeedTutorial = async (): Promise<Tutorial> => {
 export const resolveTutorialForWorkspace = async (
     workspaceId: string,
 ): Promise<TutorialContent> => {
-    const rows = await db
-        .select({ data: tutorials.data })
-        .from(workspaces)
-        .innerJoin(workshops, eq(workspaces.workshopId, workshops.id))
-        .innerJoin(tutorials, eq(workshops.tutorialId, tutorials.id))
-        .where(eq(workspaces.id, workspaceId))
-        .limit(1);
-    const assigned = rows[0]?.data as TutorialContent | undefined;
-    if (assigned) return assigned;
+    // Never leave a (workshop) participant with no tutorial: on any DB error fall
+    // back to the in-code seed rather than throwing, since in workshop mode the
+    // guided tutorial replaces the reactour walkthrough and a throw would strand
+    // the participant with no onboarding and no path to the survey handoff.
+    try {
+        const rows = await db
+            .select({ data: tutorials.data })
+            .from(workspaces)
+            .innerJoin(workshops, eq(workspaces.workshopId, workshops.id))
+            .innerJoin(tutorials, eq(workshops.tutorialId, tutorials.id))
+            .where(eq(workspaces.id, workspaceId))
+            .limit(1);
+        const assigned = rows[0]?.data as TutorialContent | undefined;
+        if (assigned) return assigned;
 
-    const demo = await getTutorialBySlug(PROLIFIC_TUTORIAL_SLUG);
-    return (demo?.data as TutorialContent | undefined) ?? PROLIFIC_TUTORIAL_SEED;
+        const demo = await getTutorialBySlug(PROLIFIC_TUTORIAL_SLUG);
+        return (demo?.data as TutorialContent | undefined) ?? PROLIFIC_TUTORIAL_SEED;
+    } catch {
+        return PROLIFIC_TUTORIAL_SEED;
+    }
 };
 
 /**
@@ -189,7 +214,9 @@ export const resolveTutorialForWorkspace = async (
  * demo). The funnel/check/progress derivations key on this; using it instead of
  * a hard-coded constant keeps analytics correct for custom or edited tutorials.
  */
-export const getTutorialStepOrderForWorkshop = async (workshopId: string): Promise<string[]> => {
+export const getTutorialStepMetaForWorkshop = async (
+    workshopId: string,
+): Promise<{ order: string[]; labels: Record<string, string> }> => {
     const rows = await db
         .select({ data: tutorials.data })
         .from(workshops)
@@ -201,5 +228,14 @@ export const getTutorialStepOrderForWorkshop = async (workshopId: string): Promi
         assigned ??
         ((await getTutorialBySlug(PROLIFIC_TUTORIAL_SLUG))?.data as TutorialContent | undefined) ??
         PROLIFIC_TUTORIAL_SEED;
-    return content.units.map((u) => u.id);
+    return {
+        order: content.units.map((u) => u.id),
+        // id → human title, so analytics labels the funnel/table from the tutorial
+        // the workshop actually runs instead of a hard-coded id map that only
+        // covers the demo's unit ids.
+        labels: Object.fromEntries(content.units.map((u) => [u.id, u.title])),
+    };
 };
+
+export const getTutorialStepOrderForWorkshop = async (workshopId: string): Promise<string[]> =>
+    (await getTutorialStepMetaForWorkshop(workshopId)).order;

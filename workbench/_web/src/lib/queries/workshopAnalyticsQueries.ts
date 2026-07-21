@@ -3,7 +3,7 @@
 import { requireAdmin } from "@/lib/auth/admin";
 import * as analyticsDb from "@/lib/queries/workshopAnalyticsDb";
 import type { WorkshopAnalytics } from "@/lib/queries/workshopAnalyticsDb";
-import { getTutorialStepOrderForWorkshop } from "@/lib/queries/tutorialContentDb";
+import { getTutorialStepMetaForWorkshop } from "@/lib/queries/tutorialContentDb";
 
 /**
  * Admin-guarded analytics RPC surface. Every export re-checks the ADMIN_EMAILS
@@ -17,14 +17,14 @@ import { getTutorialStepOrderForWorkshop } from "@/lib/queries/tutorialContentDb
 
 export async function getWorkshopAnalytics(workshopId: string): Promise<WorkshopAnalytics> {
     await requireAdmin();
-    const stepOrder = await getTutorialStepOrderForWorkshop(workshopId);
-    return analyticsDb.getWorkshopAnalytics(workshopId, stepOrder);
+    const { order, labels } = await getTutorialStepMetaForWorkshop(workshopId);
+    return analyticsDb.getWorkshopAnalytics(workshopId, order, labels);
 }
 
 /** CSV of the per-participant rows + one row per observation (CHI analysis input). */
 export async function exportWorkshopCsv(workshopId: string): Promise<string> {
     await requireAdmin();
-    const stepOrder = await getTutorialStepOrderForWorkshop(workshopId);
-    const analytics = await analyticsDb.getWorkshopAnalytics(workshopId, stepOrder);
+    const { order, labels } = await getTutorialStepMetaForWorkshop(workshopId);
+    const analytics = await analyticsDb.getWorkshopAnalytics(workshopId, order, labels);
     return analyticsDb.buildWorkshopCsv(analytics);
 }

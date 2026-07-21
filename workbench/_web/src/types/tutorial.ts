@@ -38,12 +38,6 @@ type PatchAppliedTrigger = {
     type: "patchApplied";
 };
 
-// Advance when the participant submits free text (observation boxes, unit 6).
-type TextSubmitTrigger = {
-    type: "textSubmit";
-    minLength?: number;
-};
-
 type TutorialStepTrigger =
     | ClickTrigger
     | TextInputTrigger
@@ -51,8 +45,7 @@ type TutorialStepTrigger =
     | TokenHighlightTrigger
     | TokenClickTrigger
     | RunCompletedTrigger
-    | PatchAppliedTrigger
-    | TextSubmitTrigger;
+    | PatchAppliedTrigger;
 
 interface ExtendedStepType extends StepType {
     trigger?: TutorialStepTrigger;
@@ -86,7 +79,6 @@ export type {
     TokenClickTrigger,
     RunCompletedTrigger,
     PatchAppliedTrigger,
-    TextSubmitTrigger,
     TutorialChapterProgress,
     TutorialProgress,
 };

@@ -51,8 +51,11 @@ interface ProlificTutorialState {
     goToUnit: (idx: number) => void;
     next: () => void;
     prev: () => void;
-    /** Feed a completed run's top predicted token; evaluates the unit's success. */
-    recordRun: (topToken: string | null) => void;
+    /** Feed a completed run's top predicted token; evaluates the unit's success.
+     * `unitIdx` pins scoring to the unit the run was *initiated* from, so a slow
+     * run that resolves after the participant advances can't complete the wrong
+     * (now-current) unit. Falls back to the current unit when omitted. */
+    recordRun: (topToken: string | null, unitIdx?: number) => void;
     /** A patch was applied (patch-unit progression). */
     markPatchApplied: () => void;
     /** Reveal the next hint rung; returns the new highest stage. */
@@ -166,9 +169,12 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 set({ unitIdx: Math.max(unitIdx - 1, 0) });
             },
 
-            recordRun: (topToken) => {
+            recordRun: (topToken, unitIdx) => {
                 const state = get();
-                const idx = state.unitIdx;
+                // Score the unit the run was initiated from, not whatever unit is
+                // current when the async lens run resolves — otherwise advancing
+                // mid-run completes the wrong (next) unit.
+                const idx = unitIdx ?? state.unitIdx;
                 const unit = state.units[idx];
                 if (!unit) return;
 

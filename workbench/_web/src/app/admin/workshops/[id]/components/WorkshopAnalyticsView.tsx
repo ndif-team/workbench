@@ -98,7 +98,10 @@ export function WorkshopAnalyticsView({ workshopId }: { workshopId: string }) {
                         runsPerDay={analytics.series.runsPerDay}
                     />
                     <TutorialSection analytics={analytics} />
-                    <AnalyticsParticipantsTable participants={analytics.participants} />
+                    <AnalyticsParticipantsTable
+                        participants={analytics.participants}
+                        stepLabels={analytics.tutorial.stepLabels}
+                    />
                 </>
             )}
         </div>

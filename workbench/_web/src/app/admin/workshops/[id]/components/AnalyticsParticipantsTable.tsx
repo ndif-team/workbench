@@ -7,15 +7,19 @@ import { splitRepo } from "@/components/model-selector/status";
 const formatWhen = (d: Date) =>
     new Date(d).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
-const stepLabel = (stepId: string | null) =>
-    stepId ? (TUTORIAL_STEP_LABELS[stepId as TutorialStepId] ?? stepId) : "—";
-
 /** Per-participant rollup. Truncated uid is the identifier (participants are anon). */
 export function AnalyticsParticipantsTable({
     participants,
+    stepLabels,
 }: {
     participants: ParticipantAnalyticsRow[];
+    stepLabels: Record<string, string>;
 }) {
+    // Prefer the workshop tutorial's own unit titles; fall back to the demo id
+    // map, then the raw id, so custom/edited tutorials aren't left unlabeled.
+    const stepLabel = (stepId: string | null) =>
+        stepId ? (stepLabels[stepId] ?? TUTORIAL_STEP_LABELS[stepId as TutorialStepId] ?? stepId) : "—";
+
     return (
         <div className="rounded-md border bg-card shadow-xs">
             <div className="border-b p-3">

@@ -13,6 +13,27 @@
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
 import type { LensRunLastRow } from "@/types/lensRun";
 
+/** The subset of the bulky `LogitLensIntroData` shape the last-row helpers read. */
+interface RawLens {
+    layers: number[];
+    input: string[];
+    tracked: Record<string, number[]>[];
+    topk: string[][][];
+}
+
+/**
+ * Shared cast + emptiness guard for the last-row helpers. Returns the four
+ * non-empty arrays, or null if the data is empty/malformed. Centralised so the
+ * shape assumption lives in one place (a nnsightful field rename breaks here,
+ * not in two divergent copies).
+ */
+function asRawLens(data: LogitLensIntroData | undefined | null): RawLens | null {
+    if (!data) return null;
+    const { layers, input, tracked, topk } = data as unknown as Partial<RawLens>;
+    if (!layers?.length || !input?.length || !tracked?.length || !topk?.length) return null;
+    return { layers, input, tracked, topk };
+}
+
 /**
  * For the final input position, return the top-1 token + probability at each
  * layer. Returns null if the data is empty/malformed.
@@ -21,15 +42,9 @@ import type { LensRunLastRow } from "@/types/lensRun";
  * that returns just the final layer's top-1; this returns the whole column.
  */
 export function extractLastRow(data: LogitLensIntroData | undefined | null): LensRunLastRow | null {
-    if (!data) return null;
-    const raw = data as unknown as {
-        layers?: number[];
-        input?: string[];
-        tracked?: Record<string, number[]>[];
-        topk?: string[][][];
-    };
+    const raw = asRawLens(data);
+    if (!raw) return null;
     const { layers, input, tracked, topk } = raw;
-    if (!layers?.length || !input?.length || !tracked?.length || !topk?.length) return null;
 
     const lastPosIdx = input.length - 1;
     const posTracked = tracked[lastPosIdx] ?? {};
@@ -68,15 +83,9 @@ export function finalPrediction(data: LogitLensIntroData | undefined | null): st
  * scores against the participant's own run. Returns [] on malformed data.
  */
 export function finalTopKTokens(data: LogitLensIntroData | undefined | null, k: number): string[] {
-    if (!data) return [];
-    const raw = data as unknown as {
-        layers?: number[];
-        input?: string[];
-        tracked?: Record<string, number[]>[];
-        topk?: string[][][];
-    };
+    const raw = asRawLens(data);
+    if (!raw) return [];
     const { layers, input, tracked, topk } = raw;
-    if (!layers?.length || !input?.length || !tracked?.length || !topk?.length) return [];
     const finalLayerIdx = layers.length - 1;
     const lastPosIdx = input.length - 1;
     const candidates = topk[finalLayerIdx]?.[lastPosIdx] ?? [];

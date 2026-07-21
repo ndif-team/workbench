@@ -69,6 +69,10 @@ export interface WorkshopAnalytics {
         observations: ObservationRow[];
         checks: CheckAnswerRow[];
         checkStats: CheckStatRow[];
+        // id → human title for the workshop's tutorial units, so the funnel and
+        // participant table label steps from DB content rather than a hard-coded
+        // id map (which only covers the demo's unit ids). Empty when unknown.
+        stepLabels: Record<string, string>;
         // Canonical first / last unit ids (from the workshop's step order),
         // distinct from the funnel's first/last rows, which are only the steps
         // that produced events. The completion KPI divides the final step's
@@ -111,6 +115,7 @@ const empty = (): WorkshopAnalytics => ({
         observations: [],
         checks: [],
         checkStats: [],
+        stepLabels: {},
         firstStepId: null,
         finalStepId: null,
     },
@@ -119,6 +124,7 @@ const empty = (): WorkshopAnalytics => ({
 export const getWorkshopAnalytics = async (
     workshopId: string,
     stepOrder?: readonly string[],
+    stepLabels?: Record<string, string>,
 ): Promise<WorkshopAnalytics> => {
     // 1. Participant workspaces (a join = one workspaces row for the workshop).
     const wsRows = (await db
@@ -143,7 +149,7 @@ export const getWorkshopAnalytics = async (
 
     // 2. Per-workspace chart counts + total documents (grouped; cast to defeat
     //    the dual-schema `any` widening, same as listWorkshops/getWorkspaces).
-    const [chartCountRows, docCountRows, runRows] = await Promise.all([
+    const [chartCountRows, docCountRows, runRows, tutorialEvents] = await Promise.all([
         db
             .select({
                 workspaceId: charts.workspaceId,
@@ -174,6 +180,9 @@ export const getWorkshopAnalytics = async (
             .where(inArray(lensRuns.workspaceId, wsIds)) as Promise<
             Array<{ workspaceId: string; model: string; createdAt: Date }>
         >,
+        // Depends only on workshopId (not wsIds), so it parallelizes with the
+        // per-workspace rollups instead of costing an extra serialized round-trip.
+        getTutorialEventsForWorkshop(workshopId),
     ]);
 
     const chartCountByWs = new Map(chartCountRows.map((r) => [r.workspaceId, Number(r.count)]));
@@ -191,8 +200,8 @@ export const getWorkshopAnalytics = async (
         if (!prev || r.createdAt > prev) lastRunByWs.set(r.workspaceId, r.createdAt);
     }
 
-    // 3. Tutorial events → funnel, observations, per-participant progress.
-    const tutorialEvents = await getTutorialEventsForWorkshop(workshopId);
+    // 3. Tutorial events (fetched above, in parallel) → funnel, observations,
+    //    per-participant progress.
     const funnel = deriveFunnel(tutorialEvents, stepOrder);
     const observations = deriveObservations(tutorialEvents);
     const checks = deriveChecks(tutorialEvents);
@@ -240,6 +249,7 @@ export const getWorkshopAnalytics = async (
             observations,
             checks,
             checkStats,
+            stepLabels: stepLabels ?? {},
             firstStepId: stepOrder && stepOrder.length > 0 ? stepOrder[0] : null,
             finalStepId: stepOrder && stepOrder.length > 0 ? stepOrder[stepOrder.length - 1] : null,
         },

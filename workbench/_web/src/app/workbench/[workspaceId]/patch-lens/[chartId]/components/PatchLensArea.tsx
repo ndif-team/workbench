@@ -134,7 +134,9 @@ export default function PatchLensArea({
 
     // Tutorial content is DB-backed (workshop's assigned tutorial, else the demo
     // seed). Inject the resolved units into the store so the panel can render them.
-    const { data: tutorialContent } = useWorkspaceTutorial(workspaceId as string);
+    const { data: tutorialContent, isError: tutorialContentError } = useWorkspaceTutorial(
+        workspaceId as string,
+    );
     useEffect(() => {
         if (tutorialContent) prolificTutorial.setUnits(tutorialContent.units);
         // setUnits is stable-by-value; only re-inject when the content changes.
@@ -143,11 +145,15 @@ export default function PatchLensArea({
 
     // Top-1 / top-2 next tokens from the last run, captured atomically with a
     // nonce so the guided-tutorial panel scores each run exactly once (§4.7).
+    // `unitIdx` records the guided-tutorial unit active when the run was
+    // *initiated*, so the panel scores each run against its originating unit even
+    // if the participant advances before the (async) run resolves.
     const [runTokens, setRunTokens] = useState<{
         nonce: number;
         top: string | null;
         second: string | null;
-    }>({ nonce: 0, top: null, second: null });
+        unitIdx: number | null;
+    }>({ nonce: 0, top: null, second: null, unitIdx: null });
 
     const { data: models } = useQuery({
         queryKey: ["models"],
@@ -433,6 +439,10 @@ export default function PatchLensArea({
             // token and collapses the model's prediction onto whitespace/digits.
             const src = srcRaw.trim();
             const tgt = tgtRaw.trim();
+            // Pin this run to the guided-tutorial unit it starts on, so scoring
+            // lands on the right unit even if the participant advances mid-run.
+            const guided = useProlificTutorial.getState();
+            const runUnitIdx = guided.active ? guided.unitIdx : null;
             // Reflect the trimmed text back into the editors so the textbox matches
             // what was actually run (and the heatmap): otherwise the editor still
             // holds the trailing space while lastRun snapshots the trimmed prompt,
@@ -474,6 +484,7 @@ export default function PatchLensArea({
                     nonce: prev.nonce + 1,
                     top: finalPrediction(result.source),
                     second: finalTopKTokens(result.source, 2)[1] ?? null,
+                    unitIdx: runUnitIdx,
                 }));
                 toast.success(
                     tgt.trim() ? "Logit lens computed for both prompts." : "Logit lens computed.",
@@ -523,7 +534,12 @@ export default function PatchLensArea({
 
     // Suppress the hard-coded reactour walkthrough in workshop mode (and while
     // the workshop lookup is pending) — the guided tutorial auto-launches there.
-    const { startTutorial } = useTutorialAutoStart({ disabled: workshopLoading || !!workshop });
+    // But if the guided-tutorial content query has definitively errored, keep the
+    // reactour walkthrough as a fallback so a workshop participant is never left
+    // with no onboarding at all.
+    const { startTutorial } = useTutorialAutoStart({
+        disabled: workshopLoading || (!!workshop && !tutorialContentError),
+    });
 
     return (
         <div className="h-full flex flex-col md:min-w-64">
@@ -698,6 +714,7 @@ export default function PatchLensArea({
                     runNonce={runTokens.nonce}
                     topToken={runTokens.top}
                     secondToken={runTokens.second}
+                    runUnitIdx={runTokens.unitIdx}
                     surveyUrl={workshop?.surveyUrl}
                     completionThanks={workshop?.completionText}
                     workshopMode={!!workshop}

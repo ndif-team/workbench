@@ -34,20 +34,13 @@ type PatchAppliedEvent = {
     type: "patchApplied";
 };
 
-// The participant submitted free text (observation box).
-type TextSubmitEvent = {
-    type: "textSubmit";
-    value: string;
-};
-
 type TutorialEventData =
     | ClickEvent
     | TextInputEvent
     | TokenHighlightEvent
     | TokenClickEvent
     | RunCompletedEvent
-    | PatchAppliedEvent
-    | TextSubmitEvent;
+    | PatchAppliedEvent;
 
 export function useTutorialManager() {
     const { setCurrentStep, currentStep, isOpen, steps } = useTour();
@@ -94,12 +87,6 @@ export function useTutorialManager() {
 
                 case "patchApplied":
                     shouldAdvance = eventData.type === "patchApplied";
-                    break;
-
-                case "textSubmit":
-                    shouldAdvance =
-                        eventData.type === "textSubmit" &&
-                        eventData.value.trim().length >= (trigger.minLength ?? 1);
                     break;
             }
 
@@ -154,24 +141,6 @@ export function useTutorialManager() {
         [checkStepCompletion],
     );
 
-    const handleRunCompleted = useCallback(
-        (result: unknown) => {
-            checkStepCompletion({ type: "runCompleted", result });
-        },
-        [checkStepCompletion],
-    );
-
-    const handlePatchApplied = useCallback(() => {
-        checkStepCompletion({ type: "patchApplied" });
-    }, [checkStepCompletion]);
-
-    const handleTextSubmit = useCallback(
-        (value: string) => {
-            checkStepCompletion({ type: "textSubmit", value });
-        },
-        [checkStepCompletion],
-    );
-
     return {
         isOpen,
         currentStep,
@@ -179,9 +148,6 @@ export function useTutorialManager() {
         handleTextInput,
         handleTokenHighlight,
         handleTokenClick,
-        handleRunCompleted,
-        handlePatchApplied,
-        handleTextSubmit,
         // Generic dispatch — lets an event-bus provider forward any event without
         // knowing which handler maps to it.
         emit: checkStepCompletion,

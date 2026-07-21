@@ -27,8 +27,12 @@ export function ExportCsvButton({
             const safeName = workshopName.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
             a.href = url;
             a.download = `workshop-${safeName || workshopId}.csv`;
+            document.body.appendChild(a);
             a.click();
-            URL.revokeObjectURL(url);
+            a.remove();
+            // Defer the revoke: revoking synchronously after click() can invalidate
+            // the blob URL before the browser has read it for the download.
+            setTimeout(() => URL.revokeObjectURL(url), 0);
         } catch {
             toast.error("Could not export CSV");
         } finally {

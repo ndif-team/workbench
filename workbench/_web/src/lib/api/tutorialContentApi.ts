@@ -54,7 +54,12 @@ export const useUpdateTutorial = () => {
             updates: { name?: string; data?: TutorialContent };
         }) => updateTutorial(id, updates),
         onError: () => toast.error("Failed to update tutorial"),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.tutorials.all }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.tutorials.all });
+            // Editing a tutorial's units changes the step order/labels of every
+            // workshop that runs it; refresh all analytics dashboards.
+            queryClient.invalidateQueries({ queryKey: queryKeys.workshops.analyticsAll });
+        },
     });
 };
 
@@ -68,6 +73,9 @@ export const useDeleteTutorial = () => {
             // deleteTutorial nulls workshops.tutorialId; refetch workshops so a
             // stale edit dialog doesn't re-submit the deleted id (FK violation).
             queryClient.invalidateQueries({ queryKey: queryKeys.workshops.all });
+            // Affected workshops fall back to the demo tutorial's step order —
+            // refresh their analytics dashboards.
+            queryClient.invalidateQueries({ queryKey: queryKeys.workshops.analyticsAll });
         },
     });
 };

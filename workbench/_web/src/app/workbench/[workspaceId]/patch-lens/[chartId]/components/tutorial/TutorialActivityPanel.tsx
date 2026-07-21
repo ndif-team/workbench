@@ -58,6 +58,10 @@ interface TutorialActivityPanelProps {
     runNonce: number;
     topToken: string | null;
     secondToken: string | null;
+    /** The guided-tutorial unit the latest run was initiated from (null outside
+     * the tutorial). Scoring and the embedded check only apply when this matches
+     * the current unit, so a stale run can't score a unit it didn't belong to. */
+    runUnitIdx: number | null;
     /** Per-workshop survey the finish screen links to (workshops.surveyUrl). */
     surveyUrl?: string;
     /** Optional per-workshop thank-you copy (legacy completion_text). */
@@ -75,6 +79,7 @@ export function TutorialActivityPanel({
     runNonce,
     topToken,
     secondToken,
+    runUnitIdx,
     surveyUrl,
     completionThanks,
     workshopMode = false,
@@ -94,7 +99,9 @@ export function TutorialActivityPanel({
     useEffect(() => {
         if (runNonce === prevNonce.current) return;
         prevNonce.current = runNonce;
-        if (store.active) store.recordRun(topToken);
+        // Score against the unit the run was initiated from (runUnitIdx), not the
+        // unit that happens to be current now.
+        if (store.active) store.recordRun(topToken, runUnitIdx ?? undefined);
         // topToken is captured at the nonce bump; store handles per-unit logic.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [runNonce]);
@@ -215,7 +222,9 @@ export function TutorialActivityPanel({
                     // pin the element visually), so clamp before persisting — an
                     // over-drag would otherwise save an off-screen coordinate that
                     // an in-session exit→reopen remounts to, hiding the panel. Same
-                    // bounds as the store's onRehydrateStorage clamp.
+                    // bounds as the render-time clamp above (the store persists the
+                    // raw position; clamping happens here and at render, not on
+                    // rehydrate).
                     const maxX = Math.max(0, window.innerWidth - 320);
                     const maxY = Math.max(0, window.innerHeight - 120);
                     store.setPanelPos({
@@ -293,7 +302,12 @@ export function TutorialActivityPanel({
                                     unit.check.kind === "secondToken" ? secondToken : topToken
                                 }
                                 placeholder={unit.answerPlaceholder}
-                                hasRun={topToken != null}
+                                // Only answerable once THIS unit has been run — the
+                                // topToken/secondToken belong to runUnitIdx's run, so
+                                // scoring a different unit's answer against them would
+                                // be wrong. A stale run from a prior unit reads as
+                                // "run a prompt first" rather than auto-scoring.
+                                hasRun={runUnitIdx === store.unitIdx && topToken != null}
                                 onAnswer={(answer, correct) => store.answerCheck(answer, correct)}
                                 alreadyAnswered={!!store.checkAnsweredByUnit[store.unitIdx]}
                             />
