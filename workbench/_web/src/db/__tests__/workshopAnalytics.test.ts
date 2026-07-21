@@ -191,6 +191,24 @@ describe("workshop analytics", () => {
         expect(lines.some((l) => l.startsWith("check,") && l.includes("Paris"))).toBe(true);
     });
 
+    it("neutralizes spreadsheet formula injection in observation text", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const ws = await createWorkspace("user-1111", "S1", workshop.id);
+        await insertTutorialEvent({
+            workspaceId: ws.id,
+            stepId: "u6-challenge",
+            eventType: "observation_submitted",
+            payload: { observationText: '=HYPERLINK("http://evil")' },
+        });
+
+        const a = await getWorkshopAnalytics(workshop.id, TUTORIAL_STEP_ORDER);
+        const csv = buildWorkshopCsv(a);
+        // The formula-leading cell is prefixed with a single quote and quoted
+        // (it also contains a comma), so a spreadsheet renders it as literal text.
+        expect(csv).toContain("\"'=HYPERLINK");
+        expect(csv).not.toMatch(/,=HYPERLINK/);
+    });
+
     it("buckets timestamps into sorted UTC day counts", () => {
         const buckets = bucketByDay([
             new Date("2026-07-16T10:00:00Z"),

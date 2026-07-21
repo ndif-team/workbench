@@ -226,9 +226,16 @@ export const getWorkshopAnalytics = async (
 
 // ---- CSV export (the CHI analysis input) ----
 
-/** Escape a CSV cell: quote if it contains comma/quote/newline; double inner quotes. */
+/**
+ * Escape a CSV cell: quote if it contains comma/quote/newline; double inner
+ * quotes. Also neutralize spreadsheet formula injection — a cell that starts
+ * with `=`, `+`, `-`, `@`, tab, or CR is executed as a formula by Excel/Sheets,
+ * and observation/answer text is free text a participant typed. Prefix such
+ * cells with a single quote so they render as literal text.
+ */
 const csvCell = (value: string | number | null): string => {
-    const s = value == null ? "" : String(value);
+    let s = value == null ? "" : String(value);
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 

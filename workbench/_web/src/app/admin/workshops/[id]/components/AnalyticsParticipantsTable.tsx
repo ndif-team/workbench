@@ -46,8 +46,12 @@ export function AnalyticsParticipantsTable({
                                 >
                                     <td className="font-mono text-xs">{p.userIdShort}</td>
                                     <td className="font-mono text-xs">{p.prolificPid ?? "—"}</td>
-                                    <td className="text-right tabular-nums">{p.charts}</td>
-                                    <td className="text-right tabular-nums">{p.lensRuns}</td>
+                                    <td className="text-right font-mono tabular-nums">
+                                        {p.charts}
+                                    </td>
+                                    <td className="text-right font-mono tabular-nums">
+                                        {p.lensRuns}
+                                    </td>
                                     <td className="max-w-[14rem] truncate">
                                         {p.modelsUsed.length === 0
                                             ? "—"
@@ -56,7 +60,9 @@ export function AnalyticsParticipantsTable({
                                                   .join(", ")}
                                     </td>
                                     <td>{stepLabel(p.furthestStepId)}</td>
-                                    <td className="text-right tabular-nums">{p.hintsUsed}</td>
+                                    <td className="text-right font-mono tabular-nums">
+                                        {p.hintsUsed}
+                                    </td>
                                     <td className="whitespace-nowrap text-muted-foreground tabular-nums">
                                         {formatWhen(p.lastActiveAt)}
                                     </td>

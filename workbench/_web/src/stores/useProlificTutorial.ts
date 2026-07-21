@@ -191,6 +191,9 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 set({ hintStageByUnit: { ...state.hintStageByUnit, [idx]: nextStage } });
                 emit(state.workspaceId, stepIdForUnit(state, idx), "hint_shown", {
                     hintStage: nextStage,
+                    // The failed-attempt count that triggered this hint (0 for
+                    // units without a run predicate) — the engagement covariate.
+                    attempt: state.attemptsByUnit[idx] ?? 0,
                 });
                 return nextStage;
             },
@@ -212,6 +215,14 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 emit(state.workspaceId, stepIdForUnit(state, idx), "observation_submitted", {
                     observationText: text,
                 });
+                // Manual units (explore, final challenge) never complete on a run
+                // or patch — submitting the observation is how they finish. Emit
+                // step_completed so the completion funnel counts them (the finish
+                // CTA already gates on this observation).
+                const unit = state.units[idx];
+                if (unit?.progression.on === "manual") {
+                    set(completeUnit(get(), idx));
+                }
             },
 
             setPanelPos: (pos) => set({ panelPos: pos }),

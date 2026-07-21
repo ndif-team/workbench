@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, useDragControls } from "motion/react";
 import {
@@ -113,14 +113,14 @@ export function TutorialActivityPanel({
         >
             <div className="flex items-center gap-1.5 min-w-0">
                 <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-                <h3 className="text-sm font-medium truncate">{unit.title}</h3>
+                <h2 className="text-sm font-medium truncate">{unit.title}</h2>
                 {!store.collapsed && (
-                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                    <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
                         Step {store.unitIdx + 1} of {total}
                     </span>
                 )}
             </div>
-            <div className="flex items-center gap-0.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
                 <Button
                     variant="ghost"
                     size="icon"
@@ -366,9 +366,13 @@ function EmbeddedCheck({
 }) {
     const [value, setValue] = useState("");
     const [result, setResult] = useState<null | { correct: boolean }>(null);
+    // Lock once answered — locally this render or already answered on a prior
+    // visit (checkAnsweredByUnit). Prevents a re-answer from emitting a duplicate
+    // check_answered event that would skew the analytics funnel.
+    const locked = !!result || alreadyAnswered;
 
     const submit = () => {
-        if (!value.trim()) return;
+        if (!value.trim() || locked) return;
         const correct = norm(value) === norm(expected);
         setResult({ correct });
         onAnswer(value.trim(), correct);
@@ -387,15 +391,16 @@ function EmbeddedCheck({
                             onChange={(e) => setValue(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && submit()}
                             placeholder={placeholder ?? "Your answer"}
+                            aria-label={question}
                             className="h-7 text-xs"
-                            disabled={!!result}
+                            disabled={locked}
                         />
                         <Button
                             size="sm"
                             variant="outline"
                             className="h-7 text-xs"
                             onClick={submit}
-                            disabled={!!result || !value.trim()}
+                            disabled={locked || !value.trim()}
                         >
                             Check
                         </Button>
@@ -431,6 +436,7 @@ function ObservationBox({
 }) {
     const [value, setValue] = useState("");
     const [done, setDone] = useState(submitted);
+    const fieldId = useId();
 
     const submit = () => {
         if (!value.trim()) return;
@@ -449,8 +455,11 @@ function ObservationBox({
 
     return (
         <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium">{prompt}</label>
+            <label htmlFor={fieldId} className="text-xs font-medium">
+                {prompt}
+            </label>
             <Textarea
+                id={fieldId}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 onKeyDown={(e) => {
