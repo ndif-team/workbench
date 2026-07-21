@@ -174,7 +174,8 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             answerPlaceholder: "the model's answer to 5+5",
             observationPrompt:
                 "What made the model give a wrong sum? What happened across the layers as it 'committed' to it?",
-            observationPlaceholder: "Why it gave a wrong sum, and where it committed across layers…",
+            observationPlaceholder:
+                "Why it gave a wrong sum, and where it committed across layers…",
             progression: {
                 on: "run",
                 successPredicate: { kind: "topTokenNotEqual", value: "10" },
@@ -258,7 +259,8 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             ],
             observationPrompt:
                 "Paste the prompt you found and describe what you saw across the layers. Where did the model 'commit' to the wrong answer?",
-            observationPlaceholder: "Your prompt, and where the model committed to the wrong answer…",
+            observationPlaceholder:
+                "Your prompt, and where the model committed to the wrong answer…",
             progression: { on: "manual" },
         },
     ],

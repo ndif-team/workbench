@@ -250,8 +250,8 @@ export function WorkshopFormDialog({
                             className="font-mono text-xs"
                         />
                         <p className="text-xs text-muted-foreground">
-                            Where participants go after finishing. The survey — not the tool —
-                            gives them the Prolific completion code.
+                            Where participants go after finishing. The survey — not the tool — gives
+                            them the Prolific completion code.
                         </p>
                     </div>
 

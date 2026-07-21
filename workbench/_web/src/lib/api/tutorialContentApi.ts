@@ -46,8 +46,13 @@ export const useCreateTutorial = () => {
 export const useUpdateTutorial = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, updates }: { id: string; updates: { name?: string; data?: TutorialContent } }) =>
-            updateTutorial(id, updates),
+        mutationFn: ({
+            id,
+            updates,
+        }: {
+            id: string;
+            updates: { name?: string; data?: TutorialContent };
+        }) => updateTutorial(id, updates),
         onError: () => toast.error("Failed to update tutorial"),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.tutorials.all }),
     });

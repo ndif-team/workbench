@@ -51,9 +51,7 @@ export interface UnitCheck {
  * - `on: "manual"` — never auto-completes (explore / final challenge; the finish
  *   CTA gates on an observation instead).
  */
-export type SuccessPredicate =
-    | { kind: "always" }
-    | { kind: "topTokenNotEqual"; value: string };
+export type SuccessPredicate = { kind: "always" } | { kind: "topTokenNotEqual"; value: string };
 
 export interface UnitProgression {
     on: "run" | "patch" | "manual";

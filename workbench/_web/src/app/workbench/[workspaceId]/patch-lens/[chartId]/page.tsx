@@ -189,56 +189,12 @@ export default function PatchLensChartPage() {
         return (
             <TutorialEventProvider>
                 <TutorialSpotlightProvider>
-                <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pb-20 gap-2">
-                    <MobileCollapsibleControls
-                        label="Patch Lens"
-                        icon={GitBranch}
-                        isRunning={false}
-                    >
-                        <PatchLensArea
-                            sourcePrompt={sourcePrompt}
-                            targetPrompt={targetPrompt}
-                            onSourcePromptChange={setSourcePrompt}
-                            onTargetPromptChange={setTargetPrompt}
-                            onLensResult={handleLensResult}
-                            lensResult={lensResult}
-                            lastRunSrcPrompt={lastRunSrcPrompt}
-                            lastRunTgtPrompt={lastRunTgtPrompt}
-                            onSelectRun={handleSelectRun}
-                        />
-                    </MobileCollapsibleControls>
-                    <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
-                        <PatchLensDisplay
-                            sourcePrompt={sourcePrompt}
-                            targetPrompt={targetPrompt}
-                            lensResult={lensResult}
-                        />
-                    </div>
-                    <MobileSidebarDrawer />
-                </div>
-                </TutorialSpotlightProvider>
-            </TutorialEventProvider>
-        );
-    }
-
-    return (
-        <TutorialEventProvider>
-            <TutorialSpotlightProvider>
-            <div className="size-full flex min-h-0">
-                <ChartCardsSidebar />
-                <div className="flex-1 min-w-0 min-h-0 pb-3 pr-3">
-                    <ResizablePanelGroup
-                        direction="horizontal"
-                        className="flex size-full rounded dark:bg-secondary/50 bg-secondary/80 border"
-                    >
-                        <ResizablePanel className="h-full min-w-0" defaultSize={27} minSize={22}>
-                            {/* PatchLensArea's predicted-next-token chip is now ephemeral:
-                            it shows after a run (lensResult is set) but is NOT
-                            re-hydrated on revisit, since heatmaps moved off the
-                            chart row onto lens_runs. Acceptable — the Display's
-                            heatmap (fetched by activeLensRunId) conveys the
-                            prediction on revisit. The prompt-history list lives at
-                            the bottom of this controls column (onSelectRun). */}
+                    <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pb-20 gap-2">
+                        <MobileCollapsibleControls
+                            label="Patch Lens"
+                            icon={GitBranch}
+                            isRunning={false}
+                        >
                             <PatchLensArea
                                 sourcePrompt={sourcePrompt}
                                 targetPrompt={targetPrompt}
@@ -248,21 +204,69 @@ export default function PatchLensChartPage() {
                                 lensResult={lensResult}
                                 lastRunSrcPrompt={lastRunSrcPrompt}
                                 lastRunTgtPrompt={lastRunTgtPrompt}
-                                restoreNonce={restoreNonce}
                                 onSelectRun={handleSelectRun}
                             />
-                        </ResizablePanel>
-                        <ResizableHandle className="w-[0.8px]" />
-                        <ResizablePanel className="min-w-0" defaultSize={73} minSize={35}>
+                        </MobileCollapsibleControls>
+                        <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
                             <PatchLensDisplay
                                 sourcePrompt={sourcePrompt}
                                 targetPrompt={targetPrompt}
                                 lensResult={lensResult}
                             />
-                        </ResizablePanel>
-                    </ResizablePanelGroup>
+                        </div>
+                        <MobileSidebarDrawer />
+                    </div>
+                </TutorialSpotlightProvider>
+            </TutorialEventProvider>
+        );
+    }
+
+    return (
+        <TutorialEventProvider>
+            <TutorialSpotlightProvider>
+                <div className="size-full flex min-h-0">
+                    <ChartCardsSidebar />
+                    <div className="flex-1 min-w-0 min-h-0 pb-3 pr-3">
+                        <ResizablePanelGroup
+                            direction="horizontal"
+                            className="flex size-full rounded dark:bg-secondary/50 bg-secondary/80 border"
+                        >
+                            <ResizablePanel
+                                className="h-full min-w-0"
+                                defaultSize={27}
+                                minSize={22}
+                            >
+                                {/* PatchLensArea's predicted-next-token chip is now ephemeral:
+                            it shows after a run (lensResult is set) but is NOT
+                            re-hydrated on revisit, since heatmaps moved off the
+                            chart row onto lens_runs. Acceptable — the Display's
+                            heatmap (fetched by activeLensRunId) conveys the
+                            prediction on revisit. The prompt-history list lives at
+                            the bottom of this controls column (onSelectRun). */}
+                                <PatchLensArea
+                                    sourcePrompt={sourcePrompt}
+                                    targetPrompt={targetPrompt}
+                                    onSourcePromptChange={setSourcePrompt}
+                                    onTargetPromptChange={setTargetPrompt}
+                                    onLensResult={handleLensResult}
+                                    lensResult={lensResult}
+                                    lastRunSrcPrompt={lastRunSrcPrompt}
+                                    lastRunTgtPrompt={lastRunTgtPrompt}
+                                    restoreNonce={restoreNonce}
+                                    onSelectRun={handleSelectRun}
+                                />
+                            </ResizablePanel>
+                            <ResizableHandle className="w-[0.8px]" />
+                            <ResizablePanel className="min-w-0" defaultSize={73} minSize={35}>
+                                <PatchLensDisplay
+                                    sourcePrompt={sourcePrompt}
+                                    targetPrompt={targetPrompt}
+                                    lensResult={lensResult}
+                                />
+                            </ResizablePanel>
+                        </ResizablePanelGroup>
+                    </div>
                 </div>
-            </div>
             </TutorialSpotlightProvider>
         </TutorialEventProvider>
     );

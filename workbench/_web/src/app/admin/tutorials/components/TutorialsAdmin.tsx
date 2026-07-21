@@ -4,11 +4,7 @@ import { useState } from "react";
 import { Loader2, Pencil, Plus, Sprout, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
     useTutorials,
     useDeleteTutorial,

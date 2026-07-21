@@ -62,10 +62,7 @@ const getTutorialBySlug = async (slug: string): Promise<Tutorial | null> => {
 };
 
 export const listTutorials = async (): Promise<Tutorial[]> => {
-    return (await db
-        .select()
-        .from(tutorials)
-        .orderBy(desc(tutorials.updatedAt))) as Tutorial[];
+    return (await db.select().from(tutorials).orderBy(desc(tutorials.updatedAt))) as Tutorial[];
 };
 
 export const createTutorial = async (input: TutorialInput): Promise<Tutorial> => {
