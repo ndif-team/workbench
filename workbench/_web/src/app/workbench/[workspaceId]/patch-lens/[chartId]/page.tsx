@@ -19,7 +19,7 @@ import { getLensRunHeatmapsByIds } from "@/lib/queries/lensRunQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { useCapture } from "@/lib/analytics";
 import { TutorialEventProvider } from "@/components/providers/TutorialEventProvider";
-import { TutorialSpotlightProvider } from "@/components/providers/TutorialSpotlightProvider";
+import { SpotlightProvider as TutorialSpotlightProvider } from "edulogitlens";
 import type { PatchLensChartData } from "@/types/patchLens";
 import type { NormalizedRun } from "@/lib/lensRun";
 

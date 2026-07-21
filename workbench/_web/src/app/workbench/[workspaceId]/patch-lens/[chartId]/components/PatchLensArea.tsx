@@ -18,7 +18,7 @@ import { PatchLensTutorial } from "@/tutorials/patchLens";
 import { usePatchLensTutorial, hydratePatchLensTutorial } from "@/stores/usePatchLensTutorial";
 import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
 import { useProlificTutorial } from "@/stores/useProlificTutorial";
-import { useTutorialSpotlight } from "@/components/providers/TutorialSpotlightProvider";
+import { useSpotlight } from "edulogitlens";
 import { TutorialActivityPanel } from "./tutorial/TutorialActivityPanel";
 import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
@@ -120,7 +120,7 @@ export default function PatchLensArea({
     const capture = useCapture();
     const { emit: emitTutorialEvent } = useTutorialEmit();
     const prolificTutorial = useProlificTutorial();
-    const { setTarget: setSpotlight } = useTutorialSpotlight();
+    const { setTarget: setSpotlight } = useSpotlight();
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
 
     // Bind the guided-tutorial store to this workspace (resets on workspace change).

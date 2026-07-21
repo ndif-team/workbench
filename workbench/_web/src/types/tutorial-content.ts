@@ -13,9 +13,9 @@ export type UnitKind = "lens" | "patch" | "explore" | "challenge";
 
 /**
  * A cell/token the tutorial can spotlight inside the edulogitlens widget (via
- * the widget's TutorialSpotlightProvider context). `"last"` resolves at render
- * time to the last layer / last input position, so content doesn't hard-code a
- * model's layer count.
+ * the widget's SpotlightProvider/useSpotlight context). `"last"` resolves at
+ * render time to the last layer / last input position, so content doesn't
+ * hard-code a model's layer count.
  */
 export interface SpotlightTarget {
     grid: "source" | "target" | "result";
