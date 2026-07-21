@@ -246,23 +246,8 @@ export const getWorkshopAnalytics = async (
     };
 };
 
-/**
- * Tutorial completion % = participants who completed the canonical final unit ÷
- * participants who started the canonical first unit. Uses the canonical
- * first/last step ids (not funnel positions), so a first unit with missing
- * telemetry can't shrink the denominator and overstate completion. Pure over the
- * analytics object so it's shared by the stat tile and unit-tested directly.
- */
-export const tutorialCompletionPct = (analytics: WorkshopAnalytics): number => {
-    const { funnel, firstStepId, finalStepId } = analytics.tutorial;
-    if (funnel.length === 0) return 0;
-    const firstRow = firstStepId ? funnel.find((f) => f.stepId === firstStepId) : funnel[0];
-    const firstStarted = firstRow?.started ?? 0;
-    if (firstStarted === 0) return 0;
-    const finalRow = finalStepId ? funnel.find((f) => f.stepId === finalStepId) : undefined;
-    const finalCompleted = finalRow?.completed ?? 0;
-    return Math.round((finalCompleted / firstStarted) * 100);
-};
+// tutorialCompletionPct lives in @/lib/workshopCompletion (a DB-free module) so
+// the client stat tile can import it without bundling the Node DB client.
 
 // ---- CSV export (the CHI analysis input) ----
 

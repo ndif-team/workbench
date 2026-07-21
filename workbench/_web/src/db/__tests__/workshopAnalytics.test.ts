@@ -14,8 +14,8 @@ import {
     getWorkshopAnalytics,
     buildWorkshopCsv,
     bucketByDay,
-    tutorialCompletionPct,
 } from "@/lib/queries/workshopAnalyticsDb";
+import { tutorialCompletionPct } from "@/lib/workshopCompletion";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 import { createLensRun } from "@/lib/queries/lensRunQueries";

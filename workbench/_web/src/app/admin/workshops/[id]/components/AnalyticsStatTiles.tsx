@@ -1,7 +1,7 @@
 "use client";
 
 import type { WorkshopAnalytics } from "@/lib/queries/workshopAnalyticsDb";
-import { tutorialCompletionPct } from "@/lib/queries/workshopAnalyticsDb";
+import { tutorialCompletionPct } from "@/lib/workshopCompletion";
 
 /** One KPI tile — matches the WorkshopRow card shape (rounded-md, one radius). */
 function Tile({ label, value }: { label: string; value: string | number }) {
