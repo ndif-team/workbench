@@ -170,15 +170,14 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
 
     // Workshop participants land on a single guided task, so start with the
     // workspace/chart list collapsed to keep focus on the tool. Applied once when
-    // the workshop lookup resolves; they can still expand it.
+    // the workshop lookup resolves; they can still expand it. NOT persisted —
+    // SIDEBAR_COLLAPSED_KEY is shared across workspaces, so writing it would
+    // wrongly collapse the sidebar for unrelated (non-workshop) workspaces too.
     const appliedWorkshopCollapseRef = useRef(false);
     useEffect(() => {
         if (appliedWorkshopCollapseRef.current || !workshop) return;
         appliedWorkshopCollapseRef.current = true;
         setIsCollapsed(true);
-        if (typeof window !== "undefined") {
-            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, "true");
-        }
     }, [workshop]);
 
     useEffect(() => {

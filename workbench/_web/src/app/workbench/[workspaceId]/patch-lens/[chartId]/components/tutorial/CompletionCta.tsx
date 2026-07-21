@@ -2,6 +2,8 @@
 
 import { ArrowRight } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+
 /**
  * Finish screen shown after the final unit. The **survey** (not the tool) issues
  * the Prolific completion code, so this links the participant onward to the
@@ -24,15 +26,12 @@ export function CompletionCta({ surveyUrl, thanks }: { surveyUrl?: string; thank
                     {note && (
                         <p className="mt-1 text-xs text-muted-foreground leading-snug">{note}</p>
                     )}
-                    <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3 inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                    >
-                        Continue to the survey
-                        <ArrowRight className="h-4 w-4" />
-                    </a>
+                    <Button asChild size="sm" className="mt-3">
+                        <a href={url} target="_blank" rel="noopener noreferrer">
+                            Continue to the survey
+                            <ArrowRight className="h-4 w-4" />
+                        </a>
+                    </Button>
                 </>
             ) : note ? (
                 // No survey configured: this thank-you copy is the only end-state

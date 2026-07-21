@@ -14,6 +14,7 @@ import {
     getWorkshopAnalytics,
     buildWorkshopCsv,
     bucketByDay,
+    tutorialCompletionPct,
 } from "@/lib/queries/workshopAnalyticsDb";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
@@ -137,6 +138,33 @@ describe("workshop analytics", () => {
         // furthest step actually reached (u1) — no inflated completion %.
         expect(a.tutorial.finalStepId).toBe("u6-challenge");
         expect(a.tutorial.funnel.find((f) => f.stepId === "u6-challenge")).toBeUndefined();
+    });
+
+    it("completion % divides by the canonical first unit, not the first observed row", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        // Two participants whose telemetry MISSES the canonical first unit (u0):
+        // both start u1 and complete the final unit. The naive denominator
+        // (funnel[0] = u1) would read 100% completion; the canonical first unit
+        // (u0) has no starts, so the truthful KPI is 0%.
+        for (const uid of ["user-1111", "user-2222"]) {
+            const ws = await createWorkspace(uid, uid, workshop.id);
+            await insertTutorialEvent({
+                workspaceId: ws.id,
+                stepId: "u1-answers",
+                eventType: "step_started",
+            });
+            await insertTutorialEvent({
+                workspaceId: ws.id,
+                stepId: "u6-challenge",
+                eventType: "step_completed",
+            });
+        }
+
+        const a = await getWorkshopAnalytics(workshop.id, TUTORIAL_STEP_ORDER);
+        expect(a.tutorial.firstStepId).toBe("u0-orientation");
+        expect(a.tutorial.funnel[0].stepId).toBe("u1-answers"); // u0 dropped (no events)
+        // Canonical first unit had 0 starts → 0%, not 100% off the u1 cohort.
+        expect(tutorialCompletionPct(a)).toBe(0);
     });
 
     it("emits a two-section CSV (participants + observations) with a header", async () => {

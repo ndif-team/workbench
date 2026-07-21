@@ -120,7 +120,14 @@ export function TutorialActivityPanel({
     const hintStage = store.hintStageByUnit[store.unitIdx] ?? 0;
     const completed = store.completedUnits.includes(store.unitIdx);
     const isLast = store.unitIdx === total - 1;
-    const initialPos = store.panelPos ?? DEFAULT_POS;
+    // Clamp the persisted position into the current viewport (a window resize or
+    // a different monitor could otherwise place it off-screen). Same bounds as
+    // the drag-end clamp; reached only after mount, so `window` exists.
+    const rawPos = store.panelPos ?? DEFAULT_POS;
+    const initialPos = {
+        x: Math.min(Math.max(0, rawPos.x), Math.max(0, window.innerWidth - 320)),
+        y: Math.min(Math.max(0, rawPos.y), Math.max(0, window.innerHeight - 120)),
+    };
 
     // Per-unit "how to finish this step" nudge, derived from its progression.
     const finishHint =

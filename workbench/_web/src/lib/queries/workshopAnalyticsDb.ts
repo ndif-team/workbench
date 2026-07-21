@@ -69,9 +69,13 @@ export interface WorkshopAnalytics {
         observations: ObservationRow[];
         checks: CheckAnswerRow[];
         checkStats: CheckStatRow[];
-        // The canonical last unit id (from the workshop's step order). Distinct
-        // from the funnel's last row, which is only the furthest step *reached* —
-        // the completion KPI must divide by this step, not by whatever showed up.
+        // Canonical first / last unit ids (from the workshop's step order),
+        // distinct from the funnel's first/last rows, which are only the steps
+        // that produced events. The completion KPI divides the final step's
+        // completions by the FIRST step's starts — using these ids, not funnel
+        // positions, so a first unit with missing telemetry can't shrink the
+        // denominator and overstate completion.
+        firstStepId: string | null;
         finalStepId: string | null;
     };
 }
@@ -102,7 +106,14 @@ const empty = (): WorkshopAnalytics => ({
     },
     series: { joinsPerDay: [], runsPerDay: [] },
     participants: [],
-    tutorial: { funnel: [], observations: [], checks: [], checkStats: [], finalStepId: null },
+    tutorial: {
+        funnel: [],
+        observations: [],
+        checks: [],
+        checkStats: [],
+        firstStepId: null,
+        finalStepId: null,
+    },
 });
 
 export const getWorkshopAnalytics = async (
@@ -229,9 +240,28 @@ export const getWorkshopAnalytics = async (
             observations,
             checks,
             checkStats,
+            firstStepId: stepOrder && stepOrder.length > 0 ? stepOrder[0] : null,
             finalStepId: stepOrder && stepOrder.length > 0 ? stepOrder[stepOrder.length - 1] : null,
         },
     };
+};
+
+/**
+ * Tutorial completion % = participants who completed the canonical final unit ÷
+ * participants who started the canonical first unit. Uses the canonical
+ * first/last step ids (not funnel positions), so a first unit with missing
+ * telemetry can't shrink the denominator and overstate completion. Pure over the
+ * analytics object so it's shared by the stat tile and unit-tested directly.
+ */
+export const tutorialCompletionPct = (analytics: WorkshopAnalytics): number => {
+    const { funnel, firstStepId, finalStepId } = analytics.tutorial;
+    if (funnel.length === 0) return 0;
+    const firstRow = firstStepId ? funnel.find((f) => f.stepId === firstStepId) : funnel[0];
+    const firstStarted = firstRow?.started ?? 0;
+    if (firstStarted === 0) return 0;
+    const finalRow = finalStepId ? funnel.find((f) => f.stepId === finalStepId) : undefined;
+    const finalCompleted = finalRow?.completed ?? 0;
+    return Math.round((finalCompleted / firstStarted) * 100);
 };
 
 // ---- CSV export (the CHI analysis input) ----

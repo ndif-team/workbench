@@ -64,7 +64,9 @@ interface ProlificTutorialState {
     reset: () => void;
 }
 
-// Fire-and-forget telemetry; never blocks the participant.
+// Fire-and-forget telemetry; never blocks the participant. Sync-returning (the
+// store actions that call it aren't async) with the await handled in an inner
+// task so a failed write can't surface as an unhandled rejection.
 const emit = (
     workspaceId: string | null,
     stepId: string,
@@ -72,7 +74,13 @@ const emit = (
     payload?: TutorialEventPayload,
 ) => {
     if (!workspaceId) return;
-    void recordTutorialEvent({ workspaceId, stepId, eventType, payload }).catch(() => {});
+    void (async () => {
+        try {
+            await recordTutorialEvent({ workspaceId, stepId, eventType, payload });
+        } catch {
+            /* telemetry is best-effort — never block or throw at the participant */
+        }
+    })();
 };
 
 const completeUnit = (
@@ -270,17 +278,10 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 panelPos: s.panelPos,
                 collapsed: s.collapsed,
             }),
-            // Clean up impossible states: a panel dragged off-screen in a larger
-            // window (or a different monitor) would otherwise be unreachable.
-            onRehydrateStorage: () => (state) => {
-                if (!state?.panelPos || typeof window === "undefined") return;
-                const maxX = Math.max(0, window.innerWidth - 320);
-                const maxY = Math.max(0, window.innerHeight - 120);
-                state.panelPos = {
-                    x: Math.min(Math.max(0, state.panelPos.x), maxX),
-                    y: Math.min(Math.max(0, state.panelPos.y), maxY),
-                };
-            },
+            // A panel dragged off-screen in a larger window (or a different
+            // monitor) would otherwise be unreachable — the panel clamps the
+            // persisted position into the viewport at render time (mutating the
+            // rehydrated state here wouldn't notify listeners or re-persist).
         },
     ),
 );
