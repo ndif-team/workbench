@@ -48,6 +48,9 @@ const DEFAULT_POS = { x: 24, y: 96 };
 
 interface TutorialActivityPanelProps {
     onInsertPrompt: (text: string) => void;
+    /** Prompt-bank "Try a prompt": fills the prompt and auto-runs it. Falls back
+     * to onInsertPrompt (fill only) when not provided. */
+    onTryPrompt?: (text: string) => void;
     onInsertPatchPair?: (pair: { source: string; target: string }) => void;
     /** Point the widget's spotlight at a cell (show-me hints); null clears it. */
     onSpotlight?: (target: SpotlightTarget | null) => void;
@@ -59,10 +62,14 @@ interface TutorialActivityPanelProps {
     surveyUrl?: string;
     /** Optional per-workshop thank-you copy (legacy completion_text). */
     completionThanks?: string;
+    /** In workshop mode the tutorial can't be closed, only minimized — so a
+     * participant returns to the same place instead of losing it. */
+    workshopMode?: boolean;
 }
 
 export function TutorialActivityPanel({
     onInsertPrompt,
+    onTryPrompt,
     onInsertPatchPair,
     onSpotlight,
     runNonce,
@@ -70,6 +77,7 @@ export function TutorialActivityPanel({
     secondToken,
     surveyUrl,
     completionThanks,
+    workshopMode = false,
 }: TutorialActivityPanelProps) {
     const store = useProlificTutorial();
     const units = store.units;
@@ -97,6 +105,14 @@ export function TutorialActivityPanel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [store.unitIdx, store.active]);
 
+    // "Next step" nudges the participant to finish the current step first: the
+    // first click on an unfinished step shows a hint instead of advancing (a
+    // second click still moves on, so nobody gets stranded). Reset per unit.
+    const [nudgeToFinish, setNudgeToFinish] = useState(false);
+    useEffect(() => {
+        setNudgeToFinish(false);
+    }, [store.unitIdx]);
+
     if (!mounted || !store.active || !unit) return null;
 
     const total = units.length;
@@ -105,6 +121,23 @@ export function TutorialActivityPanel({
     const completed = store.completedUnits.includes(store.unitIdx);
     const isLast = store.unitIdx === total - 1;
     const initialPos = store.panelPos ?? DEFAULT_POS;
+
+    // Per-unit "how to finish this step" nudge, derived from its progression.
+    const finishHint =
+        unit.progression.on === "patch"
+            ? "Drag a source cell onto the target to finish this step."
+            : unit.progression.on === "manual"
+              ? "Add a note in the box above to finish this step."
+              : "Run a prompt to finish this step.";
+
+    const handleNext = () => {
+        if (!completed && !nudgeToFinish) {
+            setNudgeToFinish(true);
+            return;
+        }
+        setNudgeToFinish(false);
+        store.next();
+    };
 
     const header = (
         <div
@@ -137,16 +170,20 @@ export function TutorialActivityPanel({
                         <Minus className="h-3.5 w-3.5" />
                     )}
                 </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-muted-foreground/60 hover:text-foreground"
-                    title="Exit tutorial"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={store.stop}
-                >
-                    <X className="h-3.5 w-3.5" />
-                </Button>
+                {/* Workshop participants can only minimize (not close) so they
+                    return to the same step instead of losing their place. */}
+                {!workshopMode && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground/60 hover:text-foreground"
+                        title="Exit tutorial"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={store.stop}
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </Button>
+                )}
             </div>
         </div>
     );
@@ -194,7 +231,7 @@ export function TutorialActivityPanel({
                             {unit.concept}
                         </div>
 
-                        {/* Prompt bank */}
+                        {/* Prompt bank — clicking a prompt fills + auto-runs it. */}
                         {unit.prompts.length > 0 && (
                             <div className="flex flex-col gap-1.5">
                                 <p className="text-xs font-medium text-muted-foreground">
@@ -205,7 +242,8 @@ export function TutorialActivityPanel({
                                         <button
                                             key={p}
                                             type="button"
-                                            onClick={() => onInsertPrompt(p)}
+                                            onClick={() => (onTryPrompt ?? onInsertPrompt)(p)}
+                                            title="Fill this prompt and run it"
                                             className="text-left text-xs font-mono rounded border bg-background px-2 py-1 hover:border-primary/50 transition-colors whitespace-pre-wrap"
                                         >
                                             {p}
@@ -282,6 +320,19 @@ export function TutorialActivityPanel({
                             <CompletionCta surveyUrl={surveyUrl} thanks={completionThanks} />
                         )}
 
+                        {/* Finish nudge — shown when Next is clicked on an unfinished step. */}
+                        {nudgeToFinish && !completed && !isLast && (
+                            <p className="flex items-start gap-1.5 text-xs text-yellow-600 dark:text-yellow-500 leading-snug">
+                                <Lightbulb className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                <span>
+                                    {finishHint}{" "}
+                                    <span className="text-muted-foreground">
+                                        (or click Next again to move on.)
+                                    </span>
+                                </span>
+                            </p>
+                        )}
+
                         {/* Nav */}
                         <div className="flex items-center justify-between border-t pt-3">
                             <Button
@@ -298,7 +349,14 @@ export function TutorialActivityPanel({
                                     <span className="text-xs text-primary">✓ Step complete</span>
                                 )}
                                 {!isLast && (
-                                    <Button size="sm" className="h-7 text-xs" onClick={store.next}>
+                                    <Button
+                                        size="sm"
+                                        // Muted until the step is finished, so "Next" reads as
+                                        // secondary to actually completing the activity.
+                                        variant={completed ? "default" : "outline"}
+                                        className="h-7 text-xs"
+                                        onClick={handleNext}
+                                    >
                                         Next step
                                     </Button>
                                 )}

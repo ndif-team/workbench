@@ -63,7 +63,7 @@ interface PatchLensAreaProps {
     onSelectRun?: (run: NormalizedRun) => void;
 }
 
-function useTutorialAutoStart() {
+function useTutorialAutoStart({ disabled }: { disabled: boolean }) {
     const { setSteps, setIsOpen, setCurrentStep, isOpen } = useTour();
     const { completed, markCompleted } = usePatchLensTutorial();
     // Auto-start fires at most once per mount; dismissing then resaving the
@@ -75,7 +75,9 @@ function useTutorialAutoStart() {
     }, []);
 
     useEffect(() => {
-        if (autoStartedRef.current || completed || isOpen) return;
+        // In workshop mode we auto-launch the DB-configured guided tutorial
+        // instead of this hard-coded reactour walkthrough, so stay closed.
+        if (disabled || autoStartedRef.current || completed || isOpen) return;
         if (!setSteps || !setIsOpen) return;
         autoStartedRef.current = true;
         const steps = PatchLensTutorial.chapters[0]?.steps ?? [];
@@ -88,7 +90,7 @@ function useTutorialAutoStart() {
             markCompleted();
         }, 600);
         return () => clearTimeout(id);
-    }, [completed, isOpen, setSteps, setIsOpen, setCurrentStep, markCompleted]);
+    }, [disabled, completed, isOpen, setSteps, setIsOpen, setCurrentStep, markCompleted]);
 
     const startTutorial = (chapterIdx: number = 0) => {
         if (!setSteps || !setIsOpen) return;
@@ -178,6 +180,22 @@ export default function PatchLensArea({
         if (!models || models.length === 0) return undefined;
         return models[selectedModelIdx]?.name || models[0].name;
     }, [models, selectedModelIdx]);
+
+    // Workshop mode auto-launches the configured guided tutorial once its content
+    // has loaded — participants shouldn't have to hunt for the Tutorial menu.
+    // Fires once per mount; resumes rather than restarts a participant who
+    // already has progress (or exited deliberately), reading fresh store state to
+    // avoid a stale closure. `setUnits` (above) has already run for this content.
+    const guidedAutoStartedRef = useRef(false);
+    useEffect(() => {
+        if (guidedAutoStartedRef.current) return;
+        if (!workshop || !tutorialContent) return;
+        guidedAutoStartedRef.current = true;
+        const st = useProlificTutorial.getState();
+        if (!st.active && st.completedUnits.length === 0 && st.unitIdx === 0) {
+            st.start();
+        }
+    }, [workshop, tutorialContent]);
 
     // Source prompt state
     const [srcTokens, setSrcTokens] = useState<Token[]>([]);
@@ -397,83 +415,115 @@ export default function PatchLensArea({
     // disables drag-and-drop patching in that mode.
     const canRun = !!selectedModel && !!sourcePrompt.trim() && !isRunning;
 
-    const handleRun = useCallback(async () => {
-        if (!selectedModel) {
-            toast.error("Please select a model.");
-            return;
-        }
-        if (!sourcePrompt.trim()) {
-            toast.error("Please enter a source prompt.");
-            return;
-        }
-        // Trim surrounding whitespace: a trailing space tokenizes as its own
-        // token and collapses the model's prediction onto whitespace/digits.
-        const src = sourcePrompt.trim();
-        const tgt = targetPrompt.trim();
-        // Reflect the trimmed text back into the editors so the textbox matches
-        // what was actually run (and the heatmap): otherwise sourcePrompt still
-        // holds the trailing space while lastRun snapshots the trimmed prompt,
-        // and the prompt-vs-heatmap mismatch hides the prediction hint.
-        if (src !== sourcePrompt) onSourcePromptChange(src);
-        if (tgt !== targetPrompt) onTargetPromptChange(tgt);
+    // Core run: computes the lens for explicit prompts. handleRun wraps it with
+    // the current editor state; the tutorial's "Try a prompt" path calls it with
+    // the inserted prompt directly (React state updates aren't visible in the
+    // same tick, so we can't rely on sourcePrompt having updated).
+    const executeRun = useCallback(
+        async (srcRaw: string, tgtRaw: string) => {
+            if (!selectedModel) {
+                toast.error("Please select a model.");
+                return;
+            }
+            if (!srcRaw.trim()) {
+                toast.error("Please enter a source prompt.");
+                return;
+            }
+            // Trim surrounding whitespace: a trailing space tokenizes as its own
+            // token and collapses the model's prediction onto whitespace/digits.
+            const src = srcRaw.trim();
+            const tgt = tgtRaw.trim();
+            // Reflect the trimmed text back into the editors so the textbox matches
+            // what was actually run (and the heatmap): otherwise the editor still
+            // holds the trailing space while lastRun snapshots the trimmed prompt,
+            // and the prompt-vs-heatmap mismatch hides the prediction hint.
+            if (src !== srcRaw) onSourcePromptChange(src);
+            if (tgt !== tgtRaw) onTargetPromptChange(tgt);
 
-        if (!chartId) {
-            toast.error("Missing chart id.");
-            return;
-        }
+            if (!chartId) {
+                toast.error("Missing chart id.");
+                return;
+            }
 
-        capture("run_submitted", {
-            tool: "patch-lens",
-            model: selectedModel,
-            source_prompt_length: src.length,
-            target_prompt_length: tgt.length,
-        });
-
-        // Advance any tutorial step gated on clicking Run (the click trigger was
-        // dead until the event bus was wired — see TutorialEventProvider).
-        emitTutorialEvent({ type: "click", target: "#patch-lens-run" });
-
-        try {
-            const result = await runLogitLens({
-                sourcePrompt: src,
-                targetPrompt: tgt, // empty/whitespace is fine — mutation skips the call
+            capture("run_submitted", {
+                tool: "patch-lens",
                 model: selectedModel,
-                chartId,
-                workspaceId,
+                source_prompt_length: src.length,
+                target_prompt_length: tgt.length,
             });
-            onLensResult?.(result, src, tgt);
-            // Advance runCompleted-gated steps; the predicate (if any) inspects
-            // this result (e.g. unit 3's "top prediction ≠ 10").
-            emitTutorialEvent({ type: "runCompleted", result });
-            // Capture the run's top tokens atomically for the guided-tutorial
-            // panel (success predicate + embedded check auto-scoring).
-            setRunTokens((prev) => ({
-                nonce: prev.nonce + 1,
-                top: finalPrediction(result.source),
-                second: finalTopKTokens(result.source, 2)[1] ?? null,
-            }));
-            toast.success(
-                tgt.trim() ? "Logit lens computed for both prompts." : "Logit lens computed.",
-            );
-        } catch (error) {
-            // Error toast handled by the mutation's onError.
-            capture("run_failed", { tool: "patch-lens", error: String(error) });
-        }
-    }, [
-        selectedModel,
-        sourcePrompt,
-        targetPrompt,
-        onSourcePromptChange,
-        onTargetPromptChange,
-        runLogitLens,
-        onLensResult,
-        chartId,
-        workspaceId,
-        capture,
-        emitTutorialEvent,
-    ]);
 
-    const { startTutorial } = useTutorialAutoStart();
+            // Advance any tutorial step gated on clicking Run (the click trigger was
+            // dead until the event bus was wired — see TutorialEventProvider).
+            emitTutorialEvent({ type: "click", target: "#patch-lens-run" });
+
+            try {
+                const result = await runLogitLens({
+                    sourcePrompt: src,
+                    targetPrompt: tgt, // empty/whitespace is fine — mutation skips the call
+                    model: selectedModel,
+                    chartId,
+                    workspaceId,
+                });
+                onLensResult?.(result, src, tgt);
+                // Advance runCompleted-gated steps; the predicate (if any) inspects
+                // this result (e.g. unit 3's "top prediction ≠ 10").
+                emitTutorialEvent({ type: "runCompleted", result });
+                // Capture the run's top tokens atomically for the guided-tutorial
+                // panel (success predicate + embedded check auto-scoring).
+                setRunTokens((prev) => ({
+                    nonce: prev.nonce + 1,
+                    top: finalPrediction(result.source),
+                    second: finalTopKTokens(result.source, 2)[1] ?? null,
+                }));
+                toast.success(
+                    tgt.trim() ? "Logit lens computed for both prompts." : "Logit lens computed.",
+                );
+            } catch (error) {
+                // Error toast handled by the mutation's onError.
+                capture("run_failed", { tool: "patch-lens", error: String(error) });
+            }
+        },
+        [
+            selectedModel,
+            onSourcePromptChange,
+            onTargetPromptChange,
+            runLogitLens,
+            onLensResult,
+            chartId,
+            workspaceId,
+            capture,
+            emitTutorialEvent,
+        ],
+    );
+
+    const handleRun = useCallback(
+        () => executeRun(sourcePrompt, targetPrompt),
+        [executeRun, sourcePrompt, targetPrompt],
+    );
+
+    // Tutorial "Try a prompt": fill the source prompt, show its tokenized chips,
+    // then run — one click instead of insert-then-Run. Target is left as-is
+    // (empty in lens units → single-prompt mode).
+    const handleTryPrompt = useCallback(
+        async (text: string) => {
+            const trimmed = text.trim();
+            onSourcePromptChange(trimmed);
+            if (selectedModel && trimmed) {
+                const tokens = await tokenize(trimmed, selectedModel);
+                if (tokens && tokens.length > 0) {
+                    setSrcTokens(tokens);
+                    setSrcTokenizedModel(selectedModel);
+                    setSrcEditing(false);
+                }
+            }
+            await executeRun(trimmed, targetPrompt);
+        },
+        [selectedModel, tokenize, onSourcePromptChange, targetPrompt, executeRun],
+    );
+
+    // Suppress the hard-coded reactour walkthrough in workshop mode (and while
+    // the workshop lookup is pending) — the guided tutorial auto-launches there.
+    const { startTutorial } = useTutorialAutoStart({ disabled: workshopLoading || !!workshop });
 
     return (
         <div className="h-full flex flex-col md:min-w-64">
@@ -650,7 +700,9 @@ export default function PatchLensArea({
                     secondToken={runTokens.second}
                     surveyUrl={workshop?.surveyUrl}
                     completionThanks={workshop?.completionText}
+                    workshopMode={!!workshop}
                     onSpotlight={setSpotlight}
+                    onTryPrompt={handleTryPrompt}
                     onInsertPrompt={(text) => {
                         onSourcePromptChange(text);
                         setSrcEditing(true);
