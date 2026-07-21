@@ -50,9 +50,13 @@ test.describe("workshop analytics dashboard", () => {
         await expect(page.getByRole("heading", { name: ACTIVE_WORKSHOP_NAME })).toBeVisible({
             timeout: 15_000,
         });
-        await expect(page.getByText("Participants", { exact: true })).toBeVisible();
-        await expect(page.getByText("Active", { exact: true })).toBeVisible();
-        await expect(page.getByText("Tutorial completion", { exact: true })).toBeVisible();
+        // Scope tile-label assertions to the stat-tiles grid: "Participants" also
+        // appears as the participants-table heading, so a page-wide exact match is
+        // ambiguous (strict-mode violation).
+        const tiles = page.getByTestId("analytics-stat-tiles");
+        await expect(tiles.getByText("Participants", { exact: true })).toBeVisible();
+        await expect(tiles.getByText("Active", { exact: true })).toBeVisible();
+        await expect(tiles.getByText("Tutorial completion", { exact: true })).toBeVisible();
         await expect(page.getByRole("button", { name: "Export CSV" })).toBeVisible();
     });
 });

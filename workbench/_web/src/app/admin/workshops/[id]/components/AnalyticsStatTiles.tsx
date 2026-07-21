@@ -28,7 +28,10 @@ function completionPct(analytics: WorkshopAnalytics): number {
 export function AnalyticsStatTiles({ analytics }: { analytics: WorkshopAnalytics }) {
     const { totals } = analytics;
     return (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        <div
+            data-testid="analytics-stat-tiles"
+            className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5"
+        >
             <Tile label="Participants" value={totals.participants} />
             <Tile label="Active" value={totals.activeParticipants} />
             <Tile label="Lens runs" value={totals.lensRuns} />
