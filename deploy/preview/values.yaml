@@ -51,7 +51,14 @@ resources:
 # Image pull secret for GHCR (created per-namespace by the workflow).
 imagePullSecret: ghcr-pull
 
-env: []
+# Runtime env passed through to the web deployment. The preview image bakes
+# NEXT_PUBLIC_LOCAL_DB=true + NEXT_PUBLIC_DISABLE_AUTH=true (see the Dockerfile),
+# so the stub user is dev@localhost. Allowlist it so /admin (tutorial + workshop
+# editing) is reachable on previews — low-risk since previews already sit behind
+# the ndif-team oauth2 gate. ADMIN_EMAILS is read at runtime, so no rebuild.
+env:
+  - name: ADMIN_EMAILS
+    value: "dev@localhost"
 
 # FastAPI backend (workbench/_api) deployed alongside the Next.js frontend.
 # Reachable at a SIBLING subdomain of the web host (e.g. pr-123-api.<root>
