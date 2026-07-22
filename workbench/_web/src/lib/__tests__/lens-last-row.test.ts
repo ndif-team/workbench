@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "bun:test";
-import { extractLastRow, finalPrediction } from "@/lib/lens-last-row";
+import { extractLastRow, finalPrediction, finalTopKTokens } from "@/lib/lens-last-row";
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
 
 // Minimal nnsightful-shaped logit-lens result: 2 layers, 2 positions.
@@ -56,5 +56,47 @@ describe("extractLastRow", () => {
             } as unknown as LogitLensIntroData),
         ).toBeNull();
         expect(finalPrediction(null)).toBeNull();
+    });
+});
+
+// finalTopKTokens ranks the final-layer candidates at the last position by
+// probability — it auto-scores unit 2's "second-ranked next token" embedded
+// check (PatchLensArea captures `finalTopKTokens(source, 2)[1]`). Ported from
+// the retired prolificUnits.test.ts so a runner-up mis-rank stays caught.
+describe("finalTopKTokens", () => {
+    // 2 layers, 2 positions; final layer=idx1, last position=idx1.
+    const topkData = {
+        layers: [0, 1],
+        input: ["The", " capital"],
+        topk: [
+            // layer 0
+            [
+                [" a", " the"],
+                [" a", " the"],
+            ],
+            // layer 1 (final): last position candidates
+            [
+                [" x", " y"],
+                [" Paris", " London", " Rome"],
+            ],
+        ],
+        tracked: [
+            {},
+            {
+                " Paris": [0.1, 0.7],
+                " London": [0.1, 0.2],
+                " Rome": [0.1, 0.05],
+            },
+        ],
+    } as unknown as LogitLensIntroData;
+
+    it("returns final-layer top-k ranked by probability", () => {
+        expect(finalTopKTokens(topkData, 2)).toEqual([" Paris", " London"]);
+        expect(finalTopKTokens(topkData, 1)).toEqual([" Paris"]);
+    });
+
+    it("returns [] on malformed data", () => {
+        expect(finalTopKTokens(null, 2)).toEqual([]);
+        expect(finalTopKTokens({} as LogitLensIntroData, 2)).toEqual([]);
     });
 });

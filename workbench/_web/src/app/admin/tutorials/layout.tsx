@@ -6,12 +6,11 @@ import { ModeToggle } from "@/components/ui/mode-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
 
 /**
- * Admin surface for workshop configs. Gated by the ADMIN_EMAILS allowlist:
- * non-admins get a 404 (rather than a redirect) so the route's existence isn't
- * advertised. This check is UX only — every admin server action re-runs
- * requireAdmin() itself.
+ * Admin surface for tutorial content. Gated by the ADMIN_EMAILS allowlist (404
+ * for non-admins so the route isn't advertised). UX only — every admin server
+ * action re-runs requireAdmin() itself.
  */
-export default async function AdminWorkshopsLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminTutorialsLayout({ children }: { children: React.ReactNode }) {
     const adminEmail = await getAdminEmail();
     if (!adminEmail) {
         notFound();
@@ -27,14 +26,14 @@ export default async function AdminWorkshopsLayout({ children }: { children: Rea
                     >
                         <h1 className="text-2xl font-bold">Workbench</h1>
                     </Link>
-                    <span className="text-sm text-muted-foreground">/ Workshops</span>
+                    <span className="text-sm text-muted-foreground">/ Tutorials</span>
                 </div>
                 <nav className="flex gap-1 md:gap-3 items-center">
                     <Link
-                        href="/admin/tutorials"
+                        href="/admin/workshops"
                         className="text-sm text-muted-foreground hover:text-foreground"
                     >
-                        Tutorials
+                        Workshops
                     </Link>
                     <ModeToggle />
                     <UserDropdown />

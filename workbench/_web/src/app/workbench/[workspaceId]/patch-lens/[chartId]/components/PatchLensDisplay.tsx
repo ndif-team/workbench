@@ -14,6 +14,8 @@ import type { LogitLensData, Intervention, CausalMediationEvent } from "edulogit
 import { PatchLensResult, usePatchLensIntervention } from "@/lib/api/patchLensApi";
 import { transformToEduFormat } from "@/lib/edu-lens";
 import type { PatchLensChartData } from "@/types/patchLens";
+import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
+import { useProlificTutorial } from "@/stores/useProlificTutorial";
 
 function CMSkeleton({ message, showTarget }: { message: string; showTarget: boolean }) {
     const SkeletonGrid = () => (
@@ -66,6 +68,9 @@ export function PatchLensDisplay({
 }: PatchLensDisplayProps) {
     const { chartId } = useParams<{ chartId: string }>();
     const capture = useCapture();
+    const { emit: emitTutorialEvent } = useTutorialEmit();
+    const markPatchApplied = useProlificTutorial((s) => s.markPatchApplied);
+    const recordPatchResult = useProlificTutorial((s) => s.recordPatchResult);
     const { selectedModelIdx } = useWorkspace();
     const queryClient = useQueryClient();
 
@@ -189,12 +194,25 @@ export function PatchLensDisplay({
                         tgtLayer: i.targetLayer,
                     },
                 });
+                // Advance any patchApplied-gated tutorial step (unit 4): both the
+                // reactour trigger path and the guided-tutorial activity panel.
+                emitTutorialEvent({ type: "patchApplied" });
+                markPatchApplied();
                 return transformToEduFormat(result) ?? null;
             } catch {
                 return null;
             }
         },
-        [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention, capture],
+        [
+            chartId,
+            selectedModel,
+            sourcePrompt,
+            targetPrompt,
+            runIntervention,
+            capture,
+            emitTutorialEvent,
+            markPatchApplied,
+        ],
     );
 
     // Clear the persisted patch when the user resets the intervention, so the
@@ -288,6 +306,11 @@ export function PatchLensDisplay({
                 onResetIntervention={handleResetIntervention}
                 isInterventionPending={isInterventionPending}
                 onEvent={handleWidgetEvent}
+                // The TARGET's post-patch output token, so a guided-tutorial patch
+                // unit's check scores against the actual patch outcome rather than
+                // the source's pre-patch prediction. Not analytics — the store
+                // routes it to the tutorial check, never to capture()/PostHog.
+                onInterventionResult={recordPatchResult}
             />
         </div>
     );
