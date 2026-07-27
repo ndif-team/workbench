@@ -18,7 +18,9 @@ export function AnalyticsParticipantsTable({
     // Prefer the workshop tutorial's own unit titles; fall back to the demo id
     // map, then the raw id, so custom/edited tutorials aren't left unlabeled.
     const stepLabel = (stepId: string | null) =>
-        stepId ? (stepLabels[stepId] ?? TUTORIAL_STEP_LABELS[stepId as TutorialStepId] ?? stepId) : "—";
+        stepId
+            ? (stepLabels[stepId] ?? TUTORIAL_STEP_LABELS[stepId as TutorialStepId] ?? stepId)
+            : "—";
 
     return (
         <div className="rounded-md border bg-card shadow-xs">

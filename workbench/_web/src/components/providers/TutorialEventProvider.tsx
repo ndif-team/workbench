@@ -58,6 +58,15 @@ export function TutorialEventProvider({ children }: { children: ReactNode }) {
     const prevStepRef = useRef<number | null>(null);
     useEffect(() => {
         if (!manager.isOpen) {
+            // Closing on the final step never triggers the forward-advance path
+            // below (there's no greater `cur` to complete `prev` against), so
+            // record its completion here — otherwise the last step is always
+            // missing from the completion funnel.
+            const last = prevStepRef.current;
+            if (last != null && steps && last === steps.length - 1) {
+                const lastId = (steps[last] as ExtendedStepType | undefined)?.stepId;
+                if (lastId) record(lastId, "step_completed");
+            }
             prevStepRef.current = null;
             return;
         }

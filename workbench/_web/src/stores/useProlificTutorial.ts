@@ -61,11 +61,16 @@ interface ProlificTutorialState {
      * run that resolves after the participant advances can't complete the wrong
      * (now-current) unit. Falls back to the current unit when omitted. */
     recordRun: (topToken: string | null, unitIdx?: number) => void;
-    /** A patch was applied (patch-unit progression). */
-    markPatchApplied: () => void;
+    /** A patch was applied (patch-unit progression). `unitIdx` pins completion to
+     * the unit the patch was *initiated* from, so an async intervention that
+     * settles after the participant advances can't complete the wrong unit.
+     * Falls back to the current unit when omitted. */
+    markPatchApplied: (unitIdx?: number) => void;
     /** Feed the TARGET's post-patch top token (from the widget) so a patch unit's
-     * embedded check can score against the actual patch outcome. */
-    recordPatchResult: (topToken: string | null) => void;
+     * embedded check can score against the actual patch outcome. `unitIdx` pins
+     * the result to the unit the intervention was initiated from (see
+     * `markPatchApplied`); falls back to the current unit when omitted. */
+    recordPatchResult: (topToken: string | null, unitIdx?: number) => void;
     /** Reveal the next hint rung; returns the new highest stage. */
     revealHint: () => number;
     answerCheck: (answer: string, correct: boolean) => void;
@@ -208,25 +213,25 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 set({ attemptsByUnit: { ...state.attemptsByUnit, [idx]: attempts } });
             },
 
-            markPatchApplied: () => {
+            markPatchApplied: (unitIdx) => {
                 const state = get();
-                const unit = state.units[state.unitIdx];
+                const idx = unitIdx ?? state.unitIdx;
+                const unit = state.units[idx];
                 if (unit?.progression.on !== "patch") return;
-                set(completeUnit(state, state.unitIdx));
+                set(completeUnit(state, idx));
             },
 
-            recordPatchResult: (topToken) => {
+            recordPatchResult: (topToken, unitIdx) => {
                 const state = get();
                 // Only relevant while the guided tutorial is running; pin to the
-                // current unit so the check can require a patch on THIS unit.
+                // unit the intervention was initiated from so the check requires a
+                // patch on THAT unit (mid-run navigation can't misattribute it).
                 if (!state.active) return;
-                if (
-                    state.patchResultToken === topToken &&
-                    state.patchResultUnitIdx === state.unitIdx
-                ) {
+                const idx = unitIdx ?? state.unitIdx;
+                if (state.patchResultToken === topToken && state.patchResultUnitIdx === idx) {
                     return;
                 }
-                set({ patchResultToken: topToken, patchResultUnitIdx: state.unitIdx });
+                set({ patchResultToken: topToken, patchResultUnitIdx: idx });
             },
 
             revealHint: () => {

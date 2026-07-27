@@ -13,6 +13,17 @@ import type { TutorialInput } from "@/lib/queries/tutorialContentDb";
 import type { TutorialContent } from "@/types/tutorial-content";
 import { queryKeys } from "../queryKeys";
 
+// Re-export the bare server actions alongside the React Query hooks so callers
+// that want the raw async function (no toast/invalidation) can import from here.
+export {
+    resolveTutorialForWorkspace,
+    listTutorials,
+    createTutorial,
+    updateTutorial,
+    deleteTutorial,
+    ensureSeedTutorial,
+};
+
 /**
  * The guided-tutorial content a workspace runs (its workshop's assigned tutorial,
  * else the seeded demo). Read by the patch-lens tutorial panel. Content is
