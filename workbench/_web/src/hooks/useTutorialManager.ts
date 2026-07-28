@@ -23,7 +23,24 @@ type TokenClickEvent = {
     tokenIndex: number;
 };
 
-type TutorialEventData = ClickEvent | TextInputEvent | TokenHighlightEvent | TokenClickEvent;
+// A lens run finished; `result` is passed to a runCompleted trigger's predicate.
+type RunCompletedEvent = {
+    type: "runCompleted";
+    result: unknown;
+};
+
+// An activation-patching intervention was applied.
+type PatchAppliedEvent = {
+    type: "patchApplied";
+};
+
+type TutorialEventData =
+    | ClickEvent
+    | TextInputEvent
+    | TokenHighlightEvent
+    | TokenClickEvent
+    | RunCompletedEvent
+    | PatchAppliedEvent;
 
 export function useTutorialManager() {
     const { setCurrentStep, currentStep, isOpen, steps } = useTour();
@@ -60,6 +77,16 @@ export function useTutorialManager() {
                     shouldAdvance =
                         eventData.type === "tokenClick" &&
                         eventData.tokenIndex === trigger.expectedTokenIndex;
+                    break;
+
+                case "runCompleted":
+                    shouldAdvance =
+                        eventData.type === "runCompleted" &&
+                        (trigger.predicate ? trigger.predicate(eventData.result) : true);
+                    break;
+
+                case "patchApplied":
+                    shouldAdvance = eventData.type === "patchApplied";
                     break;
             }
 
@@ -121,5 +148,10 @@ export function useTutorialManager() {
         handleTextInput,
         handleTokenHighlight,
         handleTokenClick,
+        // Generic dispatch — lets an event-bus provider forward any event without
+        // knowing which handler maps to it.
+        emit: checkStepCompletion,
     };
 }
+
+export type { TutorialEventData };

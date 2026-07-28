@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { BarChart3, Link2, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -62,6 +63,17 @@ export function WorkshopRow({
                     </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground/40 hover:text-foreground"
+                        title="View analytics"
+                    >
+                        <Link href={`/admin/workshops/${workshop.id}`}>
+                            <BarChart3 className="h-4 w-4" />
+                        </Link>
+                    </Button>
                     <Button
                         variant="ghost"
                         size="icon"

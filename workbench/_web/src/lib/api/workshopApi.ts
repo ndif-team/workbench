@@ -8,6 +8,7 @@ import {
     updateWorkshop,
     deleteWorkshop,
 } from "@/lib/queries/workshopQueries";
+import { getWorkshopAnalytics } from "@/lib/queries/workshopAnalyticsQueries";
 import type { WorkshopInput } from "@/lib/queries/workshopDb";
 import { queryKeys } from "../queryKeys";
 
@@ -28,6 +29,14 @@ export const useWorkshops = () =>
     useQuery({
         queryKey: queryKeys.workshops.all,
         queryFn: () => listWorkshops(),
+    });
+
+/** Per-workshop analytics for the /admin/workshops/[id] dashboard. */
+export const useWorkshopAnalytics = (workshopId: string | undefined) =>
+    useQuery({
+        queryKey: queryKeys.workshops.analytics(workshopId ?? ""),
+        queryFn: () => getWorkshopAnalytics(workshopId as string),
+        enabled: !!workshopId,
     });
 
 export const useCreateWorkshop = () => {
@@ -52,8 +61,11 @@ export const useUpdateWorkshop = () => {
             updates: Partial<Omit<WorkshopInput, "createdBy">>;
         }) => updateWorkshop(id, updates),
         onError: () => toast.error("Failed to update workshop"),
-        onSuccess: () => {
+        onSuccess: (_data, { id }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.workshops.all });
+            // An edit can reassign the tutorial or change gating, both of which
+            // alter the analytics dashboard's step order / funnel.
+            queryClient.invalidateQueries({ queryKey: queryKeys.workshops.analytics(id) });
         },
     });
 };

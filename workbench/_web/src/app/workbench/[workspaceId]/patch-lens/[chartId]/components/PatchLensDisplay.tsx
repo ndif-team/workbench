@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useCapture } from "@/lib/analytics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,6 +14,8 @@ import type { LogitLensData, Intervention, CausalMediationEvent } from "edulogit
 import { PatchLensResult, usePatchLensIntervention } from "@/lib/api/patchLensApi";
 import { transformToEduFormat } from "@/lib/edu-lens";
 import type { PatchLensChartData } from "@/types/patchLens";
+import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
+import { useProlificTutorial } from "@/stores/useProlificTutorial";
 
 function CMSkeleton({ message, showTarget }: { message: string; showTarget: boolean }) {
     const SkeletonGrid = () => (
@@ -66,6 +68,9 @@ export function PatchLensDisplay({
 }: PatchLensDisplayProps) {
     const { chartId } = useParams<{ chartId: string }>();
     const capture = useCapture();
+    const { emit: emitTutorialEvent } = useTutorialEmit();
+    const markPatchApplied = useProlificTutorial((s) => s.markPatchApplied);
+    const recordPatchResult = useProlificTutorial((s) => s.recordPatchResult);
     const { selectedModelIdx } = useWorkspace();
     const queryClient = useQueryClient();
 
@@ -167,9 +172,15 @@ export function PatchLensDisplay({
     const { mutateAsync: runIntervention, isPending: isInterventionPending } =
         usePatchLensIntervention();
 
+    // The tutorial unit the in-flight patch was initiated from. Snapshotted when
+    // the intervention starts so completion/result scoring can't be misattributed
+    // to a different unit if the participant navigates while it runs.
+    const patchUnitIdxRef = useRef<number | null>(null);
+
     const handleIntervention = useCallback(
         async (i: Intervention): Promise<LogitLensData | null> => {
             if (!chartId || !selectedModel) return null;
+            patchUnitIdxRef.current = useProlificTutorial.getState().unitIdx;
             capture("patch_lens_intervention_applied", {
                 source_layer: i.sourceLayer,
                 source_token_position: i.sourceTokenPosition,
@@ -189,12 +200,25 @@ export function PatchLensDisplay({
                         tgtLayer: i.targetLayer,
                     },
                 });
+                // Advance any patchApplied-gated tutorial step (unit 4): both the
+                // reactour trigger path and the guided-tutorial activity panel.
+                emitTutorialEvent({ type: "patchApplied" });
+                markPatchApplied(patchUnitIdxRef.current ?? undefined);
                 return transformToEduFormat(result) ?? null;
             } catch {
                 return null;
             }
         },
-        [chartId, selectedModel, sourcePrompt, targetPrompt, runIntervention, capture],
+        [
+            chartId,
+            selectedModel,
+            sourcePrompt,
+            targetPrompt,
+            runIntervention,
+            capture,
+            emitTutorialEvent,
+            markPatchApplied,
+        ],
     );
 
     // Clear the persisted patch when the user resets the intervention, so the
@@ -216,6 +240,14 @@ export function PatchLensDisplay({
         );
         queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(chartId) });
     }, [chartId, queryClient, capture]);
+
+    // Route the TARGET's post-patch top token to the tutorial store, pinned to
+    // the unit the intervention was initiated from (see patchUnitIdxRef).
+    const handleInterventionResult = useCallback(
+        (topToken: string | null) =>
+            recordPatchResult(topToken, patchUnitIdxRef.current ?? undefined),
+        [recordPatchResult],
+    );
 
     // Map the widget's in-chart interactions to product analytics. Cell
     // expansions become cell_expanded; token/layer step changes become
@@ -288,6 +320,11 @@ export function PatchLensDisplay({
                 onResetIntervention={handleResetIntervention}
                 isInterventionPending={isInterventionPending}
                 onEvent={handleWidgetEvent}
+                // The TARGET's post-patch output token, so a guided-tutorial patch
+                // unit's check scores against the actual patch outcome rather than
+                // the source's pre-patch prediction. Not analytics — the store
+                // routes it to the tutorial check, never to capture()/PostHog.
+                onInterventionResult={handleInterventionResult}
             />
         </div>
     );

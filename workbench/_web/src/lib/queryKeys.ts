@@ -28,5 +28,14 @@ export const queryKeys = {
     workshops: {
         all: ["workshops"] as const,
         byWorkspace: (workspaceId: string) => ["workshop-for-workspace", workspaceId] as const,
+        // Prefix that matches every per-workshop analytics query — invalidate this
+        // to refresh all dashboards after an edit that can change their contents.
+        analyticsAll: ["workshop-analytics"] as const,
+        analytics: (workshopId: string) => ["workshop-analytics", workshopId] as const,
+    },
+    tutorials: {
+        all: ["tutorials"] as const,
+        one: (id: string) => ["tutorial", id] as const,
+        byWorkspace: (workspaceId: string) => ["tutorial-for-workspace", workspaceId] as const,
     },
 };
