@@ -1,10 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 import logging
 import os
 import anyio
 
-from .routes import lens, patch, models, logit_lens, activation_patching, causal_mediation
+from .routes import (
+    lens,
+    patch,
+    models,
+    logit_lens,
+    activation_patching,
+    forward_pass,
+    causal_mediation,
+)
 from .state import AppState
 
 from dotenv import load_dotenv; load_dotenv()
@@ -55,9 +64,13 @@ def fastapi_app():
             max_age=3600,
         )
 
+    # Compress large forward_pass / logit_lens / activation_patching payloads.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
+
     app.include_router(lens, prefix="/lens")
     app.include_router(logit_lens, prefix="/logit_lens")
     app.include_router(activation_patching, prefix="/activation_patching")
+    app.include_router(forward_pass, prefix="/forward_pass")
     app.include_router(causal_mediation, prefix="/causal_mediation", tags=["causal_mediation"])
     app.include_router(patch, prefix="/patch")
     app.include_router(models, prefix="/models")

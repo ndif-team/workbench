@@ -3,6 +3,62 @@
 # Build context must be the repo root (the Dockerfile path is workbench/_web/Dockerfile)
 # so the build can reach the sibling nnsightful symlink target if/when needed.
 
+# Build the transformer-explainer Svelte SPA in a separate stage so its
+# build output can be copied into the Next.js public/ tree. Served at
+# /transformer-explainer/ on the same host as the Next.js app (no CORS
+# in production; the API call goes to api.<host> per ALLOWED_ORIGIN_REGEX).
+FROM node:20-slim AS te-builder
+WORKDIR /app
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+ARG TE_REPO=https://github.com/ndif-team/transformer-explainer.git
+# TE_REF: pin to a specific commit SHA for reproducible builds. Updating
+# this value also busts the docker layer cache below it (the ADD line
+# embeds it in a URL, and the RUN line uses it as a clone target — both
+# layer hashes change when TE_REF changes). Bump this when there's a new
+# TE commit to ship into the preview.
+ARG TE_REF=7599b64dae7615039b6b1854af65cf3e4b73971b
+ADD https://api.github.com/repos/ndif-team/transformer-explainer/commits/${TE_REF} /tmp/te-ref.json
+# `git clone --branch` works with tag or branch names but not bare SHAs,
+# so for a SHA we shallow clone the default branch then fetch+checkout.
+# Falls back to --branch for human-readable refs (branches/tags).
+RUN if echo "${TE_REF}" | grep -Eq '^[0-9a-f]{40}$'; then \
+        git clone --filter=blob:none ${TE_REPO} te \
+     && git -C te fetch --depth 1 origin ${TE_REF} \
+     && git -C te checkout ${TE_REF}; \
+    else \
+        git clone --depth 1 --branch ${TE_REF} ${TE_REPO} te; \
+    fi
+WORKDIR /app/te
+# preview-deploy.yml already passes NEXT_PUBLIC_BACKEND_URL (Next.js
+# needs it for the same workbench API host). We reuse it here so the
+# te-builder doesn't need a separate workflow change to land first
+# (pull_request_target uses the workflow from main, not from the PR
+# HEAD — see https://docs.github.com/en/actions/security-guides/automatic-token-authentication).
+ARG NEXT_PUBLIC_BACKEND_URL
+ARG VITE_WORKBENCH_API
+ARG VITE_USER_EMAIL=dev@localhost
+ARG BASE_PATH=/transformer-explainer
+# Resolve VITE_WORKBENCH_API: prefer the explicit arg, fall back to the
+# Next.js backend URL. Fail the build if neither is set so a future
+# misconfiguration produces a clear error instead of a silently broken
+# bundle (the localhost:8000 fallback that triggered this hardening).
+RUN export VITE_WORKBENCH_API="${VITE_WORKBENCH_API:-${NEXT_PUBLIC_BACKEND_URL}}" \
+ && test -n "${VITE_WORKBENCH_API}" \
+    || (echo "Either VITE_WORKBENCH_API or NEXT_PUBLIC_BACKEND_URL build-arg is required" && exit 1) \
+ && printf 'VITE_WORKBENCH_API=%s\nVITE_USER_EMAIL=%s\nBASE_PATH=%s\n' \
+    "${VITE_WORKBENCH_API}" "${VITE_USER_EMAIL}" "${BASE_PATH}" > .env.production \
+ && cat .env.production
+# `npm install` first without NODE_ENV=production so devDependencies
+# (vite, sveltekit, svelte-check, etc.) actually get installed.
+RUN npm install --legacy-peer-deps
+# BASE_PATH is read by svelte.config.js for the deploy prefix; relying on
+# NODE_ENV alone was racy with vite's own mode handling, so we set it
+# explicitly here as well.
+ENV NODE_ENV=production BASE_PATH=${BASE_PATH}
+RUN npm run build
+
 FROM oven/bun:1.2 AS deps
 WORKDIR /app/workbench/_web
 COPY workbench/_web/package.json workbench/_web/bun.lock* ./
@@ -21,6 +77,10 @@ RUN apt-get update \
  && mkdir -p /data
 COPY --from=deps /app/workbench/_web/node_modules ./node_modules
 COPY workbench/_web ./
+# Bring transformer-explainer's static build into public/ so Next.js
+# serves it at /transformer-explainer/* (see next.config.js rewrites for
+# the trailing-slash entrypoint).
+COPY --from=te-builder /app/te/build ./public/transformer-explainer
 # NEXT_PUBLIC_BACKEND_URL is inlined into the JS bundle by Next.js — must
 # be set at build time. Defaults to the dev placeholder so a vanilla
 # `docker build` still produces a working (but offline-backend) image.
