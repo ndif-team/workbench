@@ -594,15 +594,594 @@
       "n_layers": 64,
       "params": "33B",
       "gated": true
+    },
+    "bigscience/bigscience-small-testing": {
+      "name": "bigscience/bigscience-small-testing",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "16M",
+      "gated": false
+    },
+    "microsoft/Phi-tiny-MoE-instruct": {
+      "name": "microsoft/Phi-tiny-MoE-instruct",
+      "is_chat": true,
+      "n_layers": 32,
+      "params": "4B",
+      "gated": false
+    },
+    "sbintuitions/tiny-lm-chat": {
+      "name": "sbintuitions/tiny-lm-chat",
+      "is_chat": true,
+      "n_layers": 4,
+      "params": "unknown",
+      "gated": false
+    },
+    "EleutherAI/pythia-70m-deduped": {
+      "name": "EleutherAI/pythia-70m-deduped",
+      "is_chat": false,
+      "n_layers": 6,
+      "params": "96M",
+      "gated": false
+    },
+    "yujiepan/deepseek-llm-tiny-random": {
+      "name": "yujiepan/deepseek-llm-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "410K",
+      "gated": false
+    },
+    "yujiepan/gpt-oss-tiny-random-mxfp4": {
+      "name": "yujiepan/gpt-oss-tiny-random-mxfp4",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "7M",
+      "gated": false
+    },
+    "yujiepan/codestral-v0.1-tiny-random": {
+      "name": "yujiepan/codestral-v0.1-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "526K",
+      "gated": false
+    },
+    "deepseek-ai/DeepSeek-V3": {
+      "name": "deepseek-ai/DeepSeek-V3",
+      "is_chat": false,
+      "n_layers": 61,
+      "params": "685B",
+      "gated": true
+    },
+    "yujiepan/mpt-tiny-random": {
+      "name": "yujiepan/mpt-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "405K",
+      "gated": false
+    },
+    "yujiepan/llama-3-tiny-random": {
+      "name": "yujiepan/llama-3-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "1M",
+      "gated": false
+    },
+    "tiiuae/falcon-7b-instruct": {
+      "name": "tiiuae/falcon-7b-instruct",
+      "is_chat": true,
+      "n_layers": 32,
+      "params": "7B",
+      "gated": false
+    },
+    "yujiepan/mistral-v0.3-tiny-random": {
+      "name": "yujiepan/mistral-v0.3-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "526K",
+      "gated": false
+    },
+    "yujiepan/llama-3.3-tiny-random": {
+      "name": "yujiepan/llama-3.3-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "4M",
+      "gated": false
+    },
+    "yujiepan/opt-tiny-2layers-random": {
+      "name": "yujiepan/opt-tiny-2layers-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "420K",
+      "gated": false
+    },
+    "yujiepan/mixtral-8xtiny-random": {
+      "name": "yujiepan/mixtral-8xtiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "525K",
+      "gated": false
+    },
+    "yujiepan/gemma-tiny-random": {
+      "name": "yujiepan/gemma-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "deepseek-ai/DeepSeek-V2-Chat": {
+      "name": "deepseek-ai/DeepSeek-V2-Chat",
+      "is_chat": true,
+      "n_layers": 60,
+      "params": "236B",
+      "gated": true
+    },
+    "yujiepan/stablelm-2-tiny-random": {
+      "name": "yujiepan/stablelm-2-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "803K",
+      "gated": false
+    },
+    "yujiepan/deepseek-v2-tiny-random": {
+      "name": "yujiepan/deepseek-v2-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/glm-4.5-tiny-random": {
+      "name": "yujiepan/glm-4.5-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "3M",
+      "gated": false
+    },
+    "yujiepan/phi-3.5-tiny-random": {
+      "name": "yujiepan/phi-3.5-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "1M",
+      "gated": false
+    },
+    "yujiepan/dbrx-tiny-random": {
+      "name": "yujiepan/dbrx-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "806K",
+      "gated": false
+    },
+    "yujiepan/phi-3-tiny-random": {
+      "name": "yujiepan/phi-3-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "1M",
+      "gated": false
+    },
+    "yujiepan/QwQ-preview-tiny-random": {
+      "name": "yujiepan/QwQ-preview-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/mistral-tiny-random": {
+      "name": "yujiepan/mistral-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "514K",
+      "gated": false
+    },
+    "tiiuae/falcon-40b": {
+      "name": "tiiuae/falcon-40b",
+      "is_chat": false,
+      "n_layers": 60,
+      "params": "42B",
+      "gated": true
+    },
+    "yujiepan/gpt-oss-tiny-random-bf16": {
+      "name": "yujiepan/gpt-oss-tiny-random-bf16",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "7M",
+      "gated": false
+    },
+    "google/gemma-2-9b": {
+      "name": "google/gemma-2-9b",
+      "is_chat": false,
+      "n_layers": 42,
+      "params": "9B",
+      "gated": true
+    },
+    "yujiepan/dbrx-tiny256-random": {
+      "name": "yujiepan/dbrx-tiny256-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "64M",
+      "gated": false
+    },
+    "yujiepan/qwen2.5-tiny-random": {
+      "name": "yujiepan/qwen2.5-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "microsoft/Phi-3-mini-128k-instruct": {
+      "name": "microsoft/Phi-3-mini-128k-instruct",
+      "is_chat": true,
+      "n_layers": 32,
+      "params": "4B",
+      "gated": false
+    },
+    "yujiepan/glm-4-moe-tiny-random": {
+      "name": "yujiepan/glm-4-moe-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "3M",
+      "gated": false
+    },
+    "yujiepan/gptj-tiny-random": {
+      "name": "yujiepan/gptj-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/deepseek-v3-tiny-random": {
+      "name": "yujiepan/deepseek-v3-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "4M",
+      "gated": false
+    },
+    "yujiepan/ernie-4.5-tiny-random": {
+      "name": "yujiepan/ernie-4.5-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "854K",
+      "gated": false
+    },
+    "yujiepan/gemma-2-tiny-random": {
+      "name": "yujiepan/gemma-2-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/deepseek-v2-0628-tiny-random": {
+      "name": "yujiepan/deepseek-v2-0628-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/llama-2-tiny-3layers-random": {
+      "name": "yujiepan/llama-2-tiny-3layers-random",
+      "is_chat": false,
+      "n_layers": 3,
+      "params": "515K",
+      "gated": false
+    },
+    "qwen/Qwen2.5-0.5B": {
+      "name": "qwen/Qwen2.5-0.5B",
+      "is_chat": false,
+      "n_layers": 24,
+      "params": "494M",
+      "gated": false
+    },
+    "yujiepan/qwen1.5-moe-tiny-random": {
+      "name": "yujiepan/qwen1.5-moe-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "1M",
+      "gated": false
+    },
+    "yujiepan/falcon-new-tiny64-random": {
+      "name": "yujiepan/falcon-new-tiny64-random",
+      "is_chat": false,
+      "n_layers": 1,
+      "params": "4M",
+      "gated": false
+    },
+    "yujiepan/phi-3.5-moe-tiny-random": {
+      "name": "yujiepan/phi-3.5-moe-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "1M",
+      "gated": false
+    },
+    "yujiepan/glm-4-tiny-random": {
+      "name": "yujiepan/glm-4-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "5M",
+      "gated": false
+    },
+    "yujiepan/deepseek-v3.1-tiny-random": {
+      "name": "yujiepan/deepseek-v3.1-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "5M",
+      "gated": false
+    },
+    "deepseek-ai/DeepSeek-V2-Chat-0628": {
+      "name": "deepseek-ai/DeepSeek-V2-Chat-0628",
+      "is_chat": true,
+      "n_layers": 60,
+      "params": "236B",
+      "gated": true
+    },
+    "yujiepan/falcon-tiny-random": {
+      "name": "yujiepan/falcon-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "522K",
+      "gated": false
+    },
+    "yujiepan/llama-3.1-tiny-random": {
+      "name": "yujiepan/llama-3.1-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/opt-tiny-random": {
+      "name": "yujiepan/opt-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "420K",
+      "gated": false
+    },
+    "yujiepan/llama-3.3-tiny-random-dim64": {
+      "name": "yujiepan/llama-3.3-tiny-random-dim64",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "8M",
+      "gated": false
+    },
+    "yujiepan/qwen2-tiny-random": {
+      "name": "yujiepan/qwen2-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/qwen3-tiny-random-tp": {
+      "name": "yujiepan/qwen3-tiny-random-tp",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "microsoft/Phi-3.5-MoE-instruct": {
+      "name": "microsoft/Phi-3.5-MoE-instruct",
+      "is_chat": true,
+      "n_layers": 32,
+      "params": "42B",
+      "gated": true
+    },
+    "yujiepan/llama-2-tiny-random": {
+      "name": "yujiepan/llama-2-tiny-random",
+      "is_chat": false,
+      "n_layers": 1,
+      "params": "513K",
+      "gated": false
+    },
+    "yujiepan/qwen1.5-tiny-random": {
+      "name": "yujiepan/qwen1.5-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "1M",
+      "gated": false
+    },
+    "yujiepan/kimi-k2-tiny-random": {
+      "name": "yujiepan/kimi-k2-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "11M",
+      "gated": false
+    },
+    "axolotl-ai-co/gemma-3-34M": {
+      "name": "axolotl-ai-co/gemma-3-34M",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "34M",
+      "gated": false
+    },
+    "yujiepan/mixtral-8xtiny-random-openvino-8bit": {
+      "name": "yujiepan/mixtral-8xtiny-random-openvino-8bit",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "unknown",
+      "gated": false
+    },
+    "yujiepan/falcon-new-tiny-random": {
+      "name": "yujiepan/falcon-new-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "523K",
+      "gated": false
+    },
+    "yujiepan/baguettotron-tiny-random": {
+      "name": "yujiepan/baguettotron-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "552K",
+      "gated": false
+    },
+    "yujiepan/smollm-tiny-random": {
+      "name": "yujiepan/smollm-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "394K",
+      "gated": false
+    },
+    "gpt2": {
+      "name": "gpt2",
+      "is_chat": false,
+      "n_layers": 12,
+      "params": "137M",
+      "gated": false
+    },
+    "yujiepan/starcoder-tiny-random": {
+      "name": "yujiepan/starcoder-tiny-random",
+      "is_chat": false,
+      "n_layers": 1,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/bloom-tiny-random": {
+      "name": "yujiepan/bloom-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/ernie-4.5-moe-tiny-random": {
+      "name": "yujiepan/ernie-4.5-moe-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "904K",
+      "gated": false
+    },
+    "yujiepan/mistral-nemo-2407-tiny-random": {
+      "name": "yujiepan/mistral-nemo-2407-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/qwen2.5-128k-tiny-random": {
+      "name": "yujiepan/qwen2.5-128k-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/llama-3.2-tiny-random": {
+      "name": "yujiepan/llama-3.2-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "1M",
+      "gated": false
+    },
+    "yujiepan/phi-moe-tiny-random": {
+      "name": "yujiepan/phi-moe-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "3M",
+      "gated": false
+    },
+    "yujiepan/gpt-oss-tiny-random": {
+      "name": "yujiepan/gpt-oss-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "7M",
+      "gated": false
+    },
+    "yujiepan/smollm3-tiny-random": {
+      "name": "yujiepan/smollm3-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "8M",
+      "gated": false
+    },
+    "yujiepan/qwen3-moe-tiny-random": {
+      "name": "yujiepan/qwen3-moe-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "10M",
+      "gated": false
+    },
+    "yujiepan/phi-4-tiny-random": {
+      "name": "yujiepan/phi-4-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "3M",
+      "gated": false
+    },
+    "yujiepan/QwQ-tiny-random": {
+      "name": "yujiepan/QwQ-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "2M",
+      "gated": false
+    },
+    "yujiepan/mixtral-tiny-random": {
+      "name": "yujiepan/mixtral-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "258K",
+      "gated": false
+    },
+    "yujiepan/mathstral-v0.1-tiny-random": {
+      "name": "yujiepan/mathstral-v0.1-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "526K",
+      "gated": false
+    },
+    "yujiepan/qwen3-tiny-random": {
+      "name": "yujiepan/qwen3-tiny-random",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "10M",
+      "gated": false
+    },
+    "yujiepan/falcon-new-tiny-random-awq-w4g64": {
+      "name": "yujiepan/falcon-new-tiny-random-awq-w4g64",
+      "is_chat": false,
+      "n_layers": 1,
+      "params": "8M",
+      "gated": false
+    },
+    "yujiepan/qwq-tiny-random-dim64": {
+      "name": "yujiepan/qwq-tiny-random-dim64",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "20M",
+      "gated": false
+    },
+    "yujiepan/llama-3-tiny-random-gptq-w4": {
+      "name": "yujiepan/llama-3-tiny-random-gptq-w4",
+      "is_chat": false,
+      "n_layers": 2,
+      "params": "1M",
+      "gated": false
+    },
+    "EleutherAI/pythia-6.9b": {
+      "name": "EleutherAI/pythia-6.9b",
+      "is_chat": false,
+      "n_layers": 32,
+      "params": "7B",
+      "gated": false
+    },
+    "allenai/OLMo-2-0425-1B": {
+      "name": "allenai/OLMo-2-0425-1B",
+      "is_chat": false,
+      "n_layers": 16,
+      "params": "1B",
+      "gated": false
     }
   },
   "unsupported": [
+    "DeepFloyd/IF-I-L-v1.0",
+    "MiniMaxAI/MiniMax-M2",
+    "MiniMaxAI/MiniMax-M2.5",
+    "NeelNanda/pile-10k",
+    "Qwen/Qwen3-VL-2B-Instruct",
+    "Qwen/Qwen3-VL-8B-Instruct",
     "Qwen/Qwen3.5-27B",
     "Qwen/Qwen3.5-9B",
     "Qwen/Qwen3.6-35B-A3B",
+    "SakanaAI/Llama-2-7b-hf-DroPE",
+    "THUDM/LongBench",
     "allenai/OLMo-7B",
+    "andyrdt/04_2026_puzzle_1a",
+    "andyrdt/04_2026_puzzle_1b",
+    "black-forest-labs/FLUX.1-schnell",
     "deepseek-ai/deepseek-moe-16b-base",
     "facebook/esmfold_v1",
+    "glue",
     "google/gemma-3-12b-it",
     "google/gemma-3-12b-pt",
     "google/gemma-3-27b-it",
@@ -612,14 +1191,111 @@
     "google/gemma-4-12B-it",
     "google/gemma-4-26B-A4B",
     "google/gemma-4-31B",
+    "hf-internal-testing/tiny-stable-diffusion-pipe",
+    "ivanzhouyq/RedPajama-Tiny",
     "kernels-community/triton_kernels",
     "lewtun/talkie-1930-13b-it-hf",
     "llava-hf/llava-1.5-7b-hf",
+    "llava-hf/llava-interleave-qwen-0.5b-hf",
     "meta-llama/Llama-3-8B-instruct",
+    "mib-bench/arc_challenge",
+    "mib-bench/arc_easy",
+    "mib-bench/arithmetic_addition",
+    "mib-bench/arithmetic_subtraction",
+    "mib-bench/copycolors_mcqa",
+    "mib-bench/ioi",
+    "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
     "mlabonne/gemma-3-27b-it-abliterated",
     "moonshotai/Kimi-K2.5",
     "mosaicml/mpt-30b",
+    "neuronpedia/jacobian-lens",
+    "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16",
+    "nvidia/Qwen3.6-35B-A3B-NVFP4",
+    "segmind/tiny-sd",
     "stabilityai/stable-diffusion-xl-base-1.0",
-    "stable-diffusion-v1-5/stable-diffusion-v1-5"
+    "stable-diffusion-v1-5/stable-diffusion-v1-5",
+    "wikitext",
+    "yujiepan/apertus-tiny-random",
+    "yujiepan/apriel-1.5-tiny-random",
+    "yujiepan/bailing-moe-v2-tiny-random",
+    "yujiepan/bailing-moe-v2.5-tiny-random",
+    "yujiepan/chatglm3-tiny-random",
+    "yujiepan/clip-vit-tiny-random-patch14-336",
+    "yujiepan/devstral-2-tiny-random",
+    "yujiepan/ernie-4.5-vl-moe-tiny-random",
+    "yujiepan/gemma-3-tiny-random",
+    "yujiepan/gemma-4-dense-tiny-random",
+    "yujiepan/gemma-4-e-tiny-random",
+    "yujiepan/gemma-4-moe-tiny-random",
+    "yujiepan/gemma-4e-tiny-random",
+    "yujiepan/glm-4-moe-lite-tiny-random",
+    "yujiepan/glm-4.1v-tiny-random",
+    "yujiepan/glm-4.5v-tiny-random",
+    "yujiepan/glm-4.6v-tiny-random",
+    "yujiepan/glm-4.7-flash-tiny-random",
+    "yujiepan/glm-4v-moe-tiny-random",
+    "yujiepan/glm-4v-tiny-random",
+    "yujiepan/glm-5-tiny-random",
+    "yujiepan/glm-5.1-tiny-random",
+    "yujiepan/glm-moe-dsa-tiny-random",
+    "yujiepan/glm-ocr-tiny-random",
+    "yujiepan/grok-1-tiny-random",
+    "yujiepan/hunyuan-dense-v1-tiny-random",
+    "yujiepan/hunyuan-moe-tiny-random",
+    "yujiepan/hunyuan-tiny-random",
+    "yujiepan/hy-v3-tiny-random",
+    "yujiepan/hy3-tiny-random",
+    "yujiepan/hymba-tiny-random",
+    "yujiepan/internlm2-tiny-random",
+    "yujiepan/kimi-k2.5-tiny-random",
+    "yujiepan/kimi-k2.6-tiny-random",
+    "yujiepan/kimi-linear-tiny-random",
+    "yujiepan/kormo-tiny-random",
+    "yujiepan/llama-4-8E-tiny-random",
+    "yujiepan/llama-4-tiny-random",
+    "yujiepan/llava-onevision-1.5-tiny-random",
+    "yujiepan/longcat-flash-lite-tiny-random",
+    "yujiepan/longcat-flash-ngram-tiny-random",
+    "yujiepan/longcat-flash-tiny-random",
+    "yujiepan/minicpm-v-4-tiny-random",
+    "yujiepan/minicpm-v-4_5-tiny-random",
+    "yujiepan/minicpm4-tiny-random",
+    "yujiepan/minicpm4.1-tiny-random",
+    "yujiepan/minimax-m1-tiny-random",
+    "yujiepan/minimax-m2-tiny-random",
+    "yujiepan/minimax-m2.5-tiny-random",
+    "yujiepan/minimax-m2.7-tiny-random",
+    "yujiepan/ministral-3-tiny-random",
+    "yujiepan/mistral-3-tiny-random",
+    "yujiepan/mistral-small-4-tiny-random",
+    "yujiepan/olmo-3-tiny-random",
+    "yujiepan/omnivoice-tiny-random",
+    "yujiepan/openai-privacy-filter-tiny-random",
+    "yujiepan/phi-3-vision-tiny-random",
+    "yujiepan/phi-4-flash-tiny-random",
+    "yujiepan/phi-4-multimodal-tiny-random",
+    "yujiepan/qvq-preview-tiny-random",
+    "yujiepan/qwen-vl-tiny-random",
+    "yujiepan/qwen2-audio-tiny-random",
+    "yujiepan/qwen2-vl-tiny-random",
+    "yujiepan/qwen2.5-omni-tiny-random",
+    "yujiepan/qwen3-next-moe-tiny-random",
+    "yujiepan/qwen3-vl-moe-tiny-random",
+    "yujiepan/qwen3-vl-tiny-random",
+    "yujiepan/qwen3.5-moe-tiny-random",
+    "yujiepan/qwen3.5-tiny-random",
+    "yujiepan/qwen3.6-moe-tiny-random",
+    "yujiepan/qwen3.6-tiny-random",
+    "yujiepan/ring-2.5-tiny-random",
+    "yujiepan/ring-tiny-random",
+    "yujiepan/sam3-tiny-random",
+    "yujiepan/seed-oss-tiny-random",
+    "yujiepan/step3-tiny-random",
+    "yujiepan/step3-tiny-random-vllm",
+    "yujiepan/step3-vl-tiny-random",
+    "yujiepan/tiny-random-SwinModel",
+    "yujiepan/tiny-random-swin-patch4-window7-224",
+    "yujiepan/voxtral-tiny-random",
+    "yujiepan/zaya1-tiny-random"
   ]
 }
