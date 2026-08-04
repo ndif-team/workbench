@@ -5,6 +5,7 @@ import { Check, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { popoverMenuShellClass, popoverMenuShellStyle } from "@/components/ui/pill-popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     MODEL_STATUS,
     deriveHeat,
@@ -47,6 +48,13 @@ interface ModelPopoverProps {
      * currently-selected model is always kept visible so the selection never
      * vanishes (e.g. a saved chart whose model has since gone cold). */
     selectableOnly?: boolean;
+    /** Marks models that can't be selected in the current context (e.g. a
+     * model the active tool doesn't support). Disabled rows stay visible but
+     * greyed out, are skipped by keyboard nav, and show `disabledReason` on
+     * hover so users understand why. */
+    isModelDisabled?: (model: Model) => boolean;
+    /** Tooltip text shown on a disabled row. */
+    disabledReason?: string;
 }
 
 export function ModelPopover({
@@ -57,7 +65,13 @@ export function ModelPopover({
     showSearch = true,
     compact = false,
     selectableOnly = false,
+    isModelDisabled,
+    disabledReason,
 }: ModelPopoverProps) {
+    const isDisabled = React.useCallback(
+        (m: Model) => (isModelDisabled ? isModelDisabled(m) : false),
+        [isModelDisabled],
+    );
     // Search query is owned internally; consumers that hide the search
     // (showSearch=false) don't need to thread dead state through.
     const [query, setQuery] = React.useState("");
@@ -81,6 +95,12 @@ export function ModelPopover({
         const compare = (a: Model, b: Model) => {
             if (a.name === selectedName) return -1;
             if (b.name === selectedName) return 1;
+            // Models the active tool doesn't support sink to the bottom of the
+            // group (below every selectable model), so the usable options stay
+            // at the top when a restricted tool (e.g. j-lens) is active.
+            const da = isDisabled(a) ? 1 : 0;
+            const db = isDisabled(b) ? 1 : 0;
+            if (da !== db) return da - db;
             return (
                 heatRank(a) - heatRank(b) ||
                 splitRepo(a.name).label.localeCompare(splitRepo(b.name).label)
@@ -89,7 +109,7 @@ export function ModelPopover({
         const base = models.filter((m) => !m.is_chat && matches(m)).sort(compare);
         const chat = models.filter((m) => m.is_chat && matches(m)).sort(compare);
         return { base, chat, flat: [...base, ...chat] };
-    }, [models, query, selectedName, selectableOnly]);
+    }, [models, query, selectedName, selectableOnly, isDisabled]);
 
     // Track the highlighted row by model NAME, not index. When the list
     // re-sorts (e.g. selecting a model pins it to the top), the index of the
@@ -122,7 +142,13 @@ export function ModelPopover({
 
     const moveActive = (delta: number) => {
         if (flat.length === 0) return;
-        const next = (active + delta + flat.length) % flat.length;
+        // Skip over disabled rows so keyboard nav lands only on selectable
+        // models. Bail after a full loop if every row is disabled.
+        let next = active;
+        for (let i = 0; i < flat.length; i++) {
+            next = (next + delta + flat.length) % flat.length;
+            if (!isDisabled(flat[next])) break;
+        }
         setActiveName(flat[next].name);
     };
 
@@ -136,7 +162,7 @@ export function ModelPopover({
         } else if (e.key === "Enter") {
             e.preventDefault();
             const target = flat[active];
-            if (target) onSelect(target.name);
+            if (target && !isDisabled(target)) onSelect(target.name);
         }
         // esc is handled by the host Popover.
     };
@@ -203,6 +229,8 @@ export function ModelPopover({
                                 onHover={setActiveName}
                                 rowRefs={rowRefs}
                                 compact={compact}
+                                isDisabled={isDisabled}
+                                disabledReason={disabledReason}
                             />
                         )}
                         {chat.length > 0 && (
@@ -216,6 +244,8 @@ export function ModelPopover({
                                 onHover={setActiveName}
                                 rowRefs={rowRefs}
                                 compact={compact}
+                                isDisabled={isDisabled}
+                                disabledReason={disabledReason}
                             />
                         )}
                     </>
@@ -241,6 +271,8 @@ function Group({
     onHover,
     rowRefs,
     compact,
+    isDisabled,
+    disabledReason,
 }: {
     title: string;
     count: number;
@@ -251,6 +283,8 @@ function Group({
     onHover: (name: string) => void;
     rowRefs: React.MutableRefObject<Map<string, HTMLButtonElement | null>>;
     compact: boolean;
+    isDisabled: (model: Model) => boolean;
+    disabledReason?: string;
 }) {
     // Visible row budget — keep the popover compact and signal overflow via
     // a soft bottom mask when there's more below the fold.
@@ -296,6 +330,8 @@ function Group({
                         model={m}
                         selected={m.name === selectedName}
                         active={m.name === activeName}
+                        disabled={isDisabled(m)}
+                        disabledReason={disabledReason}
                         onSelect={() => onSelect(m.name)}
                         onHover={() => onHover(m.name)}
                         compact={compact}
@@ -313,35 +349,41 @@ interface RowProps {
     model: Model;
     selected: boolean;
     active: boolean;
+    disabled?: boolean;
+    disabledReason?: string;
     onSelect: () => void;
     onHover: () => void;
     compact: boolean;
 }
 
 const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
-    { model, selected, active, onSelect, onHover, compact },
+    { model, selected, active, disabled = false, disabledReason, onSelect, onHover, compact },
     ref,
 ) {
     const { org, label } = splitRepo(model.name);
     const heat = deriveHeat(model);
     const meta = MODEL_STATUS[heat];
-    const muted = heat === "gated" || heat === "unavailable";
+    // A gated/unavailable model, or one the active tool doesn't support, reads
+    // as muted; a tool-unsupported model is additionally non-selectable.
+    const muted = heat === "gated" || heat === "unavailable" || disabled;
 
     const padX = compact ? "px-2" : "px-3";
     const selectedPadL = compact ? "pl-[6px]" : "pl-[10px]";
     const selectedPadR = compact ? "pr-2" : "pr-3";
 
-    return (
+    const button = (
         <button
             ref={ref}
             type="button"
             role="menuitem"
             aria-current={selected ? "true" : undefined}
-            onClick={onSelect}
+            aria-disabled={disabled || undefined}
+            onClick={disabled ? undefined : onSelect}
             onMouseEnter={onHover}
             onFocus={onHover}
             className={cn(
-                "w-full grid items-center text-left cursor-pointer outline-none",
+                "w-full grid items-center text-left outline-none",
+                disabled ? "cursor-not-allowed" : "cursor-pointer",
                 compact
                     ? "gap-2 py-1 grid-cols-[8px_1fr_auto]"
                     : "gap-2.5 py-1.5 grid-cols-[10px_1fr_auto]",
@@ -390,4 +432,19 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
             </span>
         </button>
     );
+
+    // A disabled row explains itself on hover (why the active tool can't use
+    // this model). `asChild` keeps the button as the trigger; `pointer-events`
+    // stays enabled on the button so the tooltip still fires despite the
+    // not-allowed cursor.
+    if (disabled && disabledReason) {
+        return (
+            <Tooltip>
+                <TooltipTrigger asChild>{button}</TooltipTrigger>
+                <TooltipContent side="right">{disabledReason}</TooltipContent>
+            </Tooltip>
+        );
+    }
+
+    return button;
 });

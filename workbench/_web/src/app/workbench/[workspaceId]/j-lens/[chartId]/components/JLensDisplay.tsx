@@ -16,6 +16,7 @@ import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
+import { isToolSupportedForModel } from "@/lib/toolSupport";
 
 interface JLensChart {
     id: string;
@@ -57,8 +58,12 @@ export function JLensDisplay() {
     const { data: models } = useModelsQuery();
 
     const { selectedModelIdx } = useWorkspace();
-    const selectedModel = models?.[selectedModelIdx]?.name ?? models?.[0]?.name ?? null;
+    const selectedModelObj = models?.[selectedModelIdx] ?? models?.[0];
+    const selectedModel = selectedModelObj?.name ?? null;
     const modelsAvailable = !!models && models.length > 0;
+    // Whether the currently-selected model can run j-lens. Only meaningful for
+    // the empty-state prompt; a saved result always renders regardless.
+    const modelSupported = !selectedModelObj || isToolSupportedForModel("jlens", selectedModelObj);
 
     const { mutate: updateChartName } = useUpdateChartName();
     const { mutate: updateChartConfig } = useUpdateChartConfig();
@@ -172,10 +177,21 @@ export function JLensDisplay() {
         return (
             <div className="flex size-full items-center justify-center border mx-3 mt-3 border-dashed rounded pb-6">
                 <div className="text-muted-foreground text-center">
-                    <p>No visualization data</p>
-                    <p className="text-sm mt-2">
-                        Enter a prompt and click &quot;Run J-Lens&quot; to visualize
-                    </p>
+                    {modelSupported ? (
+                        <>
+                            <p>No visualization data</p>
+                            <p className="text-sm mt-2">
+                                Enter a prompt and click &quot;Run J-Lens&quot; to visualize
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <p>J-Lens isn&apos;t available for this model</p>
+                            <p className="text-sm mt-2">
+                                Select a model with a Jacobian lens from the header to run J-Lens.
+                            </p>
+                        </>
+                    )}
                 </div>
             </div>
         );

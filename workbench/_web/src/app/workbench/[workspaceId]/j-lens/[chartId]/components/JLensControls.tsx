@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Play } from "lucide-react";
+import { Loader2, Play, TriangleAlert } from "lucide-react";
 import { useJLens } from "@/lib/api/jlensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { JLensConfigData } from "@/types/jlens";
@@ -37,6 +37,10 @@ interface JLensControlsProps {
      * an error. */
     modelsLoading?: boolean;
     hasExistingData?: boolean;
+    /** Whether the selected model supports j-lens (has a Jacobian lens). When
+     * false the controls are greyed out and a banner invites picking another
+     * model. Defaults to true. */
+    modelSupported?: boolean;
 }
 
 const TOKEN_STYLES = {
@@ -87,6 +91,7 @@ export function JLensControls({
     modelsAvailable,
     modelsLoading = false,
     hasExistingData = false,
+    modelSupported = true,
 }: JLensControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
@@ -132,7 +137,9 @@ export function JLensControls({
     const { mutateAsync: updateConfig, isPending: isUpdatingConfig } = useUpdateChartConfig();
 
     const isExecuting = isComputing || isUpdatingConfig;
-    const interactive = modelsAvailable && !isExecuting;
+    // An unsupported model (no Jacobian lens) makes the controls read-only, the
+    // same way an unavailable/cold model does — the run can't succeed.
+    const interactive = modelsAvailable && !isExecuting && modelSupported;
 
     useEffect(() => {
         const configPrompt = initialConfig.data?.prompt || "";
@@ -521,6 +528,25 @@ export function JLensControls({
                 onSync={updateConfigModel}
             />
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
+                {!modelSupported && (
+                    <div
+                        role="status"
+                        className="flex items-start gap-2 rounded border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200"
+                    >
+                        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <span>
+                            {selectedModel ? (
+                                <>
+                                    <span className="font-medium">{selectedModel}</span> has no
+                                    J-Lens (Jacobian lens).
+                                </>
+                            ) : (
+                                "This model has no J-Lens (Jacobian lens)."
+                            )}{" "}
+                            Pick a model with a lens from the header to run J-Lens.
+                        </span>
+                    </div>
+                )}
                 <div className="flex flex-col gap-2">
                     <Label className="text-sm font-medium">Prompt</Label>
                     <div className="relative">

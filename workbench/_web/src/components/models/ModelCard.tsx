@@ -11,6 +11,7 @@ import {
     type ModelHeat,
     type ModelGroup,
 } from "@/components/model-selector/status";
+import { JLensStickerBadge } from "./JLensStickerBadge";
 
 export interface ModelCardModel {
     org: string;
@@ -22,6 +23,9 @@ export interface ModelCardModel {
     /** True while a deployment warmup is in flight for this model — the card
      * shows a spinner + "deploying" instead of the heat dot / Deploy action. */
     deploying?: boolean;
+    /** Whether the model has a Jacobian lens (i.e. supports j-lens). Used only
+     * to order the display — cold models without one sort to the bottom. */
+    has_jacobian?: boolean;
 }
 
 interface ModelCardProps {
@@ -183,8 +187,15 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
         : {};
 
     return (
-        <div className={shell} style={style} aria-label={ariaLabel} {...interactive}>
-            {content}
+        // Relative wrapper (no clipping) so the j-lens sticker can overhang the
+        // card's rounded, overflow-hidden shell.
+        <div className="relative w-full min-w-0">
+            <div className={shell} style={style} aria-label={ariaLabel} {...interactive}>
+                {content}
+            </div>
+            {m.has_jacobian && (
+                <JLensStickerBadge className="pointer-events-none absolute right-2 top-10 z-10 h-9 w-14 rotate-12 drop-shadow-sm" />
+            )}
         </div>
     );
 }

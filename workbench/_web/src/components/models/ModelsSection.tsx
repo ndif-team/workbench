@@ -39,7 +39,18 @@ const byHeat = (a: ModelCardModel, b: ModelCardModel) => {
     const aDeploying = !!a.deploying || a.heat === "deploying";
     const bDeploying = !!b.deploying || b.heat === "deploying";
     if (aDeploying !== bDeploying) return aDeploying ? -1 : 1;
-    return heatRank(a.heat) - heatRank(b.heat) || a.name.localeCompare(b.name);
+
+    const heatDiff = heatRank(a.heat) - heatRank(b.heat);
+    if (heatDiff !== 0) return heatDiff;
+
+    // Within the cold tier, push models without a Jacobian lens to the bottom
+    // so the j-lens-capable cold models a user would deploy surface first.
+    if (a.heat === "cold" && b.heat === "cold") {
+        const jacobianDiff = Number(!!b.has_jacobian) - Number(!!a.has_jacobian);
+        if (jacobianDiff !== 0) return jacobianDiff;
+    }
+
+    return a.name.localeCompare(b.name);
 };
 
 /** Content-equality for Sets. Used by the URL→state sync effects so they
@@ -68,6 +79,7 @@ const toCardModel = (m: Model, isSignedIn: boolean): ModelCardModel => {
         heat,
         params: m.params,
         layers: m.n_layers,
+        has_jacobian: m.has_jacobian,
     };
 };
 
