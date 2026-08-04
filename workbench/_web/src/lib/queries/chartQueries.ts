@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { charts, configs, chartConfigLinks, Chart, LensConfig, Config } from "@/db/schema";
 import { LensConfigData } from "@/types/lens";
 import { Lens2ConfigData } from "@/types/lens2";
+import { JLensConfigData } from "@/types/jlens";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { PatchLensChartData } from "@/types/patchLens";
@@ -59,6 +60,7 @@ export const getConfigForChart = async (chartId: string): Promise<Config | null>
 type ConfigPayload =
     | { type: "lens"; data: LensConfigData }
     | { type: "lens2"; data: Lens2ConfigData }
+    | { type: "jlens"; data: JLensConfigData }
     | { type: "patch"; data: PatchingConfig }
     | { type: "activation-patching"; data: ActivationPatchingConfigData }
     | { type: "patch-lens"; data: Record<string, never> };
@@ -104,6 +106,9 @@ export const createLensChartPair = async (
 
 export const createLens2ChartPair = async (workspaceId: string, defaultConfig: Lens2ConfigData) =>
     createChartConfigPair(workspaceId, { type: "lens2", data: defaultConfig });
+
+export const createJLensChartPair = async (workspaceId: string, defaultConfig: JLensConfigData) =>
+    createChartConfigPair(workspaceId, { type: "jlens", data: defaultConfig });
 
 export const createPatchLensChartPair = async (
     workspaceId: string,

@@ -26,6 +26,7 @@ const TOOL_META: Record<
     line: { label: "Line", Icon: ChartLine },
     heatmap: { label: "Heatmap", Icon: Grid3X3 },
     lens2: { label: "Logit Lens", Icon: Grid3X3 },
+    jlens: { label: "J-Lens", Icon: Grid3X3 },
     "activation-patching": { label: "Act. Patching", Icon: GitBranch },
     "patch-lens": { label: "Patch Lens", Icon: PatchLensIcon },
 };
@@ -48,6 +49,8 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
     const navigateToChart = (chart: ChartMetadata) => {
         if (chart.toolType === "lens2" || chart.chartType === "lens2") {
             router.push(`/workbench/${workspaceId}/lens2/${chart.id}`);
+        } else if (chart.toolType === "jlens" || chart.chartType === "jlens") {
+            router.push(`/workbench/${workspaceId}/j-lens/${chart.id}`);
         } else if (
             chart.toolType === "activation-patching" ||
             chart.chartType === "activation-patching"

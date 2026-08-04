@@ -16,6 +16,9 @@ const config = {
         startLens2: "/logit_lens/start",
         resultsLens2: (jobId: string) => `/logit_lens/results/${jobId}`,
 
+        startJLens: "/j_lens/start",
+        resultsJLens: (jobId: string) => `/j_lens/results/${jobId}`,
+
         startCausalMediation: "/causal_mediation/start",
         resultsCausalMediation: (jobId: string) => `/causal_mediation/results/${jobId}`,
 
