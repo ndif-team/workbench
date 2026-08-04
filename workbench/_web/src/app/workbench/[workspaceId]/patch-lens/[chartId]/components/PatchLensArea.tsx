@@ -592,6 +592,17 @@ export default function PatchLensArea({
             </div>
 
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
+                <p className="rounded border bg-muted/40 p-2.5 text-xs text-muted-foreground leading-snug">
+                    A model predicts the next word in your text through computations that run across
+                    many layers. Patch Lens shows the word it would guess at each layer, for every
+                    word of your text, if you stopped those computations early.
+                    <br />
+                    <br />
+                    Fill in the first box to see that read-out on its own. Fill in both, and you can
+                    drag a piece of the first prompt&apos;s thinking onto the second to see what it
+                    changes.
+                </p>
+
                 <div id="patch-lens-source-prompt" className="flex flex-col gap-1.5 relative">
                     {sourcePrompt ? (
                         <button
@@ -635,9 +646,9 @@ export default function PatchLensArea({
                         predictionToken={srcPrediction}
                     />
                     <p className="text-xs text-muted-foreground leading-snug">
-                        The prompt you want to <span className="font-medium">steal state from</span>
-                        . Pick something with a clear, specific prediction — its internal
-                        activations will be the source of the patch.
+                        The prompt you <span className="font-medium">copy from</span>. It works best
+                        when the predicted word is obvious, like &quot;The opposite of hot
+                        is&quot;, where the model should say &quot;cold&quot;.
                     </p>
                 </div>
 
@@ -674,10 +685,16 @@ export default function PatchLensArea({
                         predictionToken={tgtPrediction}
                     />
                     <p className="text-xs text-muted-foreground leading-snug">
-                        The prompt you want to <span className="font-medium">patch into</span>.
-                        Usually similar grammar but a different answer — any change in its
-                        prediction after a patch reveals what the source state carried. Leave blank
-                        to view the source prompt alone (no patching).
+                        Optional. The prompt you <span className="font-medium">copy into</span>.
+                        Pick one worded much the same way but with a different answer, like
+                        &quot;The opposite of tall is&quot;. Leave it blank to look at the first
+                        prompt on its own.
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-snug">
+                        With both filled in, run to see a heatmap for each prompt.{" "}
+                        <span className="font-medium">Drag a cell</span> from the first heatmap onto
+                        the second to copy what the model had worked out at that word and layer. If
+                        the second prompt&apos;s answer changes, that cell was carrying the answer.
                     </p>
                 </div>
 
