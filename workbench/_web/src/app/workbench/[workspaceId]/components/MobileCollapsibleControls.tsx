@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronUp, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import type { ComponentType } from "react";
 
 export function MobileCollapsibleControls({
     children,
@@ -11,7 +12,7 @@ export function MobileCollapsibleControls({
 }: {
     children: ReactNode;
     label: string;
-    icon: LucideIcon;
+    icon: ComponentType<{ className?: string }>;
     isRunning?: boolean;
 }) {
     const [collapsed, setCollapsed] = useState(false);
