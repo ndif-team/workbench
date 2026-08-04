@@ -10,7 +10,7 @@ import { MobileSidebarDrawer } from "../../components/MobileSidebarDrawer";
 import { MobileCollapsibleControls } from "../../components/MobileCollapsibleControls";
 import { ModelDeployingPanel } from "../../components/ModelDeployingPanel";
 import { useChartModelReady } from "@/hooks/useChartModelReady";
-import { Layers3 } from "lucide-react";
+import { JLensIcon } from "@/components/JLensIcon";
 import { useIsMutating } from "@tanstack/react-query";
 
 export default function JLensChartPage() {
@@ -41,7 +41,7 @@ export default function JLensChartPage() {
                     <>
                         <MobileCollapsibleControls
                             label="J-Lens"
-                            icon={Layers3}
+                            icon={JLensIcon}
                             isRunning={isRunning}
                         >
                             <JLensArea />

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Grid3X3, ChartLine, Trash2, Copy, MoreVertical, GitBranch } from "lucide-react";
 import { ChartMetadata, ChartType } from "@/types/charts";
 import { PatchLensIcon } from "@/components/PatchLensIcon";
+import { JLensIcon } from "@/components/JLensIcon";
 import { cn } from "@/lib/utils";
 import { ChartRenameDialog } from "./ChartRenameDialog";
 import { sidebarCardShell } from "./sidebarCardShell";
@@ -26,7 +27,7 @@ const TOOL_META: Record<
     line: { label: "Line", Icon: ChartLine },
     heatmap: { label: "Heatmap", Icon: Grid3X3 },
     lens2: { label: "Logit Lens", Icon: Grid3X3 },
-    jlens: { label: "J-Lens", Icon: Grid3X3 },
+    jlens: { label: "J-Lens", Icon: JLensIcon },
     "activation-patching": { label: "Act. Patching", Icon: GitBranch },
     "patch-lens": { label: "Patch Lens", Icon: PatchLensIcon },
 };

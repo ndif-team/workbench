@@ -38,12 +38,12 @@ import {
     PanelLeftOpen,
     FileText,
     Layers,
-    Layers3,
     GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { PatchLensIcon } from "@/components/PatchLensIcon";
+import { JLensIcon } from "@/components/JLensIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     DndContext,
@@ -384,7 +384,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             tool: "jlens" as const,
             label: "J-Lens",
             title: "New J-Lens visualization",
-            Icon: Layers3,
+            Icon: JLensIcon,
             isCreating: isCreatingJLens,
         },
         {
