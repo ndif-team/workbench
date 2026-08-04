@@ -1,5 +1,6 @@
 import { LensConfigData } from "./lens";
 import { Lens2ConfigData, Lens2Data } from "./lens2";
+import { JLensConfigData, JLensData } from "./jlens";
 import { PatchLensChartData } from "./patchLens";
 import { PatchingConfig } from "./patching";
 import { ActivationPatchingConfigData, ActivationPatchingData } from "./activationPatching";
@@ -68,18 +69,20 @@ export type ChartData =
     | Line[]
     | HeatmapRow[]
     | Lens2Data
+    | JLensData
     | ActivationPatchingData
     | PatchLensChartData;
 export type ChartView = HeatmapViewData | LineViewData;
 export type ConfigData =
     | LensConfigData
     | Lens2ConfigData
+    | JLensConfigData
     | PatchingConfig
     | ActivationPatchingConfigData
     | Record<string, never>; // patch-lens stores no config payload
 
-export type ChartType = "line" | "heatmap" | "lens2" | "activation-patching" | "patch-lens";
-export type ToolType = "lens" | "lens2" | "patch" | "activation-patching" | "patch-lens";
+export type ChartType = "line" | "heatmap" | "lens2" | "jlens" | "activation-patching" | "patch-lens";
+export type ToolType = "lens" | "lens2" | "jlens" | "patch" | "activation-patching" | "patch-lens";
 
 export type ChartMetadata = {
     id: string;

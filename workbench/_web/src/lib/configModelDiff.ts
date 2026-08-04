@@ -1,4 +1,5 @@
 import type { Lens2ConfigData } from "@/types/lens2";
+import type { JLensConfigData } from "@/types/jlens";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 import type { Token } from "@/types/models";
 
@@ -80,6 +81,21 @@ export function lens2ConfigEqualsExceptModel(
     draft: Omit<Lens2ConfigData, "model"> | null | undefined,
 ): boolean {
     return configFieldsEqual(saved as Lens2ConfigData, draft as Lens2ConfigData, [
+        (c) => c.prompt ?? "",
+        (c) => c.topk ?? 5,
+        (c) => c.includeEntropy ?? true,
+    ]);
+}
+
+/**
+ * Compare a j-lens draft against its saved config, excluding model. Same knobs
+ * as lens2 (prompt/top-k/entropy).
+ */
+export function jlensConfigEqualsExceptModel(
+    saved: JLensConfigData | undefined | null,
+    draft: Omit<JLensConfigData, "model"> | null | undefined,
+): boolean {
+    return configFieldsEqual(saved as JLensConfigData, draft as JLensConfigData, [
         (c) => c.prompt ?? "",
         (c) => c.topk ?? 5,
         (c) => c.includeEntropy ?? true,

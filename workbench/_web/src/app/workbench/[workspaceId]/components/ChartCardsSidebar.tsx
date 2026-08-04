@@ -5,6 +5,7 @@ import { getChartsMetadata } from "@/lib/queries/chartQueries";
 import { useParams, useRouter } from "next/navigation";
 import {
     useCreateLens2ChartPair,
+    useCreateJLensChartPair,
     useCreatePatchLensChartPair,
     useCreatePatchChartPair,
     useCreateActivationPatchingChartPair,
@@ -37,6 +38,7 @@ import {
     PanelLeftOpen,
     FileText,
     Layers,
+    Layers3,
     GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -79,6 +81,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     const { data: workshop } = useWorkspaceWorkshop(workspaceId as string);
 
     const { mutate: createLens2Pair, isPending: isCreatingLens2 } = useCreateLens2ChartPair();
+    const { mutate: createJLensPair, isPending: isCreatingJLens } = useCreateJLensChartPair();
     const { mutate: createPatchLensPair, isPending: isCreatingPatchLens } =
         useCreatePatchLensChartPair();
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
@@ -215,6 +218,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         // Route based on tool type
         if (toolType === "lens2") {
             router.push(`/workbench/${workspaceId}/lens2/${chartId}`);
+        } else if (toolType === "jlens") {
+            router.push(`/workbench/${workspaceId}/j-lens/${chartId}`);
         } else if (toolType === "activation-patching") {
             router.push(`/workbench/${workspaceId}/activation-patching/${chartId}`);
         } else if (toolType === "patch-lens") {
@@ -228,7 +233,9 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (toolType: "lens2" | "patch" | "activation-patching" | "patch-lens") => {
+    const handleCreate = (
+        toolType: "lens2" | "jlens" | "patch" | "activation-patching" | "patch-lens",
+    ) => {
         // Guard against stale UI / programmatic calls; the buttons below are
         // already filtered. createChartConfigPair re-checks server-side.
         if (workshop && !workshop.allowedTools.includes(toolType as WorkshopTool)) return;
@@ -238,6 +245,15 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                 { workspaceId: workspaceId as string },
                 {
                     onSuccess: ({ chart }) => navigateToChart(chart.id, "lens2"),
+                },
+            );
+            return;
+        }
+        if (toolType === "jlens") {
+            createJLensPair(
+                { workspaceId: workspaceId as string },
+                {
+                    onSuccess: ({ chart }) => navigateToChart(chart.id, "jlens"),
                 },
             );
             return;
@@ -348,6 +364,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
 
     const isCreatingAny =
         isCreatingLens2 ||
+        isCreatingJLens ||
         isCreatingPatchLens ||
         isCreatingPatch ||
         isCreatingActivationPatching ||
@@ -364,6 +381,13 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             isCreating: isCreatingLens2,
         },
         {
+            tool: "jlens" as const,
+            label: "J-Lens",
+            title: "New J-Lens visualization",
+            Icon: Layers3,
+            isCreating: isCreatingJLens,
+        },
+        {
             tool: "activation-patching" as const,
             label: "Activation Patching",
             title: "New Activation Patching",
@@ -377,7 +401,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             Icon: PatchLensIcon,
             isCreating: isCreatingPatchLens,
         },
-    ].filter(({ tool }) => !workshop || workshop.allowedTools.includes(tool));
+    ].filter(({ tool }) => !workshop || workshop.allowedTools.includes(tool as WorkshopTool));
 
     const actionButtons = (
         <div className="flex flex-col w-full gap-2 text-sm">

@@ -50,6 +50,8 @@ export default async function Page({
     // Redirect to the appropriate chart route based on type
     if (chartType === "lens2") {
         redirect(`/workbench/${workspaceId}/lens2/${chart.id}`);
+    } else if (chartType === "jlens") {
+        redirect(`/workbench/${workspaceId}/j-lens/${chart.id}`);
     } else if (chartType === "activation-patching") {
         redirect(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
     } else if (chartType === "patch-lens") {
