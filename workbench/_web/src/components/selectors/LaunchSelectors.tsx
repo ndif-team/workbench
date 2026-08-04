@@ -18,6 +18,7 @@ export type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number
 /** The tool values the chart-creation flow understands. */
 export const TOOL_OPTIONS: PillPopoverOption[] = [
     { value: "Logit Lens", label: "Logit Lens", group: "Tools" },
+    { value: "J-Lens", label: "J-Lens", group: "Tools" },
     { value: "Activation Patching", label: "Activation Patching", group: "Tools" },
 ];
 

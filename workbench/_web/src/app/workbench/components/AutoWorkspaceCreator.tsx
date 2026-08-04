@@ -7,12 +7,14 @@ import { createWorkspace } from "@/lib/queries/workspaceQueries";
 // import { pushTutorialChart } from "@/lib/queries/tutorialChart";
 import {
     createLens2ChartPair,
+    createJLensChartPair,
     createActivationPatchingChartPair,
 } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Lens2ConfigData } from "@/types/lens2";
+import type { JLensConfigData } from "@/types/jlens";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 
 interface AutoWorkspaceCreatorProps {
@@ -111,6 +113,16 @@ export function AutoWorkspaceCreator({
                         );
                         userChartId = chart.id;
                         chartType = "activation-patching";
+                    } else if (tool === "J-Lens") {
+                        const jlensConfig: JLensConfigData = {
+                            model,
+                            prompt: "",
+                            topk: 5,
+                            includeEntropy: true,
+                        };
+                        const { chart } = await createJLensChartPair(targetWorkspaceId, jlensConfig);
+                        userChartId = chart.id;
+                        chartType = "jlens";
                     } else {
                         const lensConfig: Lens2ConfigData = {
                             model,
@@ -150,6 +162,22 @@ export function AutoWorkspaceCreator({
                     userChartId = chart.id;
                     chartType = "activation-patching";
                     console.log("Created activation patching chart:", userChartId);
+                } else if (tool === "J-Lens" && initialPrompt && initialPrompt.trim() && initialModel) {
+                    console.log("Creating j-lens chart for user prompt:", initialPrompt);
+                    const jlensChartConfig: JLensConfigData = {
+                        prompt: initialPrompt,
+                        model: initialModel,
+                        topk: 5,
+                        includeEntropy: true,
+                    };
+
+                    const { chart } = await createJLensChartPair(
+                        targetWorkspaceId,
+                        jlensChartConfig,
+                    );
+                    userChartId = chart.id;
+                    chartType = "jlens";
+                    console.log("Created user j-lens chart:", userChartId);
                 } else if (initialPrompt && initialPrompt.trim() && initialModel) {
                     console.log("Creating lens2 chart for user prompt:", initialPrompt);
                     const userChartConfig: Lens2ConfigData = {
@@ -185,6 +213,8 @@ export function AutoWorkspaceCreator({
                             router.push(
                                 `/workbench/${targetWorkspaceId}/activation-patching/${userChartId}`,
                             );
+                        } else if (chartType === "jlens") {
+                            router.push(`/workbench/${targetWorkspaceId}/j-lens/${userChartId}`);
                         } else {
                             router.push(`/workbench/${targetWorkspaceId}/lens2/${userChartId}`);
                         }

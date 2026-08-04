@@ -538,8 +538,8 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
 
                             <div className="relative p-6 space-y-4">
                                 <form onSubmit={handleSubmit} className="space-y-4">
-                                    {selectedTool === "Logit Lens" ? (
-                                        /* Logit Lens - Single prompt input */
+                                    {selectedTool !== "Activation Patching" ? (
+                                        /* Logit Lens / J-Lens - Single prompt input */
                                         <div className="relative">
                                             <Textarea
                                                 value={prompt}
@@ -647,12 +647,12 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                             disabled={
                                                 isSubmitting ||
                                                 !hasModels ||
-                                                (selectedTool === "Logit Lens"
-                                                    ? !prompt.trim()
-                                                    : !srcPrompt.trim() ||
+                                                (selectedTool === "Activation Patching"
+                                                    ? !srcPrompt.trim() ||
                                                       !tgtPrompt.trim() ||
                                                       srcPos.length === 0 ||
-                                                      srcPos.length !== tgtPos.length)
+                                                      srcPos.length !== tgtPos.length
+                                                    : !prompt.trim())
                                             }
                                         >
                                             <span>Run</span>
