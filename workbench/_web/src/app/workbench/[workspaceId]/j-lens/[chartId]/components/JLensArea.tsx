@@ -25,6 +25,7 @@ export default function JLensArea() {
         effectiveModel,
         hasExistingData,
         modelRunnable,
+        isModelSupported,
     } = useToolArea<JLensConfig, JLensChart>();
 
     if (!config || isChartLoading) {
@@ -50,6 +51,10 @@ export default function JLensArea() {
                 modelsAvailable={modelsAvailable && modelRunnable}
                 modelsLoading={modelsFetching}
                 hasExistingData={hasExistingData}
+                // j-lens only supports models that have a Jacobian lens; when
+                // the active model doesn't, the controls grey out and invite a
+                // model change (the picker also disables such models).
+                modelSupported={isModelSupported}
             />
         </div>
     );

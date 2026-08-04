@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,8 +11,25 @@ import { useWorkspace } from "@/stores/useWorkspace";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import type { ModelStatus } from "@/types/models";
+import type { ToolType } from "@/types/charts";
 import { MODEL_STATUS, deriveHeat, splitRepo } from "@/components/model-selector/status";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
+import {
+    isToolModelRestricted,
+    isToolSupportedForModel,
+    unsupportedReasonFor,
+} from "@/lib/toolSupport";
+
+/** Workspace route segment (`/workbench/[id]/<segment>/[chartId]`) → the tool
+ * whose chart lives there. Used to gate the model picker to models the active
+ * tool supports. Segments not listed here (e.g. the legacy lens route, overview)
+ * impose no restriction. */
+const ROUTE_SEGMENT_TO_TOOL: Record<string, ToolType> = {
+    lens2: "lens2",
+    "j-lens": "jlens",
+    "activation-patching": "activation-patching",
+    "patch-lens": "patch-lens",
+};
 
 // ----- status vocabularies ----------------------------------------------------------
 
@@ -83,6 +100,16 @@ export function ModelControl({ className }: ModelControlProps) {
     const { data: workshop, isLoading: workshopLoading } = useWorkspaceWorkshop(workspaceId);
 
     const [open, setOpen] = React.useState(false);
+
+    // The tool of the chart currently open (from the route), so the picker can
+    // disable models it doesn't support. Null on non-tool routes / unrestricted
+    // tools → no gating.
+    const pathname = usePathname();
+    const activeTool = React.useMemo<ToolType | null>(() => {
+        const segment = pathname.split("/").filter(Boolean)[2];
+        const tool = segment ? ROUTE_SEGMENT_TO_TOOL[segment] : undefined;
+        return tool && isToolModelRestricted(tool) ? tool : null;
+    }, [pathname]);
 
     // Computed before the early returns so the useEffect below is called on
     // every render (Rules of Hooks).
@@ -247,6 +274,10 @@ export function ModelControl({ className }: ModelControlProps) {
                     selectedName={selectedModel.name}
                     onSelect={handleSelect}
                     selectableOnly
+                    isModelDisabled={
+                        activeTool ? (m) => !isToolSupportedForModel(activeTool, m) : undefined
+                    }
+                    disabledReason={activeTool ? (unsupportedReasonFor(activeTool) ?? undefined) : undefined}
                 />
             </PopoverContent>
         </Popover>

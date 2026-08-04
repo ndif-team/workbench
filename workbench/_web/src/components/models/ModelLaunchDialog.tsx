@@ -19,11 +19,17 @@ import { createClient } from "@/lib/supabase/client";
 import { getWorkspaces } from "@/lib/queries/workspaceQueries";
 import { hasWorkshopClaim } from "@/lib/workshop";
 import { useModelDeployment } from "@/stores/useModelDeployment";
+import { useModelsQuery } from "@/lib/api/modelsApi";
 import {
     ToolPill,
     WorkspacePill,
     NEUTRAL_PILL_TRIGGER,
 } from "@/components/selectors/LaunchSelectors";
+import {
+    isToolSupportedForModel,
+    unsupportedReasonFor,
+    toolTypeFromDisplay,
+} from "@/lib/toolSupport";
 import type { ModelCardModel } from "./ModelCard";
 
 const AUTH_DISABLED = process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
@@ -58,6 +64,18 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
 
     const open = model !== null;
     const isDeploy = mode === "deploy";
+
+    // The dialog's model is fixed (the card that opened it); gate the tool
+    // choice against it. ModelCardModel doesn't carry capability flags, so look
+    // the full model up in the catalog to read `has_jacobian` etc.
+    const { data: catalogModels } = useModelsQuery();
+    const fullModelName = model ? (model.org ? `${model.org}/${model.name}` : model.name) : null;
+    const modelObj = catalogModels?.find((m) => m.name === fullModelName);
+    const toolType = toolTypeFromDisplay(tool);
+    // Fail open while the catalog is still loading (modelObj undefined) so we
+    // don't block a valid launch on a slow fetch; the chart itself still guards.
+    const toolSupported = !toolType || !modelObj || isToolSupportedForModel(toolType, modelObj);
+    const unsupportedReason = toolType ? unsupportedReasonFor(toolType) : null;
 
     useEffect(() => {
         if (!open) return;
@@ -169,6 +187,14 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
                                 modal
                             />
                         </div>
+                        {!toolSupported && unsupportedReason && (
+                            <div className="flex items-start gap-2 rounded-md border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
+                                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                <span>
+                                    {unsupportedReason} Pick a different tool or model.
+                                </span>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <p className="text-sm text-muted-foreground py-1">
@@ -180,7 +206,7 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
 
                 <DialogFooter>
                     {isSignedIn ? (
-                        <Button type="button" onClick={handleSubmit}>
+                        <Button type="button" onClick={handleSubmit} disabled={!toolSupported}>
                             {isDeploy && <Cloud className="h-4 w-4" />}
                             {isDeploy ? "Deploy + New Chart" : "New"}
                         </Button>

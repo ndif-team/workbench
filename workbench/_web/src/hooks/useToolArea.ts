@@ -6,6 +6,8 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { isModelRunnable } from "@/components/model-selector/status";
+import { isToolSupportedForModel } from "@/lib/toolSupport";
+import type { ToolType } from "@/types/charts";
 
 interface ConfigWithModel {
     id: string;
@@ -36,6 +38,11 @@ interface UseToolAreaResult<TConfig extends ConfigWithModel, TChart extends Char
      * the model has gone cold or left the catalog — the Controls should be
      * read-only in that case (the saved chart still renders via the Display). */
     modelRunnable: boolean;
+    /** Whether `effectiveModel` supports this chart's tool (some tools, e.g.
+     * j-lens, only work with a subset of models). True when the model is
+     * unknown/unavailable so read-only rendering is unaffected; only a known,
+     * in-catalog model that lacks the tool's capability makes this false. */
+    isModelSupported: boolean;
 }
 
 /**
@@ -103,10 +110,20 @@ export function useToolArea<
 
     const hasExistingData = !!typedChart?.data;
 
-    const modelRunnable = useMemo(
-        () => isModelRunnable(models?.find((m) => m.name === effectiveModel)),
+    const currentModel = useMemo(
+        () => models?.find((m) => m.name === effectiveModel),
         [models, effectiveModel],
     );
+
+    const modelRunnable = useMemo(() => isModelRunnable(currentModel), [currentModel]);
+
+    // A model that isn't in the live catalog (undefined) leaves this true so
+    // the saved chart keeps rendering read-only; only a known model missing the
+    // tool's capability trips it. Unrestricted tools are always supported.
+    const isModelSupported = useMemo(() => {
+        if (!typedConfig || !currentModel) return true;
+        return isToolSupportedForModel(typedConfig.type as ToolType, currentModel);
+    }, [typedConfig, currentModel]);
 
     return {
         config: typedConfig,
@@ -118,5 +135,6 @@ export function useToolArea<
         effectiveModel,
         hasExistingData,
         modelRunnable,
+        isModelSupported,
     };
 }

@@ -27,7 +27,13 @@ import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
 import type { Model, Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
+import type { ToolType } from "@/types/charts";
 import { ActivationPatchingLandingInput } from "@/components/ActivationPatchingLandingInput";
+import {
+    isToolSupportedForModel,
+    unsupportedReasonFor,
+    toolTypeFromDisplay,
+} from "@/lib/toolSupport";
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
 
@@ -42,6 +48,7 @@ function ModelPillOrSelect({
     onModelChange,
     disabled,
     loggedIn,
+    toolType,
 }: {
     modelsLoading: boolean;
     modelsError: boolean;
@@ -51,6 +58,9 @@ function ModelPillOrSelect({
     onModelChange: (value: string) => void;
     disabled: boolean;
     loggedIn: boolean;
+    /** The selected tool (if it restricts models); models it can't run are
+     * shown disabled with a reason. Null → no restriction. */
+    toolType: ToolType | null;
 }) {
     const triggerClass = PILL_TRIGGER;
 
@@ -108,6 +118,7 @@ function ModelPillOrSelect({
             onModelChange={onModelChange}
             disabled={disabled}
             loggedIn={loggedIn}
+            toolType={toolType}
         />
     );
 }
@@ -125,6 +136,7 @@ function ModelTriggerPopover({
     onModelChange,
     disabled,
     loggedIn,
+    toolType,
 }: {
     triggerClass: string;
     models: Model[];
@@ -133,6 +145,7 @@ function ModelTriggerPopover({
     onModelChange: (value: string) => void;
     disabled: boolean;
     loggedIn: boolean;
+    toolType: ToolType | null;
 }) {
     const [open, setOpen] = useState(false);
 
@@ -174,6 +187,10 @@ function ModelTriggerPopover({
                     }}
                     showSearch={false}
                     compact
+                    isModelDisabled={
+                        toolType ? (m) => !isToolSupportedForModel(toolType, m) : undefined
+                    }
+                    disabledReason={toolType ? (unsupportedReasonFor(toolType) ?? undefined) : undefined}
                     footer={
                         moreCount > 0 ? (
                             <Link
@@ -576,6 +593,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                     onModelChange={setSelectedModel}
                                                     disabled={showCaptcha || isSubmitting}
                                                     loggedIn={loggedIn}
+                                                    toolType={toolTypeFromDisplay(selectedTool)}
                                                 />
                                             </div>
 
@@ -634,6 +652,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                     onModelChange={setSelectedModel}
                                                     disabled={showCaptcha || isSubmitting}
                                                     loggedIn={loggedIn}
+                                                    toolType={toolTypeFromDisplay(selectedTool)}
                                                 />
                                             </div>
                                         </div>
