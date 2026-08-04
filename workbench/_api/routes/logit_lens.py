@@ -30,7 +30,7 @@ async def start_logit_lens(
     model = state[req.model]
     backend = state.make_backend(model=model)
 
-    output = logit_lens._run(model, req.prompt, remote=state.remote, backend=backend, non_blocking=state.remote, raw=False)
+    output = logit_lens._run(model, req.prompt, remote=state.remote, backend=backend, non_blocking=state.remote, raw=False, top_k=req.topk)
 
     if not backend.blocking:
         return {"job_id": output}
