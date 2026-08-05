@@ -216,9 +216,9 @@ export function ModelRowCarousel({
 function ScrollProgress({ progress }: { progress: number }) {
     const filled = Math.min(100, 24 + progress * 76);
     return (
-        // Responsive width: compact on phones so [filters button][progress]
-        // [prev/next] fit the header on one row; full-size on desktop.
-        <div className="relative h-1 w-16 sm:w-24 lg:w-[140px] rounded-full bg-muted overflow-hidden">
+        // Slightly narrower on md, full-size on lg+. (Controls are hidden on
+        // mobile, where the carousel is scrolled by touch.)
+        <div className="relative h-1 w-24 lg:w-[140px] rounded-full bg-muted overflow-hidden">
             <div
                 className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-purple-600"
                 style={{ width: `${filled}%` }}
