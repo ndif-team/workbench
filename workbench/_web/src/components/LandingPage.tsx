@@ -25,6 +25,8 @@ import {
 } from "@/components/selectors/LaunchSelectors";
 import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
+import { JLensIcon } from "@/components/JLensIcon";
+import { SparkBadge } from "@/components/SparkBadge";
 import type { Model, Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
 import type { ToolType } from "@/types/charts";
@@ -229,6 +231,10 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     const [selectedTool, setSelectedTool] = useState<string>("Logit Lens");
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const captchaRef = useRef<ElementRef<typeof HCaptcha> | null>(null);
+    // A prebuilt `/workbench?…` query to redirect to after anonymous sign-in.
+    // Set by the one-click launches (e.g. Discover J-Lens) that don't go through
+    // the prompt form; null → fall back to building params from the form state.
+    const pendingLaunchRef = useRef<string | null>(null);
     const router = useRouter();
 
     // Activation patching state
@@ -297,36 +303,43 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                 setShowCaptcha(false);
                 captchaRef.current?.resetCaptcha();
                 setIsSubmitting(false);
+                pendingLaunchRef.current = null;
             } else {
-                // Redirect to workbench with the prompt and model as query parameters
-                const params = new URLSearchParams({
-                    model: selectedModel,
-                    tool: selectedTool,
-                });
+                // A one-click launch (Discover J-Lens) prebuilt its target;
+                // otherwise build from the prompt-form state.
+                let qs = pendingLaunchRef.current;
+                if (!qs) {
+                    const params = new URLSearchParams({
+                        model: selectedModel,
+                        tool: selectedTool,
+                    });
 
-                if (selectedTool === "Activation Patching") {
-                    params.set("srcPrompt", srcPrompt);
-                    params.set("tgtPrompt", tgtPrompt);
-                    params.set("srcPos", JSON.stringify(srcPos));
-                    params.set("tgtPos", JSON.stringify(tgtPos));
-                    if (tgtFreeze.length > 0) {
-                        params.set("tgtFreeze", JSON.stringify(tgtFreeze));
+                    if (selectedTool === "Activation Patching") {
+                        params.set("srcPrompt", srcPrompt);
+                        params.set("tgtPrompt", tgtPrompt);
+                        params.set("srcPos", JSON.stringify(srcPos));
+                        params.set("tgtPos", JSON.stringify(tgtPos));
+                        if (tgtFreeze.length > 0) {
+                            params.set("tgtFreeze", JSON.stringify(tgtFreeze));
+                        }
+                    } else {
+                        params.set("prompt", prompt);
                     }
-                } else {
-                    params.set("prompt", prompt);
-                }
 
-                if (selectedWorkspace && selectedWorkspace !== "new") {
-                    params.set("workspaceId", selectedWorkspace);
+                    if (selectedWorkspace && selectedWorkspace !== "new") {
+                        params.set("workspaceId", selectedWorkspace);
+                    }
+                    qs = params.toString();
                 }
-
-                window.location.href = `/workbench?${params.toString()}`;
+                pendingLaunchRef.current = null;
+                window.location.href = `/workbench?${qs}`;
             }
         } catch (err) {
             console.error("Anonymous sign-in error:", err);
             setShowCaptcha(false);
             captchaRef.current?.resetCaptcha();
             setIsSubmitting(false);
+            pendingLaunchRef.current = null;
         }
     };
 
@@ -405,6 +418,48 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
             router.push(`/workbench?${params.toString()}`);
         } else {
             // Show captcha for anonymous/non-logged-in users
+            setShowCaptcha(true);
+        }
+    };
+
+    // One-click launch of the new J-Lens tool: pick a J-Lens-supported model
+    // (the one already selected if it qualifies, else the best available hot
+    // one), then run the normal workspace-creation pipeline with no prompt —
+    // signing in anonymously first if the visitor isn't authenticated.
+    const handleDiscoverJLens = () => {
+        // "Usable" = the current user can actually run it: supports j-lens AND
+        // is allowed for this session. `allowed` is false for gated models when
+        // signed out, so this never lands an anonymous user on a gated model
+        // (which the deploy flow can't handle — it has no /login gate).
+        const usable = (m: Model) => m.allowed && isToolSupportedForModel("jlens", m);
+        const current = modelsToSelect.find((m) => m.name === selectedModel);
+        const model =
+            current && usable(current)
+                ? current
+                : (modelsToSelect.find((m) => m.status === "hot" && usable(m)) ??
+                  modelsToSelect.find(usable));
+
+        // Reflect the choice in the composer either way.
+        setSelectedTool("J-Lens");
+        if (model) setSelectedModel(model.name);
+
+        // No J-Lens-supported model in the catalog — leave the tool selected so
+        // the composer shows it; nothing to launch.
+        if (!model) return;
+
+        // Empty chart (no prompt), mirroring the model launch dialog's deploy flow.
+        const params = new URLSearchParams({ model: model.name, tool: "J-Lens", deploy: "true" });
+        if (selectedWorkspace && selectedWorkspace !== "new") {
+            params.set("workspaceId", selectedWorkspace);
+        } else {
+            params.set("createNew", "true");
+        }
+
+        if (loggedIn && currentUser && !currentUser.is_anonymous) {
+            router.push(`/workbench?${params.toString()}`);
+        } else {
+            // Anonymous / signed-out — sign in via captcha, then resume here.
+            pendingLaunchRef.current = params.toString();
             setShowCaptcha(true);
         }
     };
@@ -511,10 +566,25 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                         transition={{ duration: 0.6, delay: 0.2 }}
                         className="text-center space-y-4 mb-8 md:mb-16"
                     >
-                        {/* <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary">
-                            <Sparkles className="w-4 h-4" />
-                            <span>AI Interpretability Research Platform</span>
-                        </div> */}
+                        {/* J-Lens announcement — the tool's own icon + its name in
+                            the hero gradient. Clicking selects it in the composer. */}
+                        <button
+                            type="button"
+                            onClick={handleDiscoverJLens}
+                            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            <SparkBadge
+                                text="New"
+                                fontSize={46}
+                                className="h-6 w-9 shrink-0 -rotate-12"
+                            />
+                            <span>Discover our</span>
+                            <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text font-semibold text-transparent">
+                                J-Lens
+                            </span>
+                            <JLensIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                            <span>tool</span>
+                        </button>
 
                         <h1 className="text-5xl lg:text-7xl font-bold tracking-tight pt-2">
                             {/* <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/80 bg-clip-text text-transparent">
@@ -696,6 +766,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                                 onClick={() => {
                                                     setShowCaptcha(false);
                                                     captchaRef.current?.resetCaptcha();
+                                                    pendingLaunchRef.current = null;
                                                 }}
                                                 variant="outline"
                                                 className="w-full"

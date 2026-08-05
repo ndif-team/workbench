@@ -15,10 +15,17 @@ import type { getWorkspaces } from "@/lib/queries/workspaceQueries";
 
 export type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number];
 
+/** "New" badge marking a recently added tool in the picker. */
+const NewBadge = () => (
+    <span className="shrink-0 rounded-full bg-purple-500/15 px-1.5 py-0.5 text-xs font-medium leading-none text-purple-600 dark:text-purple-400">
+        New
+    </span>
+);
+
 /** The tool values the chart-creation flow understands. */
 export const TOOL_OPTIONS: PillPopoverOption[] = [
     { value: "Logit Lens", label: "Logit Lens", group: "Tools" },
-    { value: "J-Lens", label: "J-Lens", group: "Tools" },
+    { value: "J-Lens", label: "J-Lens", group: "Tools", trailing: <NewBadge /> },
     { value: "Activation Patching", label: "Activation Patching", group: "Tools" },
 ];
 

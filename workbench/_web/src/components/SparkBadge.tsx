@@ -1,10 +1,12 @@
 import * as React from "react";
 
 /**
- * Prototype "promo sticker" flagging a model that supports j-lens: an elongated
- * starburst seal (yellow fill, purple contour) reading "J Lens", meant to be
- * stuck on a corner of the model card. Deliberately loud — a spike to evaluate
- * the look. Elongated horizontally so the wordmark has room to breathe.
+ * A loud starburst "seal" badge — yellow fill, purple contour, centered text.
+ * The reusable spark/blast flag: the J-Lens model-card sticker and the landing
+ * "New" marker both use it. Sized by Tailwind `h-*`/`w-*` on `className` (the
+ * elongated 150×96 viewBox scales uniformly, so the spikes stay proportioned).
+ * `fontSize` is in viewBox units — bump it for short words so they fill the
+ * badge (e.g. "New") vs. a longer wordmark (e.g. "J Lens").
  */
 
 const CX = 75;
@@ -33,10 +35,22 @@ function burstPoints(
 // Wide, spiky star: deep inner/outer ratio → long points; rx > ry → elongated.
 const BURST = burstPoints(13, 72, 45, 52, 28);
 
-export function JLensStickerBadge({ className }: { className?: string }) {
+export function SparkBadge({
+    text,
+    label,
+    fontSize = 23,
+    className,
+}: {
+    text: string;
+    /** Accessible label / tooltip. Defaults to `text`. */
+    label?: string;
+    /** Text size in viewBox units (150×96). Larger for short words. */
+    fontSize?: number;
+    className?: string;
+}) {
     return (
-        <svg viewBox="0 0 150 96" role="img" aria-label="Supports J-Lens" className={className}>
-            <title>Supports J-Lens</title>
+        <svg viewBox="0 0 150 96" role="img" aria-label={label ?? text} className={className}>
+            <title>{label ?? text}</title>
             <polygon
                 points={BURST}
                 fill="#FDE047"
@@ -52,10 +66,10 @@ export function JLensStickerBadge({ className }: { className?: string }) {
                 dominantBaseline="middle"
                 fontFamily="var(--font-mono, ui-monospace, monospace)"
                 fontWeight={700}
-                fontSize={23}
+                fontSize={fontSize}
                 fill="#6D28D9"
             >
-                J Lens
+                {text}
             </text>
         </svg>
     );
