@@ -39,6 +39,10 @@ interface ModelsSectionHeaderProps {
 
     groupFilters: Set<ModelGroup>;
     onToggleGroup: (g: ModelGroup) => void;
+
+    /** Carousel nav (progress + paging) rendered inline with the filters when
+     * the row overflows. Null when there's nothing to scroll. */
+    scrollControls?: React.ReactNode;
 }
 
 export function ModelsSectionHeader({
@@ -55,6 +59,7 @@ export function ModelsSectionHeader({
     onToggleStatus,
     groupFilters,
     onToggleGroup,
+    scrollControls,
 }: ModelsSectionHeaderProps) {
     const searchRef = useRef<HTMLInputElement>(null);
     const filtered = filteredTotal !== total;
@@ -180,6 +185,8 @@ export function ModelsSectionHeader({
                                 ))}
                             </SegmentedGroup>
                         </div>
+
+                        {scrollControls}
                     </div>
                 )}
 

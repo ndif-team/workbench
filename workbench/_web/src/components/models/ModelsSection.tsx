@@ -16,7 +16,7 @@ import {
 } from "@/components/model-selector/status";
 import { useModelsSection } from "@/stores/useModelsSection";
 import { useModelDeployment } from "@/stores/useModelDeployment";
-import { ModelRowCarousel } from "./ModelRowCarousel";
+import { ModelRowCarousel, useCarouselScroll, CarouselControls } from "./ModelRowCarousel";
 import { ModelsSectionHeader } from "./ModelsSectionHeader";
 import { ModelsFetchErrorBanner } from "./ModelsFetchErrorBanner";
 import { ModelLaunchDialog, type ModelLaunchMode } from "./ModelLaunchDialog";
@@ -224,8 +224,10 @@ export function ModelsSection({
             .sort(byHeat);
     }, [cards, query, statusFilters, groupFilters]);
 
-    const baseCards = useMemo(() => filtered.filter((m) => m.group === "base"), [filtered]);
-    const chatCards = useMemo(() => filtered.filter((m) => m.group === "chat"), [filtered]);
+    // Carousel scroll state lives here so its nav controls can render up in the
+    // section header (next to the filters) rather than above the row. Re-measure
+    // whenever the visible list changes.
+    const { scrollRef, progress, hasOverflow, scrollByPage } = useCarouselScroll(filtered);
 
     const groupPreviews = useMemo(() => {
         const previewFor = (list: ModelCardModel[]) => {
@@ -316,9 +318,13 @@ export function ModelsSection({
                     onToggleStatus={onToggleStatus}
                     groupFilters={groupFilters}
                     onToggleGroup={onToggleGroup}
+                    scrollControls={
+                        hasOverflow ? (
+                            <CarouselControls progress={progress} scrollByPage={scrollByPage} />
+                        ) : null
+                    }
                 />
             </div>
-            {!collapsed && <div aria-hidden className="mx-6 h-px bg-border" />}
 
             {!collapsed && (
                 <div className="p-3 pt-1">
@@ -332,64 +338,30 @@ export function ModelsSection({
                         <div className="py-8 text-center text-xs text-muted-foreground">
                             No models available
                         </div>
+                    ) : filtered.length === 0 ? (
+                        <div className="py-8 text-center text-xs text-muted-foreground">
+                            No models match the current filters.
+                        </div>
                     ) : (
-                        (() => {
-                            // A row is shown only if its group is not filtered
-                            // out AND it has at least one card after the
-                            // active filters (search + status + group). When
-                            // both rows end up empty due to filters, swap in
-                            // a single "no matches" message instead of two
-                            // empty placeholders.
-                            const showBase =
-                                (groupFilters.size === 0 || groupFilters.has("base")) &&
-                                baseCards.length > 0;
-                            const showChat =
-                                (groupFilters.size === 0 || groupFilters.has("chat")) &&
-                                chatCards.length > 0;
-                            if (!showBase && !showChat) {
-                                return (
-                                    <div className="py-8 text-center text-xs text-muted-foreground">
-                                        No models match the current filters.
-                                    </div>
-                                );
+                        // Base and chat share one scroller now — the card's
+                        // group pill already signals the family, so a hard
+                        // section split isn't needed. Three rows deep.
+                        <ModelRowCarousel
+                            models={filtered}
+                            rows={3}
+                            scrollRef={scrollRef}
+                            progress={progress}
+                            hasOverflow={hasOverflow}
+                            cardHref={cardHref}
+                            onCardClick={
+                                onCardClick ??
+                                ((m) =>
+                                    setDialog({
+                                        model: m,
+                                        mode: m.heat === "cold" ? "deploy" : "launch",
+                                    }))
                             }
-                            return (
-                                <>
-                                    {showBase && (
-                                        <ModelRowCarousel
-                                            label="Base"
-                                            models={baseCards}
-                                            cardHref={cardHref}
-                                            onCardClick={
-                                                onCardClick ??
-                                                ((m) =>
-                                                    setDialog({
-                                                        model: m,
-                                                        mode:
-                                                            m.heat === "cold" ? "deploy" : "launch",
-                                                    }))
-                                            }
-                                        />
-                                    )}
-                                    {showChat && (
-                                        <ModelRowCarousel
-                                            label="Chat"
-                                            models={chatCards}
-                                            cardHref={cardHref}
-                                            onCardClick={
-                                                onCardClick ??
-                                                ((m) =>
-                                                    setDialog({
-                                                        model: m,
-                                                        mode:
-                                                            m.heat === "cold" ? "deploy" : "launch",
-                                                    }))
-                                            }
-                                        />
-                                    )}
-                                </>
-                            );
-                        })()
+                        />
                     )}
                 </div>
             )}
