@@ -39,3 +39,26 @@ export function parseProlificParams(searchParams: RawSearchParams): ProlificPara
 
     return Object.keys(params).length > 0 ? params : null;
 }
+
+/**
+ * Appends the participant's Prolific PID to a survey URL so the post-survey
+ * (Qualtrics) can tie the response back to the study — the final link becomes
+ * `…?PROLIFIC_PID=<pid>` (merged with any existing query string). Prolific and
+ * Qualtrics expect the literal UPPER_CASE key. Returns the URL untouched when
+ * there's no PID (participant didn't arrive via Prolific), no URL, or the URL
+ * isn't absolute/parseable.
+ */
+export function withProlificPid(
+    surveyUrl: string | undefined,
+    prolificPid: string | undefined,
+): string | undefined {
+    if (!surveyUrl || !prolificPid) return surveyUrl;
+    try {
+        const url = new URL(surveyUrl);
+        url.searchParams.set("PROLIFIC_PID", prolificPid);
+        return url.toString();
+    } catch {
+        // Non-absolute or malformed survey URL — pass through unchanged.
+        return surveyUrl;
+    }
+}

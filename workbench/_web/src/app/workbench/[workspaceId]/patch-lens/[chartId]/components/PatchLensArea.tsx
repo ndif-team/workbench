@@ -23,6 +23,9 @@ import { TutorialActivityPanel } from "./tutorial/TutorialActivityPanel";
 import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { useWorkspaceTutorial } from "@/lib/api/tutorialContentApi";
+import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
+import { withProlificPid } from "@/lib/prolific";
+import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
@@ -166,6 +169,17 @@ export default function PatchLensArea({
     const { data: workshop, isLoading: workshopLoading } = useWorkspaceWorkshop(
         workspaceId as string,
     );
+
+    // The workspace's captured Prolific identifiers (set on first arrival via the
+    // /w join link) — used to pass PROLIFIC_PID through to the post-survey so the
+    // response can be matched back to the study. Same cache key as elsewhere, so
+    // this is usually a hit rather than a fresh fetch.
+    const { data: workspace } = useQuery({
+        queryKey: queryKeys.workspaces.workspace(workspaceId as string),
+        queryFn: () => getWorkspaceById(workspaceId as string),
+        enabled: !!workspaceId,
+    });
+    const surveyUrl = withProlificPid(workshop?.surveyUrl, workspace?.prolific?.prolificPid);
 
     // Default to Llama-3.1-8B once when models load, rather than leaving the
     // workspace default at index 0 (the 70B, 80 layers). Guarded so a later
@@ -715,7 +729,7 @@ export default function PatchLensArea({
                     topToken={runTokens.top}
                     secondToken={runTokens.second}
                     runUnitIdx={runTokens.unitIdx}
-                    surveyUrl={workshop?.surveyUrl}
+                    surveyUrl={surveyUrl}
                     completionThanks={workshop?.completionText}
                     workshopMode={!!workshop}
                     onSpotlight={setSpotlight}
