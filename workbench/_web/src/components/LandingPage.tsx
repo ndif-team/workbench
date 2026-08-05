@@ -190,7 +190,9 @@ function ModelTriggerPopover({
                     isModelDisabled={
                         toolType ? (m) => !isToolSupportedForModel(toolType, m) : undefined
                     }
-                    disabledReason={toolType ? (unsupportedReasonFor(toolType) ?? undefined) : undefined}
+                    disabledReason={
+                        toolType ? (unsupportedReasonFor(toolType) ?? undefined) : undefined
+                    }
                     footer={
                         moreCount > 0 ? (
                             <Link

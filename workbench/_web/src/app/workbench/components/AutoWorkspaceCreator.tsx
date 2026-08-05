@@ -120,7 +120,10 @@ export function AutoWorkspaceCreator({
                             topk: 5,
                             includeEntropy: true,
                         };
-                        const { chart } = await createJLensChartPair(targetWorkspaceId, jlensConfig);
+                        const { chart } = await createJLensChartPair(
+                            targetWorkspaceId,
+                            jlensConfig,
+                        );
                         userChartId = chart.id;
                         chartType = "jlens";
                     } else {
@@ -162,7 +165,12 @@ export function AutoWorkspaceCreator({
                     userChartId = chart.id;
                     chartType = "activation-patching";
                     console.log("Created activation patching chart:", userChartId);
-                } else if (tool === "J-Lens" && initialPrompt && initialPrompt.trim() && initialModel) {
+                } else if (
+                    tool === "J-Lens" &&
+                    initialPrompt &&
+                    initialPrompt.trim() &&
+                    initialModel
+                ) {
                     console.log("Creating j-lens chart for user prompt:", initialPrompt);
                     const jlensChartConfig: JLensConfigData = {
                         prompt: initialPrompt,

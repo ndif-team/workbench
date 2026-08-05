@@ -81,7 +81,13 @@ export type ConfigData =
     | ActivationPatchingConfigData
     | Record<string, never>; // patch-lens stores no config payload
 
-export type ChartType = "line" | "heatmap" | "lens2" | "jlens" | "activation-patching" | "patch-lens";
+export type ChartType =
+    | "line"
+    | "heatmap"
+    | "lens2"
+    | "jlens"
+    | "activation-patching"
+    | "patch-lens";
 export type ToolType = "lens" | "lens2" | "jlens" | "patch" | "activation-patching" | "patch-lens";
 
 export type ChartMetadata = {

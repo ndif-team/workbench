@@ -277,7 +277,9 @@ export function ModelControl({ className }: ModelControlProps) {
                     isModelDisabled={
                         activeTool ? (m) => !isToolSupportedForModel(activeTool, m) : undefined
                     }
-                    disabledReason={activeTool ? (unsupportedReasonFor(activeTool) ?? undefined) : undefined}
+                    disabledReason={
+                        activeTool ? (unsupportedReasonFor(activeTool) ?? undefined) : undefined
+                    }
                 />
             </PopoverContent>
         </Popover>
