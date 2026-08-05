@@ -903,8 +903,9 @@ wheels = [
 [[package]]
 name = "nnsightful"
 version = "0.1.0"
-source = { git = "https://github.com/AdamBelfki3/nnsightful.git#4c7cc2fa52d680a0d7ddfd6e9dff28d65734b888" }
+source = { git = "https://github.com/AdamBelfki3/nnsightful.git#75e42670b64f2aa5fcb82421e910376368c934d3" }
 dependencies = [
+    { name = "hf-xet" },
     { name = "ipython" },
     { name = "nnsight" },
     { name = "nnterp" },
