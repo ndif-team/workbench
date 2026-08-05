@@ -593,9 +593,9 @@ export default function PatchLensArea({
 
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
                 <p className="rounded border bg-muted/40 p-2.5 text-xs text-muted-foreground leading-snug">
-                    A model predicts the next word in your text through computations that run across
-                    many layers. Patch Lens shows the word it would guess at each layer, for every
-                    word of your text, if you stopped those computations early.
+                    A model predicts the next token at each position in your text through
+                    computations that run across many layers. Patch Lens shows the predicted token
+                    at each layer and position if you stop those computations early.
                     <br />
                     <br />
                     Fill in the first box to see that read-out on its own. Fill in both, and you can
@@ -647,7 +647,7 @@ export default function PatchLensArea({
                     />
                     <p className="text-xs text-muted-foreground leading-snug">
                         The prompt you <span className="font-medium">copy from</span>. It works best
-                        when the predicted word is obvious, like &quot;The opposite of hot
+                        when the predicted answer is obvious, like &quot;The opposite of hot
                         is&quot;, where the model should say &quot;cold&quot;.
                     </p>
                 </div>
@@ -693,8 +693,9 @@ export default function PatchLensArea({
                     <p className="text-xs text-muted-foreground leading-snug">
                         With both filled in, run to see a heatmap for each prompt.{" "}
                         <span className="font-medium">Drag a cell</span> from the first heatmap onto
-                        the second to copy what the model had worked out at that word and layer. If
-                        the second prompt&apos;s answer changes, that cell was carrying the answer.
+                        the second to copy what the model had worked out at that token position and
+                        layer. If the second prompt&apos;s answer changes, that cell was carrying
+                        the answer.
                     </p>
                 </div>
 
