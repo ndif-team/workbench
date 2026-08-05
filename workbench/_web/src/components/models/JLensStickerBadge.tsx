@@ -35,12 +35,7 @@ const BURST = burstPoints(13, 72, 45, 52, 28);
 
 export function JLensStickerBadge({ className }: { className?: string }) {
     return (
-        <svg
-            viewBox="0 0 150 96"
-            role="img"
-            aria-label="Supports J-Lens"
-            className={className}
-        >
+        <svg viewBox="0 0 150 96" role="img" aria-label="Supports J-Lens" className={className}>
             <title>Supports J-Lens</title>
             <polygon
                 points={BURST}

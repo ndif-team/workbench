@@ -190,9 +190,7 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
                         {!toolSupported && unsupportedReason && (
                             <div className="flex items-start gap-2 rounded-md border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
                                 <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                                <span>
-                                    {unsupportedReason} Pick a different tool or model.
-                                </span>
+                                <span>{unsupportedReason} Pick a different tool or model.</span>
                             </div>
                         )}
                     </div>
