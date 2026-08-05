@@ -11,7 +11,7 @@ import {
     type ModelHeat,
     type ModelGroup,
 } from "@/components/model-selector/status";
-import { JLensStickerBadge } from "./JLensStickerBadge";
+import { SparkBadge } from "@/components/SparkBadge";
 
 export interface ModelCardModel {
     org: string;
@@ -194,7 +194,11 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
                 {content}
             </div>
             {m.has_jacobian && (
-                <JLensStickerBadge className="pointer-events-none absolute right-2 top-10 z-10 h-7 w-11 rotate-12 drop-shadow-sm sm:h-9 sm:w-14" />
+                <SparkBadge
+                    text="J-Lens"
+                    label="Supports J-Lens"
+                    className="pointer-events-none absolute right-2 top-10 z-10 h-7 w-11 rotate-12 drop-shadow-sm sm:h-9 sm:w-14"
+                />
             )}
         </div>
     );
