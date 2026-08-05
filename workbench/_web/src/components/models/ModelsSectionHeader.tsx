@@ -96,6 +96,21 @@ export function ModelsSectionHeader({
                             {filtered ? `${filteredTotal} of ${total}` : total}
                         </span>
                     )}
+                    <a
+                        href="https://ndif.us"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title="Models are served through NDIF — visit ndif.us"
+                        className="group inline-flex items-center gap-1.5 self-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                        <span>served by</span>
+                        <img
+                            src="/images/NDIF.png"
+                            alt="NDIF"
+                            className="h-6 w-auto opacity-80 transition-opacity group-hover:opacity-100"
+                        />
+                    </a>
                 </div>
 
                 {collapsed && isLoading && (
@@ -190,7 +205,9 @@ export function ModelsSectionHeader({
                             </PopoverContent>
                         </Popover>
 
-                        {scrollControls}
+                        {/* Desktop only — on mobile the carousel is scrolled by
+                            touch, so the paging controls are redundant. */}
+                        <div className="hidden md:flex">{scrollControls}</div>
                     </>
                 )}
 
