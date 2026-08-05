@@ -4,12 +4,16 @@ import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { ModelCard, type ModelCardModel } from "./ModelCard";
 
-// Max columns visible at once (the widest breakpoint). Kept in sync with the
-// `lg:[--cols:4]` grid class below — the row-count heuristic assumes this many
-// columns. Change both together.
+// Visible columns at the widest vs. the mobile breakpoint. Kept in sync with the
+// `[--cols:2] md:[--cols:3] lg:[--cols:4]` grid classes below — the row-count
+// heuristic uses the actual visible column count so small lists don't force
+// horizontal scrolling (fewer visible columns → pack into more rows). Change
+// these together with the grid classes.
 const MAX_VISIBLE_COLS = 4;
+const MOBILE_VISIBLE_COLS = 2;
 
 /**
  * Scroll state + paging for the model carousel, lifted out of the grid so the
@@ -131,10 +135,10 @@ interface ModelRowCarouselProps {
 
 /**
  * Horizontal scroller with a column-major grid (cards stack vertically down
- * `rows` then progress horizontally). The viewport is sized so exactly 4 columns
- * are visible at `lg+` breakpoints (3 at md, 2 at sm, 1 below); anything past
- * that is reachable by scrolling. The nav controls (progress + arrows) live in
- * the section header via `CarouselControls`; this renders the grid + edge fades.
+ * `rows` then progress horizontally). The viewport is sized so 4 columns are
+ * visible at `lg+` (3 at md, 2 below md); anything past that is reachable by
+ * scrolling. The nav controls (progress + arrows) live in the section header
+ * via `CarouselControls`; this renders the grid + edge fades.
  */
 export function ModelRowCarousel({
     models,
@@ -145,6 +149,12 @@ export function ModelRowCarousel({
     onCardClick,
     cardHref,
 }: ModelRowCarouselProps) {
+    // Row count depends on how many columns are actually visible: with fewer
+    // visible columns (mobile) a small list should pack into more rows so it
+    // fits without horizontal scrolling. `undefined` (pre-hydration) → desktop.
+    const visibleCols = useIsMobile() === true ? MOBILE_VISIBLE_COLS : MAX_VISIBLE_COLS;
+    const rowCount = Math.min(rows, Math.max(1, Math.ceil(models.length / visibleCols)));
+
     return (
         <div className="relative">
             <div
@@ -152,17 +162,18 @@ export function ModelRowCarousel({
                 className={cn(
                     "grid gap-3 overflow-x-auto py-0.5",
                     "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-                    // Card column width: container split into 1 / 2 / 3 / 4
-                    // visible columns by breakpoint (see MAX_VISIBLE_COLS). The
-                    // math accounts for (N-1) gaps inside the visible viewport.
-                    "[--cols:1] sm:[--cols:2] md:[--cols:3] lg:[--cols:4]",
+                    // Card column width: container split into 2 / 3 / 4 visible
+                    // columns by breakpoint (see MAX_VISIBLE_COLS). The math
+                    // accounts for (N-1) gaps inside the visible viewport. Cards
+                    // shrink to fit two columns even on the narrowest phones.
+                    "[--cols:2] md:[--cols:3] lg:[--cols:4]",
                 )}
                 style={{
                     gridAutoFlow: "column",
-                    // Stack into as many rows as the cards need (assuming the
-                    // widest breakpoint's column count), capped at `rows`. Few
+                    // Stack into as many rows as the cards need for the current
+                    // breakpoint's visible column count, capped at `rows`. Few
                     // cards stay a single line instead of leaving empty rows.
-                    gridTemplateRows: `repeat(${Math.min(rows, Math.max(1, Math.ceil(models.length / MAX_VISIBLE_COLS)))}, auto)`,
+                    gridTemplateRows: `repeat(${rowCount}, auto)`,
                     // Cap each card at 268px so cards don't stretch hollow on
                     // wide viewports, while still shrinking below the cap at
                     // small viewports.
@@ -205,7 +216,9 @@ export function ModelRowCarousel({
 function ScrollProgress({ progress }: { progress: number }) {
     const filled = Math.min(100, 24 + progress * 76);
     return (
-        <div className="relative w-[140px] h-1 rounded-full bg-muted overflow-hidden">
+        // Responsive width: compact on phones so [filters button][progress]
+        // [prev/next] fit the header on one row; full-size on desktop.
+        <div className="relative h-1 w-16 sm:w-24 lg:w-[140px] rounded-full bg-muted overflow-hidden">
             <div
                 className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-purple-600"
                 style={{ width: `${filled}%` }}

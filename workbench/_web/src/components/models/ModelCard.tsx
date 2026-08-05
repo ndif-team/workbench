@@ -85,29 +85,29 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
             <div className="flex items-center justify-between gap-2">
                 {deploying ? (
                     <span
-                        className="inline-flex items-center gap-1.5 text-xs font-medium"
+                        className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium"
                         style={{ color: MODEL_STATUS.deploying.color }}
                     >
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        deploying
+                        <Loader2 className="w-3 h-3 shrink-0 animate-spin" />
+                        <span className="truncate">deploying</span>
                     </span>
                 ) : (
                     <span
-                        className="inline-flex items-center gap-1.5 text-xs font-medium"
+                        className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium"
                         style={{ color: heat.color }}
                     >
                         <span
-                            className="w-1.5 h-1.5 rounded-full"
+                            className="w-1.5 h-1.5 shrink-0 rounded-full"
                             style={{
                                 background: heat.color,
                                 boxShadow: `0 0 0 3px ${heat.color}26`,
                             }}
                         />
-                        {heat.label}
+                        <span className="truncate">{heat.label}</span>
                     </span>
                 )}
                 <span
-                    className="text-xs font-medium px-1.5 py-0.5 rounded border"
+                    className="shrink-0 whitespace-nowrap text-xs font-medium px-1.5 py-0.5 rounded border"
                     style={{
                         color: pillText,
                         background: pillBg,
@@ -194,7 +194,7 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
                 {content}
             </div>
             {m.has_jacobian && (
-                <JLensStickerBadge className="pointer-events-none absolute right-2 top-10 z-10 h-9 w-14 rotate-12 drop-shadow-sm" />
+                <JLensStickerBadge className="pointer-events-none absolute right-2 top-10 z-10 h-7 w-11 rotate-12 drop-shadow-sm sm:h-9 sm:w-14" />
             )}
         </div>
     );
