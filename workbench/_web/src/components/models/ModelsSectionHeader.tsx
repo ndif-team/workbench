@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { AlertTriangle, ChevronDown, Loader2, Search, X } from "lucide-react";
+import { useEffect, useRef, type RefObject } from "react";
+import { AlertTriangle, ChevronDown, Loader2, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useIsDark } from "@/hooks/useIsDark";
 import {
@@ -63,6 +64,7 @@ export function ModelsSectionHeader({
 }: ModelsSectionHeaderProps) {
     const searchRef = useRef<HTMLInputElement>(null);
     const filtered = filteredTotal !== total;
+    const activeFilterCount = groupFilters.size + statusFilters.size + (query.trim() ? 1 : 0);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -133,61 +135,63 @@ export function ModelsSectionHeader({
                 )}
 
                 {!collapsed && (
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="relative">
-                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                            <Input
-                                ref={searchRef}
-                                value={query}
-                                onChange={(e) => onQuery(e.target.value)}
-                                placeholder="search models…"
-                                aria-label="Search models"
-                                className="h-7 w-44 pl-7 pr-7 text-xs"
+                    <>
+                        {/* Desktop: filters inline. */}
+                        <div className="hidden gap-3 md:flex md:flex-wrap md:items-center">
+                            <FilterControls
+                                searchRef={searchRef}
+                                query={query}
+                                onQuery={onQuery}
+                                groupFilters={groupFilters}
+                                onToggleGroup={onToggleGroup}
+                                statusFilters={statusFilters}
+                                onToggleStatus={onToggleStatus}
                             />
-                            {query && (
-                                <button
+                        </div>
+
+                        {/* Mobile: collapse filters behind a button + popover so
+                            they don't consume rows of vertical space. */}
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
                                     type="button"
-                                    onClick={() => onQuery("")}
-                                    aria-label="Clear search"
-                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    variant="outline"
+                                    size="icon"
+                                    className={cn(
+                                        "relative h-7 w-7 md:hidden",
+                                        activeFilterCount > 0 && "border-primary/40 text-primary",
+                                    )}
+                                    aria-label={
+                                        activeFilterCount > 0
+                                            ? `Filters (${activeFilterCount} active)`
+                                            : "Filters"
+                                    }
                                 >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-muted-foreground">type</span>
-                            <SegmentedGroup label="Filter by model type">
-                                {GROUPS.map((g) => (
-                                    <FilterChip
-                                        key={g}
-                                        label={g}
-                                        color={GROUP_COLOR[g]}
-                                        active={groupFilters.has(g)}
-                                        onClick={() => onToggleGroup(g)}
-                                    />
-                                ))}
-                            </SegmentedGroup>
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-muted-foreground">status</span>
-                            <SegmentedGroup label="Filter by status">
-                                {FILTERABLE_HEAT.map((k) => (
-                                    <FilterChip
-                                        key={k}
-                                        label={k}
-                                        color={MODEL_STATUS[k].color}
-                                        active={statusFilters.has(k)}
-                                        onClick={() => onToggleStatus(k)}
-                                    />
-                                ))}
-                            </SegmentedGroup>
-                        </div>
+                                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                                    {activeFilterCount > 0 && (
+                                        <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold leading-none text-primary-foreground tabular-nums">
+                                            {activeFilterCount}
+                                        </span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                                align="end"
+                                className="flex w-auto max-w-[calc(100vw-2rem)] flex-col gap-3 p-3"
+                            >
+                                <FilterControls
+                                    query={query}
+                                    onQuery={onQuery}
+                                    groupFilters={groupFilters}
+                                    onToggleGroup={onToggleGroup}
+                                    statusFilters={statusFilters}
+                                    onToggleStatus={onToggleStatus}
+                                />
+                            </PopoverContent>
+                        </Popover>
 
                         {scrollControls}
-                    </div>
+                    </>
                 )}
 
                 <Button
@@ -213,6 +217,86 @@ export function ModelsSectionHeader({
 
             {collapsed && total > 0 && <CollapsedGroupTiles groupPreviews={groupPreviews} />}
         </div>
+    );
+}
+
+/**
+ * The filter controls (search + type + status). Rendered inline in the header
+ * on desktop, and stacked inside a popover on mobile. Pass `searchRef` only to
+ * the instance that should own the "/" focus shortcut (the desktop one) to
+ * avoid a ref collision between the two instances.
+ */
+function FilterControls({
+    searchRef,
+    query,
+    onQuery,
+    groupFilters,
+    onToggleGroup,
+    statusFilters,
+    onToggleStatus,
+}: {
+    searchRef?: RefObject<HTMLInputElement>;
+    query: string;
+    onQuery: (q: string) => void;
+    groupFilters: Set<ModelGroup>;
+    onToggleGroup: (g: ModelGroup) => void;
+    statusFilters: Set<ModelHeat>;
+    onToggleStatus: (k: ModelHeat) => void;
+}) {
+    return (
+        <>
+            <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                    ref={searchRef}
+                    value={query}
+                    onChange={(e) => onQuery(e.target.value)}
+                    placeholder="search models…"
+                    aria-label="Search models"
+                    className="h-7 w-44 pl-7 pr-7 text-xs"
+                />
+                {query && (
+                    <button
+                        type="button"
+                        onClick={() => onQuery("")}
+                        aria-label="Clear search"
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                        <X className="h-3 w-3" />
+                    </button>
+                )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">type</span>
+                <SegmentedGroup label="Filter by model type">
+                    {GROUPS.map((g) => (
+                        <FilterChip
+                            key={g}
+                            label={g}
+                            color={GROUP_COLOR[g]}
+                            active={groupFilters.has(g)}
+                            onClick={() => onToggleGroup(g)}
+                        />
+                    ))}
+                </SegmentedGroup>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">status</span>
+                <SegmentedGroup label="Filter by status">
+                    {FILTERABLE_HEAT.map((k) => (
+                        <FilterChip
+                            key={k}
+                            label={k}
+                            color={MODEL_STATUS[k].color}
+                            active={statusFilters.has(k)}
+                            onClick={() => onToggleStatus(k)}
+                        />
+                    ))}
+                </SegmentedGroup>
+            </div>
+        </>
     );
 }
 
