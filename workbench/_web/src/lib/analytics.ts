@@ -30,7 +30,9 @@ export type AnalyticsEvent =
     | "cell_expanded"
     | "patch_lens_intervention_applied"
     | "patch_lens_intervention_reset"
-    | "run_restored";
+    | "run_restored"
+    // Guided tutorial: the persistent glossary was opened (unit id only).
+    | "tutorial_glossary_opened";
 
 type EventProperties = Record<string, unknown>;
 

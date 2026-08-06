@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTour } from "@reactour/tour";
 import { PatchLensTutorial } from "@/tutorials/patchLens";
+import { promptsForUnitEntry } from "@/tutorials/unitPrompts";
 import { usePatchLensTutorial, hydratePatchLensTutorial } from "@/stores/usePatchLensTutorial";
 import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
 import { useProlificTutorial } from "@/stores/useProlificTutorial";
@@ -526,24 +527,74 @@ export default function PatchLensArea({
         [executeRun, sourcePrompt, targetPrompt],
     );
 
+    // Put text in a prompt box and show its tokenized chips (or the empty state),
+    // without stealing focus. Shared by the "Try a prompt" path and the guided
+    // tutorial's restore-on-arrival.
+    const fillPrompt = useCallback(
+        async (which: "source" | "target", text: string) => {
+            const trimmed = text.trim();
+            const setPrompt = which === "source" ? onSourcePromptChange : onTargetPromptChange;
+            const setTokens = which === "source" ? setSrcTokens : setTgtTokens;
+            const setTokenizedModel =
+                which === "source" ? setSrcTokenizedModel : setTgtTokenizedModel;
+            const setEditing = which === "source" ? setSrcEditing : setTgtEditing;
+
+            setPrompt(trimmed);
+            if (!trimmed) {
+                setTokens([]);
+                setTokenizedModel(null);
+                setEditing(true);
+                return;
+            }
+            if (!selectedModel) return;
+            const tokens = await tokenize(trimmed, selectedModel);
+            if (tokens && tokens.length > 0) {
+                setTokens(tokens);
+                setTokenizedModel(selectedModel);
+                setEditing(false);
+            }
+        },
+        [onSourcePromptChange, onTargetPromptChange, selectedModel, tokenize],
+    );
+
+    // Restore a guided-tutorial unit's own prompt when the participant arrives at
+    // it. Without this a revisited step describes one prompt while the boxes hold
+    // whatever ran last — the instructions and the tool disagree, and a re-run
+    // there answers the step's check against the wrong prompt. Participant-written
+    // text is left alone (see promptsForUnitEntry).
+    const restoredUnitIdx = useRef<number | null>(null);
+    useEffect(() => {
+        if (!prolificTutorial.active) return;
+        // Content arrives asynchronously; don't record a unit as restored until
+        // there are units to restore from.
+        if (prolificTutorial.units.length === 0) return;
+        const idx = prolificTutorial.unitIdx;
+        if (restoredUnitIdx.current === idx) return;
+        restoredUnitIdx.current = idx;
+        const restore = promptsForUnitEntry(prolificTutorial.units, idx, {
+            source: sourcePrompt,
+            target: targetPrompt,
+        });
+        if (!restore) return;
+        void (async () => {
+            if (restore.source !== undefined) await fillPrompt("source", restore.source);
+            if (restore.target !== undefined) await fillPrompt("target", restore.target);
+        })();
+        // Prompts are read at arrival, deliberately: re-running on every keystroke
+        // would fight the participant's typing.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [prolificTutorial.active, prolificTutorial.unitIdx, prolificTutorial.units, fillPrompt]);
+
     // Tutorial "Try a prompt": fill the source prompt, show its tokenized chips,
     // then run — one click instead of insert-then-Run. Target is left as-is
     // (empty in lens units → single-prompt mode).
     const handleTryPrompt = useCallback(
         async (text: string) => {
             const trimmed = text.trim();
-            onSourcePromptChange(trimmed);
-            if (selectedModel && trimmed) {
-                const tokens = await tokenize(trimmed, selectedModel);
-                if (tokens && tokens.length > 0) {
-                    setSrcTokens(tokens);
-                    setSrcTokenizedModel(selectedModel);
-                    setSrcEditing(false);
-                }
-            }
+            await fillPrompt("source", trimmed);
             await executeRun(trimmed, targetPrompt);
         },
-        [selectedModel, tokenize, onSourcePromptChange, targetPrompt, executeRun],
+        [fillPrompt, targetPrompt, executeRun],
     );
 
     // Suppress the hard-coded reactour walkthrough in workshop mode (and while
@@ -747,6 +798,7 @@ export default function PatchLensArea({
                     topToken={runTokens.top}
                     secondToken={runTokens.second}
                     runUnitIdx={runTokens.unitIdx}
+                    glossary={tutorialContent?.glossary}
                     surveyUrl={surveyUrl}
                     completionThanks={workshop?.completionText}
                     workshopMode={!!workshop}

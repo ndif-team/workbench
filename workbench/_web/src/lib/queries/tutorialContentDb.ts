@@ -36,6 +36,10 @@ const slugify = (name: string): string =>
 
 const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
 
+const validGrids: Set<unknown> = new Set(["source", "target", "result"]);
+/** A spotlight layer/position: a concrete index, or "last" (resolved by the widget). */
+const isCellIndex = (v: unknown): boolean => v === "last" || typeof v === "number";
+
 /**
  * Content shape guard for admin-authored JSON (which bypasses the TS types). The
  * participant panel and store dereference `prompts`, `hints`, and `progression`
@@ -53,9 +57,7 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
         throw new Error("Tutorial unit ids must be unique");
     }
     const validOn = new Set(["run", "patch", "manual"]);
-    // Only the run-derived check kinds are wired up in the panel; layerBand has a
-    // type slot but no scoring, so reject it rather than let it mis-score.
-    const validCheckKinds = new Set(["topToken", "secondToken"]);
+    const validCheckKinds = new Set(["topToken", "secondToken", "choice"]);
     for (const u of content.units) {
         if (!u.id || !u.title) throw new Error("Every unit needs an id and a title");
         if (u.id.length > 64) {
@@ -70,6 +72,19 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
         for (const h of u.hints) {
             if (typeof h?.stage !== "number" || typeof h?.text !== "string") {
                 throw new Error(`Unit "${u.id}" has a malformed hint rung`);
+            }
+            // A spotlight the widget can't resolve silently highlights nothing —
+            // exactly the rung a stuck participant reached for — so check the shape.
+            for (const s of [...(h.spotlights ?? []), ...(h.spotlight ? [h.spotlight] : [])]) {
+                if (
+                    !validGrids.has(s?.grid) ||
+                    !isCellIndex(s?.layer) ||
+                    !isCellIndex(s?.position)
+                ) {
+                    throw new Error(
+                        `Unit "${u.id}" hint ${h.stage} has a malformed spotlight (needs grid source|target|result and numeric or "last" layer/position)`,
+                    );
+                }
             }
         }
         if (!u.progression || !validOn.has(u.progression.on)) {
@@ -94,6 +109,33 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
         }
         if (u.check && !validCheckKinds.has(u.check.kind)) {
             throw new Error(`Unit "${u.id}" has an unsupported check kind "${u.check.kind}"`);
+        }
+        // A choice check is scored entirely from its own content, so a missing or
+        // out-of-range key would mark every participant wrong with no run to blame.
+        if (u.check?.kind === "choice") {
+            const { options, correctIndex } = u.check;
+            if (!Array.isArray(options) || options.length < 2 || options.some((o) => !o)) {
+                throw new Error(`Unit "${u.id}" choice check needs at least two non-empty options`);
+            }
+            if (
+                !Number.isInteger(correctIndex) ||
+                correctIndex < 0 ||
+                correctIndex >= options.length
+            ) {
+                throw new Error(
+                    `Unit "${u.id}" choice check needs a correctIndex within its options`,
+                );
+            }
+        }
+    }
+    if (content.glossary !== undefined) {
+        if (!Array.isArray(content.glossary)) {
+            throw new Error("Tutorial glossary must be an array");
+        }
+        for (const g of content.glossary) {
+            if (!g?.term || !g?.definition) {
+                throw new Error("Every glossary entry needs a term and a definition");
+            }
         }
     }
     return content;

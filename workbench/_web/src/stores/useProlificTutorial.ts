@@ -29,6 +29,18 @@ interface PanelPos {
     y: number;
 }
 
+/**
+ * A unit's frozen embedded-check answer key: the tokens from the last lens run
+ * *initiated from that unit*. Frozen per unit rather than read from the latest
+ * run anywhere, so a run started on another unit can never become the answer key
+ * for this one — the participant who goes back to fill in a check they skipped is
+ * scored against their own run of this unit's prompt.
+ */
+interface RunTokens {
+    topToken: string;
+    secondToken: string | null;
+}
+
 interface ProlificTutorialState {
     workspaceId: string | null;
     // Content, injected from the DB. Not persisted — it comes from the query.
@@ -40,11 +52,14 @@ interface ProlificTutorialState {
     completedUnits: number[];
     checkAnsweredByUnit: Record<number, boolean>;
     observationByUnit: Record<number, boolean>;
-    // The TARGET's post-patch top predicted token, and the unit it was applied
-    // on — so a patch unit's embedded check scores against the actual patch
-    // outcome (not the source's pre-patch prediction). Ephemeral (not persisted).
-    patchResultToken: string | null;
-    patchResultUnitIdx: number | null;
+    // Frozen answer keys, per unit (see RunTokens). Ephemeral: a fresh session has
+    // no run to have read an answer off, so the check asks for the run first
+    // rather than scoring against a key whose result is no longer on screen.
+    runTokensByUnit: Record<number, RunTokens>;
+    // The TARGET's post-patch top predicted token, per unit it was applied on —
+    // so a patch unit's embedded check scores against the actual patch outcome
+    // (not the source's pre-patch prediction). Ephemeral, same reasoning.
+    patchTokenByUnit: Record<number, string>;
     // Floating-overlay UI state (persisted): last drag position + collapsed.
     panelPos: PanelPos | null;
     collapsed: boolean;
@@ -56,21 +71,26 @@ interface ProlificTutorialState {
     goToUnit: (idx: number) => void;
     next: () => void;
     prev: () => void;
-    /** Feed a completed run's top predicted token; evaluates the unit's success.
-     * `unitIdx` pins scoring to the unit the run was *initiated* from, so a slow
-     * run that resolves after the participant advances can't complete the wrong
-     * (now-current) unit. Falls back to the current unit when omitted. */
-    recordRun: (topToken: string | null, unitIdx?: number) => void;
+    /** Feed a completed run's top two predicted tokens; freezes that unit's check
+     * answer key and evaluates the unit's success. `unitIdx` pins both to the unit
+     * the run was *initiated* from, so a slow run that resolves after the
+     * participant advances can't complete — or re-key — the wrong (now-current)
+     * unit. Falls back to the current unit when omitted. */
+    recordRun: (tokens: { top: string | null; second: string | null }, unitIdx?: number) => void;
     /** A patch was applied (patch-unit progression). `unitIdx` pins completion to
      * the unit the patch was *initiated* from, so an async intervention that
      * settles after the participant advances can't complete the wrong unit.
      * Falls back to the current unit when omitted. */
     markPatchApplied: (unitIdx?: number) => void;
     /** Feed the TARGET's post-patch top token (from the widget) so a patch unit's
-     * embedded check can score against the actual patch outcome. `unitIdx` pins
-     * the result to the unit the intervention was initiated from (see
-     * `markPatchApplied`); falls back to the current unit when omitted. */
+     * embedded check can score against the actual patch outcome — and so the panel
+     * can state that outcome in words. `unitIdx` pins the result to the unit the
+     * intervention was initiated from (see `markPatchApplied`); falls back to the
+     * current unit when omitted. */
     recordPatchResult: (topToken: string | null, unitIdx?: number) => void;
+    /** The patch was undone, so its outcome no longer describes the screen: drop
+     * the recorded result rather than let the panel keep announcing it. */
+    clearPatchResult: (unitIdx?: number) => void;
     /** Reveal the next hint rung; returns the new highest stage. */
     revealHint: () => number;
     answerCheck: (answer: string, correct: boolean) => void;
@@ -123,8 +143,8 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
             completedUnits: [],
             checkAnsweredByUnit: {},
             observationByUnit: {},
-            patchResultToken: null,
-            patchResultUnitIdx: null,
+            runTokensByUnit: {},
+            patchTokenByUnit: {},
             panelPos: null,
             collapsed: false,
 
@@ -154,8 +174,8 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                     completedUnits: [],
                     checkAnsweredByUnit: {},
                     observationByUnit: {},
-                    patchResultToken: null,
-                    patchResultUnitIdx: null,
+                    runTokensByUnit: {},
+                    patchTokenByUnit: {},
                 });
             },
 
@@ -186,7 +206,7 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 set({ unitIdx: Math.max(unitIdx - 1, 0) });
             },
 
-            recordRun: (topToken, unitIdx) => {
+            recordRun: (tokens, unitIdx) => {
                 const state = get();
                 // Score the unit the run was initiated from, not whatever unit is
                 // current when the async lens run resolves — otherwise advancing
@@ -194,6 +214,19 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 const idx = unitIdx ?? state.unitIdx;
                 const unit = state.units[idx];
                 if (!unit) return;
+
+                const topToken = tokens.top;
+                // Freeze this unit's check answer key against its own run, before
+                // the progression branch below: a patch or explore unit can carry a
+                // run-scored check too, and its run is still the key.
+                if (topToken != null) {
+                    set({
+                        runTokensByUnit: {
+                            ...state.runTokensByUnit,
+                            [idx]: { topToken, secondToken: tokens.second },
+                        },
+                    });
+                }
 
                 // Only run-gated units progress on a completed run; patch/explore/
                 // challenge units treat a lens run as a prerequisite, not completion.
@@ -228,10 +261,20 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 // patch on THAT unit (mid-run navigation can't misattribute it).
                 if (!state.active) return;
                 const idx = unitIdx ?? state.unitIdx;
-                if (state.patchResultToken === topToken && state.patchResultUnitIdx === idx) {
-                    return;
-                }
-                set({ patchResultToken: topToken, patchResultUnitIdx: idx });
+                // The widget reports the result on every render pass that has one;
+                // only write a real token, and only on a change (an unreadable
+                // result leaves the check gated on applying the patch).
+                if (topToken == null || state.patchTokenByUnit[idx] === topToken) return;
+                set({ patchTokenByUnit: { ...state.patchTokenByUnit, [idx]: topToken } });
+            },
+
+            clearPatchResult: (unitIdx) => {
+                const state = get();
+                const idx = unitIdx ?? state.unitIdx;
+                if (state.patchTokenByUnit[idx] === undefined) return;
+                const next = { ...state.patchTokenByUnit };
+                delete next[idx];
+                set({ patchTokenByUnit: next });
             },
 
             revealHint: () => {
@@ -297,8 +340,8 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                     completedUnits: [],
                     checkAnsweredByUnit: {},
                     observationByUnit: {},
-                    patchResultToken: null,
-                    patchResultUnitIdx: null,
+                    runTokensByUnit: {},
+                    patchTokenByUnit: {},
                 }),
         }),
         {

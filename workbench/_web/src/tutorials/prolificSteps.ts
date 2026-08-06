@@ -1,14 +1,17 @@
 /**
- * Canonical step-id contract for the Prolific Patch Lens tutorial (spec §3).
+ * Step ids for the **seeded demo** Patch Lens tutorial (`prolificSeed.ts`).
  *
- * These unit-level ids are the shared vocabulary between:
- *  - the tutorial content (which emits step_started / step_completed per unit),
- *  - the analytics funnel + furthest-step derivation (ordering), and
- *  - the completion gate (unit-6 step_completed reveals the Prolific code).
+ * These are not the canonical contract they once were: tutorial content is
+ * DB-backed, so a workshop's own tutorial may add, drop or rename units. Anything
+ * that has to agree with what a participant actually ran derives from the loaded
+ * content instead:
+ *  - order + labels: `getTutorialStepMetaForWorkshop` (tutorialContentDb.ts),
+ *  - the completion gate: the last unit of the loaded content
+ *    (`isLast = unitIdx === total - 1`, `finalStepId = stepOrder.at(-1)`).
  *
- * The 7 units mirror the workshop's full gradient: single-prompt lens →
- * comparison → patching. Phase 3 authors each unit's reactour steps under the
- * matching id.
+ * So what is left here is the seed's own vocabulary, plus a label fallback for an
+ * id whose tutorial row no longer exists. The 7 seed units mirror the workshop's
+ * full gradient: single-prompt lens → comparison → patching.
  */
 
 export const TUTORIAL_STEP_IDS = {
@@ -23,7 +26,7 @@ export const TUTORIAL_STEP_IDS = {
 
 export type TutorialStepId = (typeof TUTORIAL_STEP_IDS)[keyof typeof TUTORIAL_STEP_IDS];
 
-/** Units in flow order — drives funnel column order and furthest-step ranking. */
+/** The seed's units in flow order (the seed test asserts the two agree). */
 export const TUTORIAL_STEP_ORDER: readonly TutorialStepId[] = [
     TUTORIAL_STEP_IDS.orientation,
     TUTORIAL_STEP_IDS.whereAnswersComeFrom,
@@ -34,10 +37,10 @@ export const TUTORIAL_STEP_ORDER: readonly TutorialStepId[] = [
     TUTORIAL_STEP_IDS.finalChallenge,
 ];
 
-/** The step whose completion gates the Prolific completion code. */
+/** The seed's last unit. A workshop's gate is the last unit of *its* content. */
 export const TUTORIAL_FINAL_STEP_ID = TUTORIAL_STEP_IDS.finalChallenge;
 
-/** Human labels for the funnel / participant table. */
+/** Label fallback for the funnel / participant table (content titles win). */
 export const TUTORIAL_STEP_LABELS: Record<TutorialStepId, string> = {
     "u0-orientation": "Orientation",
     "u1-answers": "Where answers come from",

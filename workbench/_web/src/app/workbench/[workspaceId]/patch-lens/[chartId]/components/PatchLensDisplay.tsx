@@ -71,6 +71,7 @@ export function PatchLensDisplay({
     const { emit: emitTutorialEvent } = useTutorialEmit();
     const markPatchApplied = useProlificTutorial((s) => s.markPatchApplied);
     const recordPatchResult = useProlificTutorial((s) => s.recordPatchResult);
+    const clearPatchResult = useProlificTutorial((s) => s.clearPatchResult);
     const { selectedModelIdx } = useWorkspace();
     const queryClient = useQueryClient();
 
@@ -230,6 +231,9 @@ export function PatchLensDisplay({
         const existingData = (existing?.data ?? {}) as Partial<PatchLensChartData>;
         if (existingData.intervention === undefined) return;
         capture("patch_lens_intervention_reset", {});
+        // The guided tutorial announces the patch's outcome; with the patch undone
+        // that announcement no longer matches the screen.
+        clearPatchResult(patchUnitIdxRef.current ?? undefined);
         const next = { ...existingData };
         delete next.intervention;
         await setChartData(chartId, next as PatchLensChartData, "patch-lens");
@@ -239,7 +243,7 @@ export function PatchLensDisplay({
                 prev ? { ...prev, data: next } : prev,
         );
         queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(chartId) });
-    }, [chartId, queryClient, capture]);
+    }, [chartId, queryClient, capture, clearPatchResult]);
 
     // Route the TARGET's post-patch top token to the tutorial store, pinned to
     // the unit the intervention was initiated from (see patchUnitIdxRef).

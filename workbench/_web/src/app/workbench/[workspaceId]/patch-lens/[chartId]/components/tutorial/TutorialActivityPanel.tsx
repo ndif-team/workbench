@@ -17,9 +17,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { useCapture } from "@/lib/analytics";
 import { useProlificTutorial, HINT_AUTO_OFFER_AT } from "@/stores/useProlificTutorial";
-import type { HintRung, SpotlightTarget } from "@/types/tutorial-content";
+import type { GlossaryEntry, HintRung, SpotlightTarget, UnitCheck } from "@/types/tutorial-content";
+import { DEFAULT_GLOSSARY } from "@/tutorials/glossary";
 import { CompletionCta } from "./CompletionCta";
+import { TutorialGlossary } from "./TutorialGlossary";
 
 /**
  * The companion "guided tutorial" activity surface. Rendered as a floating,
@@ -44,7 +47,21 @@ const norm = (s: string | null | undefined) =>
         .toLowerCase()
         .replace(/^[▁␣_\s]+/, "");
 
-const DEFAULT_POS = { x: 24, y: 96 };
+const PANEL_W = 340;
+
+/**
+ * Where the panel opens when the participant has never dragged it: against the
+ * right edge, clear of the prompt boxes and Run button in the left column.
+ *
+ * It used to open at x: 24 — on top of the very controls its first step tells you
+ * to use, so the first instruction had to be "drag this box aside if it covers the
+ * prompt". Narrow viewports still overlap (the panel floats over a two-column
+ * layout), but the thing being described is no longer the thing underneath.
+ */
+const defaultPanelPos = () => ({
+    x: Math.max(24, window.innerWidth - PANEL_W - 24),
+    y: 96,
+});
 
 interface TutorialActivityPanelProps {
     onInsertPrompt: (text: string) => void;
@@ -52,16 +69,19 @@ interface TutorialActivityPanelProps {
      * to onInsertPrompt (fill only) when not provided. */
     onTryPrompt?: (text: string) => void;
     onInsertPatchPair?: (pair: { source: string; target: string }) => void;
-    /** Point the widget's spotlight at a cell (show-me hints); null clears it. */
-    onSpotlight?: (target: SpotlightTarget | null) => void;
+    /** Point the widget's spotlight at one or more cells (show-me hints, and the
+     * post-patch result); null clears it. */
+    onSpotlight?: (target: SpotlightTarget | SpotlightTarget[] | null) => void;
     /** Bumped each time a run completes, so the panel can score the current unit. */
     runNonce: number;
     topToken: string | null;
     secondToken: string | null;
     /** The guided-tutorial unit the latest run was initiated from (null outside
-     * the tutorial). Scoring and the embedded check only apply when this matches
-     * the current unit, so a stale run can't score a unit it didn't belong to. */
+     * the tutorial). Progress and the check answer key are both filed against that
+     * unit, so a stale run can't score a unit it didn't belong to. */
     runUnitIdx: number | null;
+    /** Terms kept reachable from the header; falls back to DEFAULT_GLOSSARY. */
+    glossary?: GlossaryEntry[];
     /** Per-workshop survey the finish screen links to (workshops.surveyUrl). */
     surveyUrl?: string;
     /** Optional per-workshop thank-you copy (legacy completion_text). */
@@ -80,11 +100,13 @@ export function TutorialActivityPanel({
     topToken,
     secondToken,
     runUnitIdx,
+    glossary,
     surveyUrl,
     completionThanks,
     workshopMode = false,
 }: TutorialActivityPanelProps) {
     const store = useProlificTutorial();
+    const capture = useCapture();
     const units = store.units;
     const unit = units[store.unitIdx];
     const dragControls = useDragControls();
@@ -101,16 +123,39 @@ export function TutorialActivityPanel({
         prevNonce.current = runNonce;
         // Score against the unit the run was initiated from (runUnitIdx), not the
         // unit that happens to be current now.
-        if (store.active) store.recordRun(topToken, runUnitIdx ?? undefined);
+        if (store.active) {
+            store.recordRun({ top: topToken, second: secondToken }, runUnitIdx ?? undefined);
+        }
         // topToken is captured at the nonce bump; store handles per-unit logic.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [runNonce]);
 
-    // Clear any spotlight when the unit changes or the tutorial closes.
+    // Read before the mount/active guard below, so the patch-result effect can
+    // depend on them (a conditional hook isn't an option).
+    const isPatchUnit = unit?.progression.on === "patch";
+    const patchToken = store.patchTokenByUnit[store.unitIdx] ?? null;
+
+    // Clear any spotlight when the unit changes or the tutorial closes. Declared
+    // before the patch-result effect so that on arriving back at a patched step,
+    // this clears and that one re-lights, in the same commit.
+    const spotlitPatch = useRef<string | null>(null);
     useEffect(() => {
+        spotlitPatch.current = null;
         onSpotlight?.(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [store.unitIdx, store.active]);
+
+    // Point at the target's post-patch output the moment a patch lands. On the
+    // step carrying the whole point of the tool, participants performed the
+    // intervention successfully and then could not find its result — the panel
+    // now says what changed (below) and rings the cell it changed in.
+    useEffect(() => {
+        if (!isPatchUnit || patchToken == null) return;
+        if (spotlitPatch.current === patchToken) return;
+        spotlitPatch.current = patchToken;
+        onSpotlight?.({ grid: "result", layer: "last", position: "last" });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isPatchUnit, patchToken]);
 
     // "Next step" nudges the participant to finish the current step first: the
     // first click on an unfinished step shows a hint instead of advancing (a
@@ -128,24 +173,32 @@ export function TutorialActivityPanel({
     const completed = store.completedUnits.includes(store.unitIdx);
     const isLast = store.unitIdx === total - 1;
 
-    // Embedded-check answer key + gate. A patch unit scores against the TARGET's
-    // post-patch output (recorded from the widget on a patch applied to THIS
-    // unit); every other unit scores against its own run's top/second token.
-    const isPatchUnit = unit.progression.on === "patch";
+    // Embedded-check answer key + gate, read from THIS unit's frozen result rather
+    // than from whatever ran most recently. A patch unit scores against the
+    // TARGET's post-patch output (a patch applied on this unit); every other unit
+    // scores against its own run's top/second token.
+    //
+    // The live-state version of this mis-scored anyone who went back to a unit to
+    // fill in a check they had skipped: the source box still held a later unit's
+    // prompt, so re-running it moved the answer key while the instructions on
+    // screen still described this unit's prompt. The key is now pinned to the unit
+    // the run was initiated from, and the prompt is restored on arrival
+    // (PatchLensArea), so the key and the instructions describe the same run.
+    const runTokens = store.runTokensByUnit[store.unitIdx];
     const checkExpected = isPatchUnit
-        ? store.patchResultToken
+        ? patchToken
         : unit.check?.kind === "secondToken"
-          ? secondToken
-          : topToken;
-    const checkHasRun = isPatchUnit
-        ? store.patchResultUnitIdx === store.unitIdx && store.patchResultToken != null
-        : runUnitIdx === store.unitIdx && topToken != null;
+          ? (runTokens?.secondToken ?? null)
+          : (runTokens?.topToken ?? null);
+    // A choice check carries its own static answer key, so it needs no run.
+    const checkHasRun =
+        unit.check?.kind === "choice" || (isPatchUnit ? patchToken != null : !!runTokens);
     // Clamp the persisted position into the current viewport (a window resize or
     // a different monitor could otherwise place it off-screen). Same bounds as
     // the drag-end clamp; reached only after mount, so `window` exists.
-    const rawPos = store.panelPos ?? DEFAULT_POS;
+    const rawPos = store.panelPos ?? defaultPanelPos();
     const initialPos = {
-        x: Math.min(Math.max(0, rawPos.x), Math.max(0, window.innerWidth - 320)),
+        x: Math.min(Math.max(0, rawPos.x), Math.max(0, window.innerWidth - PANEL_W)),
         y: Math.min(Math.max(0, rawPos.y), Math.max(0, window.innerHeight - 120)),
     };
 
@@ -181,6 +234,12 @@ export function TutorialActivityPanel({
                 )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
+                {/* Reachable on every step, not just the one that introduced the
+                    term — the most consistent feedback on the tool is its entry cost. */}
+                <TutorialGlossary
+                    entries={glossary?.length ? glossary : DEFAULT_GLOSSARY}
+                    onOpen={() => capture("tutorial_glossary_opened", { unit_id: unit.id })}
+                />
                 <Button
                     variant="ghost"
                     size="icon"
@@ -238,7 +297,7 @@ export function TutorialActivityPanel({
                     // bounds as the render-time clamp above (the store persists the
                     // raw position; clamping happens here and at render, not on
                     // rehydrate).
-                    const maxX = Math.max(0, window.innerWidth - 320);
+                    const maxX = Math.max(0, window.innerWidth - PANEL_W);
                     const maxY = Math.max(0, window.innerHeight - 120);
                     store.setPanelPos({
                         x: Math.min(Math.max(0, initialPos.x + info.offset.x), maxX),
@@ -302,15 +361,31 @@ export function TutorialActivityPanel({
                                 const stage = store.revealHint();
                                 const rung = unit.hints.find((h) => h.stage === stage);
                                 if (rung?.insertPrompt) onInsertPrompt(rung.insertPrompt);
-                                if (rung?.spotlight) onSpotlight?.(rung.spotlight);
+                                // A rung may light several cells — both ends of a
+                                // drag, say. `spotlights` wins over `spotlight`.
+                                const cells = rung?.spotlights?.length
+                                    ? rung.spotlights
+                                    : rung?.spotlight;
+                                if (cells) onSpotlight?.(cells);
                             }}
                         />
+
+                        {/* What the patch did. The intervention is the hard part of
+                            the tool and its result is one cell in a grid of
+                            hundreds — easy to perform and then never find. */}
+                        {isPatchUnit && patchToken && (
+                            <p className="rounded border-l-2 border-primary bg-primary/5 px-3 py-2 text-sm leading-snug">
+                                The target now predicts{" "}
+                                <span className="font-mono">{patchToken}</span>. It is the
+                                bottom-right cell of the patched heatmap — ringed for you.
+                            </p>
+                        )}
 
                         {/* Embedded check — auto-scored, log-only */}
                         {unit.check && (
                             <EmbeddedCheck
                                 key={`check-${store.unitIdx}`}
-                                question={unit.check.question}
+                                check={unit.check}
                                 expected={checkExpected}
                                 placeholder={unit.answerPlaceholder}
                                 // Only answerable once THIS unit's action has run —
@@ -457,7 +532,7 @@ function HintLadder({
 }
 
 function EmbeddedCheck({
-    question,
+    check,
     expected,
     placeholder,
     hasRun,
@@ -465,7 +540,8 @@ function EmbeddedCheck({
     alreadyAnswered,
     onAnswer,
 }: {
-    question: string;
+    check: UnitCheck;
+    /** The run-derived answer key; unused by a choice check, which carries its own. */
     expected: string | null;
     placeholder?: string;
     hasRun: boolean;
@@ -474,55 +550,87 @@ function EmbeddedCheck({
     onAnswer: (answer: string, correct: boolean) => void;
 }) {
     const [value, setValue] = useState("");
-    const [result, setResult] = useState<null | { correct: boolean }>(null);
+    const [result, setResult] = useState<null | { correct: boolean; expected: string }>(null);
     // Lock once answered — locally this render or already answered on a prior
     // visit (checkAnsweredByUnit). Prevents a re-answer from emitting a duplicate
     // check_answered event that would skew the analytics funnel.
     const locked = !!result || alreadyAnswered;
+    const isChoice = check.kind === "choice";
 
-    const submit = () => {
+    const submitTyped = () => {
         if (!value.trim() || locked) return;
         const correct = norm(value) === norm(expected);
-        setResult({ correct });
+        setResult({ correct, expected: expected ?? "?" });
         onAnswer(value.trim(), correct);
+    };
+
+    const submitChoice = (idx: number) => {
+        if (locked || check.kind !== "choice") return;
+        const correct = idx === check.correctIndex;
+        setResult({ correct, expected: check.options[check.correctIndex] ?? "?" });
+        onAnswer(check.options[idx] ?? String(idx), correct);
     };
 
     return (
         <div className="rounded border bg-background p-2.5 flex flex-col gap-1.5">
-            <p className="text-xs font-medium">{question}</p>
+            <p className="text-xs font-medium">{check.question}</p>
             {!hasRun ? (
                 <p className="text-xs text-muted-foreground">
                     {notRunMessage ?? "Run a prompt first, then answer."}
                 </p>
             ) : (
                 <>
-                    <div className="flex items-center gap-1.5">
-                        <Input
-                            value={value}
-                            onChange={(e) => setValue(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && submit()}
-                            placeholder={placeholder ?? "Your answer"}
-                            aria-label={question}
-                            className="h-7 text-xs"
-                            disabled={locked}
-                        />
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            onClick={submit}
-                            disabled={locked || !value.trim()}
+                    {isChoice ? (
+                        // One click per option: a token the participant can see but
+                        // cannot type (a space, a newline, a punctuation glyph) is
+                        // still answerable, and the answers stay comparable.
+                        <div
+                            role="group"
+                            aria-label={check.question}
+                            className="flex flex-col gap-1"
                         >
-                            Check
-                        </Button>
-                    </div>
+                            {check.options.map((option, idx) => (
+                                <Button
+                                    key={option}
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-auto justify-start whitespace-normal py-1 text-left text-xs font-mono"
+                                    disabled={locked}
+                                    onClick={() => submitChoice(idx)}
+                                >
+                                    {option}
+                                </Button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1.5">
+                            <Input
+                                value={value}
+                                onChange={(e) => setValue(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && submitTyped()}
+                                placeholder={placeholder ?? "Your answer"}
+                                aria-label={check.question}
+                                className="h-7 text-xs"
+                                disabled={locked}
+                            />
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={submitTyped}
+                                disabled={locked || !value.trim()}
+                            >
+                                Check
+                            </Button>
+                        </div>
+                    )}
                     {result && (
                         <p
                             className={`text-xs ${result.correct ? "text-primary" : "text-muted-foreground"}`}
                         >
                             {result.correct
                                 ? "✓ Correct."
-                                : `Not quite — the model's answer was “${expected ?? "?"}”.`}
+                                : `Not quite — the answer was “${result.expected}”.`}
                         </p>
                     )}
                     {alreadyAnswered && !result && (

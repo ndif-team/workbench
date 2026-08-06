@@ -31,14 +31,42 @@ export interface HintRung {
     insertPrompt?: string;
     // Show-me rung: a widget cell to spotlight on reveal.
     spotlight?: SpotlightTarget;
+    // Show-me rung: several cells to spotlight at once — a patching hint should
+    // light both ends of the drag, since naming the drop cell in prose is what
+    // makes the interaction undiscoverable. Wins over `spotlight` when both are
+    // present.
+    spotlights?: SpotlightTarget[];
 }
 
-/** An embedded engagement check, auto-scored against the participant's own run. */
-export interface UnitCheck {
+/**
+ * An embedded engagement check. Either auto-scored against the participant's own
+ * run (`topToken` / `secondToken`), or a fixed multiple choice.
+ */
+export interface RunScoredCheck {
     question: string;
     // Which facet of the run result the answer is compared against.
-    kind: "topToken" | "secondToken" | "layerBand";
-    layerOptions?: string[];
+    kind: "topToken" | "secondToken";
+}
+
+/**
+ * A multiple choice with a static answer key. Free-text token answers are
+ * ambiguous — a participant who cannot type the glyph they see (a space, a
+ * newline, punctuation) answers a different question instead — so a check whose
+ * point is engagement verification rather than typing accuracy uses this.
+ */
+export interface ChoiceCheck {
+    question: string;
+    kind: "choice";
+    options: string[];
+    correctIndex: number;
+}
+
+export type UnitCheck = RunScoredCheck | ChoiceCheck;
+
+/** A term the tutorial uses, kept reachable from every unit. */
+export interface GlossaryEntry {
+    term: string;
+    definition: string;
 }
 
 /**
@@ -84,6 +112,12 @@ export interface TutorialUnit {
 export interface TutorialContent {
     version: number;
     units: TutorialUnit[];
+    /**
+     * Terms the panel keeps available on every unit. Omit to use
+     * `DEFAULT_GLOSSARY` (`src/tutorials/glossary.ts`) — a term explained once in
+     * an early unit is otherwise unreachable by the time it matters.
+     */
+    glossary?: GlossaryEntry[];
 }
 
 /** Evaluate a unit's run-based success predicate against the run's top token. */

@@ -22,7 +22,7 @@ import {
 import { createWorkshop, getWorkshopById } from "@/lib/queries/workshopDb";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 import { PROLIFIC_TUTORIAL_SEED, PROLIFIC_TUTORIAL_SLUG } from "@/tutorials/prolificSeed";
-import type { TutorialContent } from "@/types/tutorial-content";
+import type { HintRung, TutorialContent, UnitCheck } from "@/types/tutorial-content";
 import type { WorkshopTool } from "@/db/schema";
 
 const workshopInput = (overrides = {}) => ({
@@ -139,12 +139,82 @@ describe("tutorial content", () => {
                 units: [{ ...base, id: "x".repeat(65) }],
             }),
         ).toThrow();
-        // Unsupported check kind → would silently mis-score.
+        // Unsupported check kind → would silently mis-score. (Authored JSON
+        // bypasses the TS types, hence the cast.)
         expect(() =>
             validateTutorialContent({
                 version: 1,
-                units: [{ ...base, check: { question: "?", kind: "layerBand" } }],
+                units: [{ ...base, check: { question: "?", kind: "layerBand" as never } }],
             }),
         ).toThrow();
+    });
+
+    it("rejects a choice check with no usable answer key", () => {
+        const base = tinyContent().units[0];
+        const withCheck = (check: UnitCheck) =>
+            validateTutorialContent({ version: 1, units: [{ ...base, check }] });
+
+        // Fewer than two options, or an empty one: nothing to choose between.
+        expect(() =>
+            withCheck({ question: "?", kind: "choice", options: ["only"], correctIndex: 0 }),
+        ).toThrow();
+        expect(() =>
+            withCheck({ question: "?", kind: "choice", options: ["a", ""], correctIndex: 0 }),
+        ).toThrow();
+        // correctIndex outside the options → every participant scored wrong.
+        expect(() =>
+            withCheck({ question: "?", kind: "choice", options: ["a", "b"], correctIndex: 2 }),
+        ).toThrow();
+        expect(() =>
+            withCheck({ question: "?", kind: "choice", options: ["a", "b"], correctIndex: 1 }),
+        ).not.toThrow();
+    });
+
+    it("rejects a malformed hint spotlight", () => {
+        const base = tinyContent().units[0];
+        const withHint = (hint: HintRung) =>
+            validateTutorialContent({ version: 1, units: [{ ...base, hints: [hint] }] });
+
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "look here",
+                spotlight: { grid: "nowhere" as never, layer: 1, position: 1 },
+            }),
+        ).toThrow();
+        // A rung may light several cells — both ends of a patch drag.
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "drag this onto that",
+                spotlights: [
+                    { grid: "source", layer: 20, position: 5 },
+                    { grid: "target", layer: "last", position: "last" },
+                ],
+            }),
+        ).not.toThrow();
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "drag this onto that",
+                spotlights: [{ grid: "target", layer: 20, position: null as never }],
+            }),
+        ).toThrow();
+    });
+
+    it("rejects a glossary entry missing its term or definition", () => {
+        const content = tinyContent();
+        expect(() =>
+            validateTutorialContent({
+                ...content,
+                glossary: [{ term: "Token", definition: "" }],
+            }),
+        ).toThrow();
+        expect(() =>
+            validateTutorialContent({
+                ...content,
+                glossary: [{ term: "Token", definition: "A piece of text." }],
+            }),
+        ).not.toThrow();
     });
 });
