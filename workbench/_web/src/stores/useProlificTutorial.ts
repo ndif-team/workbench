@@ -203,7 +203,16 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
 
             prev: () => {
                 const { unitIdx } = get();
-                set({ unitIdx: Math.max(unitIdx - 1, 0) });
+                const prevIdx = Math.max(unitIdx - 1, 0);
+                if (prevIdx === unitIdx) return;
+                set({ unitIdx: prevIdx });
+                // Walking back is a step entry too. Without this, a participant who
+                // goes back to answer a check they skipped produces a check_answered
+                // with no preceding step_started, and their route through the tutorial
+                // has to be reconstructed by hand. `step_started` therefore means
+                // "entered this step", not "entered it for the first time"; the funnel
+                // is max-based, so nothing downstream changes.
+                emit(get().workspaceId, stepIdForUnit(get(), prevIdx), "step_started");
             },
 
             recordRun: (tokens, unitIdx) => {
@@ -218,14 +227,16 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 const topToken = tokens.top;
                 // Freeze this unit's check answer key against its own run, before
                 // the progression branch below: a patch or explore unit can carry a
-                // run-scored check too, and its run is still the key.
+                // run-scored check too, and its run is still the key. Updater form
+                // throughout — this action writes more than once, and a second write
+                // built from the pre-first-write snapshot would revert the first.
                 if (topToken != null) {
-                    set({
+                    set((s) => ({
                         runTokensByUnit: {
-                            ...state.runTokensByUnit,
+                            ...s.runTokensByUnit,
                             [idx]: { topToken, secondToken: tokens.second },
                         },
-                    });
+                    }));
                 }
 
                 // Only run-gated units progress on a completed run; patch/explore/
@@ -234,7 +245,7 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
 
                 const success = evalSuccessPredicate(unit.progression.successPredicate, topToken);
                 if (success) {
-                    set(completeUnit(state, idx));
+                    set((s) => completeUnit(s, idx));
                     return;
                 }
                 // A failing run counts as a hint "attempt" only when the unit has a
@@ -242,8 +253,12 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 // didn't complete shouldn't happen, but never auto-offer hints there.
                 const pred = unit.progression.successPredicate;
                 if (!pred || pred.kind === "always") return;
-                const attempts = (state.attemptsByUnit[idx] ?? 0) + 1;
-                set({ attemptsByUnit: { ...state.attemptsByUnit, [idx]: attempts } });
+                set((s) => ({
+                    attemptsByUnit: {
+                        ...s.attemptsByUnit,
+                        [idx]: (s.attemptsByUnit[idx] ?? 0) + 1,
+                    },
+                }));
             },
 
             markPatchApplied: (unitIdx) => {
@@ -261,6 +276,11 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 // patch on THAT unit (mid-run navigation can't misattribute it).
                 if (!state.active) return;
                 const idx = unitIdx ?? state.unitIdx;
+                // Only a patch unit has a patch check to key. Without this, a patch
+                // restored from a previous session — reported by the widget before the
+                // participant has navigated anywhere — files itself under whatever
+                // step they happen to be on.
+                if (state.units[idx]?.progression.on !== "patch") return;
                 // The widget reports the result on every render pass that has one;
                 // only write a real token, and only on a change (an unreadable
                 // result leaves the check gated on applying the patch).
@@ -304,6 +324,10 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
             answerCheck: (answer, correct) => {
                 const state = get();
                 const idx = state.unitIdx;
+                // One check_answered per step, enforced here as well as by the input's
+                // locked state: this row is the engagement measure, and a second one
+                // for the same step would double-count it.
+                if (state.checkAnsweredByUnit[idx]) return;
                 set({ checkAnsweredByUnit: { ...state.checkAnsweredByUnit, [idx]: true } });
                 emit(state.workspaceId, stepIdForUnit(state, idx), "check_answered", {
                     answer,

@@ -22,7 +22,7 @@ import {
 import { createWorkshop, getWorkshopById } from "@/lib/queries/workshopDb";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 import { PROLIFIC_TUTORIAL_SEED, PROLIFIC_TUTORIAL_SLUG } from "@/tutorials/prolificSeed";
-import type { HintRung, TutorialContent, UnitCheck } from "@/types/tutorial-content";
+import type { HintRung, TutorialContent, TutorialUnit, UnitCheck } from "@/types/tutorial-content";
 import type { WorkshopTool } from "@/db/schema";
 
 const workshopInput = (overrides = {}) => ({
@@ -147,6 +147,72 @@ describe("tutorial content", () => {
                 units: [{ ...base, check: { question: "?", kind: "layerBand" as never } }],
             }),
         ).toThrow();
+    });
+
+    it("rejects a unit whose rendered fields aren't usable text", () => {
+        const base = tinyContent().units[0];
+        const withUnit = (overrides: Partial<TutorialUnit>) =>
+            validateTutorialContent({ version: 1, units: [{ ...base, ...overrides }] });
+
+        // `prompts` and `patchPair` are read by promptsForUnitEntry from inside an
+        // effect, where a throw takes the whole chart page — not just the tutorial.
+        expect(() => withUnit({ prompts: [{ text: "hi" } as never] })).toThrow();
+        expect(() => withUnit({ task: { a: 1 } as never })).toThrow();
+        expect(() => withUnit({ concept: [1] as never })).toThrow();
+        expect(() => withUnit({ observationPrompt: 7 as never })).toThrow();
+        expect(() => withUnit({ patchPair: { source: 5, target: null } as never })).toThrow();
+        expect(() => withUnit({ patchPair: { source: "a", target: "" } })).toThrow();
+        expect(() => withUnit({ faqs: [{ q: { x: 1 }, a: 2 }] as never })).toThrow();
+        expect(() => withUnit({ title: "   " })).toThrow();
+        // …and accepts the same unit with all of them filled in properly.
+        expect(() =>
+            withUnit({
+                prompts: ["The Eiffel Tower is in the city of"],
+                patchPair: {
+                    source: "The Eiffel Tower is in the city of",
+                    target: "The Colosseum is in the city of",
+                },
+                faqs: [{ q: "Why?", a: "Because." }],
+            }),
+        ).not.toThrow();
+    });
+
+    it("accepts content using every optional feature", () => {
+        // One place where the type, the validator and the panel have to agree; a
+        // feature wired into two of the three shows up here.
+        const content: TutorialContent = {
+            version: 1,
+            glossary: [{ term: "Cell", definition: "One square of the heatmap." }],
+            units: [
+                {
+                    ...tinyContent().units[0],
+                    kind: "patch",
+                    progression: { on: "patch" },
+                    patchPair: { source: "The Eiffel Tower is in", target: "The Colosseum is in" },
+                    answerPlaceholder: "e.g. Paris",
+                    observationPlaceholder: "What changed?",
+                    faqs: [{ q: "What is a patch?", a: "Copying one cell into the other prompt." }],
+                    check: {
+                        question: "What does the target say now?",
+                        kind: "choice",
+                        options: ["Paris", "Rome"],
+                        correctIndex: 0,
+                    },
+                    hints: [
+                        {
+                            stage: 1,
+                            text: "Drag this onto that.",
+                            spotlights: [
+                                { grid: "source", layer: 20, position: 5 },
+                                { grid: "target", layer: "last", position: "last" },
+                            ],
+                        },
+                        { stage: 2, text: "Try the pair.", insertPrompt: "The Eiffel Tower is in" },
+                    ],
+                },
+            ],
+        };
+        expect(() => validateTutorialContent(content)).not.toThrow();
     });
 
     it("rejects a choice check with no usable answer key", () => {

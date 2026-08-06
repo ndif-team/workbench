@@ -62,6 +62,10 @@ interface PatchLensAreaProps {
     // both prompts and show the chip view, since the prompt props change without
     // the textarea blur that normally drives tokenization.
     restoreNonce?: number;
+    /** True once the chart row's saved prompts have been absorbed. The guided
+     * tutorial waits for it before restoring a step's prompt, so hydration can't
+     * land on top of the restore. */
+    promptsHydrated?: boolean;
     // Restore a history entry onto the tool. When provided, the prompt-history
     // list renders at the bottom of this controls column.
     onSelectRun?: (run: NormalizedRun) => void;
@@ -120,6 +124,7 @@ export default function PatchLensArea({
     lastRunSrcPrompt,
     lastRunTgtPrompt,
     restoreNonce,
+    promptsHydrated = true,
     onSelectRun,
 }: PatchLensAreaProps) {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
@@ -527,34 +532,74 @@ export default function PatchLensArea({
         [executeRun, sourcePrompt, targetPrompt],
     );
 
-    // Put text in a prompt box and show its tokenized chips (or the empty state),
-    // without stealing focus. Shared by the "Try a prompt" path and the guided
-    // tutorial's restore-on-arrival.
-    const fillPrompt = useCallback(
-        async (which: "source" | "target", text: string) => {
-            const trimmed = text.trim();
-            const setPrompt = which === "source" ? onSourcePromptChange : onTargetPromptChange;
-            const setTokens = which === "source" ? setSrcTokens : setTgtTokens;
-            const setTokenizedModel =
-                which === "source" ? setSrcTokenizedModel : setTgtTokenizedModel;
-            const setEditing = which === "source" ? setSrcEditing : setTgtEditing;
+    // Latest prompts + model, readable after an await. Tokenizing is a round trip;
+    // by the time it returns the box may hold something else entirely (a later
+    // restore, the chart row hydrating, the participant typing) and the model may
+    // have settled onto a different one. Programmatic writes update this
+    // synchronously (below) as well as on commit, so a fast tokenize isn't judged
+    // against a value React hasn't rendered yet.
+    const live = useRef({ source: sourcePrompt, target: targetPrompt, model: selectedModel });
+    useEffect(() => {
+        live.current = { source: sourcePrompt, target: targetPrompt, model: selectedModel };
+    }, [sourcePrompt, targetPrompt, selectedModel]);
 
-            setPrompt(trimmed);
-            if (!trimmed) {
-                setTokens([]);
-                setTokenizedModel(null);
-                setEditing(true);
-                return;
+    // Put text in a prompt box. Synchronous by design: a caller filling both boxes
+    // must not be able to lose the second write to an async race. Returns the text
+    // actually written, for the tokenize step below.
+    const setPromptText = useCallback(
+        (which: "source" | "target", text: string): string => {
+            const trimmed = text.trim();
+            live.current = { ...live.current, [which]: trimmed };
+            if (which === "source") {
+                onSourcePromptChange(trimmed);
+                if (!trimmed) {
+                    setSrcTokens([]);
+                    setSrcTokenizedModel(null);
+                    setSrcEditing(true);
+                }
+            } else {
+                onTargetPromptChange(trimmed);
+                if (!trimmed) {
+                    setTgtTokens([]);
+                    setTgtTokenizedModel(null);
+                    setTgtEditing(true);
+                }
             }
-            if (!selectedModel) return;
-            const tokens = await tokenize(trimmed, selectedModel);
-            if (tokens && tokens.length > 0) {
-                setTokens(tokens);
-                setTokenizedModel(selectedModel);
-                setEditing(false);
+            return trimmed;
+        },
+        [onSourcePromptChange, onTargetPromptChange],
+    );
+
+    // Show the token chips for text already written to a box. Abandoned if the box
+    // or the model moved on while tokenizing — stale chips would otherwise claim
+    // the prompt was tokenized with a model that is no longer selected, which is
+    // what raises the "tokens last computed with …" warning.
+    const tokenizePromptText = useCallback(
+        async (which: "source" | "target", text: string) => {
+            if (!text || !selectedModel) return;
+            const tokens = await tokenize(text, selectedModel);
+            if (!tokens || tokens.length === 0) return;
+            if (live.current.model !== selectedModel) return;
+            if (live.current[which] !== text) return;
+            if (which === "source") {
+                setSrcTokens(tokens);
+                setSrcTokenizedModel(selectedModel);
+                setSrcEditing(false);
+            } else {
+                setTgtTokens(tokens);
+                setTgtTokenizedModel(selectedModel);
+                setTgtEditing(false);
             }
         },
-        [onSourcePromptChange, onTargetPromptChange, selectedModel, tokenize],
+        [selectedModel, tokenize],
+    );
+
+    // Put text in a prompt box and show its chips, without stealing focus.
+    const fillPrompt = useCallback(
+        async (which: "source" | "target", text: string) => {
+            await tokenizePromptText(which, setPromptText(which, text));
+        },
+        [setPromptText, tokenizePromptText],
     );
 
     // Restore a guided-tutorial unit's own prompt when the participant arrives at
@@ -565,11 +610,9 @@ export default function PatchLensArea({
     const restoredUnitIdx = useRef<number | null>(null);
     useEffect(() => {
         if (!prolificTutorial.active) return;
-        // Content and the model list both arrive asynchronously; don't record a
-        // unit as restored until it can be restored *and* tokenized — marking it
-        // done before the tokenizer has a model would leave the box showing raw
-        // text with no token chips until the next blur.
-        if (prolificTutorial.units.length === 0 || !selectedModel) return;
+        // Content arrives asynchronously, and so do the chart row's saved prompts —
+        // restoring first would be overwritten by that hydration a moment later.
+        if (prolificTutorial.units.length === 0 || !promptsHydrated) return;
         const idx = prolificTutorial.unitIdx;
         if (restoredUnitIdx.current === idx) return;
         restoredUnitIdx.current = idx;
@@ -578,17 +621,15 @@ export default function PatchLensArea({
             target: targetPrompt,
         });
         if (!restore) return;
-        // Tokenizing is async, and the participant can advance while it runs — drop
-        // the second write rather than put a previous step's prompt in the box.
-        let cancelled = false;
+        // Both boxes are written now, synchronously. Chips follow asynchronously and
+        // are allowed to be dropped (the model-change effect above recomputes them,
+        // as does a blur) — the prompts themselves never are.
+        const written = (["source", "target"] as const)
+            .filter((which) => restore[which] !== undefined)
+            .map((which) => ({ which, text: setPromptText(which, restore[which] as string) }));
         void (async () => {
-            if (restore.source !== undefined) await fillPrompt("source", restore.source);
-            if (cancelled) return;
-            if (restore.target !== undefined) await fillPrompt("target", restore.target);
+            for (const { which, text } of written) await tokenizePromptText(which, text);
         })();
-        return () => {
-            cancelled = true;
-        };
         // Prompts are read at arrival, deliberately: re-running on every keystroke
         // would fight the participant's typing.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -596,8 +637,9 @@ export default function PatchLensArea({
         prolificTutorial.active,
         prolificTutorial.unitIdx,
         prolificTutorial.units,
-        selectedModel,
-        fillPrompt,
+        promptsHydrated,
+        setPromptText,
+        tokenizePromptText,
     ]);
 
     // Tutorial "Try a prompt": fill the source prompt, show its tokenized chips,

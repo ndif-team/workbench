@@ -63,8 +63,11 @@ export default function PatchLensChartPage() {
 
     // hydratedRef gates autosave: we must absorb any persisted prompts before
     // the autosave effect is allowed to write, otherwise the first render
-    // would clobber a stored prompt with the default placeholder.
+    // would clobber a stored prompt with the default placeholder. The state copy
+    // is for children that have to *wait* for hydration (the guided tutorial's
+    // prompt restore), which a ref can't tell them about.
     const hydratedRef = useRef(false);
+    const [promptsHydrated, setPromptsHydrated] = useState(false);
     useEffect(() => {
         if (hydratedRef.current) return;
         if (chart === undefined) return;
@@ -80,6 +83,7 @@ export default function PatchLensChartPage() {
             setLastRunTgtPrompt(data.lastRunTargetPrompt);
         }
         hydratedRef.current = true;
+        setPromptsHydrated(true);
     }, [chart]);
 
     const handleLensResult = useCallback(
@@ -205,6 +209,7 @@ export default function PatchLensChartPage() {
                                 lastRunSrcPrompt={lastRunSrcPrompt}
                                 lastRunTgtPrompt={lastRunTgtPrompt}
                                 restoreNonce={restoreNonce}
+                                promptsHydrated={promptsHydrated}
                                 onSelectRun={handleSelectRun}
                             />
                         </MobileCollapsibleControls>
@@ -254,6 +259,7 @@ export default function PatchLensChartPage() {
                                     lastRunSrcPrompt={lastRunSrcPrompt}
                                     lastRunTgtPrompt={lastRunTgtPrompt}
                                     restoreNonce={restoreNonce}
+                                    promptsHydrated={promptsHydrated}
                                     onSelectRun={handleSelectRun}
                                 />
                             </ResizablePanel>

@@ -120,6 +120,41 @@ export interface TutorialContent {
     glossary?: GlossaryEntry[];
 }
 
+/**
+ * The answer key for a unit's embedded check, and whether it can be answered yet.
+ *
+ * Kept as a pure function (rather than inline in the panel) because this is where
+ * the mis-scoring bug lived: the key has to come from the unit's *own* result, and
+ * the check must stay closed when there is no key to score against.
+ *
+ * @param runTokens the top two tokens from a lens run initiated on this unit
+ * @param patchToken the target's post-patch top token, from a patch on this unit
+ */
+export function resolveCheckKey(
+    unit: TutorialUnit,
+    runTokens: { topToken: string; secondToken: string | null } | undefined,
+    patchToken: string | null,
+): { expected: string | null; canAnswer: boolean } {
+    const check = unit.check;
+    if (!check) return { expected: null, canAnswer: false };
+    // A choice check carries its own key, so it needs no run at all.
+    if (check.kind === "choice") {
+        return { expected: check.options[check.correctIndex] ?? null, canAnswer: true };
+    }
+    // Kind first, then the unit's progression: a `secondToken` check always asks
+    // about the run, even on a patch unit, where `topToken` means the patch outcome.
+    const expected =
+        check.kind === "secondToken"
+            ? (runTokens?.secondToken ?? null)
+            : unit.progression.on === "patch"
+              ? patchToken
+              : (runTokens?.topToken ?? null);
+    // No key, no question: a run whose top-k had a single entry has no runner-up,
+    // and scoring an answer against nothing marks every answer wrong and logs a
+    // check_answered nobody could have got right.
+    return { expected, canAnswer: expected != null };
+}
+
 /** Evaluate a unit's run-based success predicate against the run's top token. */
 export function evalSuccessPredicate(
     predicate: SuccessPredicate | undefined,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useCapture } from "@/lib/analytics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -247,11 +247,25 @@ export function PatchLensDisplay({
 
     // Route the TARGET's post-patch top token to the tutorial store, pinned to
     // the unit the intervention was initiated from (see patchUnitIdxRef).
+    const lastResultToken = useRef<string | null>(null);
     const handleInterventionResult = useCallback(
-        (topToken: string | null) =>
-            recordPatchResult(topToken, patchUnitIdxRef.current ?? undefined),
+        (topToken: string | null) => {
+            lastResultToken.current = topToken;
+            recordPatchResult(topToken, patchUnitIdxRef.current ?? undefined);
+        },
         [recordPatchResult],
     );
+
+    // A patch restored from a previous session is reported once, on mount — before
+    // the participant has walked to the patch step, and with no patchUnitIdxRef to
+    // pin it to. File it again when they arrive there, or the step asks them to
+    // apply a patch that is already on screen (and the panel can't name its result).
+    const tutorialUnitIdx = useProlificTutorial((s) => s.unitIdx);
+    const onPatchUnit = useProlificTutorial((s) => s.units[s.unitIdx]?.progression.on === "patch");
+    useEffect(() => {
+        if (!onPatchUnit || lastResultToken.current == null) return;
+        recordPatchResult(lastResultToken.current, tutorialUnitIdx);
+    }, [onPatchUnit, tutorialUnitIdx, recordPatchResult]);
 
     // Map the widget's in-chart interactions to product analytics. Cell
     // expansions become cell_expanded; token/layer step changes become

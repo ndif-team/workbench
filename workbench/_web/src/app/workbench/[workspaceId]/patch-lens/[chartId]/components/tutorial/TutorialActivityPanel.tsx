@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { useCapture } from "@/lib/analytics";
 import { useProlificTutorial, HINT_AUTO_OFFER_AT } from "@/stores/useProlificTutorial";
 import type { GlossaryEntry, HintRung, SpotlightTarget, UnitCheck } from "@/types/tutorial-content";
+import { resolveCheckKey } from "@/types/tutorial-content";
 import { DEFAULT_GLOSSARY } from "@/tutorials/glossary";
 import { CompletionCta } from "./CompletionCta";
 import { TutorialGlossary } from "./TutorialGlossary";
@@ -177,9 +178,7 @@ export function TutorialActivityPanel({
     const isLast = store.unitIdx === total - 1;
 
     // Embedded-check answer key + gate, read from THIS unit's frozen result rather
-    // than from whatever ran most recently. A patch unit scores against the
-    // TARGET's post-patch output (a patch applied on this unit); every other unit
-    // scores against its own run's top/second token.
+    // than from whatever ran most recently (see resolveCheckKey).
     //
     // The live-state version of this mis-scored anyone who went back to a unit to
     // fill in a check they had skipped: the source box still held a later unit's
@@ -187,15 +186,11 @@ export function TutorialActivityPanel({
     // screen still described this unit's prompt. The key is now pinned to the unit
     // the run was initiated from, and the prompt is restored on arrival
     // (PatchLensArea), so the key and the instructions describe the same run.
-    const runTokens = store.runTokensByUnit[store.unitIdx];
-    const checkExpected = isPatchUnit
-        ? patchToken
-        : unit.check?.kind === "secondToken"
-          ? (runTokens?.secondToken ?? null)
-          : (runTokens?.topToken ?? null);
-    // A choice check carries its own static answer key, so it needs no run.
-    const checkHasRun =
-        unit.check?.kind === "choice" || (isPatchUnit ? patchToken != null : !!runTokens);
+    const { expected: checkExpected, canAnswer: checkHasRun } = resolveCheckKey(
+        unit,
+        store.runTokensByUnit[store.unitIdx],
+        patchToken,
+    );
     // Clamp the persisted position into the current viewport (a window resize or
     // a different monitor could otherwise place it off-screen). Same bounds as
     // the drag-end clamp; reached only after mount, so `window` exists.
@@ -594,7 +589,9 @@ function EmbeddedCheck({
                         >
                             {check.options.map((option, idx) => (
                                 <Button
-                                    key={option}
+                                    // Index, not the label: two options can read the
+                                    // same and nothing requires them to be unique.
+                                    key={`${idx}-${option}`}
                                     size="sm"
                                     variant="outline"
                                     className="h-auto justify-start whitespace-normal py-1 text-left text-xs font-mono"

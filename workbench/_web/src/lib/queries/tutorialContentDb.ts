@@ -71,15 +71,40 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
     const validOn = new Set(["run", "patch", "manual"]);
     const validCheckKinds = new Set(["topToken", "secondToken", "choice"]);
     for (const u of content.units) {
-        if (!u.id || !u.title) throw new Error("Every unit needs an id and a title");
+        if (!isText(u.id) || !isText(u.title)) {
+            throw new Error("Every unit needs an id and a title");
+        }
         if (u.id.length > 64) {
             throw new Error(`Unit id "${u.id}" exceeds 64 characters`);
         }
-        if (!Array.isArray(u.prompts)) {
-            throw new Error(`Unit "${u.id}" needs a prompts array`);
+        if (!Array.isArray(u.prompts) || !u.prompts.every(isText)) {
+            throw new Error(`Unit "${u.id}" needs a prompts array of non-empty strings`);
         }
         if (!Array.isArray(u.hints)) {
             throw new Error(`Unit "${u.id}" needs a hints array`);
+        }
+        // Rendered straight into the panel, and `prompts` / `patchPair` are also
+        // read by promptsForUnitEntry from inside an effect — where a non-string
+        // would throw past the tutorial and take the whole chart page with it.
+        for (const field of ["task", "concept", "observationPrompt"] as const) {
+            if (!isText(u[field])) {
+                throw new Error(`Unit "${u.id}" needs a non-empty ${field}`);
+            }
+        }
+        if (u.patchPair !== undefined) {
+            if (!isText(u.patchPair?.source) || !isText(u.patchPair?.target)) {
+                throw new Error(`Unit "${u.id}" patchPair needs a source and a target prompt`);
+            }
+        }
+        if (u.faqs !== undefined) {
+            if (!Array.isArray(u.faqs)) {
+                throw new Error(`Unit "${u.id}" faqs must be an array`);
+            }
+            for (const f of u.faqs) {
+                if (!isText(f?.q) || !isText(f?.a)) {
+                    throw new Error(`Unit "${u.id}" has an FAQ missing its question or answer`);
+                }
+            }
         }
         for (const h of u.hints) {
             if (typeof h?.stage !== "number" || typeof h?.text !== "string") {

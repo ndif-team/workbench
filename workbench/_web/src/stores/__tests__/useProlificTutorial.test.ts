@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 
+import { clearDatabase } from "@/db/client";
+import { getTutorialEventsForWorkspace } from "@/lib/queries/tutorialEventsDb";
 import { useProlificTutorial } from "@/stores/useProlificTutorial";
 import type { TutorialUnit } from "@/types/tutorial-content";
 
@@ -50,12 +52,19 @@ describe("useProlificTutorial answer keys", () => {
 
     it("a run on a later unit cannot move an earlier unit's key", () => {
         store().recordRun({ top: "Paris", second: " London" }, 0);
-        // The participant goes to the final challenge, runs their own prompt, then
-        // comes back to the first step and re-runs it there.
-        store().goToUnit(2);
+        // The participant walks to the final challenge and runs their own prompt
+        // there. `next` twice, not goToUnit — the panel only offers Back and Next.
+        store().next();
+        store().next();
+        expect(store().unitIdx).toBe(2);
         store().recordRun({ top: "\n", second: null }, 2);
         expect(store().runTokensByUnit[0]?.topToken).toBe("Paris");
         expect(store().runTokensByUnit[2]?.topToken).toBe("\n");
+    });
+
+    it("ignores a run filed against a unit that doesn't exist", () => {
+        store().recordRun({ top: "Paris", second: null }, 99);
+        expect(store().runTokensByUnit[99]).toBeUndefined();
     });
 
     it("freezes a key for units that don't progress on a run", () => {
@@ -96,11 +105,84 @@ describe("useProlificTutorial answer keys", () => {
         expect(store().patchTokenByUnit[1]).toBeUndefined();
     });
 
+    it("refuses to file a patch result against a step that has no patch", () => {
+        // A patch restored from a previous session is reported on mount, before the
+        // participant has navigated anywhere — it must not land on step 1.
+        store().recordPatchResult("Paris", 0);
+        expect(store().patchTokenByUnit[0]).toBeUndefined();
+    });
+
     it("drops every key when the tutorial is reset", () => {
         store().recordRun({ top: "Paris", second: null }, 0);
         store().recordPatchResult("Rome", 1);
         store().reset();
         expect(store().runTokensByUnit).toEqual({});
         expect(store().patchTokenByUnit).toEqual({});
+    });
+
+    it("keeps the answer keys out of localStorage", () => {
+        // Load-bearing for "the check asks for a run again after a refresh": a
+        // persisted key would score an answer against a result no longer on screen.
+        store().setWorkspace("ws-persist");
+        store().setUnits(units);
+        store().start();
+        store().recordRun({ top: "Paris", second: " London" }, 0);
+        store().recordPatchResult("Rome", 1);
+        const persisted = globalThis.localStorage.getItem("workbench:prolific-tutorial") ?? "";
+        expect(persisted).toContain("completedUnits");
+        expect(persisted).not.toContain("runTokensByUnit");
+        expect(persisted).not.toContain("patchTokenByUnit");
+    });
+
+    it("records one check answer per step", () => {
+        store().answerCheck("Paris", true);
+        expect(store().checkAnsweredByUnit[0]).toBe(true);
+        // A second answer for the same step would double-count the engagement
+        // measure; the store refuses it as well as the input locking.
+        store().answerCheck("Rome", false);
+        expect(store().checkAnsweredByUnit[0]).toBe(true);
+    });
+});
+
+describe("useProlificTutorial telemetry", () => {
+    // The store mirrors every action to tutorial_events; these assertions read the
+    // rows back rather than trusting the call.
+    const workspaceId = "ws-telemetry";
+
+    beforeEach(async () => {
+        await clearDatabase();
+        store().reset();
+        store().setWorkspace(workspaceId);
+        store().setUnits(units);
+    });
+
+    const timeline = async () => {
+        // emit() is deliberately fire-and-forget, so let the writes land.
+        await Bun.sleep(20);
+        const events = await getTutorialEventsForWorkspace(workspaceId);
+        return events.map((e) => `${e.eventType}:${e.stepId}`);
+    };
+
+    it("emits a step entry walking back as well as forward", async () => {
+        // A check answered on a revisited step used to arrive with no preceding
+        // step_started, which is what made a participant's route through the
+        // tutorial impossible to reconstruct.
+        store().start();
+        store().next();
+        store().prev();
+        store().answerCheck("Paris", true);
+        expect(await timeline()).toEqual([
+            "step_started:u0",
+            "step_started:u4",
+            "step_started:u0",
+            "check_answered:u0",
+        ]);
+    });
+
+    it("emits one check_answered even if the check is answered twice", async () => {
+        store().start();
+        store().answerCheck("Paris", true);
+        store().answerCheck("Rome", false);
+        expect(await timeline()).toEqual(["step_started:u0", "check_answered:u0"]);
     });
 });
