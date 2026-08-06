@@ -520,6 +520,10 @@ export function JLensControls({
         <>
             <ToolPanelHeader
                 title="J-Lens"
+                reference={{
+                    href: "https://transformer-circuits.pub/2026/workspace/index.html",
+                    label: "J-Lens reference (transformer-circuits.pub)",
+                }}
                 viewMode={viewMode}
                 showReset={showReset}
                 showSync={showSync}
