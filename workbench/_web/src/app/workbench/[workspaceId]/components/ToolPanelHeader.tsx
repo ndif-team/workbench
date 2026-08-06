@@ -1,10 +1,13 @@
-import { RotateCcw } from "lucide-react";
+import { BookOpen, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface ToolPanelHeaderProps {
     /** Panel title (e.g. "Logit Lens", "Activation Patching"). */
     title: string;
+    /** Optional reference link (e.g. the tool's paper) shown as a small book
+     * icon next to the title. */
+    reference?: { href: string; label: string };
     /** True when models are unavailable AND not currently fetching — shows
      * the compact ⚠ View Mode indicator. */
     viewMode: boolean;
@@ -32,6 +35,7 @@ interface ToolPanelHeaderProps {
  */
 export function ToolPanelHeader({
     title,
+    reference,
     viewMode,
     showReset,
     showSync,
@@ -42,7 +46,21 @@ export function ToolPanelHeader({
 }: ToolPanelHeaderProps) {
     return (
         <div className="p-3 border-b flex items-center justify-between">
-            <h2 className="text-sm pl-2 font-medium">{title}</h2>
+            <div className="flex items-center gap-1.5 pl-2">
+                <h2 className="text-sm font-medium">{title}</h2>
+                {reference && (
+                    <a
+                        href={reference.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={reference.label}
+                        title={reference.label}
+                        className="text-muted-foreground/50 transition-colors hover:text-foreground"
+                    >
+                        <BookOpen className="h-3.5 w-3.5" />
+                    </a>
+                )}
+            </div>
             <div className="flex items-center gap-1.5">
                 {viewMode && (
                     <span

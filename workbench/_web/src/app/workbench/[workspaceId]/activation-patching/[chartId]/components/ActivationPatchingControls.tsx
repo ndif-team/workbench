@@ -1025,6 +1025,10 @@ export function ActivationPatchingControls({
         <>
             <ToolPanelHeader
                 title="Activation Patching"
+                reference={{
+                    href: "https://rome.baulab.info/",
+                    label: "Activation Patching reference (rome.baulab.info)",
+                }}
                 viewMode={viewMode}
                 showReset={showReset}
                 showSync={showSync}

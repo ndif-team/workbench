@@ -548,6 +548,10 @@ export function Lens2Controls({
         <>
             <ToolPanelHeader
                 title="Logit Lens"
+                reference={{
+                    href: "https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens",
+                    label: "Logit Lens reference (lesswrong.com)",
+                }}
                 viewMode={viewMode}
                 showReset={showReset}
                 showSync={showSync}
