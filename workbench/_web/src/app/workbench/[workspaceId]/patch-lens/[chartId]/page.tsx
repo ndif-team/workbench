@@ -20,6 +20,12 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useCapture } from "@/lib/analytics";
 import { TutorialEventProvider } from "@/components/providers/TutorialEventProvider";
 import { SpotlightProvider as TutorialSpotlightProvider } from "edulogitlens";
+import {
+    TutorialCollapsedRail,
+    TutorialDockPanel,
+    TutorialDockProvider,
+} from "./components/tutorial/TutorialDock";
+import { useProlificTutorial } from "@/stores/useProlificTutorial";
 import type { PatchLensChartData } from "@/types/patchLens";
 import type { NormalizedRun } from "@/lib/lensRun";
 
@@ -45,6 +51,9 @@ export default function PatchLensChartPage() {
     // Bumped on each history restore so PatchLensArea re-tokenizes the swapped-in
     // prompts and shows the chip view.
     const [restoreNonce, setRestoreNonce] = useState(0);
+    // Layout-level tutorial state: whether it has a column, or a collapsed strip.
+    const tutorialActive = useProlificTutorial((s) => s.active);
+    const tutorialCollapsed = useProlificTutorial((s) => s.collapsed);
 
     // One tool_opened per chart opened (refires when navigating to another
     // patch-lens chart within this page component).
@@ -189,6 +198,10 @@ export default function PatchLensChartPage() {
 
     if (isMobile === undefined) return null;
 
+    // The tutorial owns a column while it is open; collapsed it becomes a strip
+    // beside the layout, the same way the chart sidebar does on the other side.
+    const showTutorialDock = tutorialActive && !tutorialCollapsed;
+
     if (isMobile) {
         return (
             <TutorialEventProvider>
@@ -230,50 +243,79 @@ export default function PatchLensChartPage() {
     return (
         <TutorialEventProvider>
             <TutorialSpotlightProvider>
-                <div className="size-full flex min-h-0">
-                    <ChartCardsSidebar />
-                    <div className="flex-1 min-w-0 min-h-0 pb-3 pr-3">
-                        <ResizablePanelGroup
-                            direction="horizontal"
-                            className="flex size-full rounded dark:bg-secondary/50 bg-secondary/80 border"
-                        >
-                            <ResizablePanel
-                                className="h-full min-w-0"
-                                defaultSize={27}
-                                minSize={22}
+                <TutorialDockProvider>
+                    <div className="size-full flex min-h-0">
+                        <ChartCardsSidebar />
+                        <div className="flex-1 min-w-0 min-h-0 pb-3 pr-3 flex">
+                            <ResizablePanelGroup
+                                direction="horizontal"
+                                className="flex h-full flex-1 min-w-0 rounded dark:bg-secondary/50 bg-secondary/80 border"
                             >
-                                {/* PatchLensArea's predicted-next-token chip is now ephemeral:
+                                <ResizablePanel
+                                    id="controls"
+                                    order={1}
+                                    className="h-full min-w-0"
+                                    defaultSize={showTutorialDock ? 24 : 27}
+                                    minSize={20}
+                                >
+                                    {/* PatchLensArea's predicted-next-token chip is now ephemeral:
                             it shows after a run (lensResult is set) but is NOT
                             re-hydrated on revisit, since heatmaps moved off the
                             chart row onto lens_runs. Acceptable — the Display's
                             heatmap (fetched by activeLensRunId) conveys the
                             prediction on revisit. The prompt-history list lives at
                             the bottom of this controls column (onSelectRun). */}
-                                <PatchLensArea
-                                    sourcePrompt={sourcePrompt}
-                                    targetPrompt={targetPrompt}
-                                    onSourcePromptChange={setSourcePrompt}
-                                    onTargetPromptChange={setTargetPrompt}
-                                    onLensResult={handleLensResult}
-                                    lensResult={lensResult}
-                                    lastRunSrcPrompt={lastRunSrcPrompt}
-                                    lastRunTgtPrompt={lastRunTgtPrompt}
-                                    restoreNonce={restoreNonce}
-                                    promptsHydrated={promptsHydrated}
-                                    onSelectRun={handleSelectRun}
-                                />
-                            </ResizablePanel>
-                            <ResizableHandle className="w-[0.8px]" />
-                            <ResizablePanel className="min-w-0" defaultSize={73} minSize={35}>
-                                <PatchLensDisplay
-                                    sourcePrompt={sourcePrompt}
-                                    targetPrompt={targetPrompt}
-                                    lensResult={lensResult}
-                                />
-                            </ResizablePanel>
-                        </ResizablePanelGroup>
+                                    <PatchLensArea
+                                        sourcePrompt={sourcePrompt}
+                                        targetPrompt={targetPrompt}
+                                        onSourcePromptChange={setSourcePrompt}
+                                        onTargetPromptChange={setTargetPrompt}
+                                        onLensResult={handleLensResult}
+                                        lensResult={lensResult}
+                                        lastRunSrcPrompt={lastRunSrcPrompt}
+                                        lastRunTgtPrompt={lastRunTgtPrompt}
+                                        restoreNonce={restoreNonce}
+                                        promptsHydrated={promptsHydrated}
+                                        onSelectRun={handleSelectRun}
+                                    />
+                                </ResizablePanel>
+                                <ResizableHandle className="w-[0.8px]" />
+                                <ResizablePanel
+                                    id="display"
+                                    order={2}
+                                    className="min-w-0"
+                                    defaultSize={showTutorialDock ? 49 : 73}
+                                    minSize={30}
+                                >
+                                    <PatchLensDisplay
+                                        sourcePrompt={sourcePrompt}
+                                        targetPrompt={targetPrompt}
+                                        lensResult={lensResult}
+                                    />
+                                </ResizablePanel>
+                                {/* The guided tutorial takes a column of its own rather
+                                    than floating over the two that matter. Rendered by
+                                    PatchLensArea (which owns the run state it needs) and
+                                    portaled in — see TutorialDock. */}
+                                {showTutorialDock && (
+                                    <>
+                                        <ResizableHandle className="w-[0.8px]" />
+                                        <ResizablePanel
+                                            id="tutorial"
+                                            order={3}
+                                            className="min-w-0"
+                                            defaultSize={27}
+                                            minSize={18}
+                                        >
+                                            <TutorialDockPanel />
+                                        </ResizablePanel>
+                                    </>
+                                )}
+                            </ResizablePanelGroup>
+                            {tutorialActive && tutorialCollapsed && <TutorialCollapsedRail />}
+                        </div>
                     </div>
-                </div>
+                </TutorialDockProvider>
             </TutorialSpotlightProvider>
         </TutorialEventProvider>
     );

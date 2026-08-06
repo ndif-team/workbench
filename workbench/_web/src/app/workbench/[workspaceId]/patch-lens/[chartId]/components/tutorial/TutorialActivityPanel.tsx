@@ -10,6 +10,7 @@ import {
     HelpCircle,
     Lightbulb,
     Minus,
+    PanelRightClose,
     RotateCcw,
     X,
 } from "lucide-react";
@@ -24,18 +25,23 @@ import { resolveCheckKey } from "@/types/tutorial-content";
 import { DEFAULT_GLOSSARY } from "@/tutorials/glossary";
 import { CompletionCta } from "./CompletionCta";
 import { TutorialGlossary } from "./TutorialGlossary";
+import { useTutorialDock } from "./TutorialDock";
 
 /**
- * The companion "guided tutorial" activity surface. Rendered as a floating,
- * draggable overlay above the patch-lens tool (portaled to <body>) so the
- * participant can position it anywhere and never has to scroll the controls
- * column to see it. Each unit carries: a task, a concept callout, a known-good
- * prompt bank, a progressive hint ladder, an auto-scored embedded check, and an
- * observation box. Content comes from the DB (store.units); every interaction
- * mirrors to tutorial_events via the store (app DB only).
+ * The companion "guided tutorial" activity surface. Each unit carries: a task, a
+ * concept callout, a known-good prompt bank, a progressive hint ladder, an
+ * auto-scored embedded check, and an observation box. Content comes from the DB
+ * (store.units); every interaction mirrors to tutorial_events via the store (app
+ * DB only).
+ *
+ * Two placements, chosen by whether a dock exists (see TutorialDock):
+ *  - **docked** (desktop) — a column of the tool's resizable layout, so it never
+ *    covers the prompt boxes or the heatmap it is talking about;
+ *  - **floating** (mobile, or any host with no dock) — a draggable overlay
+ *    portaled to <body>, positioned by the participant and remembered.
  *
  * Reactour still handles the spotlight explanations for the lens/patch UI; this
- * panel is the reflective "activity" the pilot's facilitator ran by hand.
+ * panel is the reflective activity a facilitator would otherwise run by hand.
  */
 
 // Normalize a token/answer for comparison: strip a leading SentencePiece marker
@@ -51,13 +57,9 @@ const norm = (s: string | null | undefined) =>
 const PANEL_W = 340;
 
 /**
- * Where the panel opens when the participant has never dragged it: against the
- * right edge, clear of the prompt boxes and Run button in the left column.
- *
- * It used to open at x: 24 — on top of the very controls its first step tells you
- * to use, so the first instruction had to be "drag this box aside if it covers the
- * prompt". Narrow viewports still overlap (the panel floats over a two-column
- * layout), but the thing being described is no longer the thing underneath.
+ * Where the panel opens, floating, when the participant has never dragged it:
+ * against the right edge, clear of the prompt boxes and Run button. Only reached
+ * without a dock (mobile) — docked, the layout decides where it goes.
  */
 const defaultPanelPos = () => ({
     x: Math.max(24, window.innerWidth - PANEL_W - 24),
@@ -112,6 +114,8 @@ export function TutorialActivityPanel({
     const unit = units[store.unitIdx];
     const dragControls = useDragControls();
     const constraintsRef = useRef<HTMLDivElement | null>(null);
+    // A column to render into, when the layout offers one (desktop).
+    const { available: docked, el: dockEl } = useTutorialDock();
 
     // Portal target — guarded so SSR renders nothing (createPortal needs the DOM).
     const [mounted, setMounted] = useState(false);
@@ -170,6 +174,9 @@ export function TutorialActivityPanel({
     }, [store.unitIdx]);
 
     if (!mounted || !store.active || !unit) return null;
+    // Collapsed and docked, the dock's own strip carries the way back — the page
+    // takes the column away entirely rather than leaving a title bar behind.
+    if (docked && store.collapsed) return null;
 
     const total = units.length;
     const attempts = store.attemptsByUnit[store.unitIdx] ?? 0;
@@ -217,13 +224,187 @@ export function TutorialActivityPanel({
         store.next();
     };
 
+    // Docked, the panel is a column of the tool's layout and wears the same header
+    // as its neighbours; floating, it keeps its own drag handle and title bar.
+    // The step itself. Identical in both placements; only the scroll container
+    // differs — docked it fills the column, floating it grows to a max height.
+    const body = store.collapsed ? null : (
+        <div className={`p-3 flex flex-col gap-3 overflow-auto ${docked ? "flex-1 min-h-0" : ""}`}>
+            {/* Task */}
+            <p className="text-sm leading-snug">{unit.task}</p>
+
+            {/* Concept callout — the facilitator move this unit replaces. */}
+            <div className="rounded border-l-2 border-primary bg-primary/5 px-3 py-2 text-sm leading-snug">
+                {unit.concept}
+            </div>
+
+            {/* Prompt bank — clicking a prompt fills + auto-runs it. */}
+            {unit.prompts.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Try a prompt</p>
+                    <div className="flex flex-col gap-1">
+                        {unit.prompts.map((p) => (
+                            <button
+                                key={p}
+                                type="button"
+                                onClick={() => (onTryPrompt ?? onInsertPrompt)(p)}
+                                title="Fill this prompt and run it"
+                                className="text-left text-xs font-mono rounded border bg-background px-2 py-1 hover:border-primary/50 transition-colors whitespace-pre-wrap"
+                            >
+                                {p}
+                            </button>
+                        ))}
+                    </div>
+                    {unit.patchPair && onInsertPatchPair && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-1 h-7 text-xs"
+                            onClick={() => onInsertPatchPair(unit.patchPair!)}
+                        >
+                            Load source + target pair
+                        </Button>
+                    )}
+                </div>
+            )}
+
+            {/* Progressive hints */}
+            <HintLadder
+                key={`hint-${store.unitIdx}`}
+                hints={unit.hints}
+                revealedStage={hintStage}
+                autoOffer={attempts >= HINT_AUTO_OFFER_AT && hintStage === 0}
+                onReveal={() => {
+                    const stage = store.revealHint();
+                    const rung = unit.hints.find((h) => h.stage === stage);
+                    if (rung?.insertPrompt) onInsertPrompt(rung.insertPrompt);
+                    // A rung may light several cells — both ends of a
+                    // drag, say. `spotlights` wins over `spotlight`.
+                    const cells = rung?.spotlights?.length ? rung.spotlights : rung?.spotlight;
+                    if (cells) onSpotlight?.(cells);
+                }}
+            />
+
+            {/* What the patch did. The intervention is the hard part of
+                        the tool and its result is one cell in a grid of
+                        hundreds — easy to perform and then never find. */}
+            {isPatchUnit && patchToken && (
+                <p className="rounded border-l-2 border-primary bg-primary/5 px-3 py-2 text-sm leading-snug">
+                    The target now predicts <span className="font-mono">{patchToken}</span>. It is
+                    the bottom-right cell of the patched heatmap — ringed for you.
+                </p>
+            )}
+
+            {/* Embedded check — auto-scored, log-only */}
+            {unit.check && (
+                <EmbeddedCheck
+                    key={`check-${store.unitIdx}`}
+                    check={unit.check}
+                    expected={checkExpected}
+                    placeholder={unit.answerPlaceholder}
+                    // Only answerable once THIS unit's action has run —
+                    // the answer key (a run's tokens, or the patch
+                    // outcome) belongs to this unit, so scoring a
+                    // different unit's answer against it would be wrong.
+                    // A stale result reads as "do the step first" rather
+                    // than auto-scoring.
+                    hasRun={checkHasRun}
+                    notRunMessage={isPatchUnit ? "Apply the patch first, then answer." : undefined}
+                    onAnswer={(answer, correct) => store.answerCheck(answer, correct)}
+                    alreadyAnswered={!!store.checkAnsweredByUnit[store.unitIdx]}
+                />
+            )}
+
+            {/* Observation box */}
+            <ObservationBox
+                key={`obs-${store.unitIdx}`}
+                prompt={unit.observationPrompt}
+                placeholder={unit.observationPlaceholder}
+                submitted={!!store.observationByUnit[store.unitIdx]}
+                onSubmit={(text) => store.submitObservation(text)}
+            />
+
+            {/* FAQ callouts */}
+            {unit.faqs && unit.faqs.length > 0 && <FaqCallouts faqs={unit.faqs} />}
+
+            {/* Reset / fresh-start */}
+            <button
+                type="button"
+                onClick={() => onInsertPrompt("")}
+                className="flex items-center gap-1 self-start text-xs text-muted-foreground/70 hover:text-foreground transition-colors"
+                title="Clear the prompt — a fresh start means an empty context"
+            >
+                <RotateCcw className="h-3 w-3" />
+                Start this step fresh (empty context)
+            </button>
+
+            {/* Finish screen on the final unit → survey handoff */}
+            {isLast && (completed || store.observationByUnit[store.unitIdx]) && (
+                <CompletionCta surveyUrl={surveyUrl} thanks={completionThanks} />
+            )}
+        </div>
+    );
+
+    // Pinned under the step, in both placements: 'Next step' is the control that
+    // moves the tutorial along, and it used to sit below the fold of a long step.
+    const footer = store.collapsed ? null : (
+        <div className="border-t p-3 flex flex-col gap-2">
+            {/* Finish nudge — shown when Next is clicked on an unfinished step. */}
+            {nudgeToFinish && !completed && !isLast && (
+                <p className="flex items-start gap-1.5 text-xs text-yellow-600 dark:text-yellow-500 leading-snug">
+                    <Lightbulb className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>
+                        {finishHint}{" "}
+                        <span className="text-muted-foreground">
+                            (or click Next again to move on.)
+                        </span>
+                    </span>
+                </p>
+            )}
+
+            {/* Nav */}
+            <div className="flex items-center justify-between">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={store.unitIdx === 0}
+                    onClick={store.prev}
+                >
+                    Back
+                </Button>
+                <div className="flex items-center gap-1.5">
+                    {completed && <span className="text-xs text-primary">✓ Step complete</span>}
+                    {!isLast && (
+                        <Button
+                            size="sm"
+                            // Muted until the step is finished, so "Next" reads as
+                            // secondary to actually completing the activity.
+                            variant={completed ? "default" : "outline"}
+                            className="h-7 text-xs"
+                            onClick={handleNext}
+                        >
+                            Next step
+                        </Button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+
     const header = (
         <div
-            className="flex items-center justify-between gap-2 border-b bg-secondary/60 dark:bg-secondary/40 px-3 py-2 rounded-t cursor-grab active:cursor-grabbing"
-            onPointerDown={(e) => dragControls.start(e)}
+            className={
+                docked
+                    ? "p-3 border-b flex items-center justify-between gap-2"
+                    : "flex items-center justify-between gap-2 border-b bg-secondary/60 dark:bg-secondary/40 px-3 py-2 rounded-t cursor-grab active:cursor-grabbing"
+            }
+            onPointerDown={docked ? undefined : (e) => dragControls.start(e)}
         >
-            <div className="flex items-center gap-1.5 min-w-0">
-                <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+            <div className={`flex items-center gap-1.5 min-w-0 ${docked ? "pl-2" : ""}`}>
+                {!docked && (
+                    <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                )}
                 <h2 className="text-sm font-medium truncate">{unit.title}</h2>
                 {!store.collapsed && (
                     <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
@@ -248,7 +429,11 @@ export function TutorialActivityPanel({
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => store.setCollapsed(!store.collapsed)}
                 >
-                    {store.collapsed ? (
+                    {/* Docked, collapsing puts the tutorial away sideways — the same
+                        gesture and icon set as the chart sidebar opposite it. */}
+                    {docked ? (
+                        <PanelRightClose className="h-3.5 w-3.5" />
+                    ) : store.collapsed ? (
                         <ChevronDown className="h-3.5 w-3.5" />
                     ) : (
                         <Minus className="h-3.5 w-3.5" />
@@ -271,6 +456,22 @@ export function TutorialActivityPanel({
             </div>
         </div>
     );
+
+    if (docked) {
+        // The column mounts a tick after `active` flips; nothing to portal into yet.
+        if (!dockEl) return null;
+        return createPortal(
+            <section
+                aria-label="Guided tutorial"
+                className="flex h-full min-h-0 flex-col bg-background"
+            >
+                {header}
+                {body}
+                {footer}
+            </section>,
+            dockEl,
+        );
+    }
 
     return createPortal(
         <div
@@ -306,173 +507,8 @@ export function TutorialActivityPanel({
                 className="pointer-events-auto w-[340px] max-w-[calc(100vw-2rem)] rounded border bg-background shadow-lg flex flex-col max-h-[calc(100vh-8rem)]"
             >
                 {header}
-
-                {!store.collapsed && (
-                    <div className="p-3 flex flex-col gap-3 overflow-auto">
-                        {/* Task */}
-                        <p className="text-sm leading-snug">{unit.task}</p>
-
-                        {/* Concept callout — the facilitator move this unit replaces. */}
-                        <div className="rounded border-l-2 border-primary bg-primary/5 px-3 py-2 text-sm leading-snug">
-                            {unit.concept}
-                        </div>
-
-                        {/* Prompt bank — clicking a prompt fills + auto-runs it. */}
-                        {unit.prompts.length > 0 && (
-                            <div className="flex flex-col gap-1.5">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                    Try a prompt
-                                </p>
-                                <div className="flex flex-col gap-1">
-                                    {unit.prompts.map((p) => (
-                                        <button
-                                            key={p}
-                                            type="button"
-                                            onClick={() => (onTryPrompt ?? onInsertPrompt)(p)}
-                                            title="Fill this prompt and run it"
-                                            className="text-left text-xs font-mono rounded border bg-background px-2 py-1 hover:border-primary/50 transition-colors whitespace-pre-wrap"
-                                        >
-                                            {p}
-                                        </button>
-                                    ))}
-                                </div>
-                                {unit.patchPair && onInsertPatchPair && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="mt-1 h-7 text-xs"
-                                        onClick={() => onInsertPatchPair(unit.patchPair!)}
-                                    >
-                                        Load source + target pair
-                                    </Button>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Progressive hints */}
-                        <HintLadder
-                            key={`hint-${store.unitIdx}`}
-                            hints={unit.hints}
-                            revealedStage={hintStage}
-                            autoOffer={attempts >= HINT_AUTO_OFFER_AT && hintStage === 0}
-                            onReveal={() => {
-                                const stage = store.revealHint();
-                                const rung = unit.hints.find((h) => h.stage === stage);
-                                if (rung?.insertPrompt) onInsertPrompt(rung.insertPrompt);
-                                // A rung may light several cells — both ends of a
-                                // drag, say. `spotlights` wins over `spotlight`.
-                                const cells = rung?.spotlights?.length
-                                    ? rung.spotlights
-                                    : rung?.spotlight;
-                                if (cells) onSpotlight?.(cells);
-                            }}
-                        />
-
-                        {/* What the patch did. The intervention is the hard part of
-                            the tool and its result is one cell in a grid of
-                            hundreds — easy to perform and then never find. */}
-                        {isPatchUnit && patchToken && (
-                            <p className="rounded border-l-2 border-primary bg-primary/5 px-3 py-2 text-sm leading-snug">
-                                The target now predicts{" "}
-                                <span className="font-mono">{patchToken}</span>. It is the
-                                bottom-right cell of the patched heatmap — ringed for you.
-                            </p>
-                        )}
-
-                        {/* Embedded check — auto-scored, log-only */}
-                        {unit.check && (
-                            <EmbeddedCheck
-                                key={`check-${store.unitIdx}`}
-                                check={unit.check}
-                                expected={checkExpected}
-                                placeholder={unit.answerPlaceholder}
-                                // Only answerable once THIS unit's action has run —
-                                // the answer key (a run's tokens, or the patch
-                                // outcome) belongs to this unit, so scoring a
-                                // different unit's answer against it would be wrong.
-                                // A stale result reads as "do the step first" rather
-                                // than auto-scoring.
-                                hasRun={checkHasRun}
-                                notRunMessage={
-                                    isPatchUnit ? "Apply the patch first, then answer." : undefined
-                                }
-                                onAnswer={(answer, correct) => store.answerCheck(answer, correct)}
-                                alreadyAnswered={!!store.checkAnsweredByUnit[store.unitIdx]}
-                            />
-                        )}
-
-                        {/* Observation box */}
-                        <ObservationBox
-                            key={`obs-${store.unitIdx}`}
-                            prompt={unit.observationPrompt}
-                            placeholder={unit.observationPlaceholder}
-                            submitted={!!store.observationByUnit[store.unitIdx]}
-                            onSubmit={(text) => store.submitObservation(text)}
-                        />
-
-                        {/* FAQ callouts */}
-                        {unit.faqs && unit.faqs.length > 0 && <FaqCallouts faqs={unit.faqs} />}
-
-                        {/* Reset / fresh-start */}
-                        <button
-                            type="button"
-                            onClick={() => onInsertPrompt("")}
-                            className="flex items-center gap-1 self-start text-xs text-muted-foreground/70 hover:text-foreground transition-colors"
-                            title="Clear the prompt — a fresh start means an empty context"
-                        >
-                            <RotateCcw className="h-3 w-3" />
-                            Start this step fresh (empty context)
-                        </button>
-
-                        {/* Finish screen on the final unit → survey handoff */}
-                        {isLast && (completed || store.observationByUnit[store.unitIdx]) && (
-                            <CompletionCta surveyUrl={surveyUrl} thanks={completionThanks} />
-                        )}
-
-                        {/* Finish nudge — shown when Next is clicked on an unfinished step. */}
-                        {nudgeToFinish && !completed && !isLast && (
-                            <p className="flex items-start gap-1.5 text-xs text-yellow-600 dark:text-yellow-500 leading-snug">
-                                <Lightbulb className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                                <span>
-                                    {finishHint}{" "}
-                                    <span className="text-muted-foreground">
-                                        (or click Next again to move on.)
-                                    </span>
-                                </span>
-                            </p>
-                        )}
-
-                        {/* Nav */}
-                        <div className="flex items-center justify-between border-t pt-3">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs"
-                                disabled={store.unitIdx === 0}
-                                onClick={store.prev}
-                            >
-                                Back
-                            </Button>
-                            <div className="flex items-center gap-1.5">
-                                {completed && (
-                                    <span className="text-xs text-primary">✓ Step complete</span>
-                                )}
-                                {!isLast && (
-                                    <Button
-                                        size="sm"
-                                        // Muted until the step is finished, so "Next" reads as
-                                        // secondary to actually completing the activity.
-                                        variant={completed ? "default" : "outline"}
-                                        className="h-7 text-xs"
-                                        onClick={handleNext}
-                                    >
-                                        Next step
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
+                {body}
+                {footer}
             </motion.section>
         </div>,
         document.body,
