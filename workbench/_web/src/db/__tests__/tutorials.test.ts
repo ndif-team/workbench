@@ -170,6 +170,31 @@ describe("tutorial content", () => {
         ).not.toThrow();
     });
 
+    it("rejects text fields the panel would render as something other than text", () => {
+        const base = tinyContent().units[0];
+        const withCheck = (check: UnitCheck) =>
+            validateTutorialContent({ version: 1, units: [{ ...base, check }] });
+
+        // Authored JSON isn't typed: React throws on an object child, so these have
+        // to fail here rather than in front of a participant.
+        expect(() => withCheck({ question: "" as never, kind: "topToken" })).toThrow();
+        expect(() => withCheck({ question: { text: "?" } as never, kind: "topToken" })).toThrow();
+        expect(() =>
+            withCheck({
+                question: "?",
+                kind: "choice",
+                options: ["a", { label: "b" } as never],
+                correctIndex: 0,
+            }),
+        ).toThrow();
+        expect(() =>
+            validateTutorialContent({
+                ...tinyContent(),
+                glossary: [{ term: 42 as never, definition: "A piece of text." }],
+            }),
+        ).toThrow();
+    });
+
     it("rejects a malformed hint spotlight", () => {
         const base = tinyContent().units[0];
         const withHint = (hint: HintRung) =>
@@ -200,6 +225,29 @@ describe("tutorial content", () => {
                 spotlights: [{ grid: "target", layer: 20, position: null as never }],
             }),
         ).toThrow();
+        // Not cell indices. A negative layer would silently ring the first row —
+        // the widget snaps a requested layer to the nearest rendered one.
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "here",
+                spotlight: { grid: "source", layer: -1, position: 0 },
+            }),
+        ).toThrow();
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "here",
+                spotlight: { grid: "source", layer: 2.5, position: 0 },
+            }),
+        ).toThrow();
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "here",
+                spotlight: { grid: "source", layer: 0, position: 0 },
+            }),
+        ).not.toThrow();
     });
 
     it("rejects a glossary entry missing its term or definition", () => {

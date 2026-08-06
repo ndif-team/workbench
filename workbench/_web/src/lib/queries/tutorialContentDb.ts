@@ -37,8 +37,20 @@ const slugify = (name: string): string =>
 const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
 
 const validGrids: Set<unknown> = new Set(["source", "target", "result"]);
-/** A spotlight layer/position: a concrete index, or "last" (resolved by the widget). */
-const isCellIndex = (v: unknown): boolean => v === "last" || typeof v === "number";
+/**
+ * A spotlight layer/position: a concrete grid index, or "last" (resolved by the
+ * widget). A negative or fractional index is not a cell — the widget snaps a
+ * layer to the nearest rendered one, so a negative layer would silently ring the
+ * first row instead of failing.
+ */
+const isCellIndex = (v: unknown): boolean =>
+    v === "last" || (typeof v === "number" && Number.isInteger(v) && v >= 0);
+/**
+ * A text field the panel renders as-is. Authored JSON can hold anything here, and
+ * React throws on an object child — so a wrong type has to fail at authoring time,
+ * not in front of a participant.
+ */
+const isText = (v: unknown): boolean => typeof v === "string" && v.trim().length > 0;
 
 /**
  * Content shape guard for admin-authored JSON (which bypasses the TS types). The
@@ -82,7 +94,7 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
                     !isCellIndex(s?.position)
                 ) {
                     throw new Error(
-                        `Unit "${u.id}" hint ${h.stage} has a malformed spotlight (needs grid source|target|result and numeric or "last" layer/position)`,
+                        `Unit "${u.id}" hint ${h.stage} has a malformed spotlight (needs grid source|target|result and a non-negative integer or "last" layer/position)`,
                     );
                 }
             }
@@ -107,14 +119,19 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
                 );
             }
         }
-        if (u.check && !validCheckKinds.has(u.check.kind)) {
-            throw new Error(`Unit "${u.id}" has an unsupported check kind "${u.check.kind}"`);
+        if (u.check) {
+            if (!validCheckKinds.has(u.check.kind)) {
+                throw new Error(`Unit "${u.id}" has an unsupported check kind "${u.check.kind}"`);
+            }
+            if (!isText(u.check.question)) {
+                throw new Error(`Unit "${u.id}" check needs a question`);
+            }
         }
         // A choice check is scored entirely from its own content, so a missing or
         // out-of-range key would mark every participant wrong with no run to blame.
         if (u.check?.kind === "choice") {
             const { options, correctIndex } = u.check;
-            if (!Array.isArray(options) || options.length < 2 || options.some((o) => !o)) {
+            if (!Array.isArray(options) || options.length < 2 || !options.every(isText)) {
                 throw new Error(`Unit "${u.id}" choice check needs at least two non-empty options`);
             }
             if (
@@ -133,7 +150,7 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
             throw new Error("Tutorial glossary must be an array");
         }
         for (const g of content.glossary) {
-            if (!g?.term || !g?.definition) {
+            if (!isText(g?.term) || !isText(g?.definition)) {
                 throw new Error("Every glossary entry needs a term and a definition");
             }
         }

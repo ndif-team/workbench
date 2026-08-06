@@ -565,9 +565,11 @@ export default function PatchLensArea({
     const restoredUnitIdx = useRef<number | null>(null);
     useEffect(() => {
         if (!prolificTutorial.active) return;
-        // Content arrives asynchronously; don't record a unit as restored until
-        // there are units to restore from.
-        if (prolificTutorial.units.length === 0) return;
+        // Content and the model list both arrive asynchronously; don't record a
+        // unit as restored until it can be restored *and* tokenized — marking it
+        // done before the tokenizer has a model would leave the box showing raw
+        // text with no token chips until the next blur.
+        if (prolificTutorial.units.length === 0 || !selectedModel) return;
         const idx = prolificTutorial.unitIdx;
         if (restoredUnitIdx.current === idx) return;
         restoredUnitIdx.current = idx;
@@ -576,14 +578,27 @@ export default function PatchLensArea({
             target: targetPrompt,
         });
         if (!restore) return;
+        // Tokenizing is async, and the participant can advance while it runs — drop
+        // the second write rather than put a previous step's prompt in the box.
+        let cancelled = false;
         void (async () => {
             if (restore.source !== undefined) await fillPrompt("source", restore.source);
+            if (cancelled) return;
             if (restore.target !== undefined) await fillPrompt("target", restore.target);
         })();
+        return () => {
+            cancelled = true;
+        };
         // Prompts are read at arrival, deliberately: re-running on every keystroke
         // would fight the participant's typing.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [prolificTutorial.active, prolificTutorial.unitIdx, prolificTutorial.units, fillPrompt]);
+    }, [
+        prolificTutorial.active,
+        prolificTutorial.unitIdx,
+        prolificTutorial.units,
+        selectedModel,
+        fillPrompt,
+    ]);
 
     // Tutorial "Try a prompt": fill the source prompt, show its tokenized chips,
     // then run — one click instead of insert-then-Run. Target is left as-is

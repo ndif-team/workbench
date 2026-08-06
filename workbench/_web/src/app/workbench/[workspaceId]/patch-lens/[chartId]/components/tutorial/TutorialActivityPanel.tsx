@@ -150,12 +150,15 @@ export function TutorialActivityPanel({
     // intervention successfully and then could not find its result — the panel
     // now says what changed (below) and rings the cell it changed in.
     useEffect(() => {
-        if (!isPatchUnit || patchToken == null) return;
+        // Nothing is spotlit while the tutorial is off screen: these effects sit
+        // above the `active` guard (hooks can't be conditional), so the invariant
+        // has to be stated here rather than inherited from the render.
+        if (!store.active || !isPatchUnit || patchToken == null) return;
         if (spotlitPatch.current === patchToken) return;
         spotlitPatch.current = patchToken;
         onSpotlight?.({ grid: "result", layer: "last", position: "last" });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isPatchUnit, patchToken]);
+    }, [store.active, isPatchUnit, patchToken]);
 
     // "Next step" nudges the participant to finish the current step first: the
     // first click on an unfinished step shows a hint instead of advancing (a
