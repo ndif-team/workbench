@@ -9,7 +9,7 @@ import { JLensConfigData } from "@/types/jlens";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { PatchLensChartData } from "@/types/patchLens";
-import { eq, asc, desc, sql } from "drizzle-orm";
+import { eq, and, isNull, asc, desc, sql } from "drizzle-orm";
 import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
 // From workshopDb (not workshopQueries) — workshopQueries imports the chart
 // pair creators below, so importing it back here would be circular.
@@ -95,6 +95,79 @@ const createChartConfigPair = async (
     await touchWorkspace(workspaceId);
     return { chart: newChart as Chart, config: newConfig as Config };
 };
+
+// Repurposes an *empty* chart (no computed result) into a different tool in
+// place, instead of creating a second empty chart. The chart row keeps its id,
+// name, and position — only its tool config is repointed to the new type with a
+// fresh default payload, and any stale render type/data/view is cleared. This
+// backs the sidebar UX where clicking a tool while on a data-less chart converts
+// it rather than spawning another blank one.
+const convertChartTypeInPlace = async (
+    chartId: string,
+    payload: ConfigPayload,
+    // patch-lens seeds its starter prompt onto the chart row (not the config),
+    // mirroring createChartConfigPair.
+    chartData?: ChartData,
+): Promise<{ chart: Chart; config: Config }> => {
+    const [chart] = await db.select().from(charts).where(eq(charts.id, chartId));
+    if (!chart) throw new Error(`Chart ${chartId} not found`);
+
+    const workshop = await getWorkshopForWorkspace(chart.workspaceId);
+    if (workshop && !(workshop.allowedTools as string[]).includes(payload.type)) {
+        throw new Error(`This workshop does not allow the "${payload.type}" tool`);
+    }
+
+    const [link] = await db
+        .select()
+        .from(chartConfigLinks)
+        .where(eq(chartConfigLinks.chartId, chartId))
+        .limit(1);
+    if (!link) throw new Error(`Chart ${chartId} has no linked config`);
+
+    // The chart-row rewrite and config-row rewrite must be atomic, and the
+    // "still empty?" check must be enforced by the database — not by a prior
+    // `select`. A run against this same chart writes its result via
+    // `setChartData` on a separate connection, and NDIF jobs can take minutes,
+    // so a plain read-then-write leaves a window where the run's result lands
+    // between our check and our update and gets nulled out. The conditional
+    // `WHERE ... AND data IS NULL` makes the guard part of the write: if a
+    // result arrived first, zero rows match and we abort, preserving it.
+    const result = await db.transaction(async (tx: typeof db) => {
+        const updatedCharts = await tx
+            .update(charts)
+            .set({ type: null, data: chartData ?? null, view: null })
+            .where(and(eq(charts.id, chartId), isNull(charts.data)))
+            .returning();
+        if (updatedCharts.length === 0) {
+            throw new Error("Cannot convert a chart that already has data");
+        }
+        const [updatedConfig] = await tx
+            .update(configs)
+            .set({ type: payload.type, data: payload.data })
+            .where(eq(configs.id, link.configId))
+            .returning();
+        return { chart: updatedCharts[0] as Chart, config: updatedConfig as Config };
+    });
+
+    await touchWorkspace(chart.workspaceId);
+    return result;
+};
+
+export const convertLens2ChartInPlace = async (chartId: string, defaultConfig: Lens2ConfigData) =>
+    convertChartTypeInPlace(chartId, { type: "lens2", data: defaultConfig });
+
+export const convertJLensChartInPlace = async (chartId: string, defaultConfig: JLensConfigData) =>
+    convertChartTypeInPlace(chartId, { type: "jlens", data: defaultConfig });
+
+export const convertActivationPatchingChartInPlace = async (
+    chartId: string,
+    defaultConfig: ActivationPatchingConfigData,
+) => convertChartTypeInPlace(chartId, { type: "activation-patching", data: defaultConfig });
+
+export const convertPatchLensChartInPlace = async (
+    chartId: string,
+    chartData?: PatchLensChartData,
+) => convertChartTypeInPlace(chartId, { type: "patch-lens", data: {} }, chartData);
 
 export const createLensChartPair = async (
     workspaceId: string,

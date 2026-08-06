@@ -23,6 +23,7 @@ export type Tool = WorkshopTool;
 export type AnalyticsEvent =
     | "tool_opened"
     | "chart_created"
+    | "chart_converted"
     | "run_submitted"
     | "run_completed"
     | "run_failed"
