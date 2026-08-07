@@ -83,7 +83,6 @@
     },
   },
   "trustedDependencies": [
-    "better-sqlite3",
     "nnsightful",
   ],
   "packages": {
