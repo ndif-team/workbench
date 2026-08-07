@@ -288,7 +288,16 @@ export default function PatchLensArea({
 
     const tokenize = useCallback(async (text: string, model: string): Promise<Token[] | null> => {
         try {
-            return await encodeText(text, model);
+            // No BOS marker in the chips. `<|begin_of_text|>` is a tokenizer
+            // artefact, not part of what the participant typed, and it read as the
+            // tool having mangled their prompt. Safe here specifically: patch-lens
+            // renders the chips read-only (selectedPositions=[], no token click
+            // handlers) and, in mode="full", owns its own tokenization — so no
+            // index is derived from this array. Tools that DO index off token
+            // position (activation-patching) keep the BOS-inclusive default, and the
+            // lens data the backend returns is untouched, since interventions are
+            // addressed against BOS-inclusive positions.
+            return await encodeText(text, model, false);
         } catch (error) {
             if (error instanceof TokenizerLoadError) {
                 toast.error(
