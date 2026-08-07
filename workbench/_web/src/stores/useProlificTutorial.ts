@@ -63,6 +63,18 @@ interface ProlificTutorialState {
     // Floating-overlay UI state (persisted): last drag position + collapsed.
     panelPos: PanelPos | null;
     collapsed: boolean;
+    /**
+     * Whether the modal orientation slideshow is on screen. Ephemeral — a refresh
+     * mid-slideshow drops the participant into the step itself rather than
+     * re-opening a dialog over work they have already started.
+     */
+    welcomeOpen: boolean;
+    /**
+     * Whether this participant has been through the orientation. Persisted (and
+     * reset per workspace) so `start()` only auto-opens it the first time; the
+     * Tutorial menu can always reopen it deliberately.
+     */
+    welcomeSeen: boolean;
 
     setUnits: (units: TutorialUnit[]) => void;
     setWorkspace: (workspaceId: string) => void;
@@ -97,6 +109,13 @@ interface ProlificTutorialState {
     submitObservation: (text: string) => void;
     setPanelPos: (pos: PanelPos) => void;
     setCollapsed: (collapsed: boolean) => void;
+    /** Open the orientation slideshow (Tutorial menu, or automatically on first
+     * `start()`). Marks it seen immediately, so a mid-slideshow reload doesn't
+     * re-open it. */
+    openWelcome: () => void;
+    /** Dismiss the slideshow. It stays marked seen either way — skipping is a
+     * decision, not an interruption. */
+    closeWelcome: () => void;
     reset: () => void;
 }
 
@@ -147,6 +166,8 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
             patchTokenByUnit: {},
             panelPos: null,
             collapsed: false,
+            welcomeOpen: false,
+            welcomeSeen: false,
 
             setUnits: (units) =>
                 set((s) => ({
@@ -176,15 +197,27 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                     observationByUnit: {},
                     runTokensByUnit: {},
                     patchTokenByUnit: {},
+                    // A different participant, so a fresh orientation.
+                    welcomeOpen: false,
+                    welcomeSeen: false,
                 });
             },
 
             start: () => {
-                set({ active: true, unitIdx: 0, collapsed: false });
+                // First start opens the orientation slideshow over the tool; a
+                // resume (or a deliberate restart) goes straight to the step.
+                const firstTime = !get().welcomeSeen;
+                set({
+                    active: true,
+                    unitIdx: 0,
+                    collapsed: false,
+                    welcomeOpen: firstTime,
+                    welcomeSeen: true,
+                });
                 emit(get().workspaceId, stepIdForUnit(get(), 0), "step_started");
             },
 
-            stop: () => set({ active: false }),
+            stop: () => set({ active: false, welcomeOpen: false }),
 
             goToUnit: (idx) => {
                 const total = get().units.length;
@@ -355,6 +388,12 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
             setPanelPos: (pos) => set({ panelPos: pos }),
             setCollapsed: (collapsed) => set({ collapsed }),
 
+            // Reopening the orientation shouldn't hide the panel behind it, so
+            // uncollapse as well — otherwise "start the tour" points at a column
+            // that isn't there.
+            openWelcome: () => set({ welcomeOpen: true, welcomeSeen: true, collapsed: false }),
+            closeWelcome: () => set({ welcomeOpen: false, welcomeSeen: true }),
+
             reset: () =>
                 set({
                     active: false,
@@ -366,6 +405,8 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                     observationByUnit: {},
                     runTokensByUnit: {},
                     patchTokenByUnit: {},
+                    welcomeOpen: false,
+                    welcomeSeen: false,
                 }),
         }),
         {
@@ -383,6 +424,9 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 observationByUnit: s.observationByUnit,
                 panelPos: s.panelPos,
                 collapsed: s.collapsed,
+                // `welcomeOpen` is deliberately absent: a reload mid-slideshow
+                // resumes the step, not the dialog over it.
+                welcomeSeen: s.welcomeSeen,
             }),
             // A panel dragged off-screen in a larger window (or a different
             // monitor) would otherwise be unreachable — the panel clamps the

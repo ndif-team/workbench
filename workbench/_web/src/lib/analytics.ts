@@ -32,7 +32,12 @@ export type AnalyticsEvent =
     | "patch_lens_intervention_reset"
     | "run_restored"
     // Guided tutorial: the persistent glossary was opened (unit id only).
-    | "tutorial_glossary_opened";
+    | "tutorial_glossary_opened"
+    // Guided tutorial orientation. `_slide_shown` carries the slide index and
+    // title; `_dismissed` carries whether the participant went on to the
+    // walkthrough or skipped it. Neither carries participant text.
+    | "tutorial_welcome_slide_shown"
+    | "tutorial_welcome_dismissed";
 
 type EventProperties = Record<string, unknown>;
 

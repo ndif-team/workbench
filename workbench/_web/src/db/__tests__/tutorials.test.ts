@@ -164,6 +164,11 @@ describe("tutorial content", () => {
         expect(() => withUnit({ patchPair: { source: "a", target: "" } })).toThrow();
         expect(() => withUnit({ faqs: [{ q: { x: 1 }, a: 2 }] as never })).toThrow();
         expect(() => withUnit({ title: "   " })).toThrow();
+        // `why` is optional, but present-and-unrenderable is a blank callout at
+        // best and a React "objects are not valid as a child" throw at worst.
+        expect(() => withUnit({ why: "" })).toThrow();
+        expect(() => withUnit({ why: { a: 1 } as never })).toThrow();
+        expect(() => withUnit({ why: "Because it is how autocomplete works." })).not.toThrow();
         // …and accepts the same unit with all of them filled in properly.
         expect(() =>
             withUnit({
@@ -213,6 +218,43 @@ describe("tutorial content", () => {
             ],
         };
         expect(() => validateTutorialContent(content)).not.toThrow();
+    });
+
+    // The welcome slideshow is modal and it is the first thing a participant sees,
+    // so a slide that renders blank blocks the tutorial behind it rather than
+    // degrading into something they can work around.
+    it("rejects a welcome slideshow with nothing to show", () => {
+        const withWelcome = (welcome: unknown) =>
+            validateTutorialContent({
+                ...tinyContent(),
+                welcome: welcome as TutorialContent["welcome"],
+            });
+
+        expect(() => withWelcome({ slides: [] })).toThrow();
+        expect(() => withWelcome({ slides: "nope" })).toThrow();
+        expect(() => withWelcome({ slides: [{ body: "No title." }] })).toThrow();
+        // A titled slide with neither body nor cards is an empty dialog page.
+        expect(() => withWelcome({ slides: [{ title: "Empty" }] })).toThrow();
+        expect(() => withWelcome({ slides: [{ title: "T", body: "   " }] })).toThrow();
+        expect(() => withWelcome({ slides: [{ title: "T", body: { a: 1 } }] })).toThrow();
+        expect(() => withWelcome({ slides: [{ title: "T", cards: [] }] })).toThrow();
+        expect(() =>
+            withWelcome({ slides: [{ title: "T", cards: [{ term: "Cell" }] }] }),
+        ).toThrow();
+        expect(() => withWelcome({ slides: [{ title: "T", body: "Hi." }], tourCta: "" })).toThrow();
+
+        expect(() =>
+            withWelcome({
+                tourCta: "Show me around",
+                slides: [
+                    { title: "Welcome", body: "It predicts **one token** at a time." },
+                    {
+                        title: "Vocabulary",
+                        cards: [{ term: "Cell", definition: "One square of the heatmap." }],
+                    },
+                ],
+            }),
+        ).not.toThrow();
     });
 
     it("rejects a choice check with no usable answer key", () => {

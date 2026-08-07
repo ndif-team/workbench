@@ -70,6 +70,35 @@ export interface GlossaryEntry {
 }
 
 /**
+ * One slide of the welcome slideshow — the orientation that runs before step 1.
+ *
+ * `body` is markdown (rendered by TutorialWelcomeDialog); `cards` renders
+ * term/definition tiles, which is what a vocabulary slide wants. A slide may
+ * carry either, or both.
+ */
+export interface WelcomeSlide {
+    title: string;
+    body?: string;
+    cards?: GlossaryEntry[];
+}
+
+/**
+ * The modal orientation shown when the guided tutorial starts: a few slides that
+ * carry the framing and the vocabulary, then a hand-off to the reactour
+ * walkthrough that points at the actual controls.
+ *
+ * This exists because the framing used to live in a paragraph pinned above the
+ * prompt boxes, where it was a wall of grey text on the one column a participant
+ * has to use — read by nobody, and occupying the space the task needs. Orientation
+ * belongs in a surface a participant dismisses once.
+ */
+export interface TutorialWelcome {
+    slides: WelcomeSlide[];
+    /** Label for the button that closes the slides and starts the tour. */
+    tourCta?: string;
+}
+
+/**
  * How a unit is marked complete. Replaces the old `unit3SuccessPredicate`
  * function + `kind === "lens"` switch with data the store evaluates generically.
  * - `on: "run"` — completes when a lens run satisfies `successPredicate`
@@ -94,6 +123,12 @@ export interface TutorialUnit {
     task: string;
     // The concept callout — the facilitator sentence it replaces.
     concept: string;
+    /**
+     * Why this step is worth doing: what the participant is learning and where it
+     * shows up outside the tutorial. `concept` says what just happened; this says
+     * why to care. Optional so older content stays valid.
+     */
+    why?: string;
     // Known-good completion prompts (insert-on-click); first entry is the default.
     prompts: string[];
     // For patch units, a source/target pair to preload.
@@ -112,6 +147,11 @@ export interface TutorialUnit {
 export interface TutorialContent {
     version: number;
     units: TutorialUnit[];
+    /**
+     * The modal orientation slideshow shown when the tutorial starts (and
+     * re-openable from the Tutorial menu). Omit to start straight on step 1.
+     */
+    welcome?: TutorialWelcome;
     /**
      * Terms the panel keeps available on every unit. Omit to use
      * `DEFAULT_GLOSSARY` (`src/tutorials/glossary.ts`) — a term explained once in

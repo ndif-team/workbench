@@ -15,12 +15,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTour } from "@reactour/tour";
 import { PatchLensTutorial } from "@/tutorials/patchLens";
+import { orientationTourSteps } from "@/tutorials/orientationTour";
 import { promptsForUnitEntry } from "@/tutorials/unitPrompts";
 import { usePatchLensTutorial, hydratePatchLensTutorial } from "@/stores/usePatchLensTutorial";
 import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
 import { useProlificTutorial } from "@/stores/useProlificTutorial";
 import { useSpotlight } from "edulogitlens";
 import { TutorialActivityPanel } from "./tutorial/TutorialActivityPanel";
+import { TutorialWelcomeDialog } from "./tutorial/TutorialWelcomeDialog";
+import { useTutorialDock } from "./tutorial/TutorialDock";
 import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { useWorkspaceTutorial } from "@/lib/api/tutorialContentApi";
@@ -114,6 +117,38 @@ function useTutorialAutoStart({ disabled }: { disabled: boolean }) {
     return { startTutorial };
 }
 
+/**
+ * Hand-off from the guided tutorial's welcome slideshow to the reactour
+ * walkthrough that points at the actual controls.
+ *
+ * The dialog has to be gone before the tour opens — two overlapping masks read as
+ * a broken screen, and reactour measures its target on open, so it would measure
+ * through the dialog's overlay. One frame's delay is enough for the dialog's exit
+ * to unmount and the tutorial column to be in the DOM for the closing step.
+ */
+function useOrientationTour() {
+    const { setSteps, setIsOpen, setCurrentStep } = useTour();
+    const { available: docked } = useTutorialDock();
+    const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(
+        () => () => {
+            if (pending.current) clearTimeout(pending.current);
+        },
+        [],
+    );
+
+    return useCallback(() => {
+        if (!setSteps || !setIsOpen) return;
+        setSteps(orientationTourSteps({ docked }));
+        // reactour keeps currentStep on the provider, so a previous walkthrough's
+        // index would otherwise drop the participant into the middle of this one.
+        setCurrentStep(0);
+        if (pending.current) clearTimeout(pending.current);
+        pending.current = setTimeout(() => setIsOpen(true), 250);
+    }, [setSteps, setIsOpen, setCurrentStep, docked]);
+}
+
 export default function PatchLensArea({
     sourcePrompt,
     targetPrompt,
@@ -133,6 +168,7 @@ export default function PatchLensArea({
     const prolificTutorial = useProlificTutorial();
     const { setTarget: setSpotlight } = useSpotlight();
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
+    const startOrientationTour = useOrientationTour();
 
     // Bind the guided-tutorial store to this workspace (resets on workspace change).
     useEffect(() => {
@@ -654,6 +690,24 @@ export default function PatchLensArea({
         [fillPrompt, targetPrompt, executeRun],
     );
 
+    // Tutorial "Load both prompts and run": fill source + target and run, matching
+    // what a single-prompt "Try a prompt" click does. Loading the pair without
+    // running left the participant on a two-prompt step with no heatmaps and no
+    // obvious next move — the step says to compare two read-outs that aren't there,
+    // and the patch step's drag isn't even possible until a run exists.
+    const handleTryPatchPair = useCallback(
+        async ({ source, target }: { source: string; target: string }) => {
+            const src = source.trim();
+            const tgt = target.trim();
+            // Both boxes are written synchronously by setPromptText inside
+            // fillPrompt, so the run below sees the pair even mid-tokenize.
+            await fillPrompt("source", src);
+            await fillPrompt("target", tgt);
+            await executeRun(src, tgt);
+        },
+        [fillPrompt, executeRun],
+    );
+
     // Suppress the hard-coded reactour walkthrough in workshop mode (and while
     // the workshop lookup is pending) — the guided tutorial auto-launches there.
     // But if the guided-tutorial content query has definitively errored, keep the
@@ -700,6 +754,14 @@ export default function PatchLensArea({
                                 Guided tutorial
                                 {tutorialContent ? ` (${tutorialContent.units.length} steps)` : ""}
                             </DropdownMenuItem>
+                            {/* The orientation is shown once automatically; this is
+                                how a participant gets back to the vocabulary slides
+                                and the walkthrough afterwards. */}
+                            {tutorialContent?.welcome && (
+                                <DropdownMenuItem onSelect={() => prolificTutorial.openWelcome()}>
+                                    Welcome &amp; orientation
+                                </DropdownMenuItem>
+                            )}
                             {PatchLensTutorial.chapters.map((chapter, idx) => (
                                 <DropdownMenuItem
                                     key={chapter.title}
@@ -713,18 +775,13 @@ export default function PatchLensArea({
                 </div>
             </div>
 
+            {/* No standing explainer above the prompts: this column is where the
+                work happens, and a paragraph of grey text at the top of it pushed
+                the boxes down and got skipped. The framing now lives in the guided
+                tutorial's welcome slideshow and the walkthrough that follows it
+                (see TutorialWelcomeDialog / orientationTour), and in the Tutorial
+                menu's chapters for anyone not running the guided tutorial. */}
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
-                <p className="rounded border bg-muted/40 p-2.5 text-xs text-muted-foreground leading-snug">
-                    A model predicts the next token at each position in your text through
-                    computations that run across many layers. Patch Lens shows the predicted token
-                    at each layer and position if you stop those computations early.
-                    <br />
-                    <br />
-                    Fill in the first box to see that read-out on its own. Fill in both, and you can
-                    drag a piece of the first prompt&apos;s thinking onto the second to see what it
-                    changes.
-                </p>
-
                 <div id="patch-lens-source-prompt" className="flex flex-col gap-1.5 relative">
                     {sourcePrompt ? (
                         <button
@@ -768,9 +825,8 @@ export default function PatchLensArea({
                         predictionToken={srcPrediction}
                     />
                     <p className="text-xs text-muted-foreground leading-snug">
-                        The prompt you <span className="font-medium">copy from</span>. It works best
-                        when the predicted answer is obvious, like &quot;The opposite of hot
-                        is&quot;, where the model should say &quot;cold&quot;.
+                        The prompt you <span className="font-medium">copy from</span>. End it right
+                        before the answer, like &quot;The opposite of hot is&quot;.
                     </p>
                 </div>
 
@@ -807,17 +863,11 @@ export default function PatchLensArea({
                         predictionToken={tgtPrediction}
                     />
                     <p className="text-xs text-muted-foreground leading-snug">
-                        Optional. The prompt you <span className="font-medium">copy into</span>.
-                        Pick one worded much the same way but with a different answer, like
-                        &quot;The opposite of tall is&quot;. Leave it blank to look at the first
-                        prompt on its own.
-                    </p>
-                    <p className="text-xs text-muted-foreground leading-snug">
-                        With both filled in, run to see a heatmap for each prompt.{" "}
-                        <span className="font-medium">Drag a cell</span> from the first heatmap onto
-                        the second to copy what the model had worked out at that token position and
-                        layer. If the second prompt&apos;s answer changes, that cell was carrying
-                        the answer.
+                        Optional. The prompt you <span className="font-medium">copy into</span> —
+                        worded much the same way but with a different answer, like &quot;The
+                        opposite of tall is&quot;. With both filled in you get a heatmap each, and
+                        you can <span className="font-medium">drag a cell</span> from the first onto
+                        the second. Leave it blank for a single read-out.
                     </p>
                 </div>
 
@@ -850,6 +900,27 @@ export default function PatchLensArea({
                     </p>
                 )}
 
+                {/* Orientation, before step 1 — and reopenable from the Tutorial
+                    menu. Finishing the slides hands off to the walkthrough. */}
+                {tutorialContent?.welcome && (
+                    <TutorialWelcomeDialog
+                        welcome={tutorialContent.welcome}
+                        open={prolificTutorial.welcomeOpen}
+                        onSkip={() => {
+                            prolificTutorial.closeWelcome();
+                            capture("tutorial_welcome_dismissed", { started_tour: false });
+                        }}
+                        onStartTour={() => {
+                            prolificTutorial.closeWelcome();
+                            capture("tutorial_welcome_dismissed", { started_tour: true });
+                            startOrientationTour();
+                        }}
+                        onSlideShown={(index, slideTitle) =>
+                            capture("tutorial_welcome_slide_shown", { index, slide: slideTitle })
+                        }
+                    />
+                )}
+
                 <TutorialActivityPanel
                     runNonce={runTokens.nonce}
                     topToken={runTokens.top}
@@ -866,12 +937,7 @@ export default function PatchLensArea({
                         setSrcEditing(true);
                         setTimeout(() => srcTextareaRef.current?.focus(), 0);
                     }}
-                    onInsertPatchPair={({ source, target }) => {
-                        onSourcePromptChange(source);
-                        onTargetPromptChange(target);
-                        setSrcEditing(true);
-                        setTgtEditing(true);
-                    }}
+                    onInsertPatchPair={handleTryPatchPair}
                 />
 
                 {onSelectRun && <LensHistoryRail onSelectRun={onSelectRun} />}

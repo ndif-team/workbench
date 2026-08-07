@@ -27,6 +27,10 @@ export function TutorialGlossary({
         <Popover>
             <PopoverTrigger asChild>
                 <Button
+                    // Anchor for the orientation walkthrough, which calls this
+                    // button out — the pilot's clearest request was for the terms,
+                    // and an unadvertised icon button doesn't answer it.
+                    id="tutorial-glossary"
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 text-muted-foreground/60 hover:text-foreground"

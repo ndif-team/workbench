@@ -186,3 +186,52 @@ describe("useProlificTutorial telemetry", () => {
         expect(await timeline()).toEqual(["step_started:u0", "check_answered:u0"]);
     });
 });
+
+describe("useProlificTutorial orientation slideshow", () => {
+    beforeEach(() => {
+        store().reset();
+        store().setUnits(units);
+    });
+
+    it("opens on the first start and not on a resume", () => {
+        store().start();
+        expect(store().welcomeOpen).toBe(true);
+        expect(store().welcomeSeen).toBe(true);
+
+        // A participant who exits and comes back is resuming, not arriving: the
+        // orientation would be re-reading something they have already dismissed.
+        store().closeWelcome();
+        store().stop();
+        store().start();
+        expect(store().welcomeOpen).toBe(false);
+    });
+
+    it("reopens on request, however it was dismissed", () => {
+        store().start();
+        store().closeWelcome();
+        store().openWelcome();
+        expect(store().welcomeOpen).toBe(true);
+    });
+
+    // Collapsed, the tutorial column is unmounted — and the walkthrough the
+    // slideshow hands off to ends by pointing at it.
+    it("uncollapses the panel when the orientation is reopened", () => {
+        store().start();
+        store().setCollapsed(true);
+        store().openWelcome();
+        expect(store().collapsed).toBe(false);
+    });
+
+    it("closes with the tutorial, so it can't outlive it", () => {
+        store().start();
+        store().stop();
+        expect(store().welcomeOpen).toBe(false);
+    });
+
+    it("treats a new workspace as a new participant", () => {
+        store().start();
+        store().closeWelcome();
+        store().setWorkspace("some-other-workspace");
+        expect(store().welcomeSeen).toBe(false);
+    });
+});

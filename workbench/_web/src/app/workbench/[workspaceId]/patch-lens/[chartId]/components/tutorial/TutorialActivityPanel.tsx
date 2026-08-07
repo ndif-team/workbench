@@ -71,6 +71,7 @@ interface TutorialActivityPanelProps {
     /** Prompt-bank "Try a prompt": fills the prompt and auto-runs it. Falls back
      * to onInsertPrompt (fill only) when not provided. */
     onTryPrompt?: (text: string) => void;
+    /** Patch-unit "Load both prompts and run": fills source + target and runs them. */
     onInsertPatchPair?: (pair: { source: string; target: string }) => void;
     /** Point the widget's spotlight at one or more cells (show-me hints, and the
      * post-patch result); null clears it. */
@@ -238,6 +239,18 @@ export function TutorialActivityPanel({
                 {unit.concept}
             </div>
 
+            {/* Why the step is worth doing. Separate from `concept` on purpose:
+                concept says what just happened, this says where it shows up outside
+                the tutorial. Pilot participants completed the steps and asked what
+                they were for. Plain surface, so it doesn't compete with the concept
+                callout above it. */}
+            {unit.why && (
+                <div className="rounded border bg-muted/40 px-3 py-2">
+                    <p className="text-xs font-medium">Why this matters</p>
+                    <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{unit.why}</p>
+                </div>
+            )}
+
             {/* Prompt bank — clicking a prompt fills + auto-runs it. */}
             {unit.prompts.length > 0 && (
                 <div className="flex flex-col gap-1.5">
@@ -261,8 +274,9 @@ export function TutorialActivityPanel({
                             size="sm"
                             className="mt-1 h-7 text-xs"
                             onClick={() => onInsertPatchPair(unit.patchPair!)}
+                            title="Fill both prompts and run them"
                         >
-                            Load source + target pair
+                            Load both prompts and run
                         </Button>
                     )}
                 </div>
@@ -401,16 +415,22 @@ export function TutorialActivityPanel({
             }
             onPointerDown={docked ? undefined : (e) => dragControls.start(e)}
         >
-            <div className={`flex items-center gap-1.5 min-w-0 ${docked ? "pl-2" : ""}`}>
+            {/* Counter above the title, not beside it: side by side, the two
+                competed for a ~280px column and the title lost — "Read one
+                prediction" rendered as "Read one …" at 1366×768, which is the
+                width the study runs at. */}
+            <div className="flex min-w-0 items-center gap-1.5">
                 {!docked && (
                     <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
                 )}
-                <h2 className="text-sm font-medium truncate">{unit.title}</h2>
-                {!store.collapsed && (
-                    <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
-                        Step {store.unitIdx + 1} of {total}
-                    </span>
-                )}
+                <div className={`flex min-w-0 flex-col ${docked ? "pl-2" : ""}`}>
+                    {!store.collapsed && (
+                        <span className="text-xs leading-tight text-muted-foreground tabular-nums">
+                            Step {store.unitIdx + 1} of {total}
+                        </span>
+                    )}
+                    <h2 className="truncate text-sm font-medium">{unit.title}</h2>
+                </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
                 {/* Reachable on every step, not just the one that introduced the

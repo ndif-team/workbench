@@ -57,7 +57,9 @@ export function useTutorialDock(): { available: boolean; el: HTMLElement | null 
 /** The dock's column. Render inside a ResizablePanel; the tutorial fills it. */
 export function TutorialDockPanel() {
     const { setEl } = useContext(TutorialDockContext);
-    return <div ref={setEl} className="flex h-full min-w-0 flex-col" />;
+    // The id is the orientation walkthrough's anchor for its closing step ("this
+    // column is where the rest of the tutorial happens").
+    return <div id="tutorial-dock" ref={setEl} className="flex h-full min-w-0 flex-col" />;
 }
 
 /**

@@ -91,6 +91,12 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
                 throw new Error(`Unit "${u.id}" needs a non-empty ${field}`);
             }
         }
+        // Optional, but if present it is rendered — so an empty string or a
+        // non-string has to fail here rather than put a blank callout (or a React
+        // "objects are not valid as a child" throw) in front of a participant.
+        if (u.why !== undefined && !isText(u.why)) {
+            throw new Error(`Unit "${u.id}" why must be non-empty text when present`);
+        }
         if (u.patchPair !== undefined) {
             if (!isText(u.patchPair?.source) || !isText(u.patchPair?.target)) {
                 throw new Error(`Unit "${u.id}" patchPair needs a source and a target prompt`);
@@ -178,6 +184,42 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
             if (!isText(g?.term) || !isText(g?.definition)) {
                 throw new Error("Every glossary entry needs a term and a definition");
             }
+        }
+    }
+    // The welcome slideshow is the first thing a participant sees, and it is modal
+    // — a slide that renders blank (or throws) blocks the tutorial behind it rather
+    // than degrading. An empty `slides` array would open a dialog with no content
+    // and no way past it, so require at least one slide with something on it.
+    if (content.welcome !== undefined) {
+        const { slides, tourCta } = content.welcome;
+        if (!Array.isArray(slides) || slides.length === 0) {
+            throw new Error("Tutorial welcome needs at least one slide");
+        }
+        for (const [i, s] of slides.entries()) {
+            if (!isText(s?.title)) {
+                throw new Error(`Welcome slide ${i + 1} needs a title`);
+            }
+            if (s.body !== undefined && !isText(s.body)) {
+                throw new Error(`Welcome slide "${s.title}" body must be non-empty text`);
+            }
+            if (s.cards !== undefined) {
+                if (!Array.isArray(s.cards) || s.cards.length === 0) {
+                    throw new Error(`Welcome slide "${s.title}" cards must be a non-empty array`);
+                }
+                for (const c of s.cards) {
+                    if (!isText(c?.term) || !isText(c?.definition)) {
+                        throw new Error(
+                            `Welcome slide "${s.title}" has a card missing its term or definition`,
+                        );
+                    }
+                }
+            }
+            if (s.body === undefined && s.cards === undefined) {
+                throw new Error(`Welcome slide "${s.title}" needs a body or cards`);
+            }
+        }
+        if (tourCta !== undefined && !isText(tourCta)) {
+            throw new Error("Tutorial welcome tourCta must be non-empty text when present");
         }
     }
     return content;
