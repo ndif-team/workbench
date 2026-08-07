@@ -61,8 +61,11 @@ cdk.out
 
 /nnsight
 
-local.db
-.test.db
+# SQLite databases (local/dev/e2e) and their WAL sidecars — never commit
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
 
 # Per-user Claude Code settings (skills + CLAUDE.md ARE committed)
 .claude/settings.local.json

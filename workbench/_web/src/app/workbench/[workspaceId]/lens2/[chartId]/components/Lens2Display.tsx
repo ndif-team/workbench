@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
+import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { Lens2Data, Lens2ConfigData } from "@/types/lens2";
 import { useTheme } from "next-themes";
@@ -14,6 +15,7 @@ import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
+import { NotebookExporter } from "@/components/NotebookExporter";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
 
@@ -52,6 +54,12 @@ export function Lens2Display() {
         queryKey: queryKeys.charts.configByChart(chartId),
         queryFn: () => getConfigForChart(chartId),
         enabled: !!chartId,
+    });
+
+    const { data: workspace } = useQuery({
+        queryKey: queryKeys.workspaces.workspace(workspaceId),
+        queryFn: () => getWorkspaceById(workspaceId),
+        enabled: !!workspaceId,
     });
 
     const { data: models } = useModelsQuery();
@@ -183,39 +191,49 @@ export function Lens2Display() {
 
     return (
         <div className="size-full overflow-auto p-4 flex flex-col gap-3">
-            {/* Title + model pill */}
+            {/* Title + model pill + export */}
             <div className="flex items-center gap-2">
-                <div className="min-w-0 flex-1">
-                    {isEditingTitle ? (
-                        <input
-                            ref={titleInputRef}
-                            type="text"
-                            value={displayTitle}
-                            onChange={handleTitleChange}
-                            onBlur={handleTitleBlur}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") e.currentTarget.blur();
-                            }}
-                            placeholder="Untitled Chart"
-                            className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
-                        />
-                    ) : hasTitle ? (
-                        <h2
-                            onClick={handleTitleClick}
-                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold truncate"
-                        >
-                            {displayTitle}
-                        </h2>
-                    ) : (
-                        <h2
-                            onClick={handleTitleClick}
-                            className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
-                        >
-                            Untitled Chart
-                        </h2>
-                    )}
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                        {isEditingTitle ? (
+                            <input
+                                ref={titleInputRef}
+                                type="text"
+                                value={displayTitle}
+                                onChange={handleTitleChange}
+                                onBlur={handleTitleBlur}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") e.currentTarget.blur();
+                                }}
+                                placeholder="Untitled Chart"
+                                className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
+                            />
+                        ) : hasTitle ? (
+                            <h2
+                                onClick={handleTitleClick}
+                                className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold truncate"
+                            >
+                                {displayTitle}
+                            </h2>
+                        ) : (
+                            <h2
+                                onClick={handleTitleClick}
+                                className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
+                            >
+                                Untitled Chart
+                            </h2>
+                        )}
+                    </div>
+                    {stale && chartModel && <ChartModelPill modelName={chartModel} />}
                 </div>
-                {stale && chartModel && <ChartModelPill modelName={chartModel} />}
+                <NotebookExporter
+                    configType="lens2"
+                    configData={(lens2Config?.data ?? {}) as Record<string, unknown>}
+                    chartData={(lens2Chart?.data ?? null) as Record<string, unknown> | null}
+                    chartName={lens2Chart?.name ?? undefined}
+                    workspaceName={workspace?.name ?? undefined}
+                    darkMode={isDarkMode}
+                />
             </div>
             <LogitLensWidget
                 data={lens2Chart.data! as LogitLensData}
