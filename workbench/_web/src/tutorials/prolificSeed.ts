@@ -446,7 +446,7 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             id: TUTORIAL_STEP_IDS.compare,
             kind: "patch",
             task: "There are now two prompts: a 'source' box and a 'target' box, each with its own heatmap. Click 'Load both prompts and run' (or Run Patch Lens) to build both. Read the bottom-right cell of each one, and find the row in each heatmap that holds the landmark's name. Don't move anything yet.",
-            title: "Two prompts, two heatmaps",
+            title: "Compare two prompts",
             concept:
                 "Each prompt gets its own heatmap, and each reaches its own answer independently. The two are not connected yet. These two sentences are identical apart from the landmark, so the landmark is the only thing that can explain why one answers Paris and the other Rome — and the row holding that name is where the difference has to live. Finding that row in each grid is what makes the next step possible.",
             why: "Two prompts worded identically apart from one thing is the basic setup of an interpretability experiment. Hold everything else constant, and any difference you find has only one place it could have come from.",

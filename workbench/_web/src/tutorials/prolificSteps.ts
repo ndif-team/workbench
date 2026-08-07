@@ -63,7 +63,7 @@ export const TUTORIAL_STEP_LABELS: Record<TutorialStepId, string> = {
     "u1b-inside": "How a prediction is made",
     "u2-knows": "What the model knows",
     "u3-patterns": "Patterns beat facts",
-    "u4a-compare": "Two prompts, two heatmaps",
+    "u4a-compare": "Compare two prompts",
     "u4-patching": "Move a thought",
     "u5-explore": "Explore",
     "u6-challenge": "Final challenge",

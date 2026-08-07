@@ -252,6 +252,12 @@ export function TutorialActivityPanel({
             ref={bodyRef}
             className={`p-3 flex flex-col gap-3 overflow-auto ${docked ? "flex-1 min-h-0" : ""}`}
         >
+            {/* Where you are. Kept out of the header so it never competes with the
+                step title for a narrow column's width. */}
+            <p className="text-xs text-muted-foreground tabular-nums">
+                Step {store.unitIdx + 1} of {total}
+            </p>
+
             {/* Task */}
             <p className="text-sm leading-snug">{unit.task}</p>
 
@@ -471,23 +477,21 @@ export function TutorialActivityPanel({
             }
             onPointerDown={docked ? undefined : (e) => dragControls.start(e)}
         >
-            {/* Counter above the title, not beside it: side by side, the two
-                competed for a ~280px column and the title lost — "Read one
-                prediction" rendered as "Read one …" at 1366×768, which is the
-                width the study runs at. */}
-            <div className="flex min-w-0 items-center gap-1.5">
-                {!docked && (
+            {/* Docked, this is the app's standard panel header: the title as a direct
+                <h2 className="text-sm pl-2 font-medium">, then a controls group. The
+                step counter deliberately does NOT sit here — beside the title the two
+                competed for a ~280px column and the title lost ("Read one prediction"
+                rendered as "Read one …" at 1366×768, the width the study runs at). It
+                lives at the top of the step body instead. Floating, the header also
+                carries the drag handle. */}
+            {docked ? (
+                <h2 className="text-sm pl-2 font-medium truncate">{unit.title}</h2>
+            ) : (
+                <div className="flex min-w-0 items-center gap-1.5">
                     <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-                )}
-                <div className={`flex min-w-0 flex-col ${docked ? "pl-2" : ""}`}>
-                    {!store.collapsed && (
-                        <span className="text-xs leading-tight text-muted-foreground tabular-nums">
-                            Step {store.unitIdx + 1} of {total}
-                        </span>
-                    )}
                     <h2 className="truncate text-sm font-medium">{unit.title}</h2>
                 </div>
-            </div>
+            )}
             <div className="flex items-center gap-2 shrink-0">
                 {/* Reachable on every step, not just the one that introduced the
                     term — the most consistent feedback on the tool is its entry cost. */}
