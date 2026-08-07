@@ -199,9 +199,15 @@ export function resolveCheckKey(
 ): { expected: string | null; canAnswer: boolean } {
     const check = unit.check;
     if (!check) return { expected: null, canAnswer: false };
-    // A choice check carries its own key, so it needs no run at all.
+    // A choice check carries its own key, so it needs no run at all — but only if
+    // that key resolves. `validateTutorialContent` rejects an out-of-range
+    // `correctIndex`, so this can only be a row authored before that guard existed;
+    // scoring against `null` would mark every answer wrong and log a
+    // `check_answered` nobody could have got right. Same "no key, no question" rule
+    // the run-scored branch below uses.
     if (check.kind === "choice") {
-        return { expected: check.options[check.correctIndex] ?? null, canAnswer: true };
+        const key = check.options?.[check.correctIndex] ?? null;
+        return { expected: key, canAnswer: key != null };
     }
     // Kind first, then the unit's progression: a `secondToken` check always asks
     // about the run, even on a patch unit, where `topToken` means the patch outcome.

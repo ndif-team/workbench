@@ -88,4 +88,31 @@ describe("resolveCheckKey", () => {
             canAnswer: true,
         });
     });
+
+    // Validation rejects an out-of-range correctIndex, so this can only come from a
+    // row authored before that guard. Scoring against a key that isn't there would
+    // mark every answer wrong and log a check_answered nobody could have got right.
+    it("closes a choice check whose answer key doesn't resolve", () => {
+        const outOfRange = unit({
+            question: "?",
+            kind: "choice",
+            options: ["Paris", "Rome"],
+            correctIndex: 7,
+        });
+        expect(resolveCheckKey(outOfRange, undefined, null)).toEqual({
+            expected: null,
+            canAnswer: false,
+        });
+
+        const noOptions = unit({
+            question: "?",
+            kind: "choice",
+            options: undefined as never,
+            correctIndex: 0,
+        });
+        expect(resolveCheckKey(noOptions, undefined, null)).toEqual({
+            expected: null,
+            canAnswer: false,
+        });
+    });
 });
