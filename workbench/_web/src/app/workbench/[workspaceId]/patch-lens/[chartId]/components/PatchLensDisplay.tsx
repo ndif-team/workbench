@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useCapture } from "@/lib/analytics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -71,6 +71,7 @@ export function PatchLensDisplay({
     const { emit: emitTutorialEvent } = useTutorialEmit();
     const markPatchApplied = useProlificTutorial((s) => s.markPatchApplied);
     const recordPatchResult = useProlificTutorial((s) => s.recordPatchResult);
+    const clearPatchResult = useProlificTutorial((s) => s.clearPatchResult);
     const { selectedModelIdx } = useWorkspace();
     const queryClient = useQueryClient();
 
@@ -224,12 +225,28 @@ export function PatchLensDisplay({
     // Clear the persisted patch when the user resets the intervention, so the
     // controlled `intervention` prop stops re-supplying it. The run keeps its own
     // patch record (history is unaffected) — this only un-patches the view.
+    // The last token the widget reported, replayed when the participant arrives at a
+    // patch unit with a result already on screen (see the effect below). Declared
+    // before the reset handler so that handler can clear it.
+    const lastResultToken = useRef<string | null>(null);
+
     const handleResetIntervention = useCallback(async () => {
         if (!chartId) return;
         const existing = await getChartById(chartId);
         const existingData = (existing?.data ?? {}) as Partial<PatchLensChartData>;
         if (existingData.intervention === undefined) return;
         capture("patch_lens_intervention_reset", {});
+        // The guided tutorial announces the patch's outcome; with the patch undone
+        // that announcement no longer matches the screen.
+        //
+        // Drop the replay token as well as the recorded result. Clearing only the
+        // store is not enough: the arrival effect below re-files `lastResultToken` on
+        // the next visit to a patch unit, so the banner and the result spotlight came
+        // back with no patch on screen. The widget's null report doesn't cover this
+        // either — resetting deletes the chart's `intervention` but leaves the run's
+        // `interventionResult`, so `resultData` can stay truthy and never emit null.
+        lastResultToken.current = null;
+        clearPatchResult(patchUnitIdxRef.current ?? undefined);
         const next = { ...existingData };
         delete next.intervention;
         await setChartData(chartId, next as PatchLensChartData, "patch-lens");
@@ -239,15 +256,37 @@ export function PatchLensDisplay({
                 prev ? { ...prev, data: next } : prev,
         );
         queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(chartId) });
-    }, [chartId, queryClient, capture]);
+    }, [chartId, queryClient, capture, clearPatchResult]);
 
     // Route the TARGET's post-patch top token to the tutorial store, pinned to
     // the unit the intervention was initiated from (see patchUnitIdxRef).
     const handleInterventionResult = useCallback(
-        (topToken: string | null) =>
-            recordPatchResult(topToken, patchUnitIdxRef.current ?? undefined),
-        [recordPatchResult],
+        (topToken: string | null) => {
+            lastResultToken.current = topToken;
+            // null means the patched grid is no longer on screen — the widget now
+            // reports that too. Drop the recorded outcome rather than let the
+            // tutorial keep announcing "the target now predicts X" (and point at a
+            // purple region that isn't there) after a fresh lens run has replaced
+            // the patched run as the active one.
+            if (topToken == null) {
+                clearPatchResult(patchUnitIdxRef.current ?? undefined);
+                return;
+            }
+            recordPatchResult(topToken, patchUnitIdxRef.current ?? undefined);
+        },
+        [recordPatchResult, clearPatchResult],
     );
+
+    // A patch restored from a previous session is reported once, on mount — before
+    // the participant has walked to the patch step, and with no patchUnitIdxRef to
+    // pin it to. File it again when they arrive there, or the step asks them to
+    // apply a patch that is already on screen (and the panel can't name its result).
+    const tutorialUnitIdx = useProlificTutorial((s) => s.unitIdx);
+    const onPatchUnit = useProlificTutorial((s) => s.units[s.unitIdx]?.progression.on === "patch");
+    useEffect(() => {
+        if (!onPatchUnit || lastResultToken.current == null) return;
+        recordPatchResult(lastResultToken.current, tutorialUnitIdx);
+    }, [onPatchUnit, tutorialUnitIdx, recordPatchResult]);
 
     // Map the widget's in-chart interactions to product analytics. Cell
     // expansions become cell_expanded; token/layer step changes become

@@ -29,6 +29,18 @@ interface PanelPos {
     y: number;
 }
 
+/**
+ * A unit's frozen embedded-check answer key: the tokens from the last lens run
+ * *initiated from that unit*. Frozen per unit rather than read from the latest
+ * run anywhere, so a run started on another unit can never become the answer key
+ * for this one — the participant who goes back to fill in a check they skipped is
+ * scored against their own run of this unit's prompt.
+ */
+interface RunTokens {
+    topToken: string;
+    secondToken: string | null;
+}
+
 interface ProlificTutorialState {
     workspaceId: string | null;
     // Content, injected from the DB. Not persisted — it comes from the query.
@@ -40,14 +52,29 @@ interface ProlificTutorialState {
     completedUnits: number[];
     checkAnsweredByUnit: Record<number, boolean>;
     observationByUnit: Record<number, boolean>;
-    // The TARGET's post-patch top predicted token, and the unit it was applied
-    // on — so a patch unit's embedded check scores against the actual patch
-    // outcome (not the source's pre-patch prediction). Ephemeral (not persisted).
-    patchResultToken: string | null;
-    patchResultUnitIdx: number | null;
+    // Frozen answer keys, per unit (see RunTokens). Ephemeral: a fresh session has
+    // no run to have read an answer off, so the check asks for the run first
+    // rather than scoring against a key whose result is no longer on screen.
+    runTokensByUnit: Record<number, RunTokens>;
+    // The TARGET's post-patch top predicted token, per unit it was applied on —
+    // so a patch unit's embedded check scores against the actual patch outcome
+    // (not the source's pre-patch prediction). Ephemeral, same reasoning.
+    patchTokenByUnit: Record<number, string>;
     // Floating-overlay UI state (persisted): last drag position + collapsed.
     panelPos: PanelPos | null;
     collapsed: boolean;
+    /**
+     * Whether the modal orientation slideshow is on screen. Ephemeral — a refresh
+     * mid-slideshow drops the participant into the step itself rather than
+     * re-opening a dialog over work they have already started.
+     */
+    welcomeOpen: boolean;
+    /**
+     * Whether this participant has been through the orientation. Persisted (and
+     * reset per workspace) so `start()` only auto-opens it the first time; the
+     * Tutorial menu can always reopen it deliberately.
+     */
+    welcomeSeen: boolean;
 
     setUnits: (units: TutorialUnit[]) => void;
     setWorkspace: (workspaceId: string) => void;
@@ -56,27 +83,39 @@ interface ProlificTutorialState {
     goToUnit: (idx: number) => void;
     next: () => void;
     prev: () => void;
-    /** Feed a completed run's top predicted token; evaluates the unit's success.
-     * `unitIdx` pins scoring to the unit the run was *initiated* from, so a slow
-     * run that resolves after the participant advances can't complete the wrong
-     * (now-current) unit. Falls back to the current unit when omitted. */
-    recordRun: (topToken: string | null, unitIdx?: number) => void;
+    /** Feed a completed run's top two predicted tokens; freezes that unit's check
+     * answer key and evaluates the unit's success. `unitIdx` pins both to the unit
+     * the run was *initiated* from, so a slow run that resolves after the
+     * participant advances can't complete — or re-key — the wrong (now-current)
+     * unit. Falls back to the current unit when omitted. */
+    recordRun: (tokens: { top: string | null; second: string | null }, unitIdx?: number) => void;
     /** A patch was applied (patch-unit progression). `unitIdx` pins completion to
      * the unit the patch was *initiated* from, so an async intervention that
      * settles after the participant advances can't complete the wrong unit.
      * Falls back to the current unit when omitted. */
     markPatchApplied: (unitIdx?: number) => void;
     /** Feed the TARGET's post-patch top token (from the widget) so a patch unit's
-     * embedded check can score against the actual patch outcome. `unitIdx` pins
-     * the result to the unit the intervention was initiated from (see
-     * `markPatchApplied`); falls back to the current unit when omitted. */
+     * embedded check can score against the actual patch outcome — and so the panel
+     * can state that outcome in words. `unitIdx` pins the result to the unit the
+     * intervention was initiated from (see `markPatchApplied`); falls back to the
+     * current unit when omitted. */
     recordPatchResult: (topToken: string | null, unitIdx?: number) => void;
+    /** The patch was undone, so its outcome no longer describes the screen: drop
+     * the recorded result rather than let the panel keep announcing it. */
+    clearPatchResult: (unitIdx?: number) => void;
     /** Reveal the next hint rung; returns the new highest stage. */
     revealHint: () => number;
     answerCheck: (answer: string, correct: boolean) => void;
     submitObservation: (text: string) => void;
     setPanelPos: (pos: PanelPos) => void;
     setCollapsed: (collapsed: boolean) => void;
+    /** Open the orientation slideshow (Tutorial menu, or automatically on first
+     * `start()`). Marks it seen immediately, so a mid-slideshow reload doesn't
+     * re-open it. */
+    openWelcome: () => void;
+    /** Dismiss the slideshow. It stays marked seen either way — skipping is a
+     * decision, not an interruption. */
+    closeWelcome: () => void;
     reset: () => void;
 }
 
@@ -123,10 +162,12 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
             completedUnits: [],
             checkAnsweredByUnit: {},
             observationByUnit: {},
-            patchResultToken: null,
-            patchResultUnitIdx: null,
+            runTokensByUnit: {},
+            patchTokenByUnit: {},
             panelPos: null,
             collapsed: false,
+            welcomeOpen: false,
+            welcomeSeen: false,
 
             setUnits: (units) =>
                 set((s) => ({
@@ -154,17 +195,29 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                     completedUnits: [],
                     checkAnsweredByUnit: {},
                     observationByUnit: {},
-                    patchResultToken: null,
-                    patchResultUnitIdx: null,
+                    runTokensByUnit: {},
+                    patchTokenByUnit: {},
+                    // A different participant, so a fresh orientation.
+                    welcomeOpen: false,
+                    welcomeSeen: false,
                 });
             },
 
             start: () => {
-                set({ active: true, unitIdx: 0, collapsed: false });
+                // First start opens the orientation slideshow over the tool; a
+                // resume (or a deliberate restart) goes straight to the step.
+                const firstTime = !get().welcomeSeen;
+                set({
+                    active: true,
+                    unitIdx: 0,
+                    collapsed: false,
+                    welcomeOpen: firstTime,
+                    welcomeSeen: true,
+                });
                 emit(get().workspaceId, stepIdForUnit(get(), 0), "step_started");
             },
 
-            stop: () => set({ active: false }),
+            stop: () => set({ active: false, welcomeOpen: false }),
 
             goToUnit: (idx) => {
                 const total = get().units.length;
@@ -183,10 +236,19 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
 
             prev: () => {
                 const { unitIdx } = get();
-                set({ unitIdx: Math.max(unitIdx - 1, 0) });
+                const prevIdx = Math.max(unitIdx - 1, 0);
+                if (prevIdx === unitIdx) return;
+                set({ unitIdx: prevIdx });
+                // Walking back is a step entry too. Without this, a participant who
+                // goes back to answer a check they skipped produces a check_answered
+                // with no preceding step_started, and their route through the tutorial
+                // has to be reconstructed by hand. `step_started` therefore means
+                // "entered this step", not "entered it for the first time"; the funnel
+                // is max-based, so nothing downstream changes.
+                emit(get().workspaceId, stepIdForUnit(get(), prevIdx), "step_started");
             },
 
-            recordRun: (topToken, unitIdx) => {
+            recordRun: (tokens, unitIdx) => {
                 const state = get();
                 // Score the unit the run was initiated from, not whatever unit is
                 // current when the async lens run resolves — otherwise advancing
@@ -195,13 +257,28 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 const unit = state.units[idx];
                 if (!unit) return;
 
+                const topToken = tokens.top;
+                // Freeze this unit's check answer key against its own run, before
+                // the progression branch below: a patch or explore unit can carry a
+                // run-scored check too, and its run is still the key. Updater form
+                // throughout — this action writes more than once, and a second write
+                // built from the pre-first-write snapshot would revert the first.
+                if (topToken != null) {
+                    set((s) => ({
+                        runTokensByUnit: {
+                            ...s.runTokensByUnit,
+                            [idx]: { topToken, secondToken: tokens.second },
+                        },
+                    }));
+                }
+
                 // Only run-gated units progress on a completed run; patch/explore/
                 // challenge units treat a lens run as a prerequisite, not completion.
                 if (unit.progression.on !== "run") return;
 
                 const success = evalSuccessPredicate(unit.progression.successPredicate, topToken);
                 if (success) {
-                    set(completeUnit(state, idx));
+                    set((s) => completeUnit(s, idx));
                     return;
                 }
                 // A failing run counts as a hint "attempt" only when the unit has a
@@ -209,8 +286,12 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 // didn't complete shouldn't happen, but never auto-offer hints there.
                 const pred = unit.progression.successPredicate;
                 if (!pred || pred.kind === "always") return;
-                const attempts = (state.attemptsByUnit[idx] ?? 0) + 1;
-                set({ attemptsByUnit: { ...state.attemptsByUnit, [idx]: attempts } });
+                set((s) => ({
+                    attemptsByUnit: {
+                        ...s.attemptsByUnit,
+                        [idx]: (s.attemptsByUnit[idx] ?? 0) + 1,
+                    },
+                }));
             },
 
             markPatchApplied: (unitIdx) => {
@@ -228,10 +309,25 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 // patch on THAT unit (mid-run navigation can't misattribute it).
                 if (!state.active) return;
                 const idx = unitIdx ?? state.unitIdx;
-                if (state.patchResultToken === topToken && state.patchResultUnitIdx === idx) {
-                    return;
-                }
-                set({ patchResultToken: topToken, patchResultUnitIdx: idx });
+                // Only a patch unit has a patch check to key. Without this, a patch
+                // restored from a previous session — reported by the widget before the
+                // participant has navigated anywhere — files itself under whatever
+                // step they happen to be on.
+                if (state.units[idx]?.progression.on !== "patch") return;
+                // The widget reports the result on every render pass that has one;
+                // only write a real token, and only on a change (an unreadable
+                // result leaves the check gated on applying the patch).
+                if (topToken == null || state.patchTokenByUnit[idx] === topToken) return;
+                set({ patchTokenByUnit: { ...state.patchTokenByUnit, [idx]: topToken } });
+            },
+
+            clearPatchResult: (unitIdx) => {
+                const state = get();
+                const idx = unitIdx ?? state.unitIdx;
+                if (state.patchTokenByUnit[idx] === undefined) return;
+                const next = { ...state.patchTokenByUnit };
+                delete next[idx];
+                set({ patchTokenByUnit: next });
             },
 
             revealHint: () => {
@@ -261,6 +357,10 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
             answerCheck: (answer, correct) => {
                 const state = get();
                 const idx = state.unitIdx;
+                // One check_answered per step, enforced here as well as by the input's
+                // locked state: this row is the engagement measure, and a second one
+                // for the same step would double-count it.
+                if (state.checkAnsweredByUnit[idx]) return;
                 set({ checkAnsweredByUnit: { ...state.checkAnsweredByUnit, [idx]: true } });
                 emit(state.workspaceId, stepIdForUnit(state, idx), "check_answered", {
                     answer,
@@ -288,6 +388,12 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
             setPanelPos: (pos) => set({ panelPos: pos }),
             setCollapsed: (collapsed) => set({ collapsed }),
 
+            // Reopening the orientation shouldn't hide the panel behind it, so
+            // uncollapse as well — otherwise "start the tour" points at a column
+            // that isn't there.
+            openWelcome: () => set({ welcomeOpen: true, welcomeSeen: true, collapsed: false }),
+            closeWelcome: () => set({ welcomeOpen: false, welcomeSeen: true }),
+
             reset: () =>
                 set({
                     active: false,
@@ -297,8 +403,10 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                     completedUnits: [],
                     checkAnsweredByUnit: {},
                     observationByUnit: {},
-                    patchResultToken: null,
-                    patchResultUnitIdx: null,
+                    runTokensByUnit: {},
+                    patchTokenByUnit: {},
+                    welcomeOpen: false,
+                    welcomeSeen: false,
                 }),
         }),
         {
@@ -316,6 +424,9 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 observationByUnit: s.observationByUnit,
                 panelPos: s.panelPos,
                 collapsed: s.collapsed,
+                // `welcomeOpen` is deliberately absent: a reload mid-slideshow
+                // resumes the step, not the dialog over it.
+                welcomeSeen: s.welcomeSeen,
             }),
             // A panel dragged off-screen in a larger window (or a different
             // monitor) would otherwise be unreachable — the panel clamps the

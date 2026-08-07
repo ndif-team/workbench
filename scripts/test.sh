@@ -25,9 +25,30 @@ export LOCAL_SQLITE_URL=.test.db
 # Clean up any existing test database and push schema
 rm -f .test.db
 echo "Creating test database schema..."
-$BUN x drizzle-kit push --force > /dev/null 2>&1
-if [ $? -ne 0 ]; then
+PUSH_OUTPUT=$($BUN x drizzle-kit push --force 2>&1)
+PUSH_STATUS=$?
+# drizzle-kit prints a failure to load its sqlite driver and still exits 0, so
+# check that the schema actually landed rather than trusting the exit code —
+# otherwise the run continues and every DB test fails with "no such table".
+if [ $PUSH_STATUS -ne 0 ] || [ ! -s .test.db ]; then
     echo "Error: Failed to push database schema"
+    # The tests themselves use bun:sqlite, but drizzle-kit runs under node and
+    # needs better-sqlite3's native binding. Bun skips install scripts unless the
+    # package is trusted, so a fresh `bun install` leaves it unbuilt and every DB
+    # test then fails with "no such table".
+    if echo "$PUSH_OUTPUT" | grep -qi "better_sqlite3\|bindings file"; then
+        cat <<'HINT'
+
+better-sqlite3's native binding is missing. Build it once with:
+
+    (cd workbench/_web/node_modules/better-sqlite3 && ../.bin/prebuild-install)
+
+Don't add better-sqlite3 to trustedDependencies to fix this — the deploy image
+has no node-gyp, so its install script fails there and the image won't build.
+HINT
+    else
+        echo "$PUSH_OUTPUT" | tail -20
+    fi
     exit 1
 fi
 

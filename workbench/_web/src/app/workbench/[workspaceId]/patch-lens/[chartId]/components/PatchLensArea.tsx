@@ -15,11 +15,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTour } from "@reactour/tour";
 import { PatchLensTutorial } from "@/tutorials/patchLens";
+import { orientationTourSteps } from "@/tutorials/orientationTour";
+import { promptsForUnitEntry } from "@/tutorials/unitPrompts";
 import { usePatchLensTutorial, hydratePatchLensTutorial } from "@/stores/usePatchLensTutorial";
 import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
 import { useProlificTutorial } from "@/stores/useProlificTutorial";
 import { useSpotlight } from "edulogitlens";
 import { TutorialActivityPanel } from "./tutorial/TutorialActivityPanel";
+import { TutorialWelcomeDialog } from "./tutorial/TutorialWelcomeDialog";
+import { useTutorialDock } from "./tutorial/TutorialDock";
 import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { useWorkspaceTutorial } from "@/lib/api/tutorialContentApi";
@@ -48,6 +52,12 @@ const DEFAULT_INTRO_MODEL = "meta-llama/Llama-3.1-8B";
 // target left blank, and the patching chapter walks the user through adding it.
 const EXAMPLE_SOURCE = "The Eiffel Tower is in the city of";
 
+/** A patch step's preloaded prompts: the box to copy from, and the box to copy into. */
+interface PatchPromptPair {
+    source: string;
+    target: string;
+}
+
 interface PatchLensAreaProps {
     sourcePrompt: string;
     targetPrompt: string;
@@ -61,6 +71,10 @@ interface PatchLensAreaProps {
     // both prompts and show the chip view, since the prompt props change without
     // the textarea blur that normally drives tokenization.
     restoreNonce?: number;
+    /** True once the chart row's saved prompts have been absorbed. The guided
+     * tutorial waits for it before restoring a step's prompt, so hydration can't
+     * land on top of the restore. */
+    promptsHydrated?: boolean;
     // Restore a history entry onto the tool. When provided, the prompt-history
     // list renders at the bottom of this controls column.
     onSelectRun?: (run: NormalizedRun) => void;
@@ -109,6 +123,38 @@ function useTutorialAutoStart({ disabled }: { disabled: boolean }) {
     return { startTutorial };
 }
 
+/**
+ * Hand-off from the guided tutorial's welcome slideshow to the reactour
+ * walkthrough that points at the actual controls.
+ *
+ * The dialog has to be gone before the tour opens — two overlapping masks read as
+ * a broken screen, and reactour measures its target on open, so it would measure
+ * through the dialog's overlay. One frame's delay is enough for the dialog's exit
+ * to unmount and the tutorial column to be in the DOM for the closing step.
+ */
+function useOrientationTour() {
+    const { setSteps, setIsOpen, setCurrentStep } = useTour();
+    const { available: docked } = useTutorialDock();
+    const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(
+        () => () => {
+            if (pending.current) clearTimeout(pending.current);
+        },
+        [],
+    );
+
+    return useCallback(() => {
+        if (!setSteps || !setIsOpen) return;
+        setSteps(orientationTourSteps({ docked }));
+        // reactour keeps currentStep on the provider, so a previous walkthrough's
+        // index would otherwise drop the participant into the middle of this one.
+        setCurrentStep(0);
+        if (pending.current) clearTimeout(pending.current);
+        pending.current = setTimeout(() => setIsOpen(true), 250);
+    }, [setSteps, setIsOpen, setCurrentStep, docked]);
+}
+
 export default function PatchLensArea({
     sourcePrompt,
     targetPrompt,
@@ -119,6 +165,7 @@ export default function PatchLensArea({
     lastRunSrcPrompt,
     lastRunTgtPrompt,
     restoreNonce,
+    promptsHydrated = true,
     onSelectRun,
 }: PatchLensAreaProps) {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
@@ -127,6 +174,7 @@ export default function PatchLensArea({
     const prolificTutorial = useProlificTutorial();
     const { setTarget: setSpotlight } = useSpotlight();
     const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
+    const startOrientationTour = useOrientationTour();
 
     // Bind the guided-tutorial store to this workspace (resets on workspace change).
     useEffect(() => {
@@ -246,7 +294,16 @@ export default function PatchLensArea({
 
     const tokenize = useCallback(async (text: string, model: string): Promise<Token[] | null> => {
         try {
-            return await encodeText(text, model);
+            // No BOS marker in the chips. `<|begin_of_text|>` is a tokenizer
+            // artefact, not part of what the participant typed, and it read as the
+            // tool having mangled their prompt. Safe here specifically: patch-lens
+            // renders the chips read-only (selectedPositions=[], no token click
+            // handlers) and, in mode="full", owns its own tokenization — so no
+            // index is derived from this array. Tools that DO index off token
+            // position (activation-patching) keep the BOS-inclusive default, and the
+            // lens data the backend returns is untouched, since interventions are
+            // addressed against BOS-inclusive positions.
+            return await encodeText(text, model, false);
         } catch (error) {
             if (error instanceof TokenizerLoadError) {
                 toast.error(
@@ -526,24 +583,144 @@ export default function PatchLensArea({
         [executeRun, sourcePrompt, targetPrompt],
     );
 
+    // Latest prompts + model, readable after an await. Tokenizing is a round trip;
+    // by the time it returns the box may hold something else entirely (a later
+    // restore, the chart row hydrating, the participant typing) and the model may
+    // have settled onto a different one. Programmatic writes update this
+    // synchronously (below) as well as on commit, so a fast tokenize isn't judged
+    // against a value React hasn't rendered yet.
+    const live = useRef({ source: sourcePrompt, target: targetPrompt, model: selectedModel });
+    useEffect(() => {
+        live.current = { source: sourcePrompt, target: targetPrompt, model: selectedModel };
+    }, [sourcePrompt, targetPrompt, selectedModel]);
+
+    // Put text in a prompt box. Synchronous by design: a caller filling both boxes
+    // must not be able to lose the second write to an async race. Returns the text
+    // actually written, for the tokenize step below.
+    const setPromptText = useCallback(
+        (which: "source" | "target", text: string): string => {
+            const trimmed = text.trim();
+            live.current = { ...live.current, [which]: trimmed };
+            if (which === "source") {
+                onSourcePromptChange(trimmed);
+                if (!trimmed) {
+                    setSrcTokens([]);
+                    setSrcTokenizedModel(null);
+                    setSrcEditing(true);
+                }
+            } else {
+                onTargetPromptChange(trimmed);
+                if (!trimmed) {
+                    setTgtTokens([]);
+                    setTgtTokenizedModel(null);
+                    setTgtEditing(true);
+                }
+            }
+            return trimmed;
+        },
+        [onSourcePromptChange, onTargetPromptChange],
+    );
+
+    // Show the token chips for text already written to a box. Abandoned if the box
+    // or the model moved on while tokenizing — stale chips would otherwise claim
+    // the prompt was tokenized with a model that is no longer selected, which is
+    // what raises the "tokens last computed with …" warning.
+    const tokenizePromptText = useCallback(
+        async (which: "source" | "target", text: string) => {
+            if (!text || !selectedModel) return;
+            const tokens = await tokenize(text, selectedModel);
+            if (!tokens || tokens.length === 0) return;
+            if (live.current.model !== selectedModel) return;
+            if (live.current[which] !== text) return;
+            if (which === "source") {
+                setSrcTokens(tokens);
+                setSrcTokenizedModel(selectedModel);
+                setSrcEditing(false);
+            } else {
+                setTgtTokens(tokens);
+                setTgtTokenizedModel(selectedModel);
+                setTgtEditing(false);
+            }
+        },
+        [selectedModel, tokenize],
+    );
+
+    // Put text in a prompt box and show its chips, without stealing focus.
+    const fillPrompt = useCallback(
+        async (which: "source" | "target", text: string) => {
+            await tokenizePromptText(which, setPromptText(which, text));
+        },
+        [setPromptText, tokenizePromptText],
+    );
+
+    // Restore a guided-tutorial unit's own prompt when the participant arrives at
+    // it. Without this a revisited step describes one prompt while the boxes hold
+    // whatever ran last — the instructions and the tool disagree, and a re-run
+    // there answers the step's check against the wrong prompt. Participant-written
+    // text is left alone (see promptsForUnitEntry).
+    const restoredUnitIdx = useRef<number | null>(null);
+    useEffect(() => {
+        if (!prolificTutorial.active) return;
+        // Content arrives asynchronously, and so do the chart row's saved prompts —
+        // restoring first would be overwritten by that hydration a moment later.
+        if (prolificTutorial.units.length === 0 || !promptsHydrated) return;
+        const idx = prolificTutorial.unitIdx;
+        if (restoredUnitIdx.current === idx) return;
+        restoredUnitIdx.current = idx;
+        const restore = promptsForUnitEntry(prolificTutorial.units, idx, {
+            source: sourcePrompt,
+            target: targetPrompt,
+        });
+        if (!restore) return;
+        // Both boxes are written now, synchronously. Chips follow asynchronously and
+        // are allowed to be dropped (the model-change effect above recomputes them,
+        // as does a blur) — the prompts themselves never are.
+        const written = (["source", "target"] as const)
+            .filter((which) => restore[which] !== undefined)
+            .map((which) => ({ which, text: setPromptText(which, restore[which] as string) }));
+        void (async () => {
+            for (const { which, text } of written) await tokenizePromptText(which, text);
+        })();
+        // Prompts are read at arrival, deliberately: re-running on every keystroke
+        // would fight the participant's typing.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        prolificTutorial.active,
+        prolificTutorial.unitIdx,
+        prolificTutorial.units,
+        promptsHydrated,
+        setPromptText,
+        tokenizePromptText,
+    ]);
+
     // Tutorial "Try a prompt": fill the source prompt, show its tokenized chips,
     // then run — one click instead of insert-then-Run. Target is left as-is
     // (empty in lens units → single-prompt mode).
     const handleTryPrompt = useCallback(
         async (text: string) => {
             const trimmed = text.trim();
-            onSourcePromptChange(trimmed);
-            if (selectedModel && trimmed) {
-                const tokens = await tokenize(trimmed, selectedModel);
-                if (tokens && tokens.length > 0) {
-                    setSrcTokens(tokens);
-                    setSrcTokenizedModel(selectedModel);
-                    setSrcEditing(false);
-                }
-            }
+            await fillPrompt("source", trimmed);
             await executeRun(trimmed, targetPrompt);
         },
-        [selectedModel, tokenize, onSourcePromptChange, targetPrompt, executeRun],
+        [fillPrompt, targetPrompt, executeRun],
+    );
+
+    // Tutorial "Load both prompts and run": fill source + target and run, matching
+    // what a single-prompt "Try a prompt" click does. Loading the pair without
+    // running left the participant on a two-prompt step with no heatmaps and no
+    // obvious next move — the step says to compare two read-outs that aren't there,
+    // and the patch step's drag isn't even possible until a run exists.
+    const handleTryPatchPair = useCallback(
+        async ({ source, target }: PatchPromptPair) => {
+            const src = source.trim();
+            const tgt = target.trim();
+            // Both boxes are written synchronously by setPromptText inside
+            // fillPrompt, so the run below sees the pair even mid-tokenize.
+            await fillPrompt("source", src);
+            await fillPrompt("target", tgt);
+            await executeRun(src, tgt);
+        },
+        [fillPrompt, executeRun],
     );
 
     // Suppress the hard-coded reactour walkthrough in workshop mode (and while
@@ -592,6 +769,14 @@ export default function PatchLensArea({
                                 Guided tutorial
                                 {tutorialContent ? ` (${tutorialContent.units.length} steps)` : ""}
                             </DropdownMenuItem>
+                            {/* The orientation is shown once automatically; this is
+                                how a participant gets back to the vocabulary slides
+                                and the walkthrough afterwards. */}
+                            {tutorialContent?.welcome && (
+                                <DropdownMenuItem onSelect={() => prolificTutorial.openWelcome()}>
+                                    Welcome &amp; orientation
+                                </DropdownMenuItem>
+                            )}
                             {PatchLensTutorial.chapters.map((chapter, idx) => (
                                 <DropdownMenuItem
                                     key={chapter.title}
@@ -605,18 +790,13 @@ export default function PatchLensArea({
                 </div>
             </div>
 
+            {/* No standing explainer above the prompts: this column is where the
+                work happens, and a paragraph of grey text at the top of it pushed
+                the boxes down and got skipped. The framing now lives in the guided
+                tutorial's welcome slideshow and the walkthrough that follows it
+                (see TutorialWelcomeDialog / orientationTour), and in the Tutorial
+                menu's chapters for anyone not running the guided tutorial. */}
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
-                <p className="rounded border bg-muted/40 p-2.5 text-xs text-muted-foreground leading-snug">
-                    A model predicts the next token at each position in your text through
-                    computations that run across many layers. Patch Lens shows the predicted token
-                    at each layer and position if you stop those computations early.
-                    <br />
-                    <br />
-                    Fill in the first box to see that read-out on its own. Fill in both, and you can
-                    drag a piece of the first prompt&apos;s thinking onto the second to see what it
-                    changes.
-                </p>
-
                 <div id="patch-lens-source-prompt" className="flex flex-col gap-1.5 relative">
                     {sourcePrompt ? (
                         <button
@@ -660,9 +840,8 @@ export default function PatchLensArea({
                         predictionToken={srcPrediction}
                     />
                     <p className="text-xs text-muted-foreground leading-snug">
-                        The prompt you <span className="font-medium">copy from</span>. It works best
-                        when the predicted answer is obvious, like &quot;The opposite of hot
-                        is&quot;, where the model should say &quot;cold&quot;.
+                        The prompt you <span className="font-medium">copy from</span>. End it right
+                        before the answer, like &quot;The opposite of hot is&quot;.
                     </p>
                 </div>
 
@@ -699,17 +878,11 @@ export default function PatchLensArea({
                         predictionToken={tgtPrediction}
                     />
                     <p className="text-xs text-muted-foreground leading-snug">
-                        Optional. The prompt you <span className="font-medium">copy into</span>.
-                        Pick one worded much the same way but with a different answer, like
-                        &quot;The opposite of tall is&quot;. Leave it blank to look at the first
-                        prompt on its own.
-                    </p>
-                    <p className="text-xs text-muted-foreground leading-snug">
-                        With both filled in, run to see a heatmap for each prompt.{" "}
-                        <span className="font-medium">Drag a cell</span> from the first heatmap onto
-                        the second to copy what the model had worked out at that token position and
-                        layer. If the second prompt&apos;s answer changes, that cell was carrying
-                        the answer.
+                        Optional. The prompt you <span className="font-medium">copy into</span> —
+                        worded much the same way but with a different answer, like &quot;The
+                        opposite of tall is&quot;. With both filled in you get a heatmap each, and
+                        you can <span className="font-medium">drag a cell</span> from the first onto
+                        the second. Leave it blank for a single read-out.
                     </p>
                 </div>
 
@@ -742,11 +915,33 @@ export default function PatchLensArea({
                     </p>
                 )}
 
+                {/* Orientation, before step 1 — and reopenable from the Tutorial
+                    menu. Finishing the slides hands off to the walkthrough. */}
+                {tutorialContent?.welcome && (
+                    <TutorialWelcomeDialog
+                        welcome={tutorialContent.welcome}
+                        open={prolificTutorial.welcomeOpen}
+                        onSkip={() => {
+                            prolificTutorial.closeWelcome();
+                            capture("tutorial_welcome_dismissed", { started_tour: false });
+                        }}
+                        onStartTour={() => {
+                            prolificTutorial.closeWelcome();
+                            capture("tutorial_welcome_dismissed", { started_tour: true });
+                            startOrientationTour();
+                        }}
+                        onSlideShown={(index, slideTitle) =>
+                            capture("tutorial_welcome_slide_shown", { index, slide: slideTitle })
+                        }
+                    />
+                )}
+
                 <TutorialActivityPanel
                     runNonce={runTokens.nonce}
                     topToken={runTokens.top}
                     secondToken={runTokens.second}
                     runUnitIdx={runTokens.unitIdx}
+                    glossary={tutorialContent?.glossary}
                     surveyUrl={surveyUrl}
                     completionThanks={workshop?.completionText}
                     workshopMode={!!workshop}
@@ -757,12 +952,7 @@ export default function PatchLensArea({
                         setSrcEditing(true);
                         setTimeout(() => srcTextareaRef.current?.focus(), 0);
                     }}
-                    onInsertPatchPair={({ source, target }) => {
-                        onSourcePromptChange(source);
-                        onTargetPromptChange(target);
-                        setSrcEditing(true);
-                        setTgtEditing(true);
-                    }}
+                    onInsertPatchPair={handleTryPatchPair}
                 />
 
                 {onSelectRun && <LensHistoryRail onSelectRun={onSelectRun} />}

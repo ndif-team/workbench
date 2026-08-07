@@ -228,6 +228,14 @@ export const deriveProgressByWorkspace = (
         if (e.eventType === "hint_shown") {
             p.hintsUsed += 1;
         } else if (e.eventType === "step_completed") {
+            // Ignore anything outside the canonical order. The orientation
+            // walkthrough writes its own `tour-`-prefixed step ids (see
+            // orientationTour.ts) so its drop-off is measurable, but "furthest step
+            // reached" and "steps completed" mean *tutorial units* — an unranked id
+            // would otherwise become a participant's furthest step (rank -1 beats
+            // the initial best of -1) and show a tour step in the participants
+            // table for anyone who never finished a unit.
+            if (stepOrder && !orderIndex.has(e.stepId)) continue;
             if (!p.completedStepIds.includes(e.stepId)) p.completedStepIds.push(e.stepId);
             if (stepOrder) {
                 const rank = orderIndex.get(e.stepId) ?? -1;
