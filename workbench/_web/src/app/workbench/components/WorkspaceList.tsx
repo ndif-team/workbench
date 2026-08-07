@@ -10,13 +10,10 @@ import { Trash2, BarChart3, FileText, ChevronLeft, ChevronRight } from "lucide-r
 import { useEffect, useMemo, useState } from "react";
 import { useIsDark } from "@/hooks/useIsDark";
 import { useModelsSection } from "@/stores/useModelsSection";
+import { queryKeys } from "@/lib/queryKeys";
 
 const PAGE_SIZE_EXPANDED = 8; // 2 rows × 4 cols at lg+, 4 rows × 2 cols at sm
 const PAGE_SIZE_COLLAPSED = 16; // 4 rows × 4 cols at lg+ — uses the freed vertical space
-
-interface WorkspaceListProps {
-    userId: string;
-}
 
 interface Workspace {
     id: string;
@@ -123,12 +120,12 @@ function WorkspaceCard({
     );
 }
 
-export function WorkspaceList({ userId }: WorkspaceListProps) {
+export function WorkspaceList() {
     const deleteWorkspaceMutation = useDeleteWorkspace();
 
     const { data: workspaces, isLoading } = useQuery<Workspace[]>({
-        queryKey: ["workspaces"],
-        queryFn: () => getWorkspaces(userId),
+        queryKey: queryKeys.workspaces.all,
+        queryFn: () => getWorkspaces(),
         staleTime: 0,
     });
 
@@ -155,7 +152,7 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
         e.preventDefault();
         e.stopPropagation();
         if (confirm("Are you sure you want to delete this workspace?")) {
-            deleteWorkspaceMutation.mutate({ userId, workspaceId });
+            deleteWorkspaceMutation.mutate({ workspaceId });
         }
     };
 
@@ -171,7 +168,7 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
         <>
             <div className="flex justify-between items-center mb-6 pl-5">
                 <h2 className="text-lg">Workspaces</h2>
-                <CreateWorkspaceDialog userId={userId} />
+                <CreateWorkspaceDialog />
             </div>
 
             {!workspaces || workspaces.length === 0 ? (
