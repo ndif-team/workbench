@@ -1,10 +1,8 @@
-import { CompletionCard } from "./CompletionCard";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { LensConfig } from "@/db/schema";
 import { queryKeys } from "@/lib/queryKeys";
-import { ChartType } from "@/types/charts";
 import { useMemo, useEffect, useState } from "react";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
@@ -104,15 +102,6 @@ export default function LensArea() {
                         </TooltipContent>
                     </Tooltip>
                 )}
-            </div>
-
-            <div className="p-3">
-                {/* Assume lens config here; unified page will gate by config.type */}
-                <CompletionCard
-                    initialConfig={config as LensConfig}
-                    chartType={chart?.type as ChartType}
-                    selectedModel={selectedModel}
-                />
             </div>
         </div>
     );

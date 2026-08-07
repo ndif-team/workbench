@@ -140,7 +140,12 @@ export function Lens2Controls({
     const { mutateAsync: computeLens2, isPending: isComputing } = useLens2();
     const { mutateAsync: updateConfig, isPending: isUpdatingConfig } = useUpdateChartConfig();
 
-    const isExecuting = isComputing || isUpdatingConfig;
+    // Flipped synchronously at the top of handleSubmit so the Run button shows
+    // progress on the same frame as the click — before the async tokenize +
+    // compute round-trips, which otherwise leave the UI idle for a beat.
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const isExecuting = isComputing || isUpdatingConfig || isSubmitting;
     const interactive = modelsAvailable && !isExecuting;
 
     useEffect(() => {
@@ -224,9 +229,9 @@ export function Lens2Controls({
                 setTokenData(tokens);
                 setTokenizedModel(selectedModel);
                 setEditingText(false);
-                // Keep the textarea state aligned with the trimmed value so
-                // tokensInSync (which compares against `prompt`) and the Run
-                // button stay correct after auto-run.
+                // Keep the textarea state aligned with the trimmed value so the
+                // token view and the blur-retokenize check stay correct after
+                // auto-run.
                 setPrompt(trimmedPrompt);
                 lastTokenizedPromptRef.current = trimmedPrompt;
                 const config: Lens2ConfigData = {
@@ -344,64 +349,88 @@ export function Lens2Controls({
         // token and collapses the model's prediction onto whitespace/digits.
         const trimmedPrompt = prompt.trim();
         if (!trimmedPrompt) return;
-        let tokens: Token[];
+
+        // Register the click on this frame so the button reflects progress
+        // immediately, ahead of the async work below.
+        setIsSubmitting(true);
         try {
-            tokens = await encodeText(trimmedPrompt, selectedModel);
-        } catch (error) {
-            if (error instanceof TokenizerLoadError) {
-                toast.error(
-                    `Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`,
-                );
+            // Reuse the already-visible tokens when they were produced for this
+            // exact prompt+model (e.g. by a prior blur or auto-run) instead of
+            // paying another tokenizer round-trip.
+            const canReuseTokens =
+                tokenData.length > 0 &&
+                tokenizedModel === selectedModel &&
+                lastTokenizedPromptRef.current === trimmedPrompt;
+
+            let tokens: Token[];
+            if (canReuseTokens) {
+                tokens = tokenData;
             } else {
-                toast.error("Failed to tokenize prompt.");
+                try {
+                    tokens = await encodeText(trimmedPrompt, selectedModel);
+                } catch (error) {
+                    if (error instanceof TokenizerLoadError) {
+                        toast.error(
+                            `Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`,
+                        );
+                    } else {
+                        toast.error("Failed to tokenize prompt.");
+                    }
+                    return;
+                }
             }
-            return;
-        }
-        if (tokens.length <= 1) {
-            toast.error("Please enter a longer prompt.");
-            return;
-        }
-        setTokenData(tokens);
-        setTokenizedModel(selectedModel);
-        lastTokenizedPromptRef.current = trimmedPrompt;
+            if (tokens.length <= 1) {
+                toast.error("Please enter a longer prompt.");
+                return;
+            }
+            if (!canReuseTokens) {
+                setTokenData(tokens);
+                setTokenizedModel(selectedModel);
+                lastTokenizedPromptRef.current = trimmedPrompt;
+            }
 
-        const config: Lens2ConfigData = {
-            model: selectedModel,
-            prompt: trimmedPrompt,
-            topk,
-            includeEntropy,
-        };
+            const config: Lens2ConfigData = {
+                model: selectedModel,
+                prompt: trimmedPrompt,
+                topk,
+                includeEntropy,
+            };
 
-        capture("run_submitted", {
-            tool: "lens2",
-            model: selectedModel,
-            prompt_length: trimmedPrompt.length,
-            topk,
-            include_entropy: includeEntropy,
-            auto: false,
-        });
-        try {
-            await computeLens2({
-                lensRequest: { completion: config, chartId },
-                configId: initialConfig.id,
+            capture("run_submitted", {
+                tool: "lens2",
+                model: selectedModel,
+                prompt_length: trimmedPrompt.length,
+                topk,
+                include_entropy: includeEntropy,
+                auto: false,
             });
-            capture("run_completed", { tool: "lens2", model: selectedModel });
-        } catch (err) {
-            capture("run_failed", { tool: "lens2", error: String(err) });
-            throw err;
+            try {
+                await computeLens2({
+                    lensRequest: { completion: config, chartId },
+                    configId: initialConfig.id,
+                });
+                capture("run_completed", { tool: "lens2", model: selectedModel });
+            } catch (err) {
+                capture("run_failed", { tool: "lens2", error: String(err) });
+                throw err;
+            }
+            await updateConfig({
+                configId: initialConfig.id,
+                chartId,
+                config: { data: config, workspaceId, type: "lens2" },
+            });
+            // Land draftModel on the model that just persisted so the banner
+            // doesn't flash between the run completing and the refetch arriving.
+            setDraftModel(selectedModel);
+            lastSyncedPromptRef.current = trimmedPrompt;
+            setEditingText(false);
+        } finally {
+            setIsSubmitting(false);
         }
-        await updateConfig({
-            configId: initialConfig.id,
-            chartId,
-            config: { data: config, workspaceId, type: "lens2" },
-        });
-        // Land draftModel on the model that just persisted so the banner
-        // doesn't flash between the run completing and the refetch arriving.
-        setDraftModel(selectedModel);
-        lastSyncedPromptRef.current = trimmedPrompt;
-        setEditingText(false);
     }, [
         prompt,
+        tokenData,
+        tokenizedModel,
         topk,
         includeEntropy,
         selectedModel,
@@ -419,7 +448,10 @@ export function Lens2Controls({
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            // Enter runs the lens; Shift+Enter inserts a newline. handleSubmit
+            // tokenizes the prompt before computing, so running straight from
+            // the textarea (without a prior blur/tokenize) is always safe.
+            if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSubmit();
             }
@@ -536,14 +568,6 @@ export function Lens2Controls({
     const showSync = modelMismatchVsConfig;
     const viewMode = !modelsAvailable && !modelsLoading;
 
-    // Run is only enabled when the visible tokens (a) were produced by the
-    // selected model and (b) correspond to the current prompt — i.e. there
-    // are no pending edits or model swaps waiting on retokenization.
-    const tokensInSync =
-        tokenData.length > 0 &&
-        tokenizedModel === selectedModel &&
-        lastTokenizedPromptRef.current === prompt;
-
     return (
         <>
             <ToolPanelHeader
@@ -641,7 +665,7 @@ export function Lens2Controls({
 
                 <Button
                     onClick={handleSubmit}
-                    disabled={!interactive || !prompt.trim() || !tokensInSync}
+                    disabled={!interactive || !prompt.trim()}
                     className="w-full"
                 >
                     {isExecuting ? (
@@ -658,8 +682,9 @@ export function Lens2Controls({
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center">
-                    <kbd className="px-1 py-0.5 bg-muted rounded text-xs">⌘</kbd> +{" "}
-                    <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd> to run
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd> to run ·{" "}
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Shift</kbd> +{" "}
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd> for a new line
                 </p>
             </div>
         </>

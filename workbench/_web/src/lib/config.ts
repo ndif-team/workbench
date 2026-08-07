@@ -25,11 +25,8 @@ const config = {
         startActivationPatching: "/activation_patching/start",
         resultsActivationPatching: (jobId: string) => `/activation_patching/results/${jobId}`,
 
-        startPrediction: "/models/start-prediction",
-        resultsPrediction: (jobId: string) => `/models/results-prediction/${jobId}`,
-
-        startGenerate: "/models/start-generate",
-        resultsGenerate: (jobId: string) => `/models/results-generate/${jobId}`,
+        startGenerate: "/generate/start",
+        resultsGenerate: (jobId: string) => `/generate/results/${jobId}`,
 
         models: "/models/",
     },

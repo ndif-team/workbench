@@ -34,7 +34,7 @@ export async function submitWarmup(model: string): Promise<string | null> {
         // response and the warmup silently "succeeds" with no job_id.
         credentials: "include",
         headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ model, prompt: "Hello", max_new_tokens: 1 }),
+        body: JSON.stringify({ model, prompt: "Hello", num_tokens: 1 }),
     });
     if (!resp.ok) {
         throw new DeploymentError(`Failed to start deployment (HTTP ${resp.status})`);

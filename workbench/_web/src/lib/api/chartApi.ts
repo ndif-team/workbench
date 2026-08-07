@@ -8,6 +8,10 @@ import {
     createPatchLensChartPair,
     createPatchChartPair,
     createActivationPatchingChartPair,
+    convertLens2ChartInPlace,
+    convertJLensChartInPlace,
+    convertActivationPatchingChartInPlace,
+    convertPatchLensChartInPlace,
     updateChartName,
     updateChartView,
     copyChart,
@@ -248,15 +252,33 @@ export const useDeleteChart = () => {
     });
 };
 
+// Fresh-chart defaults, shared between the create hooks and the in-place
+// convert hook so a converted chart starts from the same blank state as a
+// newly created one of that type.
+const DEFAULT_LENS2_CONFIG: Lens2ConfigData = {
+    prompt: "",
+    model: "",
+    topk: 5,
+    includeEntropy: true,
+};
+const DEFAULT_JLENS_CONFIG: JLensConfigData = {
+    prompt: "",
+    model: "",
+    topk: 5,
+    includeEntropy: true,
+};
+const DEFAULT_ACTIVATION_PATCHING_CONFIG: ActivationPatchingConfigData = {
+    model: "",
+    srcPrompt: "",
+    tgtPrompt: "",
+    srcPos: null,
+    tgtPos: null,
+};
+
 export const useCreateLens2ChartPair = () => {
     const queryClient = useQueryClient();
 
-    const defaultConfig: Lens2ConfigData = {
-        prompt: "",
-        model: "",
-        topk: 5,
-        includeEntropy: true,
-    };
+    const defaultConfig = DEFAULT_LENS2_CONFIG;
 
     return useMutation({
         mutationFn: async ({
@@ -277,12 +299,7 @@ export const useCreateLens2ChartPair = () => {
 export const useCreateJLensChartPair = () => {
     const queryClient = useQueryClient();
 
-    const defaultConfig: JLensConfigData = {
-        prompt: "",
-        model: "",
-        topk: 5,
-        includeEntropy: true,
-    };
+    const defaultConfig = DEFAULT_JLENS_CONFIG;
 
     return useMutation({
         mutationFn: async ({
@@ -363,13 +380,7 @@ export const useCopyChart = () => {
 export const useCreateActivationPatchingChartPair = () => {
     const queryClient = useQueryClient();
 
-    const defaultConfig: ActivationPatchingConfigData = {
-        model: "",
-        srcPrompt: "",
-        tgtPrompt: "",
-        srcPos: null,
-        tgtPos: null,
-    };
+    const defaultConfig = DEFAULT_ACTIVATION_PATCHING_CONFIG;
 
     return useMutation({
         mutationFn: async ({
@@ -383,6 +394,60 @@ export const useCreateActivationPatchingChartPair = () => {
         },
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+        },
+    });
+};
+
+/** Tools a data-less chart can be converted into in place (the sidebar tools). */
+export type ConvertibleTool = "lens2" | "jlens" | "activation-patching" | "patch-lens";
+
+/**
+ * Converts an empty (data-less) chart into a different tool in place, reusing
+ * its row instead of creating a second blank chart. Starts from the same fresh
+ * default config the create hooks use for that tool.
+ */
+export const useConvertChartType = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            chartId,
+            toolType,
+        }: {
+            chartId: string;
+            toolType: ConvertibleTool;
+        }) => {
+            switch (toolType) {
+                case "lens2":
+                    return await convertLens2ChartInPlace(chartId, DEFAULT_LENS2_CONFIG);
+                case "jlens":
+                    return await convertJLensChartInPlace(chartId, DEFAULT_JLENS_CONFIG);
+                case "activation-patching":
+                    return await convertActivationPatchingChartInPlace(
+                        chartId,
+                        DEFAULT_ACTIVATION_PATCHING_CONFIG,
+                    );
+                case "patch-lens":
+                    return await convertPatchLensChartInPlace(chartId);
+                default:
+                    // Fail fast if ConvertibleTool grows a member this switch
+                    // doesn't handle, rather than returning undefined and having
+                    // onSuccess throw on `{ chart }`.
+                    throw new Error(`Unsupported convert target: ${toolType as string}`);
+            }
+        },
+        onSuccess: ({ chart }, { chartId }) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.charts.sidebar(chart.workspaceId),
+            });
+            // Remove (not just invalidate) the chart + config caches so the
+            // destination tool's Area mounts with no data and shows its own
+            // loading skeleton until the fresh, correctly-typed config arrives.
+            // Invalidating would serve the previous tool's cached config for a
+            // frame — harmless for lens2↔jlens (same shape) but a mismatch for
+            // activation-patching. Removing avoids that flash entirely.
+            queryClient.removeQueries({ queryKey: queryKeys.charts.chart(chartId) });
+            queryClient.removeQueries({ queryKey: queryKeys.charts.configByChart(chartId) });
         },
     });
 };
