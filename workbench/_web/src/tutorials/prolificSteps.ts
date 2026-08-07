@@ -10,14 +10,14 @@
  *    (`isLast = unitIdx === total - 1`, `finalStepId = stepOrder.at(-1)`).
  *
  * So what is left here is the seed's own vocabulary, plus a label fallback for an
- * id whose tutorial row no longer exists. The 9 seed units mirror the workshop's
+ * id whose tutorial row no longer exists. The 10 seed units mirror the workshop's
  * full gradient: single-prompt lens → comparison → patching.
  *
- * `append` and `compare` were added after the first Prolific pilot, which showed
- * the old first unit packing five ideas into ~120 words before the participant had
- * done anything, and the patch unit completing for only half of those who reached
- * it. All seven original ids are unchanged, so existing `tutorial_events` rows keep
- * their meaning.
+ * `append`, `howAPredictionIsMade` and `compare` were added after the first Prolific
+ * pilot, which showed the old first unit packing five ideas into ~120 words before
+ * the participant had done anything, and the patch unit completing for only half of
+ * those who reached it. All seven original ids are unchanged, so existing
+ * `tutorial_events` rows keep their meaning.
  *
  * The orientation walkthrough's own step ids are *not* here — they are `tour-`
  * prefixed and live in `orientationTour.ts`, deliberately outside this namespace.
@@ -27,6 +27,7 @@ export const TUTORIAL_STEP_IDS = {
     orientation: "u0-orientation",
     append: "u0b-append",
     whereAnswersComeFrom: "u1-answers",
+    howAPredictionIsMade: "u1b-inside",
     whatModelKnows: "u2-knows",
     patternsBeatFacts: "u3-patterns",
     compare: "u4a-compare",
@@ -42,6 +43,7 @@ export const TUTORIAL_STEP_ORDER: readonly TutorialStepId[] = [
     TUTORIAL_STEP_IDS.orientation,
     TUTORIAL_STEP_IDS.append,
     TUTORIAL_STEP_IDS.whereAnswersComeFrom,
+    TUTORIAL_STEP_IDS.howAPredictionIsMade,
     TUTORIAL_STEP_IDS.whatModelKnows,
     TUTORIAL_STEP_IDS.patternsBeatFacts,
     TUTORIAL_STEP_IDS.compare,
@@ -58,6 +60,7 @@ export const TUTORIAL_STEP_LABELS: Record<TutorialStepId, string> = {
     "u0-orientation": "Read one prediction",
     "u0b-append": "Build up an answer",
     "u1-answers": "Where answers come from",
+    "u1b-inside": "How a prediction is made",
     "u2-knows": "What the model knows",
     "u3-patterns": "Patterns beat facts",
     "u4a-compare": "Two prompts, two heatmaps",

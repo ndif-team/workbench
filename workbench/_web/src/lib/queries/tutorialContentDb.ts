@@ -94,8 +94,10 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
         // Optional, but if present it is rendered — so an empty string or a
         // non-string has to fail here rather than put a blank callout (or a React
         // "objects are not valid as a child" throw) in front of a participant.
-        if (u.why !== undefined && !isText(u.why)) {
-            throw new Error(`Unit "${u.id}" why must be non-empty text when present`);
+        for (const field of ["why", "tryYourOwn"] as const) {
+            if (u[field] !== undefined && !isText(u[field])) {
+                throw new Error(`Unit "${u.id}" ${field} must be non-empty text when present`);
+            }
         }
         if (u.patchPair !== undefined) {
             if (!isText(u.patchPair?.source) || !isText(u.patchPair?.target)) {

@@ -31,6 +31,13 @@ import type { TutorialContent } from "@/types/tutorial-content";
  *  - **`u4a-compare` before the patch unit** — run the pair and read both
  *    heatmaps, no dragging. The patch unit had the lowest completion of any (0.50)
  *    and carries the study's differentiation claim.
+ *  - **New `u1b-inside`** ("How a prediction is made"), the first step that treats
+ *    the grid as more than its bottom-right cell: click a mid-grid cell and read
+ *    the row / column / cone. Without it, "why patch *there*" has no grounding by
+ *    the time the patch step asks the question.
+ *  - **`tryYourOwn` on most units.** The prompt bank is the path of least
+ *    resistance from step 1 to the end, and a participant who only ever clicks it
+ *    never finds out the tool answers questions they brought themselves.
  *  - **`u3-patterns` starts from bare `5+5=`.** Its first bank entry used to be
  *    the already-poisoned prompt, so the one click that sets the step up also
  *    skipped the before-picture the whole point rests on.
@@ -75,7 +82,7 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                 body: [
                     "The model doesn't guess in one step. Your text passes through dozens of processing **layers**, and the guess changes as it goes.",
                     "Patch Lens stops the model at every layer and asks: *what would you say next, if you had to answer right now?* The answers fill a grid:",
-                    "- **Rows** are the words of your text, in the order you typed them.\n- **Columns** are layers — earliest on the left, last on the right.\n- **Each cell** is what the model would have said if it stopped there.",
+                    "- **Rows** are the **tokens** of your text, in order. Not quite words: the model reads in chunks, and long words get split across several.\n- **Columns** are layers — earliest on the left, last on the right.\n- **Each cell** is what the model would have said if it stopped there.",
                     "The **bottom-right cell** — last word, last layer — is the model's real answer. Every question in this tutorial is about that cell.",
                 ].join("\n\n"),
             },
@@ -118,7 +125,7 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             {
                 title: "How the tutorial works",
                 body: [
-                    "Nine short steps, in a column on the right. Each one gives you **one thing to do**, says **why it matters**, and asks what you noticed.",
+                    "Ten short steps, in a column on the right. Each one gives you **one thing to do**, says **why it matters**, nudges you to try a prompt of your own, and asks what you noticed.",
                     "- Stuck? Every step has hints, and the last one just does it for you.\n- Lost a word? The book icon at the top of the column is a glossary.\n- Nothing here is graded, and there are no wrong answers in the notes.",
                     "Next: a quick walk around the screen, running the first prompt together.",
                 ].join("\n\n"),
@@ -134,6 +141,8 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             concept:
                 "The model predicts one token at a time, and nothing more. A token is usually a whole word, sometimes a piece of one or a bit of punctuation. Everything in the heatmap is the model working its way toward that single next token, layer by layer, left to right.",
             why: "Every AI writing tool you have used is doing this one step, over and over — autocomplete, a chat assistant, a coding assistant. If you can read one prediction, you can read all of them.",
+            tryYourOwn:
+                "Before moving on, put a sentence of your own in the box — anything that stops right before its answer — and run it. Seeing the tool answer a question you brought is the point of it.",
             prompts: [EIFFEL],
             hints: [
                 {
@@ -183,6 +192,8 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             concept:
                 "One run gives you one token. Append that token to your prompt, run again, and you get the next one. Repeat, and a whole answer builds up a token at a time. Nothing plans the sentence in advance: each token is chosen with only the text before it in view.",
             why: "This is the whole trick behind AI-written text — there is no draft and no plan, just this loop. It is also why these tools can contradict themselves halfway through a paragraph: nothing was ever committed to.",
+            tryYourOwn:
+                "Try the loop on a sentence of your own. Start something that trails off, keep appending whatever the model predicts, and see where it has taken you after five or six rounds.",
             prompts: [EIFFEL],
             hints: [
                 {
@@ -229,6 +240,8 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             concept:
                 "The model didn't look that answer up. The top prediction is just the most likely next token from patterns in the 2023 training data, and the runner-up ranked just below shows the model was choosing among options, not retrieving one stored fact.",
             why: "The runner-up is why the same question can get a different answer twice. A model ranks candidates rather than looking one up, so how sure it is and whether it is right are two separate things.",
+            tryYourOwn:
+                "Before moving on, try a question of your own — one you know the answer to, and one you doubt the model knows. Compare the runner-ups: how far behind the top guess is it in each case?",
             prompts: [
                 "The largest planet in the solar system is",
                 "The tallest mountain in the world is Mount",
@@ -261,6 +274,78 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             progression: { on: "run", successPredicate: { kind: "always" } },
         },
         {
+            // Reading the grid, before anything asks them to intervene in it. Up to
+            // here every question has been about the bottom-right cell; this is the
+            // first step that treats the rest of the grid as meaningful, which is
+            // what makes "why patch *there*" answerable two steps later.
+            id: TUTORIAL_STEP_IDS.howAPredictionIsMade,
+            kind: "lens",
+            title: "How a prediction is made",
+            task: "Run the prompt, then click the ringed cell in the middle of the grid — not the bottom-right one this time. The side panel shows which position and layer you picked, and its ranked guesses with their percentages. Now look at the grid itself: a row and a column light up through your cell, and a shaded region spreads out behind it.",
+            concept:
+                "Your cell sits in a grid the model filled in one column at a time. The lit column is everything that layer worked out, at every position at once. The lit row is this one position's guess changing as it goes deeper. The shaded region is the cone: the only cells whose results were available when yours was computed — strictly earlier layers, at this position or earlier ones. The model can look back but never forward, which is why the cone opens to the left.",
+            why: "A prediction is not one lookup — it is a value assembled across layers, from a limited set of earlier values. That is what makes the next steps possible: if a piece of information is built somewhere specific, you can find where by changing it and watching what breaks.",
+            tryYourOwn:
+                "Try your own sentence and click a middle cell in it. Does its answer settle into place earlier or later across the layers than this one did? Easy questions often settle sooner.",
+            prompts: [COLOSSEUM],
+            // Ringing a mid-grid cell does the choosing for them, deliberately: the
+            // point is what the cone shows, not which cell they land on. It also
+            // guarantees a middle layer column is rendered — auto-fit downsamples
+            // layers to the column width, so "click a middle cell" is not always
+            // possible unless a spotlight forces one to exist.
+            spotlights: [{ grid: "source", layer: 16, position: 5 }],
+            hints: [
+                {
+                    stage: 1,
+                    text: "Click the ringed cell — the pulsing one partway across the grid. Any middle cell works; that one is just a good example.",
+                },
+                {
+                    stage: 2,
+                    text: "The arrows are the flow. A chevron pointing right hands this position's work to the next layer; a chevron pointing down hands it to the next token. Open 'About this view' at the bottom of the side panel for the row, column and cone in the widget's own words.",
+                },
+                {
+                    stage: 3,
+                    text: "Load this prompt and run it, then click the ringed cell. Read the percentages in the panel, then find the shaded cone behind your cell — it stops at your layer and never reaches to the right of it.",
+                    insertPrompt: COLOSSEUM,
+                    spotlights: [{ grid: "source", layer: 16, position: 5 }],
+                },
+            ],
+            // A conceptual question, so a conceptual instrument: there is no token to
+            // read off here, and a free-text answer would be scored against the
+            // bottom-right cell — the one cell this step is asking them to ignore.
+            check: {
+                kind: "choice",
+                question:
+                    "Which cells could have fed into the one you clicked, according to the cone?",
+                options: [
+                    "Earlier layers, at the same position or earlier ones",
+                    "Every other cell in the grid",
+                    "Only the cell immediately to its left",
+                    "Later layers, at later positions",
+                ],
+                correctIndex: 0,
+            },
+            observationPrompt:
+                "What was the model's top guess at the cell you clicked, and how sure was it? Was that guess anything like the final answer?",
+            observationPlaceholder:
+                "The guess at that middle cell, how sure it was, and how it compared to the final answer…",
+            faqs: [
+                {
+                    q: "Why is the top guess in the middle of the grid nonsense?",
+                    a: "Because it isn't finished. A middle cell is the model's best guess if it had to stop and answer right there, with only part of its computation done. Early guesses are often unrelated words; the answer usually settles into place toward the right. Watching where it settles is the interesting part.",
+                },
+                {
+                    q: "Why does the cone only open to the left?",
+                    a: "Two reasons stacked. A layer can only use what earlier layers produced, so nothing to the right of your cell was available. And each position can only see itself and the text before it — that's the causal mask, and it's why the model can't peek at words that haven't happened yet.",
+                },
+                {
+                    q: "What are the small arrows between the cells?",
+                    a: "The path the computation takes. A chevron pointing right passes this position's state to the next layer. A chevron pointing down passes it along to the next token position. Together they're the two directions information can travel in the grid.",
+                },
+            ],
+            progression: { on: "run", successPredicate: { kind: "always" } },
+        },
+        {
             id: TUTORIAL_STEP_IDS.whatModelKnows,
             kind: "lens",
             title: "What the model knows",
@@ -268,6 +353,8 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             concept:
                 "Right now, the model knows only two things: what Meta pre-trained it on back in 2023, and what's written in this prompt. Nothing else.",
             why: "This is where invented citations and made-up policy details come from. With nothing to recall, the model fills the gap with something plausible — and it looks exactly like an answer it does know. Knowing where its knowledge stops is how you know when to check.",
+            tryYourOwn:
+                "Try the other half of the experiment yourself: write a prompt that states your favourite colour up front and then asks for it. Compare that with asking cold — same question, and only one of them has anything to recall.",
             prompts: [
                 "Earlier I told you my favorite color. My favorite color is",
                 "Earlier I told you my favorite food. My favorite food is",
@@ -319,6 +406,8 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             concept:
                 "You didn't change how the model does math. Line by line, you filled its context with a pattern, and it followed that pattern instead of the real sum. Start fresh and the context is empty again, so 5+5 goes back to 10.",
             why: "This is the mechanism behind prompt injection and jailbreaks: whatever is in the context steers the answer, and it can beat a fact the model plainly knows. It is also why worked examples in a prompt are so effective — the same lever, pointed somewhere useful.",
+            tryYourOwn:
+                "Try your own version before moving on. Different numbers, a bigger offset, or a pattern that is not arithmetic at all. How few lines can you get away with, and does the model ever refuse to follow?",
             prompts: ["5+5=", "3+3=7\n4+4=9\n5+5=", "1+1=3\n2+2=5\n3+3=7\n5+5="],
             hints: [
                 {
@@ -359,8 +448,10 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             task: "There are now two prompts: a 'source' box and a 'target' box, each with its own heatmap. Click 'Load both prompts and run' (or Run Patch Lens) to build both. Read the bottom-right cell of each one, and find the row in each heatmap that holds the landmark's name. Don't move anything yet.",
             title: "Two prompts, two heatmaps",
             concept:
-                "Each prompt gets its own heatmap, and each reaches its own answer independently. The two are not connected yet. Knowing which row holds the landmark's name in each one is what makes the next step possible.",
+                "Each prompt gets its own heatmap, and each reaches its own answer independently. The two are not connected yet. These two sentences are identical apart from the landmark, so the landmark is the only thing that can explain why one answers Paris and the other Rome — and the row holding that name is where the difference has to live. Finding that row in each grid is what makes the next step possible.",
             why: "Two prompts worded identically apart from one thing is the basic setup of an interpretability experiment. Hold everything else constant, and any difference you find has only one place it could have come from.",
+            tryYourOwn:
+                'Write your own pair — two sentences worded the same way with different answers, like "The opposite of hot is" and "The opposite of tall is". Run them and find where each answer settles.',
             prompts: [EIFFEL, COLOSSEUM],
             patchPair: { source: EIFFEL, target: COLOSSEUM },
             hints: [
@@ -398,8 +489,10 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             task: "Now move a piece of the source into the target. Two cells are ringed for you: one in the source heatmap on the row for 'Tower', one in the target on the row for the end of 'Colosseum'. Drag the source one onto the target one — same column, different prompt. Then read the target's bottom-right cell again.",
             title: "Move a thought",
             concept:
-                "Information lives in specific places inside the model. By copying one place's internal state into another prompt and watching the output change, you can find where a particular piece of information lives. You did not tell the model about Paris; you moved the part of it that already knew.",
+                "Here is what the drag actually does. At the cell you drag from, the source prompt's computation has a value — its half-finished state at that position and layer. Dropping it on the target overwrites the target's value at the same place, and then the target's computation carries on from there, through every layer to its right, as if that value had always been its own. Nothing else about the target changes. So if its final answer moves, the only thing that could have moved it is the value you copied — which means that value was carrying the answer. You did not tell the model about Paris; you moved the part of it that already knew.",
             why: "This is the real research technique — activation patching — and it is how a model gets audited rather than guessed at. Instead of reading the output and speculating, you intervene inside the computation and see what the output depends on.",
+            tryYourOwn:
+                "Before moving on, try it with a pair of your own — two sentences worded alike with different answers. Patch between them and hunt for the cell that flips the answer. It is often not the first one you try, and that is the actual experience of doing this research.",
             prompts: [EIFFEL, COLOSSEUM],
             patchPair: { source: EIFFEL, target: COLOSSEUM },
             // Ringed on arrival, not on a hint: the task text points at these two
@@ -445,6 +538,18 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                 {
                     q: "Which column should I drag from?",
                     a: "A middle one, if you have middle ones to choose from. Middle layers are where the answer is still being assembled, so a swap there can still change the outcome; by the last column the answer is already fixed and a swap does little. If your grid is only showing two or three layer columns, the layers in between are hidden — click one of the amber bands between the columns to expand them, or widen the window.",
+                },
+                {
+                    q: "Why does the layer I pick matter so much?",
+                    a: "Because it decides how much of the computation is left to be affected. Patch too early and the model hasn't finished working out which landmark it's reading, so there's no answer in that value yet to copy. Patch too late and everything downstream is already decided — the cone from that cell barely reaches the output, so nothing changes. Somewhere in the middle the fact has been assembled but not yet used, and that's the window where a swap flips the answer. Finding that window IS the experiment; researchers sweep every layer one at a time and read off where the effect appears.",
+                },
+                {
+                    q: "Why that token position, and not any other?",
+                    a: "Because that's where the model has finished reading the landmark's name. 'Colosseum' is spelled across several tokens, and only at the last of them has the model seen the whole word — so that position is where 'which landmark this is' has been resolved. Patch a position before it and you catch the name half-read; patch a later position, like 'city', and the answer has already been passed along and the copy arrives too late to matter.",
+                },
+                {
+                    q: "So does this prove where the fact is stored?",
+                    a: "It's evidence, not proof, and that distinction is a real one in this field. A patch that changes the output tells you that value mattered for this pair of prompts. It doesn't tell you the fact is stored only there, or that the same cell matters for a different pair. Which is why the technique is used as a sweep across many layers, positions and prompt pairs, rather than a single dramatic drag.",
                 },
             ],
             progression: { on: "patch" },

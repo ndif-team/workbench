@@ -11,6 +11,7 @@ import {
     Lightbulb,
     Minus,
     PanelRightClose,
+    Pencil,
     RotateCcw,
     X,
 } from "lucide-react";
@@ -349,6 +350,21 @@ export function TutorialActivityPanel({
             {/* FAQ callouts */}
             {unit.faqs && unit.faqs.length > 0 && <FaqCallouts faqs={unit.faqs} />}
 
+            {/* "Before you move on, try your own." Last thing in the step, next to
+                Next, because that is the moment it has to compete with. Clicking a
+                bank prompt is the path of least resistance from here to the end, and
+                a participant who only ever does that never finds out the tool
+                answers questions they brought themselves. */}
+            {unit.tryYourOwn && (
+                <p className="flex items-start gap-1.5 rounded border border-dashed px-3 py-2 text-xs leading-snug text-muted-foreground">
+                    <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                    <span>
+                        <span className="font-medium text-foreground">Try your own first.</span>{" "}
+                        {unit.tryYourOwn}
+                    </span>
+                </p>
+            )}
+
             {/* Reset / fresh-start */}
             <button
                 type="button"
@@ -618,6 +634,13 @@ function EmbeddedCheck({
     // check_answered event that would skew the analytics funnel.
     const locked = !!result || alreadyAnswered;
     const isChoice = check.kind === "choice";
+    // A choice check serves two different questions: "which of these tokens did you
+    // see?" and "which of these statements is true?". Decide per group rather than
+    // per option so the set reads consistently — every option short and space-free
+    // is a token set; anything else is prose.
+    const optionsAreTokens =
+        isChoice &&
+        check.options.every((o) => o.trim().length <= 12 && !/\s/.test(o.trim()) && o.length > 0);
 
     const submitTyped = () => {
         if (!value.trim() || locked) return;
@@ -658,7 +681,13 @@ function EmbeddedCheck({
                                     key={`${idx}-${option}`}
                                     size="sm"
                                     variant="outline"
-                                    className="h-auto justify-start whitespace-normal py-1 text-left text-xs font-mono"
+                                    className={`h-auto justify-start whitespace-normal py-1 text-left text-xs ${
+                                        // Mono for a set of tokens (data the
+                                        // participant is reading off the grid), not
+                                        // for a set of prose answers — a conceptual
+                                        // question in monospace reads as code.
+                                        optionsAreTokens ? "font-mono" : ""
+                                    }`}
                                     disabled={locked}
                                     onClick={() => submitChoice(idx)}
                                 >

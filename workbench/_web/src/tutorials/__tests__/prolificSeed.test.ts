@@ -7,10 +7,12 @@ import { validateTutorialContent } from "@/lib/queries/tutorialContentDb";
 import { promptsForUnitEntry } from "@/tutorials/unitPrompts";
 
 const unit = (id: string) => PROLIFIC_TUTORIAL_SEED.units.find((u) => u.id === id)!;
+const indexOf = (id: string) => PROLIFIC_TUTORIAL_SEED.units.findIndex((u) => u.id === id);
+const U3_IDX = indexOf("u3-patterns");
 
 describe("prolific tutorial seed", () => {
-    it("has the 9 canonical units in flow order", () => {
-        expect(PROLIFIC_TUTORIAL_SEED.units.length).toBe(9);
+    it("has the 10 canonical units in flow order", () => {
+        expect(PROLIFIC_TUTORIAL_SEED.units.length).toBe(10);
         expect(PROLIFIC_TUTORIAL_SEED.units.map((u) => u.id)).toEqual([...TUTORIAL_STEP_ORDER]);
     });
 
@@ -49,6 +51,50 @@ describe("prolific tutorial seed", () => {
         expect(cards.length).toBeGreaterThanOrEqual(4);
         for (const term of ["Token", "Layer", "Cell"]) {
             expect(cards.map((c) => c.term)).toContain(term);
+        }
+    });
+
+    // The slideshow states the step count in prose, so it can silently contradict
+    // the content the moment a unit is added — which it did, the first time one was.
+    it("the welcome slideshow's step count matches the units", () => {
+        const spelled = [
+            "zero",
+            "one",
+            "two",
+            "three",
+            "four",
+            "five",
+            "six",
+            "seven",
+            "eight",
+            "nine",
+            "ten",
+            "eleven",
+            "twelve",
+        ][PROLIFIC_TUTORIAL_SEED.units.length];
+        const bodies = PROLIFIC_TUTORIAL_SEED.welcome!.slides.map((s) => s.body ?? "").join(" ");
+        expect(bodies.toLowerCase()).toContain(`${spelled} short steps`);
+    });
+
+    // The grid-reading step has to come before the step that asks them to choose a
+    // cell to patch; otherwise "why there?" has nothing to stand on.
+    it("teaches how a prediction is made before asking for an intervention", () => {
+        expect(indexOf("u1b-inside")).toBeLessThan(indexOf("u4a-compare"));
+        expect(indexOf("u1b-inside")).toBeLessThan(indexOf("u4-patching"));
+        // It rings a mid-grid cell: auto-fit can downsample middle layers away, so
+        // "click a middle cell" isn't reliably possible without one.
+        const cells = unit("u1b-inside").spotlights ?? [];
+        expect(cells.length).toBe(1);
+        expect(cells[0].layer).not.toBe("last");
+        expect(cells[0].position).not.toBe("last");
+    });
+
+    // The bank is the frictionless route to the end; every step that can invite a
+    // prompt of their own should. The two free-form steps already are that invitation.
+    it("nudges a prompt of their own on every guided step", () => {
+        for (const u of PROLIFIC_TUTORIAL_SEED.units) {
+            if (u.progression.on === "manual") continue;
+            expect(u.tryYourOwn?.length ?? 0).toBeGreaterThan(0);
         }
     });
 
@@ -96,7 +142,7 @@ describe("prolific tutorial seed", () => {
         expect(patterns.prompts.slice(1).every((p) => p.includes("\n"))).toBe(true);
         // And arriving at the step restores that bare sum, not a poisoned prompt.
         expect(
-            promptsForUnitEntry(PROLIFIC_TUTORIAL_SEED.units, 4, { source: "", target: "" }),
+            promptsForUnitEntry(PROLIFIC_TUTORIAL_SEED.units, U3_IDX, { source: "", target: "" }),
         ).toEqual({ source: "5+5=" });
     });
 

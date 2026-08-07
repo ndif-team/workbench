@@ -150,6 +150,13 @@ export interface TutorialUnit {
     spotlights?: SpotlightTarget[];
     hints: HintRung[];
     check?: UnitCheck;
+    /**
+     * A nudge to run something of their own before advancing, shown at the end of
+     * the step. Separate from `prompts` on purpose: the bank is known-good prompts
+     * that keep a stuck participant moving, and clicking one is the path of least
+     * resistance all the way to the end. This is the invitation to leave it.
+     */
+    tryYourOwn?: string;
     // The reflective prompt for the observation box.
     observationPrompt: string;
     // Per-unit contextual placeholders (fall back to generic copy when absent).
