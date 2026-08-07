@@ -402,6 +402,10 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             why: "This is the real research technique — activation patching — and it is how a model gets audited rather than guessed at. Instead of reading the output and speculating, you intervene inside the computation and see what the output depends on.",
             prompts: [EIFFEL, COLOSSEUM],
             patchPair: { source: EIFFEL, target: COLOSSEUM },
+            // Ringed on arrival, not on a hint: the task text points at these two
+            // cells, and the ring is also what makes the widget render layer 20 in a
+            // narrow column (auto-fit would otherwise downsample it away).
+            spotlights: PATCH_DRAG,
             hints: [
                 {
                     // Both ends lit from the first rung. Naming the drop cell in

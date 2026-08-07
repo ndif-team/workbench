@@ -133,6 +133,21 @@ export interface TutorialUnit {
     prompts: string[];
     // For patch units, a source/target pair to preload.
     patchPair?: { source: string; target: string };
+    /**
+     * Cells to ring as soon as the participant arrives at this unit, before any
+     * hint is revealed.
+     *
+     * A hint-only spotlight is not enough for the patch step: the drag is the one
+     * interaction prose cannot convey, so the step's own instructions have to be
+     * able to say "drag this cell onto that one" and have the cells actually
+     * marked. It also forces the widget to render those layers — auto-fit
+     * downsamples layers to the available width, and in a narrow column the layer
+     * a hint wants to point at may not be on screen at all.
+     *
+     * Leave unset on a step whose task IS to find the cell; ringing it on arrival
+     * does that work for the participant.
+     */
+    spotlights?: SpotlightTarget[];
     hints: HintRung[];
     check?: UnitCheck;
     // The reflective prompt for the observation box.

@@ -67,6 +67,16 @@ describe("prolific tutorial seed", () => {
         expect(compare.check).toBeUndefined();
     });
 
+    // The task text says "two cells are ringed for you", so they have to be ringed
+    // on arrival — not only once a hint is revealed. The ring is also what forces
+    // the widget to render that layer when a narrow column downsamples layers.
+    it("the patch step rings both ends of the drag on arrival", () => {
+        const cells = unit("u4-patching").spotlights ?? [];
+        expect(cells.map((c) => c.grid).sort()).toEqual(["source", "target"]);
+        // And the compare step deliberately does NOT: finding those rows is its task.
+        expect(unit("u4a-compare").spotlights).toBeUndefined();
+    });
+
     // Every hint that names a cell in prose also rings it. A hint that has to give
     // coordinates ("the 'um' cell at the end of 'Colosseum'") is a hint about a
     // missing affordance, and the drag is the one interaction prose can't convey.

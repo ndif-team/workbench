@@ -141,15 +141,23 @@ export function TutorialActivityPanel({
     const isPatchUnit = unit?.progression.on === "patch";
     const patchToken = store.patchTokenByUnit[store.unitIdx] ?? null;
 
-    // Clear any spotlight when the unit changes or the tutorial closes. Declared
-    // before the patch-result effect so that on arriving back at a patched step,
-    // this clears and that one re-lights, in the same commit.
+    // On arriving at a unit, ring the cells that unit asks about — and clear
+    // whatever the previous unit lit. Declared before the patch-result effect so
+    // that on arriving back at a patched step, this runs and that one re-lights,
+    // in the same commit.
+    //
+    // Unit-level spotlights are not a nicety on the patch step. Its task says
+    // "drag this ringed cell onto that one", which was a lie while spotlights only
+    // fired on a revealed hint; and the ring is also what forces the widget to
+    // render that layer at all, since auto-fit downsamples layers to the column
+    // width and a narrow display can drop the layer the step is about.
+    const unitSpotlights = unit?.spotlights;
     const spotlitPatch = useRef<string | null>(null);
     useEffect(() => {
         spotlitPatch.current = null;
-        onSpotlight?.(null);
+        onSpotlight?.(unitSpotlights?.length ? unitSpotlights : null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [store.unitIdx, store.active]);
+    }, [store.unitIdx, store.active, unitSpotlights]);
 
     // Point at the target's post-patch output the moment a patch lands. On the
     // step carrying the whole point of the tool, participants performed the

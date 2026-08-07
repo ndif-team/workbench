@@ -303,6 +303,31 @@ describe("tutorial content", () => {
         ).toThrow();
     });
 
+    // A unit-level spotlight is what the patch step's instructions point at, and
+    // what forces a downsampled layer to render — a malformed one silently rings
+    // nothing, leaving the task text describing cells that aren't marked.
+    it("rejects a malformed unit spotlight", () => {
+        const base = tinyContent().units[0];
+        const withSpotlights = (spotlights: unknown) =>
+            validateTutorialContent({
+                version: 1,
+                units: [{ ...base, spotlights: spotlights as TutorialUnit["spotlights"] }],
+            });
+
+        expect(() => withSpotlights([])).toThrow();
+        expect(() => withSpotlights("source")).toThrow();
+        expect(() => withSpotlights([{ grid: "nope", layer: 1, position: 1 }])).toThrow();
+        expect(() => withSpotlights([{ grid: "source", layer: -1, position: 1 }])).toThrow();
+        expect(() => withSpotlights([{ grid: "source", layer: 1.5, position: 1 }])).toThrow();
+        expect(() => withSpotlights([{ grid: "source", position: 1 }])).toThrow();
+        expect(() =>
+            withSpotlights([
+                { grid: "source", layer: 20, position: 5 },
+                { grid: "target", layer: "last", position: "last" },
+            ]),
+        ).not.toThrow();
+    });
+
     it("rejects a malformed hint spotlight", () => {
         const base = tinyContent().units[0];
         const withHint = (hint: HintRung) =>

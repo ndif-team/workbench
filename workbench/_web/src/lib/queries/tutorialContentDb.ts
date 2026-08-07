@@ -112,23 +112,36 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
                 }
             }
         }
-        for (const h of u.hints) {
-            if (typeof h?.stage !== "number" || typeof h?.text !== "string") {
-                throw new Error(`Unit "${u.id}" has a malformed hint rung`);
-            }
-            // A spotlight the widget can't resolve silently highlights nothing —
-            // exactly the rung a stuck participant reached for — so check the shape.
-            for (const s of [...(h.spotlights ?? []), ...(h.spotlight ? [h.spotlight] : [])]) {
+        // A spotlight the widget can't resolve silently highlights nothing — for a
+        // hint, exactly the rung a stuck participant reached for; for a unit, the
+        // cells its instructions tell them to drag between.
+        const checkSpotlights = (cells: unknown[], where: string) => {
+            for (const s of cells as { grid?: unknown; layer?: unknown; position?: unknown }[]) {
                 if (
                     !validGrids.has(s?.grid) ||
                     !isCellIndex(s?.layer) ||
                     !isCellIndex(s?.position)
                 ) {
                     throw new Error(
-                        `Unit "${u.id}" hint ${h.stage} has a malformed spotlight (needs grid source|target|result and a non-negative integer or "last" layer/position)`,
+                        `Unit "${u.id}" ${where} has a malformed spotlight (needs grid source|target|result and a non-negative integer or "last" layer/position)`,
                     );
                 }
             }
+        };
+        if (u.spotlights !== undefined) {
+            if (!Array.isArray(u.spotlights) || u.spotlights.length === 0) {
+                throw new Error(`Unit "${u.id}" spotlights must be a non-empty array`);
+            }
+            checkSpotlights(u.spotlights, "spotlights");
+        }
+        for (const h of u.hints) {
+            if (typeof h?.stage !== "number" || typeof h?.text !== "string") {
+                throw new Error(`Unit "${u.id}" has a malformed hint rung`);
+            }
+            checkSpotlights(
+                [...(h.spotlights ?? []), ...(h.spotlight ? [h.spotlight] : [])],
+                `hint ${h.stage}`,
+            );
         }
         if (!u.progression || !validOn.has(u.progression.on)) {
             throw new Error(`Unit "${u.id}" needs a progression.on of run, patch, or manual`);
