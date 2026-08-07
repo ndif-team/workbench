@@ -41,6 +41,15 @@ export const DEFAULT_GLOSSARY: GlossaryEntry[] = [
             "The model's actual answer — the last position, after the last layer. When a question asks what the model predicted, read this one.",
     },
     {
+        // The single most common "is it broken?" report: a cell showing ␣ or ↵
+        // reads as the tool's own formatting rather than as something the model
+        // chose. The grid carries a key for whichever marks are on screen; this is
+        // the version that stays reachable from every step.
+        term: "␣ and ↵ in a cell",
+        definition:
+            "A space and a line break. Whitespace is a token like any other, so the model predicts it like any other — these are real predictions, not formatting. A predicted line break means the model thinks the text is finished.",
+    },
+    {
         term: "Probability",
         definition:
             "How sure the model is about a guess, between 0 and 1. Stronger colour means more sure.",

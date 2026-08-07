@@ -40,7 +40,7 @@ export function orientationTourSteps({ docked }: { docked: boolean }): ExtendedS
             selector: "#patch-lens-source-prompt",
             stepId: "tour-prompt",
             content:
-                "This is where your text goes. The first prompt is already loaded: `The Eiffel Tower is in the city of`.\n\nNotice it stops right before the answer. That is on purpose — the model only ever predicts what comes next, so the answer has to be the next word.",
+                "This is where your text goes. The first prompt is already loaded: `The Eiffel Tower is in the city of`.\n\nLook at how it's displayed: not as words, but split into boxed chunks called tokens — and they don't line up with words. 'Eiffel' alone is split into three. Tokens are the units the model actually reads and writes, so this is the text as the model sees it.\n\nNotice the prompt stops right before the answer. That is on purpose — the model only ever predicts the next token, so the answer has to come next.",
         },
         {
             selector: "#patch-lens-run",
@@ -62,7 +62,7 @@ export function orientationTourSteps({ docked }: { docked: boolean }): ExtendedS
             selector: "#patch-lens-display",
             stepId: "tour-answer-cell",
             content:
-                "The cell that matters most is the bottom-right one: last position, last layer. That is the model's actual answer.\n\nEvery question this tutorial asks you is about that cell.",
+                "The cell that matters most is the bottom-right one: last position, last layer. That is the model's actual answer.\n\nEvery question this tutorial asks you is about that cell.\n\nSome cells show a `␣` or a `↵`. Those are a space and a line break, and they are genuine predictions — whitespace is a token the model ranks like any other. The key under the grid names whichever marks are on screen.",
             ...watchDisplay,
         },
         {
