@@ -312,16 +312,34 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         // already filtered. createChartConfigPair re-checks server-side.
         if (workshop && !workshop.allowedTools.includes(toolType as WorkshopTool)) return;
 
-        // Reuse an empty chart in place: when the open chart has no saved
-        // result, clicking a tool repurposes that chart rather than spawning a
-        // second blank one. Clicking the tool the empty chart already is stays
-        // put (no-op) instead of stacking another. Legacy "patch" isn't
-        // sidebar-clickable, so it's never a convert target. A run in flight
-        // (writing to the open chart) also forces the create path, so we never
-        // race a result write.
         const currentChart = chartId ? charts?.find((c) => c.id === chartId) : undefined;
-        if (currentChart && !currentChart.hasData && toolType !== "patch" && runsInFlight === 0) {
-            if (currentChart.toolType === toolType) return; // already this empty tool
+
+        // Clicking the tool an empty chart already is stays put (no-op) rather
+        // than stacking a duplicate — regardless of whether its model is
+        // deploying or a run is in flight. Legacy "patch" isn't sidebar-clickable.
+        if (
+            currentChart &&
+            !currentChart.hasData &&
+            toolType !== "patch" &&
+            currentChart.toolType === toolType
+        ) {
+            return;
+        }
+
+        // Reuse an empty chart in place: when the open chart has no saved result,
+        // clicking a *different* tool repurposes that chart rather than spawning
+        // a second blank one. A run in flight (writing to the open chart) forces
+        // the create path so we never race a result write. A chart whose model is
+        // mid-deploy renders as a DeployCard, not a ChartCard — converting it
+        // would reset its model and disrupt the warmup, so it too falls through.
+        const currentDeploying = !!currentChart && deployStateOf(currentChart) === "deploying";
+        if (
+            currentChart &&
+            !currentChart.hasData &&
+            !currentDeploying &&
+            toolType !== "patch" &&
+            runsInFlight === 0
+        ) {
             setSwitchingChartId(currentChart.id);
             convertChartType(
                 { chartId: currentChart.id, toolType },
