@@ -225,6 +225,11 @@ export function PatchLensDisplay({
     // Clear the persisted patch when the user resets the intervention, so the
     // controlled `intervention` prop stops re-supplying it. The run keeps its own
     // patch record (history is unaffected) — this only un-patches the view.
+    // The last token the widget reported, replayed when the participant arrives at a
+    // patch unit with a result already on screen (see the effect below). Declared
+    // before the reset handler so that handler can clear it.
+    const lastResultToken = useRef<string | null>(null);
+
     const handleResetIntervention = useCallback(async () => {
         if (!chartId) return;
         const existing = await getChartById(chartId);
@@ -233,6 +238,14 @@ export function PatchLensDisplay({
         capture("patch_lens_intervention_reset", {});
         // The guided tutorial announces the patch's outcome; with the patch undone
         // that announcement no longer matches the screen.
+        //
+        // Drop the replay token as well as the recorded result. Clearing only the
+        // store is not enough: the arrival effect below re-files `lastResultToken` on
+        // the next visit to a patch unit, so the banner and the result spotlight came
+        // back with no patch on screen. The widget's null report doesn't cover this
+        // either — resetting deletes the chart's `intervention` but leaves the run's
+        // `interventionResult`, so `resultData` can stay truthy and never emit null.
+        lastResultToken.current = null;
         clearPatchResult(patchUnitIdxRef.current ?? undefined);
         const next = { ...existingData };
         delete next.intervention;
@@ -247,7 +260,6 @@ export function PatchLensDisplay({
 
     // Route the TARGET's post-patch top token to the tutorial store, pinned to
     // the unit the intervention was initiated from (see patchUnitIdxRef).
-    const lastResultToken = useRef<string | null>(null);
     const handleInterventionResult = useCallback(
         (topToken: string | null) => {
             lastResultToken.current = topToken;
