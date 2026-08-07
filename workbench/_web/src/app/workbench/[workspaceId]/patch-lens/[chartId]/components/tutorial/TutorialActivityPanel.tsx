@@ -175,6 +175,15 @@ export function TutorialActivityPanel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [store.active, isPatchUnit, patchToken]);
 
+    // Back to the top of the step on arrival. The steps are long enough to scroll,
+    // and the container keeps its offset across a unit change — so advancing from
+    // the bottom of one step dropped the participant into the middle of the next
+    // one, below its task, with no sign there was anything above.
+    const bodyRef = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+        bodyRef.current?.scrollTo({ top: 0 });
+    }, [store.unitIdx]);
+
     // "Next step" nudges the participant to finish the current step first: the
     // first click on an unfinished step shows a hint instead of advancing (a
     // second click still moves on, so nobody gets stranded). Reset per unit.
@@ -239,7 +248,10 @@ export function TutorialActivityPanel({
     // The step itself. Identical in both placements; only the scroll container
     // differs — docked it fills the column, floating it grows to a max height.
     const body = store.collapsed ? null : (
-        <div className={`p-3 flex flex-col gap-3 overflow-auto ${docked ? "flex-1 min-h-0" : ""}`}>
+        <div
+            ref={bodyRef}
+            className={`p-3 flex flex-col gap-3 overflow-auto ${docked ? "flex-1 min-h-0" : ""}`}
+        >
             {/* Task */}
             <p className="text-sm leading-snug">{unit.task}</p>
 
@@ -312,10 +324,21 @@ export function TutorialActivityPanel({
                         the tool and its result is one cell in a grid of
                         hundreds — easy to perform and then never find. */}
             {isPatchUnit && patchToken && (
-                <p className="rounded border-l-2 border-primary bg-primary/5 px-3 py-2 text-sm leading-snug">
-                    The target now predicts <span className="font-mono">{patchToken}</span>. It is
-                    the bottom-right cell of the patched heatmap — ringed for you.
-                </p>
+                <div className="rounded border-l-2 border-primary bg-primary/5 px-3 py-2 text-sm leading-snug">
+                    <p>
+                        The target now predicts <span className="font-mono">{patchToken}</span>. It
+                        is the bottom-right cell of the patched heatmap — ringed for you.
+                    </p>
+                    {/* The purple region is the clearest thing on screen after a
+                        patch and nothing named it, so it read as decoration. It is
+                        the reach of the intervention — which is the whole result. */}
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                        The purple cells in that heatmap are how far the patch reached. Purple is
+                        the blue source mixed into the pink target: each of those cells sits after
+                        the layer you dropped on, so its value was computed from the one you copied
+                        in. Cells still pink were worked out independently of the patch.
+                    </p>
+                </div>
             )}
 
             {/* Embedded check — auto-scored, log-only */}
@@ -413,6 +436,15 @@ export function TutorialActivityPanel({
                 </Button>
                 <div className="flex items-center gap-1.5">
                     {completed && <span className="text-xs text-primary">✓ Step complete</span>}
+                    {/* Last step: there is nowhere to go next, and an empty corner
+                        left it unclear that anything more was required. Say what
+                        finishes the activity — for a manual step like the final
+                        challenge, submitting the observation is what completes it. */}
+                    {isLast && !completed && (
+                        <span className="text-right text-xs leading-snug text-muted-foreground">
+                            Finish this step and save a note to complete the activity.
+                        </span>
+                    )}
                     {!isLast && (
                         <Button
                             size="sm"

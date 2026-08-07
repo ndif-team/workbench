@@ -540,6 +540,10 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                     a: "A middle one, if you have middle ones to choose from. Middle layers are where the answer is still being assembled, so a swap there can still change the outcome; by the last column the answer is already fixed and a swap does little. If your grid is only showing two or three layer columns, the layers in between are hidden — click one of the amber bands between the columns to expand them, or widen the window.",
                 },
                 {
+                    q: "Why did part of the heatmap turn purple?",
+                    a: "That's the third heatmap, the patched one, showing how far your intervention reached. The source heatmap is blue and the target is pink, so purple is the two mixed together. Every purple cell sits after the layer you dropped on, at that token or a later one — which means its value was computed from the value you copied in. Cells that stayed pink were worked out independently of the patch, so the intervention never touched them. The shape of that purple region is the result of the experiment.",
+                },
+                {
                     q: "Why does the layer I pick matter so much?",
                     a: "Because it decides how much of the computation is left to be affected. Patch too early and the model hasn't finished working out which landmark it's reading, so there's no answer in that value yet to copy. Patch too late and everything downstream is already decided — the cone from that cell barely reaches the output, so nothing changes. Somewhere in the middle the fact has been assembled but not yet used, and that's the window where a swap flips the answer. Finding that window IS the experiment; researchers sweep every layer one at a time and read off where the effect appears.",
                 },
