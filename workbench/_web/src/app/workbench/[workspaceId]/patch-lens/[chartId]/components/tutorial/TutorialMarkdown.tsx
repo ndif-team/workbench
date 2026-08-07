@@ -60,7 +60,12 @@ const components: Components = {
     hr: () => <hr className="border-t" />,
 };
 
-export function TutorialMarkdown({ children }: { children: string }) {
+interface TutorialMarkdownProps {
+    /** The markdown source to render. */
+    children: string;
+}
+
+export function TutorialMarkdown({ children }: TutorialMarkdownProps) {
     return (
         <div className="flex flex-col gap-3">
             <ReactMarkdown components={components}>{children}</ReactMarkdown>

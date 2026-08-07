@@ -52,6 +52,12 @@ const DEFAULT_INTRO_MODEL = "meta-llama/Llama-3.1-8B";
 // target left blank, and the patching chapter walks the user through adding it.
 const EXAMPLE_SOURCE = "The Eiffel Tower is in the city of";
 
+/** A patch step's preloaded prompts: the box to copy from, and the box to copy into. */
+interface PatchPromptPair {
+    source: string;
+    target: string;
+}
+
 interface PatchLensAreaProps {
     sourcePrompt: string;
     targetPrompt: string;
@@ -705,7 +711,7 @@ export default function PatchLensArea({
     // obvious next move — the step says to compare two read-outs that aren't there,
     // and the patch step's drag isn't even possible until a run exists.
     const handleTryPatchPair = useCallback(
-        async ({ source, target }: { source: string; target: string }) => {
+        async ({ source, target }: PatchPromptPair) => {
             const src = source.trim();
             const tgt = target.trim();
             // Both boxes are written synchronously by setPromptText inside

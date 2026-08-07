@@ -20,6 +20,15 @@ import type { ExtendedStepType } from "@/types/tutorial";
  * collides with a tutorial unit id in `tutorial_events.stepId`.
  */
 
+interface OrientationTourOptions {
+    /**
+     * Whether the tutorial has its own column (desktop). Without it (mobile) the
+     * closing step's selector would not exist, and reactour centres an unresolvable
+     * selector's popover over the page with an empty highlight.
+     */
+    docked: boolean;
+}
+
 /** No mask, for the steps that talk about the layout rather than one control. */
 const noMask = { maskArea: (base: Record<string, unknown>) => ({ ...base, display: "none" }) };
 
@@ -29,12 +38,7 @@ const watchDisplay = {
     resizeObservables: ["#patch-lens-display"],
 };
 
-/**
- * @param docked whether the tutorial has its own column (desktop). Without it
- * (mobile) the final step's selector would not exist, and reactour centres an
- * unresolvable selector's popover over the page with an empty highlight.
- */
-export function orientationTourSteps({ docked }: { docked: boolean }): ExtendedStepType[] {
+export function orientationTourSteps({ docked }: OrientationTourOptions): ExtendedStepType[] {
     const steps: ExtendedStepType[] = [
         {
             selector: "#patch-lens-source-prompt",
