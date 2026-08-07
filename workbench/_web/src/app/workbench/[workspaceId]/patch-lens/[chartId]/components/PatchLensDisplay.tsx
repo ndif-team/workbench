@@ -251,9 +251,18 @@ export function PatchLensDisplay({
     const handleInterventionResult = useCallback(
         (topToken: string | null) => {
             lastResultToken.current = topToken;
+            // null means the patched grid is no longer on screen — the widget now
+            // reports that too. Drop the recorded outcome rather than let the
+            // tutorial keep announcing "the target now predicts X" (and point at a
+            // purple region that isn't there) after a fresh lens run has replaced
+            // the patched run as the active one.
+            if (topToken == null) {
+                clearPatchResult(patchUnitIdxRef.current ?? undefined);
+                return;
+            }
             recordPatchResult(topToken, patchUnitIdxRef.current ?? undefined);
         },
-        [recordPatchResult],
+        [recordPatchResult, clearPatchResult],
     );
 
     // A patch restored from a previous session is reported once, on mount — before
