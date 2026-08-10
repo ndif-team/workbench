@@ -23,10 +23,16 @@ class JLensRequest(BaseModel):
 
 
 def _generate_kwargs(req: JLensRequest) -> dict:
-    """Build the optional sampling kwargs forwarded to ``model.generate(...)`` via
-    the tool's ``generate_kwargs``. Mirrors the /generate route: only keys the
-    caller set are included, and setting any of temperature/top_p/top_k flips
-    ``do_sample`` on (transformers' standard behavior)."""
+    """Build the sampling kwargs forwarded to ``model.generate(...)`` via the
+    tool's ``generate_kwargs``. A temperature/top_p/top_k value turns sampling
+    on; the individual keys are only included when set.
+
+    ``do_sample`` is ALWAYS set explicitly. This matters: many instruct/chat
+    models ship a ``generation_config.json`` with ``do_sample: true`` (e.g.
+    Qwen3-8B has do_sample=true, temperature=0.6), so omitting the flag lets the
+    model's own config silently re-enable sampling — producing a different
+    completion every run even when the user asked for greedy. Passing
+    ``do_sample=False`` forces deterministic decoding regardless of the config."""
     kwargs: dict = {}
     sample = False
     if req.temperature is not None:
@@ -38,8 +44,7 @@ def _generate_kwargs(req: JLensRequest) -> dict:
     if req.top_k is not None:
         kwargs["top_k"] = req.top_k
         sample = True
-    if sample:
-        kwargs["do_sample"] = True
+    kwargs["do_sample"] = sample
     return kwargs
 
 

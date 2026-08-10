@@ -28,13 +28,15 @@ class GenerateResponse(NDIFResponse):
 
 
 def _sampling_kwargs(req: GenerateRequest) -> dict:
-    """Build the optional sampling kwargs forwarded to ``model.generate(...)``.
+    """Build the sampling kwargs forwarded to ``model.generate(...)``.
 
-    Only keys the caller explicitly set are included, so we never override the
-    defaults baked into the underlying generate implementation. Setting any of
-    temperature/top_p/top_k turns sampling on (``do_sample=True``), matching
-    transformers' standard behavior; leaving them all unset keeps greedy
-    decoding.
+    A temperature/top_p/top_k value turns sampling on; the individual keys are
+    only included when set. ``do_sample`` is ALWAYS set explicitly: many
+    instruct/chat models ship a ``generation_config.json`` with
+    ``do_sample: true`` (e.g. Qwen3-8B has do_sample=true, temperature=0.6), so
+    omitting the flag lets the model's own config silently re-enable sampling —
+    a different completion every run even when the caller asked for greedy.
+    Passing ``do_sample=False`` forces deterministic decoding regardless.
     """
     kwargs: dict = {}
     sample = False
@@ -47,8 +49,7 @@ def _sampling_kwargs(req: GenerateRequest) -> dict:
     if req.top_k is not None:
         kwargs["top_k"] = req.top_k
         sample = True
-    if sample:
-        kwargs["do_sample"] = True
+    kwargs["do_sample"] = sample
     if req.stop_strings:
         kwargs["stop_strings"] = req.stop_strings
     return kwargs
