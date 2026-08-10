@@ -25,12 +25,30 @@ interface JLensRequest {
 const getJLens = async (lensRequest: JLensRequest): Promise<JLensData> => {
     const headers = await createUserHeadersAction();
 
-    // Transform to backend request format
+    const cfg = lensRequest.completion;
+    // Multi-token generation is gated by `generate`; when off the run is a single
+    // prefill pass (1 token). Older configs predate the flag, so fall back to the
+    // stored length. Sampling params are only forwarded when generation is on AND
+    // `sample` is set; otherwise the backend decodes greedily. `top_k` (sampling)
+    // is sent only when > 0 — 0 means "no top-k filtering" and is distinct from
+    // `topk` (the lens display top-k above).
+    const generates = cfg.generate ?? (cfg.maxNewTokens ?? 1) > 1;
+    const maxNewTokens = generates ? (cfg.maxNewTokens ?? 24) : 1;
+    const sampling =
+        generates && cfg.sample
+            ? {
+                  temperature: cfg.temperature ?? 0.7,
+                  top_p: cfg.topP ?? 0.95,
+                  ...((cfg.topK ?? 0) > 0 ? { top_k: cfg.topK } : {}),
+              }
+            : {};
     const request = {
-        model: lensRequest.completion.model,
-        prompt: lensRequest.completion.prompt,
-        topk: lensRequest.completion.topk ?? 5,
-        include_entropy: lensRequest.completion.includeEntropy ?? true,
+        model: cfg.model,
+        prompt: cfg.prompt,
+        topk: cfg.topk ?? 5,
+        include_entropy: cfg.includeEntropy ?? true,
+        max_new_tokens: maxNewTokens,
+        ...sampling,
     };
 
     return await startAndPoll<JLensData>(

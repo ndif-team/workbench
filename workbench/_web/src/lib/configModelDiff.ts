@@ -87,9 +87,17 @@ export function lens2ConfigEqualsExceptModel(
     ]);
 }
 
+// Whether a j-lens config generates multiple tokens. `generate` is authoritative
+// once set; older configs fall back to "was it generating >1 token?".
+const jlensGenerates = (c: JLensConfigData): boolean => c.generate ?? (c.maxNewTokens ?? 1) > 1;
+
 /**
- * Compare a j-lens draft against its saved config, excluding model. Same knobs
- * as lens2 (prompt/top-k/entropy).
+ * Compare a j-lens draft against its saved config, excluding model.
+ *
+ * Generation and sampling are gated toggles, so their downstream knobs only
+ * count when the gate is on — otherwise a greyed-out slider (or an old config's
+ * default) would show phantom "unsaved changes". Each getter collapses to a
+ * constant when its gate is off.
  */
 export function jlensConfigEqualsExceptModel(
     saved: JLensConfigData | undefined | null,
@@ -98,7 +106,12 @@ export function jlensConfigEqualsExceptModel(
     return configFieldsEqual(saved as JLensConfigData, draft as JLensConfigData, [
         (c) => c.prompt ?? "",
         (c) => c.topk ?? 5,
-        (c) => c.includeEntropy ?? true,
+        (c) => jlensGenerates(c),
+        (c) => (jlensGenerates(c) ? (c.maxNewTokens ?? 24) : 0),
+        (c) => (jlensGenerates(c) ? (c.sample ?? false) : false),
+        (c) => (jlensGenerates(c) && (c.sample ?? false) ? (c.temperature ?? 0.7) : 0),
+        (c) => (jlensGenerates(c) && (c.sample ?? false) ? (c.topP ?? 0.95) : 0),
+        (c) => (jlensGenerates(c) && (c.sample ?? false) ? (c.topK ?? 50) : 0),
     ]);
 }
 

@@ -5,12 +5,14 @@ import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Play, TriangleAlert } from "lucide-react";
+import { Loader2, Play, TriangleAlert, SlidersHorizontal } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useJLens } from "@/lib/api/jlensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { JLensConfigData } from "@/types/jlens";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
@@ -21,6 +23,7 @@ import { useDraftModel } from "@/hooks/useDraftModel";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/workbench/[workspaceId]/components/ToolPanelHeader";
+import { useLensRowExpansion } from "@/stores/useLensRowExpansion";
 
 interface JLensConfig {
     id: string;
@@ -41,7 +44,20 @@ interface JLensControlsProps {
      * false the controls are greyed out and a banner invites picking another
      * model. Defaults to true. */
     modelSupported?: boolean;
+    /** Generated token strings from the saved run (JLensData.completion), shown
+     * after the prompt tokens in the token view. Null/empty when the run was a
+     * single pass over the prompt. */
+    completion?: string[] | null;
+    /** Prompt-token count (JLensData.input.length) — the heatmap-row offset for
+     * completion tokens (completion k → row promptTokenCount + k). */
+    promptTokenCount?: number;
 }
+
+// Slider ceiling for tokens-to-generate. Generation is per-step and costs a
+// forward pass each, so keep the range modest for an interactive lens.
+const MAX_GENERATION_TOKENS = 64;
+// Default tokens-to-generate for a chart that hasn't set it yet.
+const DEFAULT_GENERATION_TOKENS = 24;
 
 const TOKEN_STYLES = {
     base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative",
@@ -58,21 +74,106 @@ const fixTokenText = (text: string) => {
     return { result, numNewlines };
 };
 
-function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }) {
+const EMPTY_EXPANSION: number[] = [];
+
+/**
+ * A run of tokens rendered as heatmap-row expand/collapse controls. A token at
+ * display index `i` maps to heatmap row `rowOffset + i`; it's "on" when that row
+ * is expanded. A plain click toggles one token; press-and-drag "paints" a range
+ * — the token you press on decides whether the drag expands or collapses — so
+ * you can slide across several at once. Drives the heatmap's collapsed sections
+ * via useLensRowExpansion.
+ *
+ * Both runs (prompt tokens at offset 0, generated tokens after) share this;
+ * generated tokens are italic + muted to set them apart, otherwise the
+ * contour/selected treatment is identical.
+ */
+function ExpandableTokenRun({
+    texts,
+    rowOffset,
+    chartId,
+    generated = false,
+    loading = false,
+}: {
+    texts: string[];
+    rowOffset: number;
+    chartId: string;
+    generated?: boolean;
+    loading?: boolean;
+}) {
+    const expanded = useLensRowExpansion((s) => s.expanded[chartId] ?? EMPTY_EXPANSION);
+    const setRow = useLensRowExpansion((s) => s.setRow);
+    const toggleRow = useLensRowExpansion((s) => s.toggleRow);
+
+    const draggingRef = useRef(false);
+    const expandModeRef = useRef(true);
+
+    // A drag can end anywhere (even off the token run), so stop painting on a
+    // window-level mouseup.
+    useEffect(() => {
+        const stop = () => {
+            draggingRef.current = false;
+        };
+        window.addEventListener("mouseup", stop);
+        return () => window.removeEventListener("mouseup", stop);
+    }, []);
+
+    const expandedSet = useMemo(() => new Set(expanded), [expanded]);
+    const rowOf = (index: number) => rowOffset + index;
+
+    const startPaint = (index: number) => {
+        // Start on a collapsed token → the drag expands; on an expanded one →
+        // it collapses.
+        expandModeRef.current = !expandedSet.has(rowOf(index));
+        draggingRef.current = true;
+        setRow(chartId, rowOf(index), expandModeRef.current);
+    };
+    const paintOver = (index: number) => {
+        if (draggingRef.current) setRow(chartId, rowOf(index), expandModeRef.current);
+    };
+
     return (
-        <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
-            {tokens.map((token, idx) => {
-                const { result, numNewlines } = fixTokenText(token.text);
+        // Tag the run so the token-view container ignores clicks originating here
+        // (including drags that end on a different token) — they toggle heatmap
+        // rows, they shouldn't switch back to editing.
+        <span data-token-run onClick={(e) => e.stopPropagation()}>
+            {texts.map((text, idx) => {
+                const { result, numNewlines } = fixTokenText(text);
+                const isExpanded = expandedSet.has(rowOf(idx));
                 return (
-                    <span key={`token-${idx}`}>
+                    <span key={`${generated ? "gen" : "tok"}-${idx}`}>
                         <span
-                            data-token-id={idx}
+                            role="button"
+                            tabIndex={loading ? -1 : 0}
+                            data-row-token
+                            aria-pressed={isExpanded}
+                            title={
+                                isExpanded
+                                    ? "Heatmap row expanded — click to collapse"
+                                    : "Click or drag to expand this token's heatmap row"
+                            }
+                            onMouseDown={(e) => {
+                                if (loading) return;
+                                e.preventDefault();
+                                startPaint(idx);
+                            }}
+                            onMouseEnter={() => {
+                                if (!loading) paintOver(idx);
+                            }}
+                            onKeyDown={(e) => {
+                                if ((e.key === "Enter" || e.key === " ") && !loading) {
+                                    e.preventDefault();
+                                    toggleRow(chartId, rowOf(idx));
+                                }
+                            }}
                             className={cn(
                                 TOKEN_STYLES.base,
-                                "bg-transparent",
-                                !loading && TOKEN_STYLES.hover,
-                                token.text === "\\n" ? "w-full" : "w-fit",
-                                loading ? "cursor-progress" : "cursor-default",
+                                loading ? "cursor-progress" : "cursor-pointer",
+                                generated && "italic text-muted-foreground",
+                                isExpanded
+                                    ? "bg-primary/20 ring-1 ring-inset ring-primary/40"
+                                    : !loading && TOKEN_STYLES.hover,
+                                text === "\\n" ? "w-full" : "w-fit",
                             )}
                         >
                             {result}
@@ -81,6 +182,44 @@ function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }
                     </span>
                 );
             })}
+        </span>
+    );
+}
+
+function TokenDisplay({
+    tokens,
+    completion,
+    chartId,
+    promptTokenCount,
+    loading,
+}: {
+    tokens: Token[];
+    /** Generated token strings from the run, rendered after the prompt tokens. */
+    completion?: string[];
+    /** Chart id — tokens read/write row expansion from the store. */
+    chartId: string;
+    /** Prompt-token count (JLensData.input.length); completion token k maps to
+     * heatmap row `promptTokenCount + k`. */
+    promptTokenCount: number;
+    loading: boolean;
+}) {
+    return (
+        <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
+            <ExpandableTokenRun
+                texts={tokens.map((t) => t.text)}
+                rowOffset={0}
+                chartId={chartId}
+                loading={loading}
+            />
+            {completion && completion.length > 0 && (
+                <ExpandableTokenRun
+                    texts={completion}
+                    rowOffset={promptTokenCount}
+                    chartId={chartId}
+                    generated
+                    loading={loading}
+                />
+            )}
         </div>
     );
 }
@@ -92,17 +231,43 @@ export function JLensControls({
     modelsLoading = false,
     hasExistingData = false,
     modelSupported = true,
+    completion = null,
+    promptTokenCount = 0,
 }: JLensControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
 
     const savedPrompt = initialConfig.data?.prompt || "";
     const savedTopk = initialConfig.data?.topk ?? 5;
-    const savedIncludeEntropy = initialConfig.data?.includeEntropy ?? true;
+    // Multi-token generation is off by default (a single prefill pass, no tokens
+    // generated). Older charts predate the flag, so fall back to "was it
+    // generating more than one token?". `maxNewTokens` is the length used when
+    // generation is on; it always holds a valid ≥2 value even while off, so
+    // enabling the toggle drops straight into a sensible default.
+    const rawMaxNewTokens = initialConfig.data?.maxNewTokens;
+    const savedGenerate = initialConfig.data?.generate ?? (rawMaxNewTokens ?? 1) > 1;
+    const savedMaxNewTokens =
+        rawMaxNewTokens && rawMaxNewTokens >= 2 ? rawMaxNewTokens : DEFAULT_GENERATION_TOKENS;
+    // Sampling knobs (only used when generating). Defaults produce a gently
+    // varied sample; `sample` off means greedy/deterministic decoding.
+    const savedSample = initialConfig.data?.sample ?? false;
+    const savedTemperature = initialConfig.data?.temperature ?? 0.7;
+    const savedTopP = initialConfig.data?.topP ?? 0.95;
+    const savedTopK = initialConfig.data?.topK ?? 50;
     const savedModel = initialConfig.data?.model ?? "";
 
     const [prompt, setPrompt] = useState(savedPrompt);
     const [topk, setTopk] = useState(savedTopk);
-    const [includeEntropy, setIncludeEntropy] = useState(savedIncludeEntropy);
+    const [generate, setGenerate] = useState(savedGenerate);
+    const [maxNewTokens, setMaxNewTokens] = useState(savedMaxNewTokens);
+    const [sample, setSample] = useState(savedSample);
+    const [temperature, setTemperature] = useState(savedTemperature);
+    const [topP, setTopP] = useState(savedTopP);
+    const [topK, setTopK] = useState(savedTopK);
+
+    // Generated-token row expansion lives in a transient store shared with the
+    // display (CompletionTokens owns the per-token interaction); the controls
+    // only need to reset it on a fresh run so the display reseeds the default.
+    const resetRowExpansion = useLensRowExpansion((s) => s.reset);
     const { draftModel, setDraftModel, restoreWorkspaceModel } = useDraftModel(
         savedModel,
         initialConfig.id,
@@ -236,7 +401,13 @@ export function JLensControls({
                     model: selectedModel,
                     prompt: trimmedPrompt,
                     topk: savedTopk,
-                    includeEntropy: savedIncludeEntropy,
+                    includeEntropy: true,
+                    generate: savedGenerate,
+                    maxNewTokens: savedMaxNewTokens,
+                    sample: savedSample,
+                    temperature: savedTemperature,
+                    topP: savedTopP,
+                    topK: savedTopK,
                 };
                 await computeJLens({
                     lensRequest: { completion: config, chartId },
@@ -264,7 +435,12 @@ export function JLensControls({
         modelsAvailable,
         savedPrompt,
         savedTopk,
-        savedIncludeEntropy,
+        savedGenerate,
+        savedMaxNewTokens,
+        savedSample,
+        savedTemperature,
+        savedTopP,
+        savedTopK,
         chartId,
         initialConfig.id,
         workspaceId,
@@ -324,8 +500,9 @@ export function JLensControls({
         lastTokenizedPromptRef.current = prompt;
         // Editing the prompt under a different selected model implicitly
         // commits the draft to that model — same effect as the explicit
-        // "Update config to selected model" action. topk/includeEntropy are
-        // intentionally NOT touched here; only the Reset button resets them.
+        // "Update config to selected model" action. The other draft knobs
+        // (topk, generation, sampling) are intentionally NOT touched here; only
+        // the Reset button resets them.
         if (promptChanged && modelChanged) {
             setDraftModel(selectedModel);
         }
@@ -380,9 +557,21 @@ export function JLensControls({
                 model: selectedModel,
                 prompt: trimmedPrompt,
                 topk,
-                includeEntropy,
+                includeEntropy: true,
+                generate,
+                maxNewTokens,
+                sample,
+                temperature,
+                topP,
+                topK,
             };
 
+            // A fresh run replaces the completion, so drop the row expansion (the
+            // display reseeds the default once the new data lands). Do it right
+            // before the mutation starts — the mutation synchronously flips
+            // `isJLensRunning`, which gates the display's reseed effect so it
+            // can't consume the reset against stale data.
+            resetRowExpansion(chartId);
             await computeJLens({
                 lensRequest: { completion: config, chartId },
                 configId: initialConfig.id,
@@ -405,13 +594,19 @@ export function JLensControls({
         tokenData,
         tokenizedModel,
         topk,
-        includeEntropy,
+        generate,
+        maxNewTokens,
+        sample,
+        temperature,
+        topP,
+        topK,
         selectedModel,
         chartId,
         initialConfig.id,
         workspaceId,
         computeJLens,
         updateConfig,
+        resetRowExpansion,
     ]);
 
     const handlePromptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -448,7 +643,12 @@ export function JLensControls({
         blurTokenize.cancel();
         setPrompt(savedPrompt);
         setTopk(savedTopk);
-        setIncludeEntropy(savedIncludeEntropy);
+        setGenerate(savedGenerate);
+        setMaxNewTokens(savedMaxNewTokens);
+        setSample(savedSample);
+        setTemperature(savedTemperature);
+        setTopP(savedTopP);
+        setTopK(savedTopK);
         setDraftModel(savedModel);
         restoreWorkspaceModel(savedModel);
         lastSyncedPromptRef.current = savedPrompt;
@@ -471,7 +671,12 @@ export function JLensControls({
     }, [
         savedPrompt,
         savedTopk,
-        savedIncludeEntropy,
+        savedGenerate,
+        savedMaxNewTokens,
+        savedSample,
+        savedTemperature,
+        savedTopP,
+        savedTopK,
         savedModel,
         blurTokenize,
         setDraftModel,
@@ -507,14 +712,27 @@ export function JLensControls({
             jlensConfigEqualsExceptModel(initialConfig.data, {
                 prompt,
                 topk,
-                includeEntropy,
+                generate,
+                maxNewTokens,
+                sample,
+                temperature,
+                topP,
+                topK,
             }),
-        [initialConfig.data, prompt, topk, includeEntropy],
+        [initialConfig.data, prompt, topk, generate, maxNewTokens, sample, temperature, topP, topK],
     );
 
     // Draft is dirty if any non-model field differs OR the draft model differs
     // from the saved model. Either way, the Unsaved-changes banner fires.
     const draftDirty = !draftMatchesSaved || draftModel !== savedModel;
+
+    // Show the run's generated tokens after the prompt in the token view, but
+    // only while the displayed prompt still matches the one that produced them
+    // (a pending edit makes the saved completion stale) and the token view is up.
+    const visibleCompletion =
+        !editingText && completion && completion.length > 0 && prompt.trim() === savedPrompt.trim()
+            ? completion
+            : undefined;
 
     // The "use selected model?" banner is about the gap between the user's
     // current intent for this chart (draftModel) and the workspace selection.
@@ -539,6 +757,13 @@ export function JLensControls({
     const showReset = draftDirty && hasExistingData;
     const showSync = modelMismatchVsConfig;
     const viewMode = !modelsAvailable && !modelsLoading;
+
+    // One-line summary shown on the generation-settings trigger under the prompt.
+    // With generation off it's a single prefill pass; with it on, sampling vs
+    // greedy is the other axis.
+    const generationSummary = !generate
+        ? "1 token"
+        : `${maxNewTokens} tokens · ${sample ? "sampling" : "greedy"}`;
 
     return (
         <>
@@ -599,13 +824,209 @@ export function JLensControls({
                                     "flex w-full px-3 py-2 bg-input/30 border rounded min-h-32",
                                     isExecuting ? "cursor-progress" : "cursor-text",
                                 )}
-                                onClick={() => {
+                                onClick={(e) => {
+                                    // Clicking a token is a deliberate action
+                                    // (generated tokens toggle heatmap rows;
+                                    // prompt tokens are just shown) — it should
+                                    // not flip into prompt editing. Only a click
+                                    // on the empty area of the box edits.
+                                    if (
+                                        (e.target as HTMLElement).closest(
+                                            "[data-row-token],[data-token-run]",
+                                        )
+                                    )
+                                        return;
                                     if (interactive) escapeTokenArea();
                                 }}
                             >
-                                <TokenDisplay tokens={tokenData} loading={isExecuting} />
+                                <TokenDisplay
+                                    tokens={tokenData}
+                                    completion={visibleCompletion}
+                                    chartId={chartId}
+                                    promptTokenCount={promptTokenCount}
+                                    loading={isExecuting}
+                                />
                             </div>
                         )}
+
+                        {/* Generation settings live in the prompt's bottom-right
+                            corner — they shape the completion, unlike the tool
+                            parameters (top-k predictions) below. The dot flags that
+                            the run generates more than a single token. */}
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={!interactive}
+                                    aria-label="Generation settings"
+                                    title={`Generation · ${generationSummary}`}
+                                    className="absolute bottom-2 right-2 size-7 rounded text-muted-foreground hover:text-foreground"
+                                >
+                                    <SlidersHorizontal className="size-4" />
+                                    {generate && (
+                                        <span className="absolute right-1 top-1 size-1.5 rounded-full bg-primary" />
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                                align="end"
+                                side="bottom"
+                                sideOffset={8}
+                                className="w-64 p-3"
+                            >
+                                <div className="flex flex-col gap-2.5">
+                                    {/* Multi-token generation — off by default (no
+                                        tokens generated); the length row is greyed
+                                        until it's enabled. */}
+                                    <div className="flex items-center gap-2">
+                                        <Checkbox
+                                            id="generate"
+                                            checked={generate}
+                                            onCheckedChange={(checked) =>
+                                                setGenerate(checked === true)
+                                            }
+                                            disabled={!interactive}
+                                        />
+                                        <Label
+                                            htmlFor="generate"
+                                            className="cursor-pointer text-sm font-medium"
+                                        >
+                                            Multi-token generation
+                                        </Label>
+                                    </div>
+                                    <div
+                                        className={cn(
+                                            "flex items-center gap-2",
+                                            !generate && "opacity-50",
+                                        )}
+                                    >
+                                        <Label
+                                            htmlFor="max-new-tokens"
+                                            className="w-24 shrink-0 text-sm"
+                                        >
+                                            Tokens
+                                        </Label>
+                                        <Slider
+                                            id="max-new-tokens"
+                                            min={2}
+                                            max={MAX_GENERATION_TOKENS}
+                                            step={1}
+                                            value={[maxNewTokens]}
+                                            onValueChange={([value]) => setMaxNewTokens(value)}
+                                            disabled={!interactive || !generate}
+                                            className="flex-1"
+                                        />
+                                        <span className="w-8 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                                            {maxNewTokens}
+                                        </span>
+                                    </div>
+
+                                    <Separator className="my-0.5" />
+
+                                    {/* Sampling — its own toggle; the rows below stay
+                                        visible but greyed until it's on, and only
+                                        apply while generating. */}
+                                    <div className="flex items-center gap-2">
+                                        <Checkbox
+                                            id="sample"
+                                            checked={sample}
+                                            onCheckedChange={(checked) =>
+                                                setSample(checked === true)
+                                            }
+                                            disabled={!interactive || !generate}
+                                        />
+                                        <Label
+                                            htmlFor="sample"
+                                            className={cn(
+                                                "cursor-pointer text-sm font-medium",
+                                                !generate && "opacity-50",
+                                            )}
+                                        >
+                                            Sampling
+                                        </Label>
+                                        {generate && !sample && (
+                                            <span className="ml-auto text-xs text-muted-foreground">
+                                                greedy
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div
+                                        className={cn(
+                                            "flex flex-col gap-2",
+                                            (!generate || !sample) && "opacity-50",
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Label
+                                                htmlFor="temperature"
+                                                className="w-24 shrink-0 text-sm"
+                                            >
+                                                Temperature
+                                            </Label>
+                                            <Slider
+                                                id="temperature"
+                                                min={0.1}
+                                                max={2}
+                                                step={0.05}
+                                                value={[temperature]}
+                                                onValueChange={([value]) => setTemperature(value)}
+                                                disabled={!interactive || !generate || !sample}
+                                                className="flex-1"
+                                            />
+                                            <span className="w-8 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                                                {temperature.toFixed(2)}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <Label
+                                                htmlFor="top-p"
+                                                className="w-24 shrink-0 text-sm"
+                                            >
+                                                Top-p
+                                            </Label>
+                                            <Slider
+                                                id="top-p"
+                                                min={0.05}
+                                                max={1}
+                                                step={0.05}
+                                                value={[topP]}
+                                                onValueChange={([value]) => setTopP(value)}
+                                                disabled={!interactive || !generate || !sample}
+                                                className="flex-1"
+                                            />
+                                            <span className="w-8 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                                                {topP.toFixed(2)}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <Label
+                                                htmlFor="sampling-top-k"
+                                                className="w-24 shrink-0 text-sm"
+                                            >
+                                                Top-k
+                                            </Label>
+                                            <Slider
+                                                id="sampling-top-k"
+                                                min={0}
+                                                max={100}
+                                                step={1}
+                                                value={[topK]}
+                                                onValueChange={([value]) => setTopK(value)}
+                                                disabled={!interactive || !generate || !sample}
+                                                className="flex-1"
+                                            />
+                                            <span className="w-8 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                                                {topK === 0 ? "Off" : topK}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
                     </div>
                 </div>
 
@@ -626,18 +1047,6 @@ export function JLensControls({
                         disabled={!interactive}
                         className="w-full"
                     />
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <Checkbox
-                        id="entropy"
-                        checked={includeEntropy}
-                        onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
-                        disabled={!interactive}
-                    />
-                    <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">
-                        Include Entropy
-                    </Label>
                 </div>
 
                 <Button

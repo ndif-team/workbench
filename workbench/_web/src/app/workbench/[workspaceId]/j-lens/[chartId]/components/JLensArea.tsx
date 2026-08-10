@@ -19,6 +19,7 @@ interface JLensChart {
 export default function JLensArea() {
     const {
         config,
+        chart,
         isChartLoading,
         modelsAvailable,
         modelsFetching,
@@ -55,6 +56,11 @@ export default function JLensArea() {
                 // the active model doesn't, the controls grey out and invite a
                 // model change (the picker also disables such models).
                 modelSupported={isModelSupported}
+                // Generated tokens from the saved run, appended after the prompt
+                // tokens in the token view — clicking them expands their heatmap
+                // row (offset by the prompt-token count).
+                completion={chart?.data?.completion ?? null}
+                promptTokenCount={chart?.data?.input?.length ?? 0}
             />
         </div>
     );

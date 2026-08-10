@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
@@ -17,6 +17,15 @@ import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
 import { isToolSupportedForModel } from "@/lib/toolSupport";
+import {
+    useLensRowExpansion,
+    collapsedSectionsFor,
+    expandedRowsFrom,
+} from "@/stores/useLensRowExpansion";
+
+// Rows kept expanded by default: the last N token rows. Everything before them
+// starts collapsed.
+const DEFAULT_EXPANDED_ROWS = 10;
 
 interface JLensChart {
     id: string;
@@ -81,25 +90,82 @@ export function JLensDisplay() {
     jlensConfigRef.current = jlensConfig;
     const saveUiStateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const jlensData = jlensChart?.data as LogitLensData | undefined;
+    const completionLen = jlensData?.completion?.length ?? 0;
+    const hasGeneration = completionLen > 0;
+    const totalRows = (jlensData?.input?.length ?? 0) + completionLen;
+    const totalRowsRef = useRef(totalRows);
+    totalRowsRef.current = totalRows;
+
+    // Expanded (uncollapsed) rows, shared with the prompt area (a completion
+    // token click toggles its row). The heatmap collapses everything else.
+    const expandedRaw = useLensRowExpansion((s) => s.expanded[chartId]);
+    const setExpanded = useLensRowExpansion((s) => s.setExpanded);
+
+    // Default: only the last N token rows are expanded.
+    const defaultExpanded = useMemo(
+        () =>
+            totalRows > DEFAULT_EXPANDED_ROWS
+                ? Array.from(
+                      { length: DEFAULT_EXPANDED_ROWS },
+                      (_, i) => totalRows - DEFAULT_EXPANDED_ROWS + i,
+                  )
+                : Array.from({ length: totalRows }, (_, i) => i),
+        [totalRows],
+    );
+
+    // Seed the default once per generated chart (and after a run resets it) so
+    // the prompt-area chips reflect the same rows the heatmap shows. Skip while a
+    // run is in flight: the controls reset `expandedRaw` to undefined at submit,
+    // and seeding then would consume the sentinel against the *previous* run's
+    // row count. `isJLensRunning` only clears once the mutation's awaited
+    // invalidation has landed the new data, so the reseed uses fresh totals.
+    useEffect(() => {
+        if (!isJLensRunning && hasGeneration && expandedRaw === undefined) {
+            setExpanded(chartId, defaultExpanded);
+        }
+    }, [isJLensRunning, hasGeneration, expandedRaw, chartId, defaultExpanded, setExpanded]);
+
     const handleStateChange = useCallback(
         (uiState: LogitLensUIState) => {
+            // The widget's own band/handle clicks change collapsedSections; mirror
+            // them into the store so the prompt-area chips stay in step and our
+            // derived sections don't fight the widget on the next render.
+            if (totalRowsRef.current > 0 && uiState.collapsedSections) {
+                setExpanded(
+                    chartId,
+                    expandedRowsFrom(totalRowsRef.current, uiState.collapsedSections),
+                );
+            }
             if (saveUiStateTimeoutRef.current) clearTimeout(saveUiStateTimeoutRef.current);
             saveUiStateTimeoutRef.current = setTimeout(() => {
                 const cfg = jlensConfigRef.current;
                 if (!cfg?.id) return;
+                // collapsedSections is a transient, host-derived overlay (from the
+                // prompt-area row expansion), so strip it before persisting.
+                const persisted = { ...uiState };
+                delete persisted.collapsedSections;
                 updateChartConfig({
                     configId: cfg.id,
                     chartId,
                     config: {
-                        data: { ...cfg.data, uiState },
+                        data: { ...cfg.data, uiState: persisted },
                         workspaceId,
                         type: "jlens",
                     },
                 });
             }, 500);
         },
-        [chartId, workspaceId, updateChartConfig],
+        [chartId, workspaceId, updateChartConfig, setExpanded],
     );
+
+    // Inject the expand/collapse state as the widget's collapsed sections
+    // (rows are token positions: prompt tokens then generated tokens).
+    const effectiveUiState = useMemo<LogitLensUIState | undefined>(() => {
+        if (!hasGeneration || totalRows === 0) return savedUiState;
+        const expanded = expandedRaw ?? defaultExpanded;
+        return { ...savedUiState, collapsedSections: collapsedSectionsFor(totalRows, expanded) };
+    }, [savedUiState, hasGeneration, totalRows, expandedRaw, defaultExpanded]);
 
     useEffect(() => {
         return () => {
@@ -236,7 +302,7 @@ export function JLensDisplay() {
             <LogitLensWidget
                 data={jlensChart.data! as LogitLensData}
                 darkMode={isDarkMode}
-                uiState={savedUiState}
+                uiState={effectiveUiState}
                 onStateChange={handleStateChange}
                 className="w-full min-h-[400px]"
             />

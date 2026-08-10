@@ -13,8 +13,34 @@ router = APIRouter()
 class JLensRequest(BaseModel):
     model: str
     prompt: str
-    topk: int = 5  # Number of top-k predictions per cell
+    topk: int = 5
     include_entropy: bool = True  # Whether to include entropy data
+    max_new_tokens: int = 1
+    # Sampling Params
+    temperature: float | None = None
+    top_p: float | None = None
+    top_k: int | None = None
+
+
+def _generate_kwargs(req: JLensRequest) -> dict:
+    """Build the optional sampling kwargs forwarded to ``model.generate(...)`` via
+    the tool's ``generate_kwargs``. Mirrors the /generate route: only keys the
+    caller set are included, and setting any of temperature/top_p/top_k flips
+    ``do_sample`` on (transformers' standard behavior)."""
+    kwargs: dict = {}
+    sample = False
+    if req.temperature is not None:
+        kwargs["temperature"] = req.temperature
+        sample = True
+    if req.top_p is not None:
+        kwargs["top_p"] = req.top_p
+        sample = True
+    if req.top_k is not None:
+        kwargs["top_k"] = req.top_k
+        sample = True
+    if sample:
+        kwargs["do_sample"] = True
+    return kwargs
 
 
 class JLensResponse(NDIFResponse):
@@ -30,7 +56,18 @@ async def start_j_lens(
     model = state[req.model]
     backend = state.make_backend(model=model)
 
-    output = j_lens._run(model, req.prompt, remote=state.remote, backend=backend, non_blocking=state.remote, raw=False, top_k=req.topk)
+    output = j_lens._run(
+        model,
+        req.prompt,
+        remote=state.remote,
+        backend=backend,
+        non_blocking=state.remote,
+        raw=False,
+        max_new_tokens=req.max_new_tokens,
+        generate_kwargs=_generate_kwargs(req),
+        top_k=req.topk,
+        include_entropy=req.include_entropy,
+    )
 
     if not backend.blocking:
         return {"job_id": output}
