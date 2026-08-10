@@ -192,6 +192,18 @@ export function TutorialActivityPanel({
         setNudgeToFinish(false);
     }, [store.unitIdx]);
 
+    // Reaching the end of the activity is what finishes it. The last step used to
+    // gate the survey handoff behind completing it, which left a participant who had
+    // worked through everything else staring at a step they couldn't get past.
+    // `markReached` completes a manual final unit on arrival and is idempotent, so a
+    // reload here doesn't double-count it. `units.length` is a dep because content
+    // arrives from the DB a tick after mount.
+    useEffect(() => {
+        if (!store.active) return;
+        store.markReached(store.unitIdx);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [store.active, store.unitIdx, units.length]);
+
     if (!mounted || !store.active || !unit) return null;
     // Collapsed and docked, the dock's own strip carries the way back — the page
     // takes the column away entirely rather than leaving a title bar behind.
@@ -364,6 +376,7 @@ export function TutorialActivityPanel({
                     notRunMessage={isPatchUnit ? "Apply the patch first, then answer." : undefined}
                     onAnswer={(answer, correct) => store.answerCheck(answer, correct)}
                     alreadyAnswered={!!store.checkAnsweredByUnit[store.unitIdx]}
+                    priorResult={store.checkResultByUnit[store.unitIdx]}
                 />
             )}
 
@@ -443,12 +456,13 @@ export function TutorialActivityPanel({
                 <div className="flex items-center gap-1.5">
                     {completed && <span className="text-xs text-primary">✓ Step complete</span>}
                     {/* Last step: there is nowhere to go next, and an empty corner
-                        left it unclear that anything more was required. Say what
-                        finishes the activity — for a manual step like the final
-                        challenge, submitting the observation is what completes it. */}
+                        left it unclear whether anything more was required. A manual
+                        final unit is already complete on arrival (markReached), so
+                        this only speaks to a run- or patch-gated one — and it no
+                        longer asks for a note, which is no longer required. */}
                     {isLast && !completed && (
                         <span className="text-right text-xs leading-snug text-muted-foreground">
-                            Finish this step and save a note to complete the activity.
+                            {finishHint}
                         </span>
                     )}
                     {!isLast && (
@@ -652,6 +666,7 @@ function EmbeddedCheck({
     hasRun,
     notRunMessage,
     alreadyAnswered,
+    priorResult,
     onAnswer,
 }: {
     check: UnitCheck;
@@ -661,6 +676,10 @@ function EmbeddedCheck({
     hasRun: boolean;
     notRunMessage?: string;
     alreadyAnswered: boolean;
+    /** What this participant answered on an earlier visit (persisted). Lets a
+     * revisited step restate their answer and whether it was right, instead of the
+     * bare "already answered" that a locked check used to show. */
+    priorResult?: { answer: string; correct: boolean };
     onAnswer: (answer: string, correct: boolean) => void;
 }) {
     const [value, setValue] = useState("");
@@ -692,10 +711,18 @@ function EmbeddedCheck({
         onAnswer(check.options[idx] ?? String(idx), correct);
     };
 
+    // The correct answer, for restating a wrong prior answer. A choice check
+    // carries its own key; a typed one's key is the run it was scored against,
+    // which a fresh session may no longer have.
+    const correctAnswer = isChoice ? check.options[check.correctIndex] : expected;
+
     return (
         <div className="rounded border bg-background p-2.5 flex flex-col gap-1.5">
             <p className="text-xs font-medium">{check.question}</p>
-            {!hasRun ? (
+            {/* A prior answer outranks the "run first" gate: this participant has
+                already answered, so asking them to re-run a prompt to see what they
+                said is busywork — the check is locked either way. */}
+            {!hasRun && !priorResult ? (
                 <p className="text-xs text-muted-foreground">
                     {notRunMessage ?? "Run a prompt first, then answer."}
                 </p>
@@ -762,7 +789,22 @@ function EmbeddedCheck({
                                 : `Not quite — the answer was “${result.expected}”.`}
                         </p>
                     )}
-                    {alreadyAnswered && !result && (
+                    {!result && priorResult && (
+                        <p
+                            className={`text-xs ${priorResult.correct ? "text-primary" : "text-muted-foreground"}`}
+                        >
+                            {priorResult.correct
+                                ? `✓ You answered “${priorResult.answer}” — correct.`
+                                : `You answered “${priorResult.answer}” — not quite.`}
+                            {!priorResult.correct &&
+                                correctAnswer &&
+                                ` The answer was “${correctAnswer}”.`}
+                        </p>
+                    )}
+                    {/* Fallback for a participant whose stored progress predates
+                        `checkResultByUnit`: their answer wasn't kept, so all we can
+                        honestly say is that they answered. */}
+                    {alreadyAnswered && !result && !priorResult && (
                         <p className="text-xs text-muted-foreground">Already answered this step.</p>
                     )}
                 </>
@@ -801,8 +843,12 @@ function ObservationBox({
         );
     }
 
+    // Same container as the submitted state above: the note prompt used to be a
+    // bare label between a bordered check box and a bordered FAQ list, so it read
+    // as one more paragraph of the step rather than something being asked of the
+    // participant — and the box didn't change shape on save.
     return (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 rounded border border-primary/30 bg-primary/5 p-2.5">
             <label htmlFor={fieldId} className="text-xs font-medium">
                 {prompt}
             </label>
@@ -814,7 +860,9 @@ function ObservationBox({
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit();
                 }}
                 placeholder={placeholder ?? "What did you notice? (⌘/Ctrl-Enter to save)"}
-                className="min-h-16 text-xs"
+                // Opaque against the tinted surface, so the field still reads as
+                // somewhere to type.
+                className="min-h-16 bg-background text-xs"
             />
             <Button
                 size="sm"
@@ -845,7 +893,11 @@ function FaqCallouts({ faqs }: { faqs: { q: string; a: string }[] }) {
                         ) : (
                             <ChevronRight className="h-3 w-3 shrink-0" />
                         )}
-                        Curious? {f.q}
+                        {/* The question stands on its own. "Curious?" prefixed every
+                            one of these, which read as a nudge to open all of them —
+                            including the ones a stuck participant needs, where an
+                            aside's framing is actively unhelpful. */}
+                        {f.q}
                     </button>
                     {open === i && (
                         <p className="px-2 pb-2 pl-6 text-xs text-muted-foreground leading-snug">

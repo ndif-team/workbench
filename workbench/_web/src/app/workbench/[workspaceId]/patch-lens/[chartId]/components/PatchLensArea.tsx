@@ -86,6 +86,10 @@ function useTutorialAutoStart({ disabled }: { disabled: boolean }) {
     // Auto-start fires at most once per mount; dismissing then resaving the
     // localStorage flag prevents a popup loop (same pattern as lens-intro).
     const autoStartedRef = useRef(false);
+    // Whether the walkthrough currently on screen is the one *this* hook opened.
+    // The guided tutorial's orientation walkthrough shares the same reactour
+    // provider, so the close below has to be able to tell them apart.
+    const openedHereRef = useRef(false);
 
     useEffect(() => {
         hydratePatchLensTutorial();
@@ -104,10 +108,24 @@ function useTutorialAutoStart({ disabled }: { disabled: boolean }) {
         setCurrentStep(0);
         const id = setTimeout(() => {
             setIsOpen(true);
+            openedHereRef.current = true;
             markCompleted();
         }, 600);
         return () => clearTimeout(id);
     }, [disabled, completed, isOpen, setSteps, setIsOpen, setCurrentStep, markCompleted]);
+
+    // The guided tutorial has taken over — its slideshow is up, or its step column
+    // is. Put this walkthrough away instead of leaving two tutorials on screen at
+    // once, pointing at opposite sides of the app: the walkthrough anchors to the
+    // prompt column on the left while the lesson a participant is being told to
+    // follow is docked on the right. Only ever closes the popover opened above, so
+    // the guided tutorial's own orientation walkthrough and a manual start from the
+    // Tutorial menu are both left alone.
+    useEffect(() => {
+        if (!disabled || !openedHereRef.current || !isOpen || !setIsOpen) return;
+        openedHereRef.current = false;
+        setIsOpen(false);
+    }, [disabled, isOpen, setIsOpen]);
 
     const startTutorial = (chapterIdx: number = 0) => {
         if (!setSteps || !setIsOpen) return;
@@ -728,8 +746,17 @@ export default function PatchLensArea({
     // But if the guided-tutorial content query has definitively errored, keep the
     // reactour walkthrough as a fallback so a workshop participant is never left
     // with no onboarding at all.
+    //
+    // Workshop mode is not the only way the guided tutorial runs: it also starts
+    // from the Tutorial menu on an ordinary workspace, and there the walkthrough
+    // used to pop up beside it. So gate on the guided tutorial actually being on
+    // screen too — either its slideshow or its step column.
     const { startTutorial } = useTutorialAutoStart({
-        disabled: workshopLoading || (!!workshop && !tutorialContentError),
+        disabled:
+            workshopLoading ||
+            (!!workshop && !tutorialContentError) ||
+            prolificTutorial.active ||
+            prolificTutorial.welcomeOpen,
     });
 
     return (

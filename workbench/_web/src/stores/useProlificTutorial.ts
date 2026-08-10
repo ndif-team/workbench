@@ -51,6 +51,18 @@ interface ProlificTutorialState {
     hintStageByUnit: Record<number, number>;
     completedUnits: number[];
     checkAnsweredByUnit: Record<number, boolean>;
+    /**
+     * What the participant answered on each unit's embedded check, and whether it
+     * was right. Additive alongside `checkAnsweredByUnit` rather than replacing it:
+     * that field is a persisted boolean, and widening it in place would make every
+     * already-stored `true` read as a malformed result object.
+     *
+     * Exists so a revisited step can say what they answered instead of only that
+     * they did — the check locks after one answer, so without this the participant
+     * who comes back to re-read the question is told "already answered" and nothing
+     * more.
+     */
+    checkResultByUnit: Record<number, { answer: string; correct: boolean }>;
     observationByUnit: Record<number, boolean>;
     // Frozen answer keys, per unit (see RunTokens). Ephemeral: a fresh session has
     // no run to have read an answer off, so the check asks for the run first
@@ -103,6 +115,18 @@ interface ProlificTutorialState {
     /** The patch was undone, so its outcome no longer describes the screen: drop
      * the recorded result rather than let the panel keep announcing it. */
     clearPatchResult: (unitIdx?: number) => void;
+    /**
+     * The participant has arrived at `idx`. Completes it when it is the last unit
+     * and finishes manually — reaching the end of the activity IS finishing it, so
+     * the finish CTA no longer waits on a saved note.
+     *
+     * Without this, ungating the CTA would mean a participant sees "you're done"
+     * and leaves having emitted no `step_completed` for the final step — and row
+     * completion is verified from that telemetry post-hoc (see CompletionCta).
+     * Idempotent via `completedUnits`, which is persisted, so a reload on the last
+     * step re-runs this without emitting a second event.
+     */
+    markReached: (idx: number) => void;
     /** Reveal the next hint rung; returns the new highest stage. */
     revealHint: () => number;
     answerCheck: (answer: string, correct: boolean) => void;
@@ -161,6 +185,7 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
             hintStageByUnit: {},
             completedUnits: [],
             checkAnsweredByUnit: {},
+            checkResultByUnit: {},
             observationByUnit: {},
             runTokensByUnit: {},
             patchTokenByUnit: {},
@@ -194,6 +219,7 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                     hintStageByUnit: {},
                     completedUnits: [],
                     checkAnsweredByUnit: {},
+                    checkResultByUnit: {},
                     observationByUnit: {},
                     runTokensByUnit: {},
                     patchTokenByUnit: {},
@@ -330,6 +356,17 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 set({ patchTokenByUnit: next });
             },
 
+            markReached: (idx) => {
+                const state = get();
+                const total = state.units.length;
+                if (total === 0 || idx !== total - 1) return;
+                // Only a *manual* final unit. A run- or patch-gated last step still
+                // has an action the participant can perform, and auto-completing it
+                // would file a step_completed for work nobody did.
+                if (state.units[idx]?.progression.on !== "manual") return;
+                set(completeUnit(state, idx));
+            },
+
             revealHint: () => {
                 const state = get();
                 const idx = state.unitIdx;
@@ -361,7 +398,13 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 // locked state: this row is the engagement measure, and a second one
                 // for the same step would double-count it.
                 if (state.checkAnsweredByUnit[idx]) return;
-                set({ checkAnsweredByUnit: { ...state.checkAnsweredByUnit, [idx]: true } });
+                set({
+                    checkAnsweredByUnit: { ...state.checkAnsweredByUnit, [idx]: true },
+                    checkResultByUnit: {
+                        ...state.checkResultByUnit,
+                        [idx]: { answer, correct },
+                    },
+                });
                 emit(state.workspaceId, stepIdForUnit(state, idx), "check_answered", {
                     answer,
                     correct,
@@ -402,6 +445,7 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                     hintStageByUnit: {},
                     completedUnits: [],
                     checkAnsweredByUnit: {},
+                    checkResultByUnit: {},
                     observationByUnit: {},
                     runTokensByUnit: {},
                     patchTokenByUnit: {},
@@ -421,6 +465,7 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 hintStageByUnit: s.hintStageByUnit,
                 completedUnits: s.completedUnits,
                 checkAnsweredByUnit: s.checkAnsweredByUnit,
+                checkResultByUnit: s.checkResultByUnit,
                 observationByUnit: s.observationByUnit,
                 panelPos: s.panelPos,
                 collapsed: s.collapsed,

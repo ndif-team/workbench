@@ -142,6 +142,50 @@ describe("useProlificTutorial answer keys", () => {
         store().answerCheck("Rome", false);
         expect(store().checkAnsweredByUnit[0]).toBe(true);
     });
+
+    it("keeps what was answered, not only that it was", () => {
+        // A revisited step restates the answer, so the panel needs more than the
+        // "already answered" boolean.
+        store().answerCheck("Rome", false);
+        expect(store().checkResultByUnit[0]).toEqual({ answer: "Rome", correct: false });
+        // Same one-per-step rule as the boolean: the first answer is the record.
+        store().answerCheck("Paris", true);
+        expect(store().checkResultByUnit[0]).toEqual({ answer: "Rome", correct: false });
+    });
+});
+
+describe("useProlificTutorial completion", () => {
+    // Reaching the end of the activity is what finishes it; the last step used to
+    // gate the survey handoff behind completing it.
+    beforeEach(() => {
+        store().reset();
+        store().setUnits(units);
+        store().start();
+    });
+
+    it("completes the final manual unit on arrival", () => {
+        store().markReached(2);
+        expect(store().completedUnits).toContain(2);
+    });
+
+    it("completes it only once, so a reload doesn't double-count", () => {
+        store().markReached(2);
+        store().markReached(2);
+        expect(store().completedUnits.filter((i) => i === 2)).toHaveLength(1);
+    });
+
+    it("leaves a unit that isn't the last one alone", () => {
+        store().markReached(0);
+        expect(store().completedUnits).not.toContain(0);
+    });
+
+    it("leaves a final unit with an action of its own alone", () => {
+        // A run- or patch-gated last step still has something to do; auto-completing
+        // it would file a step_completed for work nobody did.
+        store().setUnits([units[0]!, unit({ id: "u-run", progression: { on: "run" } })]);
+        store().markReached(1);
+        expect(store().completedUnits).not.toContain(1);
+    });
 });
 
 describe("useProlificTutorial telemetry", () => {
