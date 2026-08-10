@@ -91,6 +91,14 @@ export default function PatchLensChartPage() {
         if (typeof data?.lastRunTargetPrompt === "string") {
             setLastRunTgtPrompt(data.lastRunTargetPrompt);
         }
+        // Throw away any guided-tutorial answer key that doesn't belong to the run
+        // this chart is showing. Keys persist across a reload now — otherwise a
+        // participant who refreshed mid-step saw the step marked complete, the answer
+        // still on the heatmap, and the check telling them to run a prompt first —
+        // and this is the check that makes that safe. Inside the run-once hydration
+        // guard on purpose: a key frozen by a run that lands after this read must not
+        // be pruned by a stale activeLensRunId.
+        useProlificTutorial.getState().pruneRunKeys(data?.activeLensRunId ?? null);
         hydratedRef.current = true;
         setPromptsHydrated(true);
     }, [chart]);

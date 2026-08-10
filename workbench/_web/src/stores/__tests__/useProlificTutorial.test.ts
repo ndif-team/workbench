@@ -45,8 +45,12 @@ describe("useProlificTutorial answer keys", () => {
     });
 
     it("keys each unit to its own run", () => {
-        store().recordRun({ top: "Paris", second: " London" }, 0);
-        expect(store().runTokensByUnit[0]).toEqual({ topToken: "Paris", secondToken: " London" });
+        store().recordRun({ top: "Paris", second: " London", runId: "run-1" }, 0);
+        expect(store().runTokensByUnit[0]).toEqual({
+            topToken: "Paris",
+            secondToken: " London",
+            runId: "run-1",
+        });
         expect(store().runTokensByUnit[1]).toBeUndefined();
     });
 
@@ -120,18 +124,50 @@ describe("useProlificTutorial answer keys", () => {
         expect(store().patchTokenByUnit).toEqual({});
     });
 
-    it("keeps the answer keys out of localStorage", () => {
-        // Load-bearing for "the check asks for a run again after a refresh": a
-        // persisted key would score an answer against a result no longer on screen.
+    it("persists a key that names its run, and never a patch outcome", () => {
+        // Keys used to be withheld from localStorage entirely, so that an answer
+        // could never be scored against a result no longer on screen. The run is
+        // restored on reload now, so the rule is weaker but the guarantee is the
+        // same: a persisted key carries its lens_runs id and is validated against
+        // the run on screen (pruneRunKeys). A patch outcome still isn't persisted —
+        // the widget re-reports it on mount.
         store().setWorkspace("ws-persist");
         store().setUnits(units);
         store().start();
-        store().recordRun({ top: "Paris", second: " London" }, 0);
+        store().recordRun({ top: "Paris", second: " London", runId: "run-1" }, 0);
         store().recordPatchResult("Rome", 1);
         const persisted = globalThis.localStorage.getItem("workbench:prolific-tutorial") ?? "";
         expect(persisted).toContain("completedUnits");
-        expect(persisted).not.toContain("runTokensByUnit");
+        expect(persisted).toContain("run-1");
         expect(persisted).not.toContain("patchTokenByUnit");
+    });
+
+    it("won't persist a key it can't later verify", () => {
+        // No run id means the history write failed, so there is nothing to check the
+        // key against on reload. It stays usable for this session and stops there.
+        store().setWorkspace("ws-persist-noid");
+        store().setUnits(units);
+        store().start();
+        store().recordRun({ top: "Paris", second: null }, 0);
+        expect(store().runTokensByUnit[0]?.topToken).toBe("Paris");
+        const persisted = globalThis.localStorage.getItem("workbench:prolific-tutorial") ?? "";
+        expect(persisted).toContain('"runTokensByUnit":{}');
+    });
+
+    it("keeps only the key belonging to the run on screen", () => {
+        store().recordRun({ top: "Paris", second: null, runId: "run-1" }, 0);
+        store().recordRun({ top: "Rome", second: null, runId: "run-old" }, 1);
+        store().pruneRunKeys("run-1");
+        expect(store().runTokensByUnit[0]?.topToken).toBe("Paris");
+        expect(store().runTokensByUnit[1]).toBeUndefined();
+    });
+
+    it("trusts a key with no run id when pruning", () => {
+        // It can only have come from this session (see above), so its result is the
+        // one on screen — dropping it would re-gate a check the participant earned.
+        store().recordRun({ top: "Paris", second: null }, 0);
+        store().pruneRunKeys("run-1");
+        expect(store().runTokensByUnit[0]?.topToken).toBe("Paris");
     });
 
     it("records one check answer per step", () => {

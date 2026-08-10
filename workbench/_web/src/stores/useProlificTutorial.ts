@@ -39,6 +39,19 @@ interface PanelPos {
 interface RunTokens {
     topToken: string;
     secondToken: string | null;
+    /**
+     * The `lens_runs` row this key was read off, when the history write succeeded.
+     *
+     * Keys used to be dropped on reload so an answer could never be scored against
+     * a result no longer on screen. But the run *is* restored now — the chart row
+     * points at it with `activeLensRunId` and the display refetches its heatmaps —
+     * so a participant who reloaded mid-step was left with the answer visible, the
+     * step marked complete, and the check still insisting they hadn't run anything.
+     * The run id is what makes the weaker rule safe: a persisted key survives only
+     * while it names the run currently on screen (see `pruneRunKeys`). A key with
+     * no run id can't be checked that way, so it is never persisted.
+     */
+    runId: string | null;
 }
 
 interface ProlificTutorialState {
@@ -64,9 +77,9 @@ interface ProlificTutorialState {
      */
     checkResultByUnit: Record<number, { answer: string; correct: boolean }>;
     observationByUnit: Record<number, boolean>;
-    // Frozen answer keys, per unit (see RunTokens). Ephemeral: a fresh session has
-    // no run to have read an answer off, so the check asks for the run first
-    // rather than scoring against a key whose result is no longer on screen.
+    // Frozen answer keys, per unit (see RunTokens). Persisted, but only the entries
+    // naming the run they came from, and only for as long as that run is the one on
+    // screen — so a key still can't outlive the result it describes.
     runTokensByUnit: Record<number, RunTokens>;
     // The TARGET's post-patch top predicted token, per unit it was applied on —
     // so a patch unit's embedded check scores against the actual patch outcome
@@ -100,7 +113,17 @@ interface ProlificTutorialState {
      * the run was *initiated* from, so a slow run that resolves after the
      * participant advances can't complete — or re-key — the wrong (now-current)
      * unit. Falls back to the current unit when omitted. */
-    recordRun: (tokens: { top: string | null; second: string | null }, unitIdx?: number) => void;
+    recordRun: (
+        tokens: { top: string | null; second: string | null; runId?: string | null },
+        unitIdx?: number,
+    ) => void;
+    /**
+     * Validate rehydrated answer keys against the run actually on screen, dropping
+     * any that name a different one. Called once per mount, when the chart row has
+     * loaded — not on every change, so a key frozen by a run that finished after
+     * that read can't be pruned by a stale `activeLensRunId`.
+     */
+    pruneRunKeys: (activeRunId: string | null) => void;
     /** A patch was applied (patch-unit progression). `unitIdx` pins completion to
      * the unit the patch was *initiated* from, so an async intervention that
      * settles after the participant advances can't complete the wrong unit.
@@ -293,7 +316,11 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                     set((s) => ({
                         runTokensByUnit: {
                             ...s.runTokensByUnit,
-                            [idx]: { topToken, secondToken: tokens.second },
+                            [idx]: {
+                                topToken,
+                                secondToken: tokens.second,
+                                runId: tokens.runId ?? null,
+                            },
                         },
                     }));
                 }
@@ -354,6 +381,22 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 const next = { ...state.patchTokenByUnit };
                 delete next[idx];
                 set({ patchTokenByUnit: next });
+            },
+
+            pruneRunKeys: (activeRunId) => {
+                const current = get().runTokensByUnit;
+                const kept: Record<number, RunTokens> = {};
+                for (const [key, tokens] of Object.entries(current)) {
+                    // A key with no run id can only have come from a run in this
+                    // session — `partialize` refuses to store those — so it is
+                    // trusted: its result is the one on screen. Anything else has to
+                    // name the run the chart is currently showing.
+                    if (tokens.runId == null || tokens.runId === activeRunId) {
+                        kept[Number(key)] = tokens;
+                    }
+                }
+                if (Object.keys(kept).length === Object.keys(current).length) return;
+                set({ runTokensByUnit: kept });
             },
 
             markReached: (idx) => {
@@ -457,6 +500,13 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
             name: "workbench:prolific-tutorial",
             // Persist progress + panel UI preference; never persist `units` (they
             // come from the DB query on load).
+            //
+            // `runTokensByUnit` is persisted, but only the entries that name the
+            // `lens_runs` row they were read off: those can be validated against the
+            // run on screen at load (`pruneRunKeys`), which is what keeps "never
+            // score an answer against a result that isn't there" true across a
+            // reload. `patchTokenByUnit` stays out entirely — the widget re-reports a
+            // restored patch's outcome on mount, so that key rebuilds itself.
             partialize: (s) => ({
                 workspaceId: s.workspaceId,
                 active: s.active,
@@ -467,6 +517,9 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 checkAnsweredByUnit: s.checkAnsweredByUnit,
                 checkResultByUnit: s.checkResultByUnit,
                 observationByUnit: s.observationByUnit,
+                runTokensByUnit: Object.fromEntries(
+                    Object.entries(s.runTokensByUnit).filter(([, k]) => k.runId != null),
+                ) as Record<number, RunTokens>,
                 panelPos: s.panelPos,
                 collapsed: s.collapsed,
                 // `welcomeOpen` is deliberately absent: a reload mid-slideshow

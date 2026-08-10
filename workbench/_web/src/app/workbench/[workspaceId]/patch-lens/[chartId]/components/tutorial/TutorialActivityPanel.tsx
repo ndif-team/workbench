@@ -85,6 +85,9 @@ interface TutorialActivityPanelProps {
      * the tutorial). Progress and the check answer key are both filed against that
      * unit, so a stale run can't score a unit it didn't belong to. */
     runUnitIdx: number | null;
+    /** The `lens_runs` row the latest run was written to, stored with the answer key
+     * so it can be validated against the run on screen after a reload. */
+    runId: string | null;
     /** Terms kept reachable from the header; falls back to DEFAULT_GLOSSARY. */
     glossary?: GlossaryEntry[];
     /** Per-workshop survey the finish screen links to (workshops.surveyUrl). */
@@ -105,6 +108,7 @@ export function TutorialActivityPanel({
     topToken,
     secondToken,
     runUnitIdx,
+    runId,
     glossary,
     surveyUrl,
     completionThanks,
@@ -131,7 +135,7 @@ export function TutorialActivityPanel({
         // Score against the unit the run was initiated from (runUnitIdx), not the
         // unit that happens to be current now.
         if (store.active) {
-            store.recordRun({ top: topToken, second: secondToken }, runUnitIdx ?? undefined);
+            store.recordRun({ top: topToken, second: secondToken, runId }, runUnitIdx ?? undefined);
         }
         // topToken is captured at the nonce bump; store handles per-unit logic.
         // eslint-disable-next-line react-hooks/exhaustive-deps

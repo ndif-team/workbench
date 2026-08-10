@@ -222,7 +222,10 @@ export default function PatchLensArea({
         top: string | null;
         second: string | null;
         unitIdx: number | null;
-    }>({ nonce: 0, top: null, second: null, unitIdx: null });
+        // The lens_runs row this came from, so the frozen answer key can be
+        // validated against the run on screen after a reload (see pruneRunKeys).
+        runId: string | null;
+    }>({ nonce: 0, top: null, second: null, unitIdx: null, runId: null });
 
     const { data: models } = useQuery({
         queryKey: ["models"],
@@ -574,6 +577,9 @@ export default function PatchLensArea({
                     top: finalPrediction(result.source),
                     second: finalTopKTokens(result.source, 2)[1] ?? null,
                     unitIdx: runUnitIdx,
+                    // Undefined when the history write failed; the key is then kept
+                    // for this session only rather than persisted unverifiably.
+                    runId: result.activeLensRunId ?? null,
                 }));
                 toast.success(
                     tgt.trim() ? "Logit lens computed for both prompts." : "Logit lens computed.",
@@ -968,6 +974,7 @@ export default function PatchLensArea({
                     topToken={runTokens.top}
                     secondToken={runTokens.second}
                     runUnitIdx={runTokens.unitIdx}
+                    runId={runTokens.runId}
                     glossary={tutorialContent?.glossary}
                     surveyUrl={surveyUrl}
                     completionThanks={workshop?.completionText}
