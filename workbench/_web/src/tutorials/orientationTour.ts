@@ -44,13 +44,13 @@ export function orientationTourSteps({ docked }: OrientationTourOptions): Extend
             selector: "#patch-lens-source-prompt",
             stepId: "tour-prompt",
             content:
-                "This is where your text goes. The first prompt is already loaded: `The Eiffel Tower is in the city of`.\n\nLook at how it's displayed: not as words, but split into boxed chunks called tokens — and they don't line up with words. 'Eiffel' alone is split into three. Tokens are the units the model actually reads and writes, so this is the text as the model sees it.\n\nNotice the prompt stops right before the answer. That is on purpose — the model only ever predicts the next token, so the answer has to come next.",
+                "Your text goes here, and a prompt is loaded already: `The Eiffel Tower is in the city of`.\n\nIt isn't shown as words. The model reads in chunks called tokens, which don't line up with words — 'Eiffel' alone takes three. You're seeing the prompt the way the model gets it.\n\nIt stops just before the answer on purpose. The model only ever predicts one more token, so the answer has to be whatever comes next.",
         },
         {
             selector: "#patch-lens-run",
             stepId: "tour-run",
             content:
-                "Click Run Patch Lens. It takes a few seconds — the model runs on a shared research cluster, so there is a short queue.",
+                "Click Run Patch Lens. It takes a few seconds. The model runs on a shared research cluster, so you might wait in a short queue.",
             // Wait for the run to finish, not just the click: the next step talks
             // about a heatmap, and advancing on the click would point at a skeleton.
             trigger: { type: "runCompleted" },
@@ -59,21 +59,21 @@ export function orientationTourSteps({ docked }: OrientationTourOptions): Extend
             selector: "#patch-lens-display",
             stepId: "tour-heatmap",
             content:
-                "Here is the read-out. One row per token of your text, top to bottom in the order you typed them. One column per layer, earliest on the left, last on the right.\n\nEach cell is what the model would say next if it stopped thinking at that layer.",
+                "Here's what came back. Each row is one token of your text, in the order you typed them. Each column is one layer, earliest on the left, last on the right.\n\nAny cell is what the model would have said next if it had stopped thinking at that layer.",
             ...watchDisplay,
         },
         {
             selector: "#patch-lens-display",
             stepId: "tour-answer-cell",
             content:
-                "The cell that matters most is the bottom-right one: last position, last layer. That is the model's actual answer.\n\nEvery question this tutorial asks you is about that cell.\n\nSome cells show a `␣` or a `↵`. Those are a space and a line break, and they are genuine predictions — whitespace is a token the model ranks like any other. The key under the grid names whichever marks are on screen.",
+                "The cell to watch is the bottom-right one, at the last position and the last layer. That's the model's real answer, and every question in this tutorial asks about it.\n\nSome cells show `␣` or `↵`. Those are a space and a line break, and they're real predictions. Whitespace is a token the model ranks like anything else. The key under the grid tells you which marks are on screen.",
             ...watchDisplay,
         },
         {
             selector: "#patch-lens-display",
             stepId: "tour-topk",
             content:
-                "Click the bottom-right cell to see the rest of the predictions. A panel opens with the model's top guesses, ranked, with how sure it was about each one.\n\nThe second row is the runner-up — the answer the model nearly gave instead.",
+                "Click the bottom-right cell to see what else was in the running. A panel opens with the model's top guesses in order, and how sure it was about each one.\n\nThe second row is the runner-up, the answer it nearly gave instead.",
             // Invite the click on the grid, then take in the panel the moment it
             // mounts: it renders outside the display box and only after a cell click.
             highlightedSelectors: ["#patch-lens-display", "#patch-lens-topk"],
@@ -84,7 +84,7 @@ export function orientationTourSteps({ docked }: OrientationTourOptions): Extend
             selector: "#tutorial-glossary",
             stepId: "tour-glossary",
             content:
-                "Token, layer, position, cell — if any word stops making sense, this button has all of them, plus a labelled picture of the heatmap. It is on every step, so you never have to scroll back to find a definition.",
+                "If token, layer, position or cell stops making sense, they're all in here, with a labelled picture of the heatmap. This button is on every step, not just this one.",
             mutationObservables: ["#tutorial-glossary"],
         },
     ];
@@ -94,7 +94,7 @@ export function orientationTourSteps({ docked }: OrientationTourOptions): Extend
             selector: "#tutorial-dock",
             stepId: "tour-panel",
             content:
-                "Everything from here on happens in this column: one short task per step, why it matters, a hint if you get stuck, and a box for what you noticed.\n\nThat is the tour. Step 1 asks you to read the answer you just ran.",
+                "The rest happens in this column. Each step gives you one thing to do, says why it matters, offers a hint if you get stuck, and ends with a box for what you noticed.\n\nThat's the tour. Step 1 asks you to read the answer you just ran.",
             styles: noMask,
             mutationObservables: ["#tutorial-dock"],
         });
@@ -103,7 +103,7 @@ export function orientationTourSteps({ docked }: OrientationTourOptions): Extend
             selector: "#patch-lens-welcome",
             stepId: "tour-panel",
             content:
-                "Everything from here on happens in the tutorial panel: one short task per step, why it matters, a hint if you get stuck, and a box for what you noticed.\n\nThat is the tour. Step 1 asks you to read the answer you just ran.",
+                "The rest happens in the tutorial panel. Each step gives you one thing to do, says why it matters, offers a hint if you get stuck, and ends with a box for what you noticed.\n\nThat's the tour. Step 1 asks you to read the answer you just ran.",
             styles: noMask,
         });
     }
