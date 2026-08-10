@@ -869,7 +869,6 @@ export default function PatchLensArea({
                         onBlur={handleSrcBlur}
                         selectedPositions={[]}
                         pendingRangeStart={null}
-                        onSrcTokenClick={() => {}}
                         predictionToken={srcPrediction}
                     />
                     <p className="text-xs text-muted-foreground leading-snug">
@@ -907,7 +906,6 @@ export default function PatchLensArea({
                         onBlur={handleTgtBlur}
                         tgtSelectedPositions={[]}
                         frozenPositions={[]}
-                        onTgtTokenClick={() => {}}
                         predictionToken={tgtPrediction}
                     />
                     <p className="text-xs text-muted-foreground leading-snug">

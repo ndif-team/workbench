@@ -117,6 +117,7 @@ export function SelectableTokenDisplay({
     label,
     side,
     predictionToken,
+    tokensClickable = true,
     compact = false,
 }: {
     tokens: Token[];
@@ -124,6 +125,9 @@ export function SelectableTokenDisplay({
     selectedPositions: number[];
     frozenPositions?: number[];
     onTokenClick: (pos: number, ctrlKey: boolean) => void;
+    /** False when no token-click handler was supplied: clicks bubble to the
+     * container instead of being swallowed. */
+    tokensClickable?: boolean;
     onTokenHover?: (pos: number) => void;
     onTokenLeave?: () => void;
     label: string;
@@ -132,6 +136,11 @@ export function SelectableTokenDisplay({
     compact?: boolean;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
+        // Only claim the click when clicking a token actually does something. With
+        // no handler the chips are a read-only rendering of the prompt, and the
+        // container's job is to open the editor — swallowing the click there made
+        // the middle of your own prompt a dead zone that advertised cursor-text.
+        if (!tokensClickable) return;
         e.stopPropagation();
         if (!loading) {
             onTokenClick(idx, e.ctrlKey || e.metaKey);
@@ -239,6 +248,7 @@ export function SourceTokenDisplay({
     onTokenClick,
     label,
     predictionToken,
+    tokensClickable = true,
     compact = false,
 }: {
     tokens: Token[];
@@ -246,11 +256,19 @@ export function SourceTokenDisplay({
     selectedPositions: SourcePosition[];
     pendingRangeStart: number | null;
     onTokenClick: (pos: number, shiftKey: boolean) => void;
+    /** False when no token-click handler was supplied: clicks bubble to the
+     * container instead of being swallowed. */
+    tokensClickable?: boolean;
     label: string;
     predictionToken?: string | null;
     compact?: boolean;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
+        // Only claim the click when clicking a token actually does something. With
+        // no handler the chips are a read-only rendering of the prompt, and the
+        // container's job is to open the editor — swallowing the click there made
+        // the middle of your own prompt a dead zone that advertised cursor-text.
+        if (!tokensClickable) return;
         e.stopPropagation();
         if (!loading) {
             onTokenClick(idx, e.shiftKey);
@@ -1357,6 +1375,10 @@ export function PatchPromptSection({
         [isSource, onSrcTokenClick, onTgtTokenClick],
     );
 
+    // Whether clicking a token means anything here. Patch Lens renders the chips
+    // read-only, so its clicks must reach the container that opens the editor.
+    const tokensClickable = isSource ? !!onSrcTokenClick : !!onTgtTokenClick;
+
     // Render token display based on variant
     const renderTokenDisplay = () => {
         if (isSource) {
@@ -1367,6 +1389,7 @@ export function PatchPromptSection({
                     selectedPositions={selectedPositions ?? []}
                     pendingRangeStart={pendingRangeStart ?? null}
                     onTokenClick={handleTokenClick}
+                    tokensClickable={tokensClickable}
                     label={label}
                     predictionToken={predictionToken}
                     compact={isCompact}
@@ -1380,6 +1403,7 @@ export function PatchPromptSection({
                     selectedPositions={tgtSelectedPositions ?? []}
                     frozenPositions={frozenPositions}
                     onTokenClick={handleTokenClick}
+                    tokensClickable={tokensClickable}
                     onTokenHover={onTokenHover}
                     onTokenLeave={onTokenLeave}
                     label={label}
