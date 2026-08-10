@@ -22,7 +22,7 @@ import {
 import { createWorkshop, getWorkshopById } from "@/lib/queries/workshopDb";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 import { PROLIFIC_TUTORIAL_SEED, PROLIFIC_TUTORIAL_SLUG } from "@/tutorials/prolificSeed";
-import type { TutorialContent } from "@/types/tutorial-content";
+import type { HintRung, TutorialContent, TutorialUnit, UnitCheck } from "@/types/tutorial-content";
 import type { WorkshopTool } from "@/db/schema";
 
 const workshopInput = (overrides = {}) => ({
@@ -139,12 +139,263 @@ describe("tutorial content", () => {
                 units: [{ ...base, id: "x".repeat(65) }],
             }),
         ).toThrow();
-        // Unsupported check kind → would silently mis-score.
+        // Unsupported check kind → would silently mis-score. (Authored JSON
+        // bypasses the TS types, hence the cast.)
         expect(() =>
             validateTutorialContent({
                 version: 1,
-                units: [{ ...base, check: { question: "?", kind: "layerBand" } }],
+                units: [{ ...base, check: { question: "?", kind: "layerBand" as never } }],
             }),
         ).toThrow();
+    });
+
+    it("rejects a unit whose rendered fields aren't usable text", () => {
+        const base = tinyContent().units[0];
+        const withUnit = (overrides: Partial<TutorialUnit>) =>
+            validateTutorialContent({ version: 1, units: [{ ...base, ...overrides }] });
+
+        // `prompts` and `patchPair` are read by promptsForUnitEntry from inside an
+        // effect, where a throw takes the whole chart page — not just the tutorial.
+        expect(() => withUnit({ prompts: [{ text: "hi" } as never] })).toThrow();
+        expect(() => withUnit({ task: { a: 1 } as never })).toThrow();
+        expect(() => withUnit({ concept: [1] as never })).toThrow();
+        expect(() => withUnit({ observationPrompt: 7 as never })).toThrow();
+        expect(() => withUnit({ patchPair: { source: 5, target: null } as never })).toThrow();
+        expect(() => withUnit({ patchPair: { source: "a", target: "" } })).toThrow();
+        expect(() => withUnit({ faqs: [{ q: { x: 1 }, a: 2 }] as never })).toThrow();
+        expect(() => withUnit({ title: "   " })).toThrow();
+        // `why` is optional, but present-and-unrenderable is a blank callout at
+        // best and a React "objects are not valid as a child" throw at worst.
+        expect(() => withUnit({ why: "" })).toThrow();
+        expect(() => withUnit({ why: { a: 1 } as never })).toThrow();
+        expect(() => withUnit({ why: "Because it is how autocomplete works." })).not.toThrow();
+        // …and accepts the same unit with all of them filled in properly.
+        expect(() =>
+            withUnit({
+                prompts: ["The Eiffel Tower is in the city of"],
+                patchPair: {
+                    source: "The Eiffel Tower is in the city of",
+                    target: "The Colosseum is in the city of",
+                },
+                faqs: [{ q: "Why?", a: "Because." }],
+            }),
+        ).not.toThrow();
+    });
+
+    it("accepts content using every optional feature", () => {
+        // One place where the type, the validator and the panel have to agree; a
+        // feature wired into two of the three shows up here.
+        const content: TutorialContent = {
+            version: 1,
+            glossary: [{ term: "Cell", definition: "One square of the heatmap." }],
+            units: [
+                {
+                    ...tinyContent().units[0],
+                    kind: "patch",
+                    progression: { on: "patch" },
+                    patchPair: { source: "The Eiffel Tower is in", target: "The Colosseum is in" },
+                    answerPlaceholder: "e.g. Paris",
+                    observationPlaceholder: "What changed?",
+                    faqs: [{ q: "What is a patch?", a: "Copying one cell into the other prompt." }],
+                    check: {
+                        question: "What does the target say now?",
+                        kind: "choice",
+                        options: ["Paris", "Rome"],
+                        correctIndex: 0,
+                    },
+                    hints: [
+                        {
+                            stage: 1,
+                            text: "Drag this onto that.",
+                            spotlights: [
+                                { grid: "source", layer: 20, position: 5 },
+                                { grid: "target", layer: "last", position: "last" },
+                            ],
+                        },
+                        { stage: 2, text: "Try the pair.", insertPrompt: "The Eiffel Tower is in" },
+                    ],
+                },
+            ],
+        };
+        expect(() => validateTutorialContent(content)).not.toThrow();
+    });
+
+    // The welcome slideshow is modal and it is the first thing a participant sees,
+    // so a slide that renders blank blocks the tutorial behind it rather than
+    // degrading into something they can work around.
+    it("rejects a welcome slideshow with nothing to show", () => {
+        const withWelcome = (welcome: unknown) =>
+            validateTutorialContent({
+                ...tinyContent(),
+                welcome: welcome as TutorialContent["welcome"],
+            });
+
+        expect(() => withWelcome({ slides: [] })).toThrow();
+        expect(() => withWelcome({ slides: "nope" })).toThrow();
+        expect(() => withWelcome({ slides: [{ body: "No title." }] })).toThrow();
+        // A titled slide with neither body nor cards is an empty dialog page.
+        expect(() => withWelcome({ slides: [{ title: "Empty" }] })).toThrow();
+        expect(() => withWelcome({ slides: [{ title: "T", body: "   " }] })).toThrow();
+        expect(() => withWelcome({ slides: [{ title: "T", body: { a: 1 } }] })).toThrow();
+        expect(() => withWelcome({ slides: [{ title: "T", cards: [] }] })).toThrow();
+        expect(() =>
+            withWelcome({ slides: [{ title: "T", cards: [{ term: "Cell" }] }] }),
+        ).toThrow();
+        expect(() => withWelcome({ slides: [{ title: "T", body: "Hi." }], tourCta: "" })).toThrow();
+
+        expect(() =>
+            withWelcome({
+                tourCta: "Show me around",
+                slides: [
+                    { title: "Welcome", body: "It predicts **one token** at a time." },
+                    {
+                        title: "Vocabulary",
+                        cards: [{ term: "Cell", definition: "One square of the heatmap." }],
+                    },
+                ],
+            }),
+        ).not.toThrow();
+    });
+
+    it("rejects a choice check with no usable answer key", () => {
+        const base = tinyContent().units[0];
+        const withCheck = (check: UnitCheck) =>
+            validateTutorialContent({ version: 1, units: [{ ...base, check }] });
+
+        // Fewer than two options, or an empty one: nothing to choose between.
+        expect(() =>
+            withCheck({ question: "?", kind: "choice", options: ["only"], correctIndex: 0 }),
+        ).toThrow();
+        expect(() =>
+            withCheck({ question: "?", kind: "choice", options: ["a", ""], correctIndex: 0 }),
+        ).toThrow();
+        // correctIndex outside the options → every participant scored wrong.
+        expect(() =>
+            withCheck({ question: "?", kind: "choice", options: ["a", "b"], correctIndex: 2 }),
+        ).toThrow();
+        expect(() =>
+            withCheck({ question: "?", kind: "choice", options: ["a", "b"], correctIndex: 1 }),
+        ).not.toThrow();
+    });
+
+    it("rejects text fields the panel would render as something other than text", () => {
+        const base = tinyContent().units[0];
+        const withCheck = (check: UnitCheck) =>
+            validateTutorialContent({ version: 1, units: [{ ...base, check }] });
+
+        // Authored JSON isn't typed: React throws on an object child, so these have
+        // to fail here rather than in front of a participant.
+        expect(() => withCheck({ question: "" as never, kind: "topToken" })).toThrow();
+        expect(() => withCheck({ question: { text: "?" } as never, kind: "topToken" })).toThrow();
+        expect(() =>
+            withCheck({
+                question: "?",
+                kind: "choice",
+                options: ["a", { label: "b" } as never],
+                correctIndex: 0,
+            }),
+        ).toThrow();
+        expect(() =>
+            validateTutorialContent({
+                ...tinyContent(),
+                glossary: [{ term: 42 as never, definition: "A piece of text." }],
+            }),
+        ).toThrow();
+    });
+
+    // A unit-level spotlight is what the patch step's instructions point at, and
+    // what forces a downsampled layer to render — a malformed one silently rings
+    // nothing, leaving the task text describing cells that aren't marked.
+    it("rejects a malformed unit spotlight", () => {
+        const base = tinyContent().units[0];
+        const withSpotlights = (spotlights: unknown) =>
+            validateTutorialContent({
+                version: 1,
+                units: [{ ...base, spotlights: spotlights as TutorialUnit["spotlights"] }],
+            });
+
+        expect(() => withSpotlights([])).toThrow();
+        expect(() => withSpotlights("source")).toThrow();
+        expect(() => withSpotlights([{ grid: "nope", layer: 1, position: 1 }])).toThrow();
+        expect(() => withSpotlights([{ grid: "source", layer: -1, position: 1 }])).toThrow();
+        expect(() => withSpotlights([{ grid: "source", layer: 1.5, position: 1 }])).toThrow();
+        expect(() => withSpotlights([{ grid: "source", position: 1 }])).toThrow();
+        expect(() =>
+            withSpotlights([
+                { grid: "source", layer: 20, position: 5 },
+                { grid: "target", layer: "last", position: "last" },
+            ]),
+        ).not.toThrow();
+    });
+
+    it("rejects a malformed hint spotlight", () => {
+        const base = tinyContent().units[0];
+        const withHint = (hint: HintRung) =>
+            validateTutorialContent({ version: 1, units: [{ ...base, hints: [hint] }] });
+
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "look here",
+                spotlight: { grid: "nowhere" as never, layer: 1, position: 1 },
+            }),
+        ).toThrow();
+        // A rung may light several cells — both ends of a patch drag.
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "drag this onto that",
+                spotlights: [
+                    { grid: "source", layer: 20, position: 5 },
+                    { grid: "target", layer: "last", position: "last" },
+                ],
+            }),
+        ).not.toThrow();
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "drag this onto that",
+                spotlights: [{ grid: "target", layer: 20, position: null as never }],
+            }),
+        ).toThrow();
+        // Not cell indices. A negative layer would silently ring the first row —
+        // the widget snaps a requested layer to the nearest rendered one.
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "here",
+                spotlight: { grid: "source", layer: -1, position: 0 },
+            }),
+        ).toThrow();
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "here",
+                spotlight: { grid: "source", layer: 2.5, position: 0 },
+            }),
+        ).toThrow();
+        expect(() =>
+            withHint({
+                stage: 1,
+                text: "here",
+                spotlight: { grid: "source", layer: 0, position: 0 },
+            }),
+        ).not.toThrow();
+    });
+
+    it("rejects a glossary entry missing its term or definition", () => {
+        const content = tinyContent();
+        expect(() =>
+            validateTutorialContent({
+                ...content,
+                glossary: [{ term: "Token", definition: "" }],
+            }),
+        ).toThrow();
+        expect(() =>
+            validateTutorialContent({
+                ...content,
+                glossary: [{ term: "Token", definition: "A piece of text." }],
+            }),
+        ).not.toThrow();
     });
 });

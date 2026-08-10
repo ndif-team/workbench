@@ -2,6 +2,10 @@
 
 # dependencies
 /node_modules
+# This project installs with bun (bun.lock is the committed lockfile). An
+# npm/yarn lockfile here means a stray `npm install` and would drift from it.
+package-lock.json
+yarn.lock
 /.pnp
 .pnp.*
 .yarn/*

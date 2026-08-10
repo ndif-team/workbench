@@ -36,6 +36,22 @@ const slugify = (name: string): string =>
 
 const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
 
+const validGrids: Set<unknown> = new Set(["source", "target", "result"]);
+/**
+ * A spotlight layer/position: a concrete grid index, or "last" (resolved by the
+ * widget). A negative or fractional index is not a cell — the widget snaps a
+ * layer to the nearest rendered one, so a negative layer would silently ring the
+ * first row instead of failing.
+ */
+const isCellIndex = (v: unknown): boolean =>
+    v === "last" || (typeof v === "number" && Number.isInteger(v) && v >= 0);
+/**
+ * A text field the panel renders as-is. Authored JSON can hold anything here, and
+ * React throws on an object child — so a wrong type has to fail at authoring time,
+ * not in front of a participant.
+ */
+const isText = (v: unknown): boolean => typeof v === "string" && v.trim().length > 0;
+
 /**
  * Content shape guard for admin-authored JSON (which bypasses the TS types). The
  * participant panel and store dereference `prompts`, `hints`, and `progression`
@@ -53,24 +69,81 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
         throw new Error("Tutorial unit ids must be unique");
     }
     const validOn = new Set(["run", "patch", "manual"]);
-    // Only the run-derived check kinds are wired up in the panel; layerBand has a
-    // type slot but no scoring, so reject it rather than let it mis-score.
-    const validCheckKinds = new Set(["topToken", "secondToken"]);
+    const validCheckKinds = new Set(["topToken", "secondToken", "choice"]);
     for (const u of content.units) {
-        if (!u.id || !u.title) throw new Error("Every unit needs an id and a title");
+        if (!isText(u.id) || !isText(u.title)) {
+            throw new Error("Every unit needs an id and a title");
+        }
         if (u.id.length > 64) {
             throw new Error(`Unit id "${u.id}" exceeds 64 characters`);
         }
-        if (!Array.isArray(u.prompts)) {
-            throw new Error(`Unit "${u.id}" needs a prompts array`);
+        if (!Array.isArray(u.prompts) || !u.prompts.every(isText)) {
+            throw new Error(`Unit "${u.id}" needs a prompts array of non-empty strings`);
         }
         if (!Array.isArray(u.hints)) {
             throw new Error(`Unit "${u.id}" needs a hints array`);
+        }
+        // Rendered straight into the panel, and `prompts` / `patchPair` are also
+        // read by promptsForUnitEntry from inside an effect — where a non-string
+        // would throw past the tutorial and take the whole chart page with it.
+        for (const field of ["task", "concept", "observationPrompt"] as const) {
+            if (!isText(u[field])) {
+                throw new Error(`Unit "${u.id}" needs a non-empty ${field}`);
+            }
+        }
+        // Optional, but if present it is rendered — so an empty string or a
+        // non-string has to fail here rather than put a blank callout (or a React
+        // "objects are not valid as a child" throw) in front of a participant.
+        for (const field of ["why", "tryYourOwn"] as const) {
+            if (u[field] !== undefined && !isText(u[field])) {
+                throw new Error(`Unit "${u.id}" ${field} must be non-empty text when present`);
+            }
+        }
+        if (u.patchPair !== undefined) {
+            if (!isText(u.patchPair?.source) || !isText(u.patchPair?.target)) {
+                throw new Error(`Unit "${u.id}" patchPair needs a source and a target prompt`);
+            }
+        }
+        if (u.faqs !== undefined) {
+            if (!Array.isArray(u.faqs)) {
+                throw new Error(`Unit "${u.id}" faqs must be an array`);
+            }
+            for (const f of u.faqs) {
+                if (!isText(f?.q) || !isText(f?.a)) {
+                    throw new Error(`Unit "${u.id}" has an FAQ missing its question or answer`);
+                }
+            }
+        }
+        // A spotlight the widget can't resolve silently highlights nothing — for a
+        // hint, exactly the rung a stuck participant reached for; for a unit, the
+        // cells its instructions tell them to drag between.
+        const checkSpotlights = (cells: unknown[], where: string) => {
+            for (const s of cells as { grid?: unknown; layer?: unknown; position?: unknown }[]) {
+                if (
+                    !validGrids.has(s?.grid) ||
+                    !isCellIndex(s?.layer) ||
+                    !isCellIndex(s?.position)
+                ) {
+                    throw new Error(
+                        `Unit "${u.id}" ${where} has a malformed spotlight (needs grid source|target|result and a non-negative integer or "last" layer/position)`,
+                    );
+                }
+            }
+        };
+        if (u.spotlights !== undefined) {
+            if (!Array.isArray(u.spotlights) || u.spotlights.length === 0) {
+                throw new Error(`Unit "${u.id}" spotlights must be a non-empty array`);
+            }
+            checkSpotlights(u.spotlights, "spotlights");
         }
         for (const h of u.hints) {
             if (typeof h?.stage !== "number" || typeof h?.text !== "string") {
                 throw new Error(`Unit "${u.id}" has a malformed hint rung`);
             }
+            checkSpotlights(
+                [...(h.spotlights ?? []), ...(h.spotlight ? [h.spotlight] : [])],
+                `hint ${h.stage}`,
+            );
         }
         if (!u.progression || !validOn.has(u.progression.on)) {
             throw new Error(`Unit "${u.id}" needs a progression.on of run, patch, or manual`);
@@ -92,8 +165,76 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
                 );
             }
         }
-        if (u.check && !validCheckKinds.has(u.check.kind)) {
-            throw new Error(`Unit "${u.id}" has an unsupported check kind "${u.check.kind}"`);
+        if (u.check) {
+            if (!validCheckKinds.has(u.check.kind)) {
+                throw new Error(`Unit "${u.id}" has an unsupported check kind "${u.check.kind}"`);
+            }
+            if (!isText(u.check.question)) {
+                throw new Error(`Unit "${u.id}" check needs a question`);
+            }
+        }
+        // A choice check is scored entirely from its own content, so a missing or
+        // out-of-range key would mark every participant wrong with no run to blame.
+        if (u.check?.kind === "choice") {
+            const { options, correctIndex } = u.check;
+            if (!Array.isArray(options) || options.length < 2 || !options.every(isText)) {
+                throw new Error(`Unit "${u.id}" choice check needs at least two non-empty options`);
+            }
+            if (
+                !Number.isInteger(correctIndex) ||
+                correctIndex < 0 ||
+                correctIndex >= options.length
+            ) {
+                throw new Error(
+                    `Unit "${u.id}" choice check needs a correctIndex within its options`,
+                );
+            }
+        }
+    }
+    if (content.glossary !== undefined) {
+        if (!Array.isArray(content.glossary)) {
+            throw new Error("Tutorial glossary must be an array");
+        }
+        for (const g of content.glossary) {
+            if (!isText(g?.term) || !isText(g?.definition)) {
+                throw new Error("Every glossary entry needs a term and a definition");
+            }
+        }
+    }
+    // The welcome slideshow is the first thing a participant sees, and it is modal
+    // — a slide that renders blank (or throws) blocks the tutorial behind it rather
+    // than degrading. An empty `slides` array would open a dialog with no content
+    // and no way past it, so require at least one slide with something on it.
+    if (content.welcome !== undefined) {
+        const { slides, tourCta } = content.welcome;
+        if (!Array.isArray(slides) || slides.length === 0) {
+            throw new Error("Tutorial welcome needs at least one slide");
+        }
+        for (const [i, s] of slides.entries()) {
+            if (!isText(s?.title)) {
+                throw new Error(`Welcome slide ${i + 1} needs a title`);
+            }
+            if (s.body !== undefined && !isText(s.body)) {
+                throw new Error(`Welcome slide "${s.title}" body must be non-empty text`);
+            }
+            if (s.cards !== undefined) {
+                if (!Array.isArray(s.cards) || s.cards.length === 0) {
+                    throw new Error(`Welcome slide "${s.title}" cards must be a non-empty array`);
+                }
+                for (const c of s.cards) {
+                    if (!isText(c?.term) || !isText(c?.definition)) {
+                        throw new Error(
+                            `Welcome slide "${s.title}" has a card missing its term or definition`,
+                        );
+                    }
+                }
+            }
+            if (s.body === undefined && s.cards === undefined) {
+                throw new Error(`Welcome slide "${s.title}" needs a body or cards`);
+            }
+        }
+        if (tourCta !== undefined && !isText(tourCta)) {
+            throw new Error("Tutorial welcome tourCta must be non-empty text when present");
         }
     }
     return content;

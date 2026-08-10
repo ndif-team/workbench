@@ -191,4 +191,33 @@ describe("tutorial_events", () => {
         expect(progress[ws.id].completedStepIds.sort()).toEqual(["u0-orientation", "u2-knows"]);
         expect(progress[ws.id].hintsUsed).toBe(2);
     });
+
+    // The orientation walkthrough records its own `tour-`-prefixed steps so its
+    // drop-off is measurable, but progress means *units*: an unranked id used to
+    // win the furthest-step comparison (rank -1 against an initial best of -1).
+    it("ignores step ids outside the canonical order when deriving progress", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const ws = await createWorkspace("u-tour", "S", workshop.id);
+        for (const stepId of ["tour-prompt", "tour-run", "tour-glossary"]) {
+            await insertTutorialEvent({ workspaceId: ws.id, stepId, eventType: "step_completed" });
+        }
+
+        const events = await getTutorialEventsForWorkshop(workshop.id);
+        const tourOnly = deriveProgressByWorkspace(events, STEP_ORDER);
+        expect(tourOnly[ws.id].furthestStepId).toBeNull();
+        expect(tourOnly[ws.id].completedStepIds).toEqual([]);
+
+        // …and a real unit completed after the tour still counts.
+        await insertTutorialEvent({
+            workspaceId: ws.id,
+            stepId: "u0-orientation",
+            eventType: "step_completed",
+        });
+        const withUnit = deriveProgressByWorkspace(
+            await getTutorialEventsForWorkshop(workshop.id),
+            STEP_ORDER,
+        );
+        expect(withUnit[ws.id].furthestStepId).toBe("u0-orientation");
+        expect(withUnit[ws.id].completedStepIds).toEqual(["u0-orientation"]);
+    });
 });
