@@ -1,6 +1,5 @@
 import { useCallback, useEffect } from "react";
 import config from "@/lib/config";
-import type { LensConfigData } from "@/types/lens";
 import type { Model, Token } from "@/types/models";
 import { startAndPoll } from "../startAndPoll";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,25 +15,6 @@ interface Prediction {
     probs: number[];
     texts: string[];
 }
-
-const getPrediction = async (request: LensConfigData): Promise<Prediction> => {
-    const headers = await createUserHeadersAction();
-    return await startAndPoll<Prediction>(
-        config.endpoints.startPrediction,
-        request,
-        config.endpoints.resultsPrediction,
-        headers,
-    );
-};
-
-export const usePrediction = () => {
-    return useMutation({
-        mutationFn: getPrediction,
-        onError: (error, variables, context) => {
-            toast.error(`Error: ${error}`);
-        },
-    });
-};
 
 interface Completion {
     prompt: string;

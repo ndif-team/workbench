@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartsMetadata } from "@/lib/queries/chartQueries";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -9,6 +9,7 @@ import {
     useCreatePatchLensChartPair,
     useCreatePatchChartPair,
     useCreateActivationPatchingChartPair,
+    useConvertChartType,
     useDeleteChart,
 } from "@/lib/api/chartApi";
 import {
@@ -87,6 +88,27 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
     const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
         useCreateActivationPatchingChartPair();
+    const { mutate: convertChartType, isPending: isConvertingChart } = useConvertChartType();
+    // The empty chart currently being converted to another tool — its sidebar
+    // card shows a "Switching…" indicator until navigation lands on the new
+    // tool (which unmounts this sidebar, clearing the state).
+    const [switchingChartId, setSwitchingChartId] = useState<string | null>(null);
+    // A tool run in flight writes its result to the open chart via setChartData.
+    // Converting that chart mid-run would race the write, so while any run is
+    // active we create a fresh chart instead of repurposing the current one.
+    // Keyed by the run mutations' keys (one per tool + the legacy lens line/grid).
+    const RUN_MUTATION_KEYS = [
+        "lens2",
+        "jlens",
+        "activationPatching",
+        "lensLine",
+        "lensGrid",
+        "patchLensLogitLens",
+        "patchLensIntervention",
+    ];
+    const runsInFlight = useIsMutating({
+        predicate: (m) => RUN_MUTATION_KEYS.includes(m.options.mutationKey?.[0] as string),
+    });
     const { mutate: deleteChart } = useDeleteChart();
     const { mutate: createDocument, isPending: isCreatingDocument } = useCreateDocument();
     const { mutate: deleteDocument } = useDeleteDocument();
@@ -233,12 +255,9 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (
+    const createNewChart = (
         toolType: "lens2" | "jlens" | "patch" | "activation-patching" | "patch-lens",
     ) => {
-        // Guard against stale UI / programmatic calls; the buttons below are
-        // already filtered. createChartConfigPair re-checks server-side.
-        if (workshop && !workshop.allowedTools.includes(toolType as WorkshopTool)) return;
         capture("chart_created", { tool: toolType });
         if (toolType === "lens2") {
             createLens2Pair(
@@ -284,6 +303,68 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                 onSuccess: ({ chart }) => navigateToChart(chart.id, toolType),
             },
         );
+    };
+
+    const handleCreate = (
+        toolType: "lens2" | "jlens" | "patch" | "activation-patching" | "patch-lens",
+    ) => {
+        // Guard against stale UI / programmatic calls; the buttons below are
+        // already filtered. createChartConfigPair re-checks server-side.
+        if (workshop && !workshop.allowedTools.includes(toolType as WorkshopTool)) return;
+
+        const currentChart = chartId ? charts?.find((c) => c.id === chartId) : undefined;
+
+        // Clicking the tool an empty chart already is stays put (no-op) rather
+        // than stacking a duplicate — regardless of whether its model is
+        // deploying or a run is in flight. Legacy "patch" isn't sidebar-clickable.
+        if (
+            currentChart &&
+            !currentChart.hasData &&
+            toolType !== "patch" &&
+            currentChart.toolType === toolType
+        ) {
+            return;
+        }
+
+        // Reuse an empty chart in place: when the open chart has no saved result,
+        // clicking a *different* tool repurposes that chart rather than spawning
+        // a second blank one. A run in flight (writing to the open chart) forces
+        // the create path so we never race a result write. A chart whose model is
+        // mid-deploy renders as a DeployCard, not a ChartCard — converting it
+        // would reset its model and disrupt the warmup, so it too falls through.
+        const currentDeploying = !!currentChart && deployStateOf(currentChart) === "deploying";
+        if (
+            currentChart &&
+            !currentChart.hasData &&
+            !currentDeploying &&
+            toolType !== "patch" &&
+            runsInFlight === 0
+        ) {
+            setSwitchingChartId(currentChart.id);
+            convertChartType(
+                { chartId: currentChart.id, toolType },
+                {
+                    onSuccess: () => {
+                        capture("chart_converted", {
+                            from: currentChart.toolType,
+                            to: toolType,
+                        });
+                        navigateToChart(currentChart.id, toolType);
+                    },
+                    // The sidebar's hasData can lag a just-finished run; if the
+                    // chart turned out to hold a result, the server refuses the
+                    // convert — clear the indicator and fall back to the normal
+                    // "add a new chart" path (which emits its own chart_created).
+                    onError: () => {
+                        setSwitchingChartId(null);
+                        createNewChart(toolType);
+                    },
+                },
+            );
+            return;
+        }
+
+        createNewChart(toolType);
     };
 
     const handleDelete = (e: React.MouseEvent, chartId: string) => {
@@ -368,6 +449,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         isCreatingPatchLens ||
         isCreatingPatch ||
         isCreatingActivationPatching ||
+        isConvertingChart ||
         isCreatingDocument;
 
     // One registry for both sidebar variants (expanded list + collapsed strip),
@@ -578,6 +660,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                                                         metadata={chart}
                                                         handleDelete={handleDelete}
                                                         canDelete={canDelete}
+                                                        switching={switchingChartId === chart.id}
                                                     />
                                                 )}
                                             </SortableEntry>
