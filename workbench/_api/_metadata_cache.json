@@ -86,14 +86,14 @@
     },
     "zai-org/GLM-4.5-Air": {
       "name": "zai-org/GLM-4.5-Air",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 46,
       "params": "110B",
       "gated": true
     },
     "Qwen/Qwen3-32B": {
       "name": "Qwen/Qwen3-32B",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 64,
       "params": "33B",
       "gated": true
@@ -114,7 +114,7 @@
     },
     "microsoft/DialoGPT-small": {
       "name": "microsoft/DialoGPT-small",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 12,
       "params": "176M",
       "gated": false
@@ -163,7 +163,7 @@
     },
     "openai/gpt-oss-safeguard-120b": {
       "name": "openai/gpt-oss-safeguard-120b",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 36,
       "params": "63B",
       "gated": true
@@ -205,14 +205,14 @@
     },
     "Qwen/Qwen3-4B": {
       "name": "Qwen/Qwen3-4B",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 36,
       "params": "4B",
       "gated": false
     },
     "deepseek-ai/DeepSeek-R1-Distill-Llama-70B": {
       "name": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 80,
       "params": "71B",
       "gated": true
@@ -226,7 +226,7 @@
     },
     "microsoft/DialoGPT-medium": {
       "name": "microsoft/DialoGPT-medium",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 24,
       "params": "unknown",
       "gated": false
@@ -275,7 +275,7 @@
     },
     "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B": {
       "name": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 28,
       "params": "2B",
       "gated": false
@@ -352,7 +352,7 @@
     },
     "Qwen/Qwen3-0.6B": {
       "name": "Qwen/Qwen3-0.6B",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 28,
       "params": "752M",
       "gated": false
@@ -366,21 +366,21 @@
     },
     "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B": {
       "name": "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 64,
       "params": "33B",
       "gated": true
     },
     "deepseek-ai/DeepSeek-R1-Distill-Llama-8B": {
       "name": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 32,
       "params": "8B",
       "gated": false
     },
     "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B": {
       "name": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 28,
       "params": "8B",
       "gated": false
@@ -429,14 +429,14 @@
     },
     "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B": {
       "name": "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 48,
       "params": "15B",
       "gated": true
     },
     "openai/gpt-oss-20b": {
       "name": "openai/gpt-oss-20b",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 24,
       "params": "12B",
       "gated": true
@@ -464,7 +464,7 @@
     },
     "Qwen/QwQ-32B": {
       "name": "Qwen/QwQ-32B",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 64,
       "params": "33B",
       "gated": true
@@ -478,7 +478,7 @@
     },
     "openai/gpt-oss-120b": {
       "name": "openai/gpt-oss-120b",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 36,
       "params": "63B",
       "gated": true
@@ -506,7 +506,7 @@
     },
     "Qwen/Qwen3-8B": {
       "name": "Qwen/Qwen3-8B",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 36,
       "params": "8B",
       "gated": false
@@ -534,7 +534,7 @@
     },
     "deepseek-ai/DeepSeek-R1": {
       "name": "deepseek-ai/DeepSeek-R1",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 61,
       "params": "685B",
       "gated": true
@@ -569,7 +569,7 @@
     },
     "allenai/Olmo-3.1-32B-Think": {
       "name": "allenai/Olmo-3.1-32B-Think",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 64,
       "params": "32B",
       "gated": true
@@ -583,7 +583,7 @@
     },
     "Qwen/Qwen3-4B-Thinking-2507": {
       "name": "Qwen/Qwen3-4B-Thinking-2507",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 36,
       "params": "4B",
       "gated": false
@@ -625,14 +625,14 @@
     },
     "yujiepan/deepseek-llm-tiny-random": {
       "name": "yujiepan/deepseek-llm-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "410K",
       "gated": false
     },
     "yujiepan/gpt-oss-tiny-random-mxfp4": {
       "name": "yujiepan/gpt-oss-tiny-random-mxfp4",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "7M",
       "gated": false
@@ -646,7 +646,7 @@
     },
     "deepseek-ai/DeepSeek-V3": {
       "name": "deepseek-ai/DeepSeek-V3",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 61,
       "params": "685B",
       "gated": true
@@ -660,7 +660,7 @@
     },
     "yujiepan/llama-3-tiny-random": {
       "name": "yujiepan/llama-3-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "1M",
       "gated": false
@@ -674,14 +674,14 @@
     },
     "yujiepan/mistral-v0.3-tiny-random": {
       "name": "yujiepan/mistral-v0.3-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "526K",
       "gated": false
     },
     "yujiepan/llama-3.3-tiny-random": {
       "name": "yujiepan/llama-3.3-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "4M",
       "gated": false
@@ -695,14 +695,14 @@
     },
     "yujiepan/mixtral-8xtiny-random": {
       "name": "yujiepan/mixtral-8xtiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "525K",
       "gated": false
     },
     "yujiepan/gemma-tiny-random": {
       "name": "yujiepan/gemma-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "2M",
       "gated": false
@@ -723,49 +723,49 @@
     },
     "yujiepan/deepseek-v2-tiny-random": {
       "name": "yujiepan/deepseek-v2-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "2M",
       "gated": false
     },
     "yujiepan/glm-4.5-tiny-random": {
       "name": "yujiepan/glm-4.5-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "3M",
       "gated": false
     },
     "yujiepan/phi-3.5-tiny-random": {
       "name": "yujiepan/phi-3.5-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "1M",
       "gated": false
     },
     "yujiepan/dbrx-tiny-random": {
       "name": "yujiepan/dbrx-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "806K",
       "gated": false
     },
     "yujiepan/phi-3-tiny-random": {
       "name": "yujiepan/phi-3-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "1M",
       "gated": false
     },
     "yujiepan/QwQ-preview-tiny-random": {
       "name": "yujiepan/QwQ-preview-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "2M",
       "gated": false
     },
     "yujiepan/mistral-tiny-random": {
       "name": "yujiepan/mistral-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "514K",
       "gated": false
@@ -779,7 +779,7 @@
     },
     "yujiepan/gpt-oss-tiny-random-bf16": {
       "name": "yujiepan/gpt-oss-tiny-random-bf16",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "7M",
       "gated": false
@@ -793,7 +793,7 @@
     },
     "yujiepan/dbrx-tiny256-random": {
       "name": "yujiepan/dbrx-tiny256-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "64M",
       "gated": false
@@ -814,7 +814,7 @@
     },
     "yujiepan/glm-4-moe-tiny-random": {
       "name": "yujiepan/glm-4-moe-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "3M",
       "gated": false
@@ -828,35 +828,35 @@
     },
     "yujiepan/deepseek-v3-tiny-random": {
       "name": "yujiepan/deepseek-v3-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "4M",
       "gated": false
     },
     "yujiepan/ernie-4.5-tiny-random": {
       "name": "yujiepan/ernie-4.5-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "854K",
       "gated": false
     },
     "yujiepan/gemma-2-tiny-random": {
       "name": "yujiepan/gemma-2-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "2M",
       "gated": false
     },
     "yujiepan/deepseek-v2-0628-tiny-random": {
       "name": "yujiepan/deepseek-v2-0628-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "2M",
       "gated": false
     },
     "yujiepan/llama-2-tiny-3layers-random": {
       "name": "yujiepan/llama-2-tiny-3layers-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 3,
       "params": "515K",
       "gated": false
@@ -884,21 +884,21 @@
     },
     "yujiepan/phi-3.5-moe-tiny-random": {
       "name": "yujiepan/phi-3.5-moe-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "1M",
       "gated": false
     },
     "yujiepan/glm-4-tiny-random": {
       "name": "yujiepan/glm-4-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "5M",
       "gated": false
     },
     "yujiepan/deepseek-v3.1-tiny-random": {
       "name": "yujiepan/deepseek-v3.1-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "5M",
       "gated": false
@@ -919,7 +919,7 @@
     },
     "yujiepan/llama-3.1-tiny-random": {
       "name": "yujiepan/llama-3.1-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "2M",
       "gated": false
@@ -933,7 +933,7 @@
     },
     "yujiepan/llama-3.3-tiny-random-dim64": {
       "name": "yujiepan/llama-3.3-tiny-random-dim64",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "8M",
       "gated": false
@@ -947,7 +947,7 @@
     },
     "yujiepan/qwen3-tiny-random-tp": {
       "name": "yujiepan/qwen3-tiny-random-tp",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "2M",
       "gated": false
@@ -961,7 +961,7 @@
     },
     "yujiepan/llama-2-tiny-random": {
       "name": "yujiepan/llama-2-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 1,
       "params": "513K",
       "gated": false
@@ -975,21 +975,21 @@
     },
     "yujiepan/kimi-k2-tiny-random": {
       "name": "yujiepan/kimi-k2-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "11M",
       "gated": false
     },
     "axolotl-ai-co/gemma-3-34M": {
       "name": "axolotl-ai-co/gemma-3-34M",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "34M",
       "gated": false
     },
     "yujiepan/mixtral-8xtiny-random-openvino-8bit": {
       "name": "yujiepan/mixtral-8xtiny-random-openvino-8bit",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "unknown",
       "gated": false
@@ -1003,7 +1003,7 @@
     },
     "yujiepan/baguettotron-tiny-random": {
       "name": "yujiepan/baguettotron-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "552K",
       "gated": false
@@ -1038,14 +1038,14 @@
     },
     "yujiepan/ernie-4.5-moe-tiny-random": {
       "name": "yujiepan/ernie-4.5-moe-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "904K",
       "gated": false
     },
     "yujiepan/mistral-nemo-2407-tiny-random": {
       "name": "yujiepan/mistral-nemo-2407-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "2M",
       "gated": false
@@ -1059,56 +1059,56 @@
     },
     "yujiepan/llama-3.2-tiny-random": {
       "name": "yujiepan/llama-3.2-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "1M",
       "gated": false
     },
     "yujiepan/phi-moe-tiny-random": {
       "name": "yujiepan/phi-moe-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "3M",
       "gated": false
     },
     "yujiepan/gpt-oss-tiny-random": {
       "name": "yujiepan/gpt-oss-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "7M",
       "gated": false
     },
     "yujiepan/smollm3-tiny-random": {
       "name": "yujiepan/smollm3-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "8M",
       "gated": false
     },
     "yujiepan/qwen3-moe-tiny-random": {
       "name": "yujiepan/qwen3-moe-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "10M",
       "gated": false
     },
     "yujiepan/phi-4-tiny-random": {
       "name": "yujiepan/phi-4-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "3M",
       "gated": false
     },
     "yujiepan/QwQ-tiny-random": {
       "name": "yujiepan/QwQ-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "2M",
       "gated": false
     },
     "yujiepan/mixtral-tiny-random": {
       "name": "yujiepan/mixtral-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "258K",
       "gated": false
@@ -1122,7 +1122,7 @@
     },
     "yujiepan/qwen3-tiny-random": {
       "name": "yujiepan/qwen3-tiny-random",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "10M",
       "gated": false
@@ -1136,14 +1136,14 @@
     },
     "yujiepan/qwq-tiny-random-dim64": {
       "name": "yujiepan/qwq-tiny-random-dim64",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "20M",
       "gated": false
     },
     "yujiepan/llama-3-tiny-random-gptq-w4": {
       "name": "yujiepan/llama-3-tiny-random-gptq-w4",
-      "is_chat": false,
+      "is_chat": true,
       "n_layers": 2,
       "params": "1M",
       "gated": false
