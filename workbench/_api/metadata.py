@@ -77,15 +77,26 @@ VISION_MODEL_TYPES = {
     "git",
 }
 
-# Chat/instruct classification is name-based, NOT tokenizer-chat-template-based.
-# The tokenizer signal is unreliable: several families (notably Qwen) bundle a
-# chat_template into their BASE tokenizers, so `chat_template is not None` would
-# misclassify e.g. `Qwen2.5-7B` (base) as a chat model. Repo naming is the
-# strongest cross-ecosystem signal — instruct/chat post-trained models almost
-# always carry a marker in the name, base models don't.
+# Chat/instruct classification combines two signals:
 #
-# Tokens matched (case-insensitive) as hyphen/underscore/slash-delimited
-# segments of the repo's last path component:
+#   1. The presence of a chat template on the Hub — the ground truth for "this
+#      model expects a chat/instruct format". It lives in one of two places: a
+#      standalone ``chat_template.jinja`` (modern convention, e.g. gpt-oss) or a
+#      ``chat_template`` key inside ``tokenizer_config.json`` (classic). See
+#      ``_has_chat_template``.
+#   2. Repo naming — post-trained models usually carry a marker (``instruct``,
+#      ``chat``, ``it``, ...). Kept as a fallback for gated repos whose template
+#      an unauthenticated probe can't read, and used exclusively for Qwen.
+#
+# The template supersedes the name check for every family EXCEPT Qwen: Qwen
+# bundles a chat_template into its BASE tokenizers too (verified — ``Qwen2.5-7B``
+# and ``Qwen3-8B-Base`` both ship one), so a template is a false positive there.
+# For Qwen we classify by name, with the twist that Qwen3 *inverts* the usual
+# convention: the bare name (``Qwen3-8B``) is the chat checkpoint and the
+# pretrained one carries a ``-Base`` suffix (``Qwen3-8B-Base``).
+#
+# Name markers matched (case-insensitive) as hyphen/underscore/slash/dot-
+# delimited segments of the repo's last path component:
 #   - generic post-training markers: instruct, chat, it (gemma), rlhf, dpo,
 #     sft, orpo
 #   - well-known marker-less chat families (so they don't fall to "base")
@@ -97,16 +108,74 @@ _CHAT_NAME_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Qwen bundles a chat_template into its base tokenizers, so the template signal
+# is unusable for the family — classify by name instead. Qwen3 inverts the
+# convention (bare = chat, ``-Base`` = pretrained); Qwen1.5/2/2.5 keep the
+# classic ``-Instruct`` marker.
+#
+# Anchored at the START of the label so this only catches *official* Qwen repos
+# (``Qwen3-8B``, ``Qwen2.5-7B``). Qwen-architecture derivatives from other orgs
+# (e.g. ``deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B``) are genuine chat models
+# that ship a real template — they must go through the template path, not this
+# carve-out. ``QwQ`` (chat-only, no base) likewise doesn't match ``qwen`` and so
+# is correctly template-classified.
+_QWEN_RE = re.compile(r"^qwen", re.IGNORECASE)
+_QWEN3_RE = re.compile(r"^qwen3(?:[-_/.]|$)", re.IGNORECASE)
+_BASE_SUFFIX_RE = re.compile(r"[-_/.]base$", re.IGNORECASE)
 
-def _is_chat_model(model_name: str) -> bool:
-    """Return whether the repo name marks an instruction- or chat-tuned model.
 
-    Classification is based on the repo's last path component (e.g.
-    ``Llama-3.1-8B-Instruct``), not on the tokenizer's chat template, which
-    is unreliable across ecosystems.
+def _has_chat_template(model_name: str) -> bool:
+    """Whether the repo ships a chat template, checking both Hub conventions.
+
+    A chat template lives in a standalone ``chat_template.jinja`` (modern, e.g.
+    gpt-oss) or embedded under the ``chat_template`` key of
+    ``tokenizer_config.json`` (classic). Both files are small; we read them
+    directly rather than loading the whole tokenizer.
+
+    Best-effort: a permanent read failure (e.g. a gated repo we can't access) is
+    treated as "no readable template" — the name check still catches marked
+    repos. Transient Hub failures are re-raised so the caller retries rather
+    than caching a wrong verdict.
+    """
+    from huggingface_hub import hf_hub_download
+    from huggingface_hub.utils import EntryNotFoundError
+
+    try:
+        try:
+            hf_hub_download(model_name, "chat_template.jinja")
+            return True
+        except EntryNotFoundError:
+            pass  # not the standalone-file convention; try the embedded key
+        try:
+            path = hf_hub_download(model_name, "tokenizer_config.json")
+        except EntryNotFoundError:
+            return False  # no tokenizer config at all → no template
+        with open(path, encoding="utf-8") as f:
+            return bool(json.load(f).get("chat_template"))
+    except Exception as e:
+        if _is_transient_metadata_error(e):
+            raise
+        logger.warning(f"Could not read chat template for {model_name}: {e}")
+        return False
+
+
+def _is_chat_model(model_name: str, has_chat_template: bool) -> bool:
+    """Whether a repo is an instruction/chat model.
+
+    The chat template is authoritative for every family except Qwen, whose base
+    tokenizers also bundle a template (so the signal is a false positive there);
+    Qwen is classified by name convention instead. A name marker (``-Instruct``
+    etc.) always counts as chat too, covering gated repos whose template the
+    probe couldn't read.
     """
     label = model_name.split("/")[-1]
-    return _CHAT_NAME_RE.search(label) is not None
+    if _QWEN_RE.search(label):
+        if _QWEN3_RE.search(label):
+            # Qwen3 inverts: bare name is chat, `-Base` is the pretrained model.
+            return _BASE_SUFFIX_RE.search(label) is None
+        # Qwen1.5/2/2.5: classic convention — only explicit markers are chat.
+        return _CHAT_NAME_RE.search(label) is not None
+    return has_chat_template or _CHAT_NAME_RE.search(label) is not None
 
 
 class UnsupportedModel(Exception):
@@ -122,7 +191,8 @@ class ModelMetadata(BaseModel):
 
     Attributes:
         name: Full repo ID (``org/model``).
-        is_chat: Whether the repo name indicates an instruct/chat variant.
+        is_chat: Whether the repo is an instruct/chat model — from its chat
+            template (or name, for Qwen and gated repos). See ``_is_chat_model``.
         n_layers: Transformer block count from ``AutoConfig``.
         params: Human-readable parameter count (e.g. ``"7B"``), or
             ``"unknown"`` when safetensors headers are unavailable.
@@ -268,7 +338,7 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
 
     return ModelMetadata(
         name=model_name,
-        is_chat=_is_chat_model(model_name),
+        is_chat=_is_chat_model(model_name, _has_chat_template(model_name)),
         n_layers=n_layers,
         params=_format_params(num_params) if num_params > 0 else "unknown",
         gated=gated,
