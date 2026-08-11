@@ -168,6 +168,16 @@ export function TutorialActivityPanel({
     // step carrying the whole point of the tool, participants performed the
     // intervention successfully and then could not find its result — the panel
     // now says what changed (below) and rings the cell it changed in.
+    //
+    // The result cell is ADDED to the step's own spotlights, never substituted for
+    // them. `patchToken` is not evidence that a result is on screen: a patch
+    // restored from an earlier session is re-filed on arrival at this step
+    // (PatchLensDisplay's "restored patch" effect) even when no result grid is
+    // rendered. Replacing here meant that token silently deleted the two cells the
+    // step's task names — leaving the drag it asks for pointed at nothing, and
+    // (because a spotlight is also what forces a downsampled layer to render) the
+    // patch layer missing from the grid entirely. Lighting both is safe: an
+    // unrendered result grid resolves to no cell, so the extra target is inert.
     useEffect(() => {
         // Nothing is spotlit while the tutorial is off screen: these effects sit
         // above the `active` guard (hooks can't be conditional), so the invariant
@@ -175,9 +185,12 @@ export function TutorialActivityPanel({
         if (!store.active || !isPatchUnit || patchToken == null) return;
         if (spotlitPatch.current === patchToken) return;
         spotlitPatch.current = patchToken;
-        onSpotlight?.({ grid: "result", layer: "last", position: "last" });
+        onSpotlight?.([
+            ...(unitSpotlights ?? []),
+            { grid: "result", layer: "last", position: "last" },
+        ]);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [store.active, isPatchUnit, patchToken]);
+    }, [store.active, isPatchUnit, patchToken, unitSpotlights]);
 
     // Back to the top of the step on arrival. The steps are long enough to scroll,
     // and the container keeps its offset across a unit change — so advancing from
