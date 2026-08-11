@@ -183,14 +183,11 @@ class AppState:
         if model_name not in self.models:
             self._load_model(model_name)
 
-            if model_name not in self.pinned:
-                self._active_models[model_name] = None
-                self._evict_if_needed()
-        
-        elif model_name not in self.pinned:
-            # Already loaded; bump recency.
-            self._active_models.move_to_end(model_name)
-        
+        if model_name not in self.pinned:
+            self._active_models.pop(model_name, None)
+            self._active_models[model_name] = None
+            self._evict_if_needed()
+
         return self.models[model_name]
 
     def _evict_if_needed(self) -> None:
