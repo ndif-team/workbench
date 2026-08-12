@@ -117,12 +117,17 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
         // A spotlight the widget can't resolve silently highlights nothing — for a
         // hint, exactly the rung a stuck participant reached for; for a unit, the
         // cells its instructions tell them to drag between.
+        //
+        // `position` is optional: an entry with a grid and a layer but no position
+        // forces that layer's column to render and rings nothing (how `forceLayers`
+        // reaches the widget). A position that IS present still has to resolve, or
+        // it rings a cell nobody meant.
         const checkSpotlights = (cells: unknown[], where: string) => {
             for (const s of cells as { grid?: unknown; layer?: unknown; position?: unknown }[]) {
                 if (
                     !validGrids.has(s?.grid) ||
                     !isCellIndex(s?.layer) ||
-                    !isCellIndex(s?.position)
+                    (s?.position !== undefined && !isCellIndex(s?.position))
                 ) {
                     throw new Error(
                         `Unit "${u.id}" ${where} has a malformed spotlight (needs grid source|target|result and a non-negative integer or "last" layer/position)`,
@@ -135,6 +140,24 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
                 throw new Error(`Unit "${u.id}" spotlights must be a non-empty array`);
             }
             checkSpotlights(u.spotlights, "spotlights");
+        }
+        // Same shape minus the position, and the same failure when it's wrong: a
+        // layer the widget can't resolve is silently dropped, and the step that
+        // asked for it goes back to being about a column that isn't on screen.
+        if (u.forceLayers !== undefined) {
+            if (!Array.isArray(u.forceLayers) || u.forceLayers.length === 0) {
+                throw new Error(`Unit "${u.id}" forceLayers must be a non-empty array`);
+            }
+            checkSpotlights(u.forceLayers, "forceLayers");
+            // A position here is dropped on the way to the widget, so an author who
+            // wrote one is expecting a ring they will never get. Say so instead.
+            for (const f of u.forceLayers as { position?: unknown }[]) {
+                if (f?.position !== undefined) {
+                    throw new Error(
+                        `Unit "${u.id}" forceLayers entries take no position (they render a layer without ringing a cell) — use spotlights to ring one`,
+                    );
+                }
+            }
         }
         for (const h of u.hints) {
             if (typeof h?.stage !== "number" || typeof h?.text !== "string") {

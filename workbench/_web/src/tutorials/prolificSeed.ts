@@ -45,6 +45,13 @@ import type { TutorialContent } from "@/types/tutorial-content";
  *    ("the 'um' cell at the end of 'Colosseum'") is a sign the affordance isn't
  *    discoverable. Verified against the Llama-3.1 tokenizer: with BOS at index 0,
  *    position 5 is " Tower" in the source and "um" in the target.
+ *  - **Showing a layer and ringing a cell are separated.** A spotlight does both
+ *    at once — it rings the cell, and it keeps the widget from downsampling that
+ *    layer away — which is right for the patch step (`spotlights`, both ends of
+ *    the drag) and wrong for the compare step before it, whose task is to find
+ *    those same rows. Compare uses `forceLayers` for the column and leaves the
+ *    rings to its stage-2 hint, so layer 20 is on screen from arrival but nothing
+ *    answers the question the step is asking.
  */
 
 export const PROLIFIC_TUTORIAL_SLUG = "prolific-patch-lens-demo";
@@ -63,6 +70,14 @@ const PATCH_DRAG = [
     { grid: "source" as const, layer: 20, position: 5 },
     { grid: "target" as const, layer: 20, position: 5 },
 ];
+
+/**
+ * The same two columns, with no cell ringed — for the compare step, which needs
+ * layer 20 on screen but must not point at the rows its task asks the participant
+ * to find. Derived from PATCH_DRAG so the layer cannot drift between the step that
+ * shows the column and the step that drags across it.
+ */
+const PATCH_COLUMNS = PATCH_DRAG.map(({ grid, layer }) => ({ grid, layer }));
 
 export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
     version: 1,
@@ -454,6 +469,13 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                 'Write your own pair — two sentences worded the same way with different answers, like "The opposite of hot is" and "The opposite of tall is". Run them and find where each answer settles.',
             prompts: [EIFFEL, COLOSSEUM],
             patchPair: { source: EIFFEL, target: COLOSSEUM },
+            // Layer 20 on screen in both grids, and nothing ringed. The step's task
+            // is to find the landmark's row, so a ring would do it for them — but
+            // without the column rendered at all (auto-fit downsamples layers to the
+            // width, and two heatmaps in one column is the narrow case), the layer
+            // the next step drags across isn't there to be looked at, and only
+            // appears once the stage-2 hint rings it.
+            forceLayers: PATCH_COLUMNS,
             hints: [
                 {
                     stage: 1,

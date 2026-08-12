@@ -123,6 +123,22 @@ describe("prolific tutorial seed", () => {
         expect(unit("u4a-compare").spotlights).toBeUndefined();
     });
 
+    // The two halves of what a spotlight does, split. The compare step needs layer
+    // 20 rendered — auto-fit drops it from two heatmaps in one column, and then the
+    // column the next step drags across only appears once a hint rings it — but it
+    // must not ring anything, because finding those rows is the step's own task.
+    it("the compare step shows the patch layer without ringing its cells", () => {
+        const compare = unit("u4a-compare");
+        const forced = compare.forceLayers ?? [];
+        expect(forced.map((f) => f.grid).sort()).toEqual(["source", "target"]);
+        // Position-less, or it would ring a cell like any other spotlight.
+        expect(forced.every((f) => !("position" in f))).toBe(true);
+        // The same layer the next step drags across, so the participant has already
+        // looked at the column they are about to patch.
+        const patched = unit("u4-patching").spotlights ?? [];
+        expect(forced.map((f) => f.layer)).toEqual(patched.map((c) => c.layer));
+    });
+
     // Every hint that names a cell in prose also rings it. A hint that has to give
     // coordinates ("the 'um' cell at the end of 'Colosseum'") is a hint about a
     // missing affordance, and the drag is the one interaction prose can't convey.
