@@ -194,6 +194,8 @@ describe("tutorial content", () => {
                     kind: "patch",
                     progression: { on: "patch" },
                     patchPair: { source: "The Eiffel Tower is in", target: "The Colosseum is in" },
+                    spotlights: [{ grid: "source", layer: 20, position: 5 }],
+                    forceLayers: [{ grid: "target", layer: 20 }],
                     answerPlaceholder: "e.g. Paris",
                     observationPlaceholder: "What changed?",
                     faqs: [{ q: "What is a patch?", a: "Copying one cell into the other prompt." }],
@@ -218,6 +220,49 @@ describe("tutorial content", () => {
             ],
         };
         expect(() => validateTutorialContent(content)).not.toThrow();
+    });
+
+    // A spotlight the widget can't resolve silently highlights nothing — for a hint,
+    // exactly the rung a stuck participant reached for. `forceLayers` fails more
+    // quietly still: the step goes back to being about a column that auto-fit has
+    // dropped, with nothing on screen to say so.
+    it("rejects malformed spotlights and forceLayers, and accepts a position-less one", () => {
+        const base = tinyContent().units[0];
+        const withUnit = (overrides: Partial<TutorialUnit>) =>
+            validateTutorialContent({ version: 1, units: [{ ...base, ...overrides }] });
+
+        expect(() => withUnit({ spotlights: [] })).toThrow();
+        expect(() =>
+            withUnit({ spotlights: [{ grid: "middle", layer: 1, position: 1 }] as never }),
+        ).toThrow();
+        expect(() =>
+            withUnit({ spotlights: [{ grid: "source", layer: -1, position: 1 }] }),
+        ).toThrow();
+        // Present-but-unresolvable position still fails; absent is now legal (it
+        // renders the layer and rings nothing).
+        expect(() =>
+            withUnit({ spotlights: [{ grid: "source", layer: 1, position: 1.5 }] }),
+        ).toThrow();
+        expect(() => withUnit({ spotlights: [{ grid: "source", layer: 20 }] })).not.toThrow();
+
+        expect(() => withUnit({ forceLayers: [] })).toThrow();
+        expect(() =>
+            withUnit({ forceLayers: [{ grid: "result", layer: "middle" }] as never }),
+        ).toThrow();
+        expect(() => withUnit({ forceLayers: [{ grid: "nope", layer: 20 }] as never })).toThrow();
+        // A position here would be dropped on the way to the widget, so an author
+        // who wrote one is waiting for a ring that never comes.
+        expect(() =>
+            withUnit({ forceLayers: [{ grid: "source", layer: 20, position: 5 }] as never }),
+        ).toThrow();
+        expect(() =>
+            withUnit({
+                forceLayers: [
+                    { grid: "source", layer: 20 },
+                    { grid: "target", layer: "last" },
+                ],
+            }),
+        ).not.toThrow();
     });
 
     // The welcome slideshow is modal and it is the first thing a participant sees,

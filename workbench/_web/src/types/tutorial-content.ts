@@ -20,7 +20,24 @@ export type UnitKind = "lens" | "patch" | "explore" | "challenge";
 export interface SpotlightTarget {
     grid: "source" | "target" | "result";
     layer: number | "last";
-    position: number | "last";
+    /**
+     * Omit to force that layer's column to render without ringing anything. A
+     * spotlight does two jobs — it rings a cell, and it makes the widget keep the
+     * layer its auto-fit would otherwise downsample away — and a step whose task
+     * is to FIND a cell needs the second job without the first. See
+     * `TutorialUnit.forceLayers`, which is authored as {grid, layer} and reaches
+     * the widget as one of these.
+     */
+    position?: number | "last";
+}
+
+/**
+ * A layer to keep on screen, with no cell ringed. Authoring shape for
+ * `TutorialUnit.forceLayers`; it becomes a position-less `SpotlightTarget`.
+ */
+export interface ForceLayerTarget {
+    grid: "source" | "target" | "result";
+    layer: number | "last";
 }
 
 /** A hint-ladder rung: 1 = nudge, 2 = concrete suggestion, 3 = show-me. */
@@ -148,6 +165,18 @@ export interface TutorialUnit {
      * does that work for the participant.
      */
     spotlights?: SpotlightTarget[];
+    /**
+     * Layers to force into the grid on arrival WITHOUT ringing a cell.
+     *
+     * `spotlights` couples the two things a spotlight does: it rings the cell and
+     * it keeps the layer rendered (auto-fit downsamples layers to the available
+     * width, so the layer a step is about can be missing from a narrow grid
+     * entirely). A step whose task is to find the row holding an answer needs the
+     * layer on screen but must not have the answer ringed — ringing it performs
+     * the task for the participant. That step lists the layer here instead, and
+     * keeps its rings on the hint rung a stuck participant reaches for.
+     */
+    forceLayers?: ForceLayerTarget[];
     hints: HintRung[];
     check?: UnitCheck;
     /**
@@ -221,6 +250,62 @@ export function resolveCheckKey(
     // and scoring an answer against nothing marks every answer wrong and logs a
     // check_answered nobody could have got right.
     return { expected, canAnswer: expected != null };
+}
+
+/**
+ * Everything the widget should spotlight while a participant sits on this unit —
+ * the whole payload, derived from state that survives a reload, rather than
+ * whatever the last imperative call happened to leave behind.
+ *
+ * Kept pure and out of the panel because three separate effects used to write
+ * this and each overwrote the others:
+ *  - the hint-reveal handler wrote its rung's cells and nothing re-applied them,
+ *    so a remount (a reload, or collapsing and re-expanding the tutorial dock)
+ *    silently dropped the rings while the hint still read as revealed;
+ *  - the patch-result effect wrote the result cell. It has to ADD it to the
+ *    step's own cells, never substitute: a patch restored from an earlier session
+ *    is re-filed on arrival even with no result grid on screen, and substituting
+ *    there deleted the two cells the step's task names — and with them (a
+ *    spotlight being what forces a downsampled layer to render) the patch layer
+ *    itself.
+ *
+ * @param unit the unit on screen, if content has loaded
+ * @param hintStage the highest hint rung revealed on this unit (persisted)
+ * @param patchFiled whether a patch result is filed for this unit
+ * @returns the cells to light, or null when nothing should be lit
+ */
+export function resolveUnitSpotlights(
+    unit: TutorialUnit | undefined,
+    hintStage: number,
+    patchFiled: boolean,
+): SpotlightTarget[] | null {
+    if (!unit) return null;
+    // Position-less first: these only keep a layer rendered, so nothing depends on
+    // where they sit, and a step that also rings cells is unaffected by them.
+    const cells: SpotlightTarget[] = (unit.forceLayers ?? []).map(({ grid, layer }) => ({
+        grid,
+        layer,
+    }));
+    cells.push(...(unit.spotlights ?? []));
+    // The revealed rung's cells. Read the highest revealed rung that actually
+    // carries cells rather than the rung at exactly `hintStage`: rungs stay on
+    // screen once revealed, so a later rung with no cells of its own must not
+    // erase the rings an earlier one put up. `spotlights` wins over `spotlight`.
+    const revealed = unit.hints
+        .filter((h) => h.stage <= hintStage)
+        .sort((a, b) => a.stage - b.stage)
+        .reduce<SpotlightTarget[]>((acc, h) => {
+            const rung = h.spotlights?.length ? h.spotlights : h.spotlight ? [h.spotlight] : [];
+            return rung.length ? rung : acc;
+        }, []);
+    cells.push(...revealed);
+    // The post-patch result cell. Participants performed the intervention and then
+    // could not find what it changed, so the panel rings it. An unrendered result
+    // grid resolves to no cell, so this is inert when there is nothing to point at.
+    if (unit.progression.on === "patch" && patchFiled) {
+        cells.push({ grid: "result", layer: "last", position: "last" });
+    }
+    return cells.length ? cells : null;
 }
 
 /** Evaluate a unit's run-based success predicate against the run's top token. */

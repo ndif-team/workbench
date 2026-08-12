@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, useDragControls } from "motion/react";
 import {
@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { useCapture } from "@/lib/analytics";
 import { useProlificTutorial, HINT_AUTO_OFFER_AT } from "@/stores/useProlificTutorial";
 import type { GlossaryEntry, HintRung, SpotlightTarget, UnitCheck } from "@/types/tutorial-content";
-import { resolveCheckKey } from "@/types/tutorial-content";
+import { resolveCheckKey, resolveUnitSpotlights } from "@/types/tutorial-content";
 import { DEFAULT_GLOSSARY } from "@/tutorials/glossary";
 import { CompletionCta } from "./CompletionCta";
 import { TutorialGlossary } from "./TutorialGlossary";
@@ -141,56 +141,49 @@ export function TutorialActivityPanel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [runNonce]);
 
-    // Read before the mount/active guard below, so the patch-result effect can
+    // Read before the mount/active guard below, so the spotlight derivation can
     // depend on them (a conditional hook isn't an option).
     const isPatchUnit = unit?.progression.on === "patch";
     const patchToken = store.patchTokenByUnit[store.unitIdx] ?? null;
+    const hintStage = store.hintStageByUnit[store.unitIdx] ?? 0;
 
-    // On arriving at a unit, ring the cells that unit asks about — and clear
-    // whatever the previous unit lit. Declared before the patch-result effect so
-    // that on arriving back at a patched step, this runs and that one re-lights,
-    // in the same commit.
+    // Everything this step spotlights, in one derived value: the layers it forces
+    // on screen, the cells it rings on arrival, the cells of whatever hint rung has
+    // been revealed, and — once a patch is filed — the result cell.
     //
-    // Unit-level spotlights are not a nicety on the patch step. Its task says
-    // "drag this ringed cell onto that one", which was a lie while spotlights only
-    // fired on a revealed hint; and the ring is also what forces the widget to
-    // render that layer at all, since auto-fit downsamples layers to the column
-    // width and a narrow display can drop the layer the step is about.
-    const unitSpotlights = unit?.spotlights;
-    const spotlitPatch = useRef<string | null>(null);
-    useEffect(() => {
-        spotlitPatch.current = null;
-        onSpotlight?.(unitSpotlights?.length ? unitSpotlights : null);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [store.unitIdx, store.active, unitSpotlights]);
-
-    // Point at the target's post-patch output the moment a patch lands. On the
-    // step carrying the whole point of the tool, participants performed the
-    // intervention successfully and then could not find its result — the panel
-    // now says what changed (below) and rings the cell it changed in.
+    // This used to be three effects writing the same channel, each overwriting the
+    // others. The one that hurt was the hint reveal: it was imperative, so nothing
+    // re-applied it, and any remount (a reload, or collapsing and re-expanding the
+    // dock, which unmounts the column the panel portals into) dropped the rings
+    // while the hint on screen still read as revealed. The revealed stage is
+    // persisted, so the rings can be derived from it instead of remembered.
     //
-    // The result cell is ADDED to the step's own spotlights, never substituted for
-    // them. `patchToken` is not evidence that a result is on screen: a patch
-    // restored from an earlier session is re-filed on arrival at this step
-    // (PatchLensDisplay's "restored patch" effect) even when no result grid is
-    // rendered. Replacing here meant that token silently deleted the two cells the
-    // step's task names — leaving the drag it asks for pointed at nothing, and
-    // (because a spotlight is also what forces a downsampled layer to render) the
-    // patch layer missing from the grid entirely. Lighting both is safe: an
-    // unrendered result grid resolves to no cell, so the extra target is inert.
+    // Two things the effects taught us, kept here:
+    //  - Ringing a cell is also what forces the widget to render its layer —
+    //    auto-fit downsamples layers to the column width, so the layer a step is
+    //    about can be missing from a narrow grid. `forceLayers` does that job
+    //    alone, for a step that must not ring anything (see resolveUnitSpotlights).
+    //  - The patch result is ADDED to the step's own cells, never substituted for
+    //    them (commit f3d193a). `patchToken` is not evidence a result grid is on
+    //    screen: a patch restored from an earlier session is re-filed on arrival
+    //    (PatchLensDisplay's "restored patch" effect) with nothing rendered, and
+    //    substituting there deleted the two cells the step's task names — and with
+    //    them the patch layer itself. Lighting both is safe: an unrendered result
+    //    grid resolves to no cell, so the extra target is inert.
+    //
+    // Nothing is spotlit while the tutorial is off screen. The guard lives here
+    // rather than being inherited from the render, because these hooks sit above
+    // the `active` early-return (hooks can't be conditional).
+    const spotlights = useMemo(
+        () => (store.active ? resolveUnitSpotlights(unit, hintStage, patchToken != null) : null),
+        [store.active, unit, hintStage, patchToken],
+    );
     useEffect(() => {
-        // Nothing is spotlit while the tutorial is off screen: these effects sit
-        // above the `active` guard (hooks can't be conditional), so the invariant
-        // has to be stated here rather than inherited from the render.
-        if (!store.active || !isPatchUnit || patchToken == null) return;
-        if (spotlitPatch.current === patchToken) return;
-        spotlitPatch.current = patchToken;
-        onSpotlight?.([
-            ...(unitSpotlights ?? []),
-            { grid: "result", layer: "last", position: "last" },
-        ]);
+        onSpotlight?.(spotlights);
+        // onSpotlight is a prop the host redeclares every render; re-pushing on the
+        // payload alone is what keeps this from thrashing the widget.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [store.active, isPatchUnit, patchToken, unitSpotlights]);
+    }, [spotlights]);
 
     // Back to the top of the step on arrival. The steps are long enough to scroll,
     // and the container keeps its offset across a unit change — so advancing from
@@ -228,7 +221,6 @@ export function TutorialActivityPanel({
 
     const total = units.length;
     const attempts = store.attemptsByUnit[store.unitIdx] ?? 0;
-    const hintStage = store.hintStageByUnit[store.unitIdx] ?? 0;
     const completed = store.completedUnits.includes(store.unitIdx);
     const isLast = store.unitIdx === total - 1;
 
@@ -348,10 +340,10 @@ export function TutorialActivityPanel({
                     const stage = store.revealHint();
                     const rung = unit.hints.find((h) => h.stage === stage);
                     if (rung?.insertPrompt) onInsertPrompt(rung.insertPrompt);
-                    // A rung may light several cells — both ends of a
-                    // drag, say. `spotlights` wins over `spotlight`.
-                    const cells = rung?.spotlights?.length ? rung.spotlights : rung?.spotlight;
-                    if (cells) onSpotlight?.(cells);
+                    // The rung's cells are NOT lit from here. `revealHint` persists
+                    // the stage, and the spotlight payload above is derived from it
+                    // — so the rings survive a reload and a dock collapse, which an
+                    // imperative call from this handler did not.
                 }}
             />
 
