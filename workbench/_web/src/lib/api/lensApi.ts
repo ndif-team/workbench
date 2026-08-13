@@ -10,6 +10,7 @@ import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
 import { startAndPoll } from "../startAndPoll";
 import { createUserHeadersAction } from "@/actions/auth";
+import { useTrackRun } from "@/lib/analytics";
 
 /**
  * API request for lens2 endpoint
@@ -17,6 +18,12 @@ import { createUserHeadersAction } from "@/actions/auth";
 interface Lens2Request {
     completion: Lens2ConfigData;
     chartId: string;
+}
+
+/** Mutation variables. */
+interface Lens2Variables {
+    lensRequest: Lens2Request;
+    configId: string;
 }
 
 /**
@@ -46,10 +53,11 @@ const getLens2 = async (lensRequest: Lens2Request): Promise<Lens2Data> => {
  */
 export const useLens2 = () => {
     const queryClient = useQueryClient();
+    const trackRun = useTrackRun();
 
     return useMutation({
         mutationKey: ["lens2"],
-        onMutate: async ({ lensRequest }: { lensRequest: Lens2Request; configId: string }) => {
+        onMutate: async ({ lensRequest }: Lens2Variables) => {
             const chartKey = queryKeys.charts.chart(lensRequest.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
@@ -62,11 +70,23 @@ export const useLens2 = () => {
                 chartKey: ReturnType<typeof queryKeys.charts.chart>;
             };
         },
-        mutationFn: async ({ lensRequest }: { lensRequest: Lens2Request; configId: string }) => {
-            const response = await getLens2(lensRequest);
-            // Store the lens2 data as chart data (in V2 format)
-            await setChartData(lensRequest.chartId, response, "lens2");
-            return response;
+        mutationFn: async ({ lensRequest }: Lens2Variables) => {
+            const { completion } = lensRequest;
+            return trackRun(
+                {
+                    tool: "Logit Lens",
+                    model: completion.model,
+                    prompt_length: completion.prompt?.length ?? 0,
+                    topk: completion.topk ?? 5,
+                    include_entropy: completion.includeEntropy ?? true,
+                },
+                async () => {
+                    const response = await getLens2(lensRequest);
+                    // Store the lens2 data as chart data (in V2 format)
+                    await setChartData(lensRequest.chartId, response, "lens2");
+                    return response;
+                },
+            );
         },
         onError: (error, variables, context) => {
             if (context?.previousChart) {

@@ -96,7 +96,7 @@ export function Lens2Controls({
     useEffect(() => {
         if (openedRef.current) return;
         openedRef.current = true;
-        capture("tool_opened", { tool: "lens2" });
+        capture("tool_opened", { tool: "Logit Lens" });
     }, [capture]);
 
     const savedPrompt = initialConfig.data?.prompt || "";
@@ -240,20 +240,11 @@ export function Lens2Controls({
                     topk: savedTopk,
                     includeEntropy: savedIncludeEntropy,
                 };
-                capture("run_submitted", {
-                    tool: "lens2",
-                    model: selectedModel,
-                    prompt_length: trimmedPrompt.length,
-                    topk: savedTopk,
-                    include_entropy: savedIncludeEntropy,
-                    auto: true,
-                });
                 await computeLens2({
                     lensRequest: { completion: config, chartId },
                     configId: initialConfig.id,
                 });
                 if (isCancelled) return;
-                capture("run_completed", { tool: "lens2", model: selectedModel });
                 await updateConfig({
                     configId: initialConfig.id,
                     chartId,
@@ -262,8 +253,6 @@ export function Lens2Controls({
                 if (isCancelled) return;
                 lastSyncedPromptRef.current = trimmedPrompt;
             } catch (err) {
-                /* one-shot auto-run; swallow, but record the failure */
-                if (!isCancelled) capture("run_failed", { tool: "lens2", error: String(err) });
             }
         };
         const timer = setTimeout(autoRunLens2, 800);
@@ -282,7 +271,6 @@ export function Lens2Controls({
         workspaceId,
         computeLens2,
         updateConfig,
-        capture,
     ]);
 
     const autoResizeTextarea = useCallback(() => {
@@ -396,24 +384,10 @@ export function Lens2Controls({
                 includeEntropy,
             };
 
-            capture("run_submitted", {
-                tool: "lens2",
-                model: selectedModel,
-                prompt_length: trimmedPrompt.length,
-                topk,
-                include_entropy: includeEntropy,
-                auto: false,
+            await computeLens2({
+                lensRequest: { completion: config, chartId },
+                configId: initialConfig.id,
             });
-            try {
-                await computeLens2({
-                    lensRequest: { completion: config, chartId },
-                    configId: initialConfig.id,
-                });
-                capture("run_completed", { tool: "lens2", model: selectedModel });
-            } catch (err) {
-                capture("run_failed", { tool: "lens2", error: String(err) });
-                throw err;
-            }
             await updateConfig({
                 configId: initialConfig.id,
                 chartId,
@@ -439,7 +413,6 @@ export function Lens2Controls({
         workspaceId,
         computeLens2,
         updateConfig,
-        capture,
     ]);
 
     const handlePromptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -634,7 +607,7 @@ export function Lens2Controls({
                         onValueChange={([value]) => {
                             setTopk(value);
                             capture("param_changed", {
-                                tool: "lens2",
+                                tool: "Logit Lens",
                                 param: "topk",
                                 value,
                             });
@@ -651,7 +624,7 @@ export function Lens2Controls({
                         onCheckedChange={(checked) => {
                             setIncludeEntropy(checked === true);
                             capture("param_changed", {
-                                tool: "lens2",
+                                tool: "Logit Lens",
                                 param: "include_entropy",
                                 value: checked === true,
                             });

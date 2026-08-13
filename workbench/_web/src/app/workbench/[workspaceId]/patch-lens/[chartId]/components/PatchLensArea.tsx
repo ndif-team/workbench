@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
-import { useCapture } from "@/lib/analytics";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2, Play, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -122,7 +121,6 @@ export default function PatchLensArea({
     onSelectRun,
 }: PatchLensAreaProps) {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
-    const capture = useCapture();
     const { emit: emitTutorialEvent } = useTutorialEmit();
     const prolificTutorial = useProlificTutorial();
     const { setTarget: setSpotlight } = useSpotlight();
@@ -469,13 +467,6 @@ export default function PatchLensArea({
                 return;
             }
 
-            capture("run_submitted", {
-                tool: "patch-lens",
-                model: selectedModel,
-                source_prompt_length: src.length,
-                target_prompt_length: tgt.length,
-            });
-
             // Advance any tutorial step gated on clicking Run (the click trigger was
             // dead until the event bus was wired — see TutorialEventProvider).
             emitTutorialEvent({ type: "click", target: "#patch-lens-run" });
@@ -504,8 +495,6 @@ export default function PatchLensArea({
                     tgt.trim() ? "Logit lens computed for both prompts." : "Logit lens computed.",
                 );
             } catch (error) {
-                // Error toast handled by the mutation's onError.
-                capture("run_failed", { tool: "patch-lens", error: String(error) });
             }
         },
         [
@@ -516,7 +505,6 @@ export default function PatchLensArea({
             onLensResult,
             chartId,
             workspaceId,
-            capture,
             emitTutorialEvent,
         ],
     );

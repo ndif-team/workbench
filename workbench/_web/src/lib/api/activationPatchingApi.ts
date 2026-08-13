@@ -14,6 +14,7 @@ import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
 import { startAndPoll } from "../startAndPoll";
 import { createUserHeadersAction } from "@/actions/auth";
+import { useTrackRun } from "@/lib/analytics";
 
 /**
  * Internal request format for the mutation
@@ -21,6 +22,12 @@ import { createUserHeadersAction } from "@/actions/auth";
 interface ActivationPatchingRequest {
     completion: ActivationPatchingConfigData;
     chartId: string;
+}
+
+/** Mutation variables. */
+interface ActivationPatchingVariables {
+    request: ActivationPatchingRequest;
+    configId: string;
 }
 
 /**
@@ -55,10 +62,11 @@ const getActivationPatching = async (
  */
 export const useActivationPatching = () => {
     const queryClient = useQueryClient();
+    const trackRun = useTrackRun();
 
     return useMutation({
         mutationKey: ["activationPatching"],
-        onMutate: async ({ request }: { request: ActivationPatchingRequest; configId: string }) => {
+        onMutate: async ({ request }: ActivationPatchingVariables) => {
             const chartKey = queryKeys.charts.chart(request.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
@@ -71,16 +79,25 @@ export const useActivationPatching = () => {
                 chartKey: ReturnType<typeof queryKeys.charts.chart>;
             };
         },
-        mutationFn: async ({
-            request,
-        }: {
-            request: ActivationPatchingRequest;
-            configId: string;
-        }) => {
-            const response = await getActivationPatching(request);
-            // Store the activation patching data as chart data
-            await setChartData(request.chartId, response, "activation-patching");
-            return response;
+        mutationFn: async ({ request }: ActivationPatchingVariables) => {
+            const { completion } = request;
+            return trackRun(
+                {
+                    tool: "activation-patching",
+                    model: completion.model,
+                    source_prompt_length: completion.srcPrompt?.length ?? 0,
+                    target_prompt_length: completion.tgtPrompt?.length ?? 0,
+                    src_pos_count: completion.srcPos?.length ?? 0,
+                    tgt_pos_count: completion.tgtPos?.length ?? 0,
+                    tgt_freeze_count: completion.tgtFreeze?.length ?? 0,
+                },
+                async () => {
+                    const response = await getActivationPatching(request);
+                    // Store the activation patching data as chart data
+                    await setChartData(request.chartId, response, "activation-patching");
+                    return response;
+                },
+            );
         },
         onError: (error, variables, context) => {
             if (context?.previousChart) {

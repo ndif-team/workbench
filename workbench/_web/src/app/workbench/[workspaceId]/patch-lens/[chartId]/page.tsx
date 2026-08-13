@@ -87,13 +87,8 @@ export default function PatchLensChartPage() {
             setLensResult(result);
             setLastRunSrcPrompt(runSrc);
             setLastRunTgtPrompt(runTgt);
-            capture("run_completed", {
-                tool: "patch-lens",
-                source_prompt_length: runSrc.length,
-                target_prompt_length: runTgt.length,
-            });
         },
-        [capture],
+        [],
     );
 
     // Restore a whole history entry onto patch-lens: its source + target prompts

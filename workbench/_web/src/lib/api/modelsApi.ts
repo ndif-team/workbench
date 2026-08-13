@@ -8,6 +8,7 @@ import { useWorkspace } from "@/stores/useWorkspace";
 import { useModelDeployment } from "@/stores/useModelDeployment";
 import { createUserHeadersAction } from "@/actions/auth";
 import { queryKeys } from "@/lib/queryKeys";
+import { useTrackRun } from "@/lib/analytics";
 
 interface Prediction {
     idx: number;
@@ -38,8 +39,19 @@ const generate = async (request: Completion): Promise<GenerationResponse> => {
 };
 
 export const useGenerate = () => {
+    const trackRun = useTrackRun();
+
     return useMutation({
-        mutationFn: generate,
+        mutationFn: (request: Completion) =>
+            trackRun(
+                {
+                    tool: "generation",
+                    model: request.model,
+                    prompt_length: request.prompt?.length ?? 0,
+                    max_new_tokens: request.max_new_tokens,
+                },
+                () => generate(request),
+            ),
         onError: (error, variables, context) => {
             toast.error(`Error: ${error}`);
         },

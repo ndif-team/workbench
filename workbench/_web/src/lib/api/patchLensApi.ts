@@ -5,9 +5,10 @@
  */
 
 import config from "@/lib/config";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { startAndPoll } from "../startAndPoll";
 import { createUserHeadersAction } from "@/actions/auth";
+import { useTrackRun } from "@/lib/analytics";
 import { setChartData, getChartById } from "@/lib/queries/chartQueries";
 import { createLensRun, updateLensRunIntervention } from "@/lib/queries/lensRunQueries";
 import { extractLastRow } from "@/lib/lens-last-row";
@@ -177,10 +178,21 @@ export const runPatchLensLogitLens = async (
 
 export const usePatchLensLogitLens = () => {
     const queryClient = useQueryClient();
+    const trackRun = useTrackRun();
 
     return useMutation({
         mutationKey: ["patchLensLogitLens"],
-        mutationFn: runPatchLensLogitLens,
+        mutationFn: (request: PatchLensRequest) =>
+            trackRun(
+                {
+                    tool: "patch-lens",
+                    model: request.model,
+                    source_prompt_length: request.sourcePrompt?.length ?? 0,
+                    target_prompt_length: request.targetPrompt?.length ?? 0,
+                    single_prompt: !request.targetPrompt?.trim(),
+                },
+                () => runPatchLensLogitLens(request),
+            ),
         onError: () => {
             toast.error("Failed to run logit lens.");
         },
@@ -217,83 +229,23 @@ export const usePatchLensLogitLens = () => {
 
 export const usePatchLensIntervention = () => {
     const queryClient = useQueryClient();
+    const trackRun = useTrackRun();
 
     return useMutation({
         mutationKey: ["patchLensIntervention"],
         mutationFn: async (request: PatchLensInterventionRequest): Promise<LogitLensIntroData> => {
-            const headers = await createUserHeadersAction();
-            const topk = request.topk ?? CM_INTRO_DEFAULT_TOPK;
-            const includeEntropy = request.includeEntropy ?? true;
-
-            const body = {
-                model: request.model,
-                src_prompt: request.srcPrompt,
-                tgt_prompt: request.tgtPrompt,
-                src_token_pos: request.intervention.srcTokenPos,
-                src_layer: request.intervention.srcLayer,
-                tgt_token_pos: request.intervention.tgtTokenPos,
-                tgt_layer: request.intervention.tgtLayer,
-                topk,
-                include_entropy: includeEntropy,
-            };
-
-            const result = await startAndPoll<LogitLensIntroData>(
-                config.endpoints.startCausalMediation,
-                body,
-                config.endpoints.resultsCausalMediation,
-                headers,
+            return trackRun(
+                {
+                    tool: "patch-lens",
+                    run_kind: "intervention",
+                    model: request.model,
+                    source_prompt_length: request.srcPrompt?.length ?? 0,
+                    target_prompt_length: request.tgtPrompt?.length ?? 0,
+                    src_layer: request.intervention.srcLayer,
+                    tgt_layer: request.intervention.tgtLayer,
+                },
+                () => runPatchLensIntervention(request, queryClient),
             );
-
-            // Merge onto existing chart data so we preserve the prompts and the
-            // active-run pointer. The patched heatmap is NOT written to the chart
-            // row — it's attached to the active run below and fetched on demand.
-            const existingChart = await getChartById(request.chartId);
-            const existingData = (existingChart?.data ?? {}) as Partial<PatchLensChartData>;
-            const merged: PatchLensChartData = {
-                ...existingData,
-                sourcePrompt: existingData.sourcePrompt ?? request.srcPrompt,
-                targetPrompt: existingData.targetPrompt ?? request.tgtPrompt,
-                intervention: request.intervention,
-            };
-            await setChartData(request.chartId, merged, "patch-lens");
-
-            // F1: attach the patch + its heatmap to the run entry that produced
-            // the current state, so the history shows the patch and the compare
-            // overlay can render the patched pass. Best-effort.
-            const runId = existingData.activeLensRunId;
-            try {
-                if (runId) {
-                    const interventionSummary = toPromptSummary(request.tgtPrompt, result);
-                    if (interventionSummary) {
-                        await updateLensRunIntervention(
-                            runId,
-                            request.intervention,
-                            interventionSummary,
-                            result,
-                        );
-                        // Invalidate every cached heatmap query that includes
-                        // this run so a revisit / compare shows the patched pass
-                        // rather than a stale (pre-patch) entry. A plain
-                        // invalidate on heatmaps([runId]) only prefix-matches the
-                        // single-id key; the compare overlay batches ids into
-                        // ["lensRunHeatmaps", ...sortedIds] and would be missed
-                        // unless runId happened to sort first. Done here (not
-                        // onSuccess) because runId is only known inside the
-                        // mutation.
-                        await queryClient.invalidateQueries({
-                            predicate: (q) =>
-                                q.queryKey[0] === "lensRunHeatmaps" &&
-                                (q.queryKey as unknown[]).includes(runId),
-                        });
-                    }
-                }
-            } catch (err) {
-                console.error("Failed to attach patch to prompt history", err);
-            }
-
-            // The explorer's handleIntervention transforms this and renders it as
-            // the patched pass; return it unchanged.
-            return result;
         },
         onError: () => {
             toast.error("Failed to run causal mediation intervention.");
@@ -311,4 +263,88 @@ export const usePatchLensIntervention = () => {
             ]);
         },
     });
+};
+
+/**
+ * The intervention run itself, lifted out of the mutation so `useTrackRun` can
+ * wrap it. Takes the QueryClient because the heatmap invalidation depends on
+ * `activeLensRunId`, which is only known mid-run.
+ */
+const runPatchLensIntervention = async (
+    request: PatchLensInterventionRequest,
+    queryClient: QueryClient,
+): Promise<LogitLensIntroData> => {
+    const headers = await createUserHeadersAction();
+    const topk = request.topk ?? CM_INTRO_DEFAULT_TOPK;
+    const includeEntropy = request.includeEntropy ?? true;
+
+    const body = {
+        model: request.model,
+        src_prompt: request.srcPrompt,
+        tgt_prompt: request.tgtPrompt,
+        src_token_pos: request.intervention.srcTokenPos,
+        src_layer: request.intervention.srcLayer,
+        tgt_token_pos: request.intervention.tgtTokenPos,
+        tgt_layer: request.intervention.tgtLayer,
+        topk,
+        include_entropy: includeEntropy,
+    };
+
+    const result = await startAndPoll<LogitLensIntroData>(
+        config.endpoints.startCausalMediation,
+        body,
+        config.endpoints.resultsCausalMediation,
+        headers,
+    );
+
+    // Merge onto existing chart data so we preserve the prompts and the
+    // active-run pointer. The patched heatmap is NOT written to the chart
+    // row — it's attached to the active run below and fetched on demand.
+    const existingChart = await getChartById(request.chartId);
+    const existingData = (existingChart?.data ?? {}) as Partial<PatchLensChartData>;
+    const merged: PatchLensChartData = {
+        ...existingData,
+        sourcePrompt: existingData.sourcePrompt ?? request.srcPrompt,
+        targetPrompt: existingData.targetPrompt ?? request.tgtPrompt,
+        intervention: request.intervention,
+    };
+    await setChartData(request.chartId, merged, "patch-lens");
+
+    // F1: attach the patch + its heatmap to the run entry that produced
+    // the current state, so the history shows the patch and the compare
+    // overlay can render the patched pass. Best-effort.
+    const runId = existingData.activeLensRunId;
+    try {
+        if (runId) {
+            const interventionSummary = toPromptSummary(request.tgtPrompt, result);
+            if (interventionSummary) {
+                await updateLensRunIntervention(
+                    runId,
+                    request.intervention,
+                    interventionSummary,
+                    result,
+                );
+                // Invalidate every cached heatmap query that includes
+                // this run so a revisit / compare shows the patched pass
+                // rather than a stale (pre-patch) entry. A plain
+                // invalidate on heatmaps([runId]) only prefix-matches the
+                // single-id key; the compare overlay batches ids into
+                // ["lensRunHeatmaps", ...sortedIds] and would be missed
+                // unless runId happened to sort first. Done here (not
+                // onSuccess) because runId is only known inside the
+                // mutation.
+                await queryClient.invalidateQueries({
+                    predicate: (q) =>
+                        q.queryKey[0] === "lensRunHeatmaps" &&
+                        (q.queryKey as unknown[]).includes(runId),
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Failed to attach patch to prompt history", err);
+    }
+
+    // The explorer's handleIntervention transforms this and renders it as
+    // the patched pass; return it unchanged.
+    return result;
 };

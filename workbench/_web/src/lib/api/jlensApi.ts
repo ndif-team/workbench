@@ -10,6 +10,7 @@ import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
 import { startAndPoll } from "../startAndPoll";
 import { createUserHeadersAction } from "@/actions/auth";
+import { useTrackRun } from "@/lib/analytics";
 
 /**
  * API request for j-lens endpoint
@@ -17,6 +18,12 @@ import { createUserHeadersAction } from "@/actions/auth";
 interface JLensRequest {
     completion: JLensConfigData;
     chartId: string;
+}
+
+/** Mutation variables. */
+interface JLensVariables {
+    lensRequest: JLensRequest;
+    configId: string;
 }
 
 /**
@@ -64,10 +71,11 @@ const getJLens = async (lensRequest: JLensRequest): Promise<JLensData> => {
  */
 export const useJLens = () => {
     const queryClient = useQueryClient();
+    const trackRun = useTrackRun();
 
     return useMutation({
         mutationKey: ["jlens"],
-        onMutate: async ({ lensRequest }: { lensRequest: JLensRequest; configId: string }) => {
+        onMutate: async ({ lensRequest }: JLensVariables) => {
             const chartKey = queryKeys.charts.chart(lensRequest.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
@@ -80,11 +88,24 @@ export const useJLens = () => {
                 chartKey: ReturnType<typeof queryKeys.charts.chart>;
             };
         },
-        mutationFn: async ({ lensRequest }: { lensRequest: JLensRequest; configId: string }) => {
-            const response = await getJLens(lensRequest);
-            // Store the j-lens data as chart data (in LogitLens V2 format)
-            await setChartData(lensRequest.chartId, response, "jlens");
-            return response;
+        mutationFn: async ({ lensRequest }: JLensVariables) => {
+            const cfg = lensRequest.completion;
+            return trackRun(
+                {
+                    tool: "j-lens",
+                    model: cfg.model,
+                    prompt_length: cfg.prompt?.length ?? 0,
+                    topk: cfg.topk ?? 5,
+                    generate: cfg.generate ?? (cfg.maxNewTokens ?? 1) > 1,
+                    sample: !!cfg.sample,
+                },
+                async () => {
+                    const response = await getJLens(lensRequest);
+                    // Store the j-lens data as chart data (in LogitLens V2 format)
+                    await setChartData(lensRequest.chartId, response, "jlens");
+                    return response;
+                },
+            );
         },
         onError: (error, variables, context) => {
             if (context?.previousChart) {
