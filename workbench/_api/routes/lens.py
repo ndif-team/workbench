@@ -3,10 +3,12 @@ from enum import Enum
 
 import torch as t
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ..auth import require_user_email, user_has_model_access
-from ..data_models import NDIFResponse, Token
+from ..data_models import Token
+from ..sse import HEADERS, MEDIA_TYPE, stream_backend, stream_value
 from ..state import AppState, get_state
 
 ############ LINE ############
@@ -33,11 +35,31 @@ class Line(BaseModel):
     data: list[Point]
 
 
-class LensLineResponse(NDIFResponse):
-    data: list[Line] | None = None
-
-
 router = APIRouter()
+
+
+def _stream(state: AppState, user_email: str, *, model: str, run, process):
+    """Access-check, run, and stream — the shape both lens v1 routes share.
+
+    Kept local rather than shared with ``models._stream_trace``: this path logs no
+    telemetry, and lens v1 is hidden and on its way out (see CLAUDE.md), so the
+    two should be able to diverge without one dragging the other.
+    """
+    if state.remote and not user_has_model_access(user_email, model, state):
+        raise HTTPException(
+            status_code=403, detail=f"User does not have access to {model}"
+        )
+
+    result = run()
+
+    if not state.remote:
+        return StreamingResponse(
+            stream_value(process(result)), media_type=MEDIA_TYPE, headers=HEADERS
+        )
+
+    return StreamingResponse(
+        stream_backend(result, process), media_type=MEDIA_TYPE, headers=HEADERS
+    )
 
 
 def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
@@ -63,11 +85,9 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
     elif req.stat == LensStatistic.RANK:
         _compute_func = _compute_rank
 
-    with model.trace(
-        req.prompt,
-        remote=state.remote,
-        backend=state.make_backend(model=model),
-    ) as tracer:
+    backend = state.make_backend(model)
+
+    with model.trace(req.prompt, remote=state.remote, backend=backend):
         results = []
         for layer in model.model.layers:
             hidden_BLD = layer.output
@@ -84,22 +104,18 @@ def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
         results.save()
 
     if state.remote:
-        return tracer.backend.job_id
+        return backend
 
-    return results
-
-
-def get_remote_line(user_email: str, job_id: str, state: AppState):
-    backend = state.make_backend(job_id=job_id)
-    results = backend()
-    return results["results"]
+    return {"results": results}
 
 
 def process_line_results(
-    results: list[t.Tensor],
+    saves: dict,
     req: LensLineRequest,
     state: AppState,
 ):
+    """Turn the trace's saved values into the chart's lines."""
+    results = saves["results"]
     tok = state[req.model].tokenizer
     target_token_strs = tok.batch_decode(req.token.target_ids)
 
@@ -120,43 +136,21 @@ def process_line_results(
     return lines
 
 
-@router.post("/start-line", response_model=LensLineResponse)
-async def start_line(
+@router.post("/run-line")
+async def run_line(
     req: LensLineRequest,
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
+    """Legacy lens v1 line, streamed (see ``sse``)."""
+    return _stream(
+        state,
+        user_email,
+        model=req.model,
+        run=lambda: line(req, state),
+        process=lambda saves: process_line_results(saves, req, state),
+    )
 
-    if state.remote:
-        if not user_has_model_access(user_email, req.model, state):
-            message = f"User does not have access to {req.model}"
-            raise HTTPException(status_code=403, detail=message)
-
-    try:
-        result = line(req, state)
-    except Exception as e:
-        raise e
-
-    if state.remote:
-        return {"job_id": result}
-
-    return {"data": process_line_results(result, req, state)}
-
-
-@router.post("/results-line/{job_id}", response_model=LensLineResponse)
-async def collect_line(
-    job_id: str,
-    req: LensLineRequest,
-    state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
-):
-
-    try:
-        results = get_remote_line(user_email, job_id, state)
-    except Exception as e:
-        raise e
-
-    return {"data": process_line_results(results, req, state)}
 
 ############ GRID ############
 
@@ -173,10 +167,6 @@ class GridRow(BaseModel):
     id: str
     data: list[GridCell]
     right_axis_label: str | None = None
-
-
-class GridLensResponse(NDIFResponse):
-    data: list[GridRow] | None = None
 
 
 def heatmap(
@@ -235,11 +225,9 @@ def heatmap(
     elif req.stat == LensStatistic.ENTROPY:
         _compute_func = _compute_entropy
 
-    with model.trace(
-        req.prompt,
-        remote=state.remote,
-        backend=state.make_backend(model=model),
-    ) as tracer:
+    backend = state.make_backend(model)
+
+    with model.trace(req.prompt, remote=state.remote, backend=backend):
         hs_decoded = []
 
         for layer in model.model.layers[:-1]:
@@ -256,26 +244,18 @@ def heatmap(
         pred_ids.save()
 
     if state.remote:
-        return tracer.backend.job_id
+        return backend
 
-    return stats, pred_ids
+    return {"stats": stats, "pred_ids": pred_ids}
 
-def get_remote_heatmap(
-    user_email: str,
-    job_id: str,
-    state: AppState
-) -> tuple[list[t.Tensor], list[t.Tensor]]:
-    backend = state.make_backend(job_id=job_id)
-    results = backend()
-    return results["stats"], results["pred_ids"]
 
 
 def process_grid_results(
-    stats: list[t.Tensor],
-    pred_ids: list[t.Tensor],
+    saves: dict,
     lens_request: GridLensRequest,
     state: AppState,
 ):
+    stats, pred_ids = saves["stats"], saves["pred_ids"]
     tok = state[lens_request.model].tokenizer
     input_strs = tok.batch_decode(tok.encode(lens_request.prompt))
 
@@ -315,39 +295,17 @@ def process_grid_results(
     return rows
 
 
-@router.post("/start-grid", response_model=GridLensResponse)
-async def get_grid(
+@router.post("/run-grid")
+async def run_grid(
     req: GridLensRequest,
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
-    if state.remote:
-        if not user_has_model_access(user_email, req.model, state):
-            message = f"User does not have access to {req.model}"
-            raise HTTPException(status_code=403, detail=message)
-
-    try:
-        result = heatmap(req, state)
-    except Exception as e:
-        raise e
-
-    if state.remote:
-        return {"job_id": result}
-
-    probs, pred_ids = result
-    return {"data": process_grid_results(probs, pred_ids, req, state)}
-
-
-@router.post("/results-grid/{job_id}", response_model=GridLensResponse)
-async def collect_grid(
-    job_id: str,
-    lens_request: GridLensRequest,
-    state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
-):
-    try:
-        probs, pred_ids = get_remote_heatmap(user_email, job_id, state)
-    except Exception as e:
-        raise e
-
-    return {"data": process_grid_results(probs, pred_ids, lens_request, state)}
+    """Legacy lens v1 grid, streamed (see ``sse``)."""
+    return _stream(
+        state,
+        user_email,
+        model=req.model,
+        run=lambda: heatmap(req, state),
+        process=lambda saves: process_grid_results(saves, req, state),
+    )
