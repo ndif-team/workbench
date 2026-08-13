@@ -80,6 +80,7 @@ export type AnalyticsEvent =
     | "workspace_created"
     | "landing_submission"
     | "jlens_discovery"
+    | "model_launch"
     | "run_submitted"
     | "run_completed"
     | "run_failed"

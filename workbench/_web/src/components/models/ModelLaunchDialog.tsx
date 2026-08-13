@@ -31,6 +31,7 @@ import {
     toolTypeFromDisplay,
 } from "@/lib/toolSupport";
 import type { ModelCardModel } from "./ModelCard";
+import { normalizeTool, useCapture } from "@/lib/analytics";
 
 const AUTH_DISABLED = process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
 
@@ -57,6 +58,7 @@ interface ModelLaunchDialogProps {
 export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDialogProps) {
     const router = useRouter();
     const startDeployment = useModelDeployment((s) => s.start);
+    const capture = useCapture();
 
     const [user, setUser] = useState<CurrentUser | null>(null);
     const [tool, setTool] = useState("Logit Lens");
@@ -107,14 +109,33 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
 
     const handleSubmit = () => {
         if (!model) return;
-        if (!isSignedIn) {
-            goSignIn();
-            return;
-        }
 
         // ModelCardModel.name is the org-stripped label; the backend catalog
         // is keyed by the full repo id, so reconstruct it for the request.
         const fullModelName = model.org ? `${model.org}/${model.name}` : model.name;
+
+        // Captured before the sign-in gate, matching landing_submission — a
+        // `signed_in: false` event is an attempt the auth wall deflected, and
+        // that difference is only visible if both are counted.
+        //
+        // This is the only record that the model was picked: the chart it
+        // opens is empty and never auto-runs, so no run event follows unless
+        // the user goes on to type a prompt. `deploy` is the whole point of
+        // the popover — true means the model was cold and a warmup was
+        // started, so "which cold models are people willing to wait for" is
+        // answerable.
+        capture("model_launch", {
+            model: fullModelName,
+            deploy: isDeploy,
+            tool: normalizeTool(tool),
+            workspace: workspace && workspace !== "new" ? "existing" : "new",
+            signed_in: isSignedIn,
+        });
+
+        if (!isSignedIn) {
+            goSignIn();
+            return;
+        }
 
         // Deploy mode only: begin the warmup now so it survives navigation (the
         // store polls independently of the route). The chart's deploying panel
