@@ -36,6 +36,7 @@ import {
     unsupportedReasonFor,
     toolTypeFromDisplay,
 } from "@/lib/toolSupport";
+import { normalizeTool, useCapture } from "@/lib/analytics";
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
 
@@ -236,6 +237,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     // the prompt form; null → fall back to building params from the form state.
     const pendingLaunchRef = useRef<string | null>(null);
     const router = useRouter();
+    const capture = useCapture();
 
     // Activation patching state
     const [srcPrompt, setSrcPrompt] = useState("");
@@ -366,6 +368,20 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
             if (!prompt.trim()) return;
         }
 
+        // Emitted at intent rather than at the redirect: the paths below fork
+        // into a login gate and a captcha, so counting here is what makes the
+        // drop-off between wanting to run and arriving in a workspace visible.
+        const signedIn = !!loggedIn && !!currentUser && !currentUser.is_anonymous;
+        capture("landing_submission", {
+            tool: normalizeTool(selectedTool),
+            model: selectedModel,
+            prompt_length:
+                selectedTool === "Activation Patching" ? srcPrompt.length : prompt.length,
+            signed_in: signedIn,
+            gated: isSelectedModelGated(),
+            workspace: selectedWorkspace && selectedWorkspace !== "new" ? "existing" : "new",
+        });
+
         // Check if user is trying to use a gated model without being logged in
         if (isSelectedModelGated() && (!loggedIn || !currentUser || currentUser.is_anonymous)) {
             // Redirect to login with the full tool context so the request can resume post-auth
@@ -446,6 +462,17 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
         // No J-Lens-supported model in the catalog — leave the tool selected so
         // the composer shows it; nothing to launch.
         if (!model) return;
+
+        // `deploy: true` means an empty chart that never auto-runs, so this is
+        // the only record that the visitor asked for j-lens at all — no run
+        // event follows until they type a prompt and press Run.
+        capture("jlens_discovery", {
+            tool: "j-lens",
+            model: model.name,
+            model_heat: model.status,
+            signed_in: !!loggedIn && !!currentUser && !currentUser.is_anonymous,
+            workspace: selectedWorkspace && selectedWorkspace !== "new" ? "existing" : "new",
+        });
 
         // Empty chart (no prompt), mirroring the model launch dialog's deploy flow.
         const params = new URLSearchParams({ model: model.name, tool: "J-Lens", deploy: "true" });

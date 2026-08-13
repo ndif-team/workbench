@@ -45,10 +45,39 @@ import type { JobRecord, JobSink } from "@/lib/startAndPoll";
  */
 export type Tool = "Logit Lens" | "activation-patching" | "patch-lens" | "j-lens" | "generation";
 
+/**
+ * Canonical `tool` label for a raw identifier.
+ *
+ * The app carries three vocabularies for the same tools: route segments and DB
+ * gating values (`lens2`, `jlens`), landing-page display names (`Logit Lens`,
+ * `J-Lens`), and the analytics labels in `Tool`. Without this, one tool splits
+ * across two or three rows in a breakdown depending on which surface emitted
+ * the event. Unknown values pass through rather than being dropped — the
+ * legacy `patch` chart type has no analytics label and shouldn't get one.
+ */
+const TOOL_ALIASES: Record<string, Tool> = {
+    lens2: "Logit Lens",
+    "Logit Lens": "Logit Lens",
+    jlens: "j-lens",
+    "j-lens": "j-lens",
+    "J-Lens": "j-lens",
+    "activation-patching": "activation-patching",
+    "Activation Patching": "activation-patching",
+    "patch-lens": "patch-lens",
+    "Patch Lens": "patch-lens",
+};
+
+export function normalizeTool(raw: string | null | undefined): string | undefined {
+    if (!raw) return undefined;
+    return TOOL_ALIASES[raw] ?? raw;
+}
+
 export type AnalyticsEvent =
     | "tool_opened"
     | "chart_created"
-    | "chart_converted"
+    | "workspace_created"
+    | "landing_submission"
+    | "jlens_discovery"
     | "run_submitted"
     | "run_completed"
     | "run_failed"

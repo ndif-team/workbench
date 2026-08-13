@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateWorkspace } from "@/lib/api/workspaceApi";
 import { useRouter } from "next/navigation";
+import { useCapture } from "@/lib/analytics";
 
 interface CreateWorkspaceDialogProps {
     userId: string;
@@ -26,6 +27,7 @@ export function CreateWorkspaceDialog({ userId }: CreateWorkspaceDialogProps) {
     const [name, setName] = useState("");
     const router = useRouter();
     const createWorkspaceMutation = useCreateWorkspace();
+    const capture = useCapture();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,6 +37,12 @@ export function CreateWorkspaceDialog({ userId }: CreateWorkspaceDialogProps) {
             const newWorkspace = await createWorkspaceMutation.mutateAsync({
                 userId,
                 name: name.trim(),
+            });
+
+            // The name is user-authored, so only its length goes out.
+            capture("workspace_created", {
+                workspace_id: newWorkspace.id,
+                name_length: name.trim().length,
             });
 
             setOpen(false);

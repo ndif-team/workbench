@@ -20,7 +20,7 @@ import {
 import { useReorderWorkspaceItems } from "@/lib/api/workspaceApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { queryKeys } from "@/lib/queryKeys";
-import { useCapture } from "@/lib/analytics";
+import { normalizeTool, useCapture } from "@/lib/analytics";
 import type { WorkshopTool } from "@/db/schema";
 import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
@@ -258,7 +258,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     const createNewChart = (
         toolType: "lens2" | "jlens" | "patch" | "activation-patching" | "patch-lens",
     ) => {
-        capture("chart_created", { tool: toolType });
+        capture("chart_created", { tool: normalizeTool(toolType), origin: "sidebar" });
         if (toolType === "lens2") {
             createLens2Pair(
                 { workspaceId: workspaceId as string },
@@ -345,9 +345,13 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                 { chartId: currentChart.id, toolType },
                 {
                     onSuccess: () => {
-                        capture("chart_converted", {
-                            from: currentChart.toolType,
-                            to: toolType,
+                        // A conversion reuses the current chart rather than
+                        // adding one, but it's the same user intent — "give me
+                        // this tool" — so it counts as a creation. Chart rows
+                        // will therefore be fewer than chart_created events.
+                        capture("chart_created", {
+                            tool: normalizeTool(toolType),
+                            origin: "sidebar",
                         });
                         navigateToChart(currentChart.id, toolType);
                     },
