@@ -27,21 +27,19 @@ off its own path through the UI.
 from __future__ import annotations
 
 import asyncio
-import inspect
 import json
-from typing import Any, AsyncIterator, Callable, Union
+from typing import Any, AsyncIterator, Callable
 
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from nnsight.schema.response import ResponseModel, Status
-from pydantic import BaseModel
 
 MEDIA_TYPE = "text/event-stream"
 
 # Given the dict of saved values NDIF returns, produce what the client should
-# get. Sync or async — a route that has to await something (a tokenizer call, a
-# second request) returns the awaitable and `stream_backend` awaits it.
-ProcessFn = Callable[[dict], Union[BaseModel, dict, list, Any]]
+# get. Called on the event loop, so it must not block for long -- every one of
+# these is arithmetic over tensors that are already in memory.
+ProcessFn = Callable[[dict], Any]
 
 # Sent to whatever sits in front of this app. SSE only works if nothing between
 # here and the browser buffers the response: nginx (and the ingress in front of
@@ -139,10 +137,7 @@ async def _backend_frames(backend, process: ProcessFn) -> AsyncIterator[str]:
                 continue
 
             # Not a status: the saved values, which only arrive after COMPLETED.
-            result = process(update)
-            if inspect.isawaitable(result):
-                result = await result
-            yield sse_event("data", _jsonify(result))
+            yield sse_event("data", _jsonify(process(update)))
 
         if failure is not None:
             yield sse_event("error", json.dumps({"error": failure}))
