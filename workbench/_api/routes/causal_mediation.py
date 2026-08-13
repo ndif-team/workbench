@@ -4,11 +4,10 @@ from typing import Any
 
 import torch
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..auth import require_user_email
-from ..sse import HEADERS, MEDIA_TYPE, stream_backend, stream_value
+from ..sse import stream
 from ..state import AppState, get_state
 
 router = APIRouter()
@@ -210,11 +209,6 @@ async def run_causal_mediation(
             include_entropy=req.include_entropy,
         )
 
-    if not state.remote:
-        return StreamingResponse(
-            stream_value(process(raw)), media_type=MEDIA_TYPE, headers=HEADERS
-        )
-
-    return StreamingResponse(
-        stream_backend(backend, process), media_type=MEDIA_TYPE, headers=HEADERS
-    )
+    # `_run_causal_mediation` returns None when remote -- the values come off the
+    # backend's stream -- and the saved values themselves when local.
+    return stream(backend if state.remote else raw, process)

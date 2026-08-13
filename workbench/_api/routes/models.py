@@ -4,14 +4,13 @@ import time
 import requests
 import torch as t
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from nnsightful.tools.j_lens import j_lens
 
-from ..auth import get_user_email, require_user_email, user_has_model_access
+from ..auth import get_user_email, require_model_access, require_user_email
 from ..data_models import Token, ModelHeat
-from ..sse import HEADERS, MEDIA_TYPE, stream_backend, stream_value
+from ..sse import stream
 from ..telemetry import TelemetryClient, RequestStatus
 from ..state import AppState, get_state
 
@@ -125,7 +124,7 @@ async def get_models(
     return models
 
 
-def _stream_trace(
+def stream_trace(
     state: AppState,
     user_email: str,
     *,
@@ -144,12 +143,14 @@ def _stream_trace(
     been sent yet: a 403 is still a 403. Once ``run`` has submitted, every later
     failure reaches the client as an `error` frame instead (see ``sse``).
     """
-    if state.remote and not user_has_model_access(user_email, model, state):
-        message = f"User does not have access to {model}"
+    try:
+        require_model_access(state, user_email, model)
+    except HTTPException as denied:
         TelemetryClient.log_request(
-            RequestStatus.ERROR, user_email, method=method, type="NEXT_TOKEN", msg=message,
+            RequestStatus.ERROR, user_email, method=method, type="NEXT_TOKEN",
+            msg=denied.detail,
         )
-        raise HTTPException(status_code=403, detail=message)
+        raise
 
     TelemetryClient.log_request(
         RequestStatus.STARTED, user_email, method=method, type="NEXT_TOKEN",
@@ -170,20 +171,15 @@ def _stream_trace(
         )
         return data
 
-    if not state.remote:
-        return StreamingResponse(
-            stream_value(finish(result)), media_type=MEDIA_TYPE, headers=HEADERS
+    if state.remote:
+        # No job id to log: it belonged to the poll-and-collect flow, and the
+        # async backend never surfaces one. If telemetry is switched back on and
+        # the correlation matters, take it from the first status update.
+        TelemetryClient.log_request(
+            RequestStatus.READY, user_email, method=method, type="NEXT_TOKEN",
         )
 
-    # No job id to log: it belonged to the poll-and-collect flow, and the async
-    # backend never surfaces one. If telemetry is switched back on and the
-    # correlation matters, take it from the first status update.
-    TelemetryClient.log_request(
-        RequestStatus.READY, user_email, method=method, type="NEXT_TOKEN",
-    )
-    return StreamingResponse(
-        stream_backend(result, finish), media_type=MEDIA_TYPE, headers=HEADERS
-    )
+    return stream(result, finish)
 
 
 class LensCompletion(BaseModel):
@@ -260,7 +256,7 @@ async def run_prediction(
     user_email: str = Depends(require_user_email)
 ):
     """Next-token distribution at one position, streamed (see ``sse``)."""
-    return _stream_trace(
+    return stream_trace(
         state,
         user_email,
         model=prediction_request.model,
@@ -358,7 +354,7 @@ async def run_generate(
     user_email: str = Depends(require_user_email)
 ):
     """Generate a completion, streamed (see ``sse``)."""
-    return _stream_trace(
+    return stream_trace(
         state,
         user_email,
         model=req.model,

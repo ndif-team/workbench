@@ -2,13 +2,12 @@ import math
 from enum import Enum
 
 import torch as t
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from ..auth import require_user_email, user_has_model_access
+from ..auth import require_model_access, require_user_email
 from ..data_models import Token
-from ..sse import HEADERS, MEDIA_TYPE, stream_backend, stream_value
+from ..sse import stream
 from ..state import AppState, get_state
 
 ############ LINE ############
@@ -36,30 +35,6 @@ class Line(BaseModel):
 
 
 router = APIRouter()
-
-
-def _stream(state: AppState, user_email: str, *, model: str, run, process):
-    """Access-check, run, and stream — the shape both lens v1 routes share.
-
-    Kept local rather than shared with ``models._stream_trace``: this path logs no
-    telemetry, and lens v1 is hidden and on its way out (see CLAUDE.md), so the
-    two should be able to diverge without one dragging the other.
-    """
-    if state.remote and not user_has_model_access(user_email, model, state):
-        raise HTTPException(
-            status_code=403, detail=f"User does not have access to {model}"
-        )
-
-    result = run()
-
-    if not state.remote:
-        return StreamingResponse(
-            stream_value(process(result)), media_type=MEDIA_TYPE, headers=HEADERS
-        )
-
-    return StreamingResponse(
-        stream_backend(result, process), media_type=MEDIA_TYPE, headers=HEADERS
-    )
 
 
 def line(req: LensLineRequest, state: AppState) -> list[t.Tensor]:
@@ -143,13 +118,8 @@ async def run_line(
     user_email: str = Depends(require_user_email)
 ):
     """Legacy lens v1 line, streamed (see ``sse``)."""
-    return _stream(
-        state,
-        user_email,
-        model=req.model,
-        run=lambda: line(req, state),
-        process=lambda saves: process_line_results(saves, req, state),
-    )
+    require_model_access(state, user_email, req.model)
+    return stream(line(req, state), lambda saves: process_line_results(saves, req, state))
 
 
 ############ GRID ############
@@ -302,10 +272,5 @@ async def run_grid(
     user_email: str = Depends(require_user_email)
 ):
     """Legacy lens v1 grid, streamed (see ``sse``)."""
-    return _stream(
-        state,
-        user_email,
-        model=req.model,
-        run=lambda: heatmap(req, state),
-        process=lambda saves: process_grid_results(saves, req, state),
-    )
+    require_model_access(state, user_email, req.model)
+    return stream(heatmap(req, state), lambda saves: process_grid_results(saves, req, state))
