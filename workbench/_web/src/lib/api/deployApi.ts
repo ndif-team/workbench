@@ -14,11 +14,11 @@ import { runAndStream } from "@/lib/runAndStream";
  * replica has finished loading its weights.
  *
  * This used to POST for a job id and then poll NDIF from the browser on a
- * 20-minute ceiling. It is now one streamed request like every other, so there
- * is no ceiling: the connection *is* the wait, and the server keeps it alive
- * through the long silences a cold load produces (see `sse.HEARTBEAT_SECONDS`).
- * What that costs is that a reload abandons the wait — though not the
- * deployment, which NDIF carries on with regardless.
+ * 20-minute ceiling. It is now one streamed request like every other, so the
+ * connection *is* the wait. Two things that costs: a reload abandons the wait
+ * (though not the deployment, which NDIF carries on with), and a cold load can
+ * go minutes without a status update, which is longer than some proxies leave
+ * an idle connection alone.
  */
 
 export class DeploymentError extends Error {}

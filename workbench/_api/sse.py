@@ -26,7 +26,6 @@ off its own path through the UI.
 
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Any, AsyncIterator, Callable
 
@@ -70,43 +69,7 @@ def _jsonify(payload: Any) -> str:
     return json.dumps(jsonable_encoder(payload))
 
 
-# How long a stream may go quiet before it sends a comment frame.
-#
-# A job can sit QUEUED behind someone else's for minutes, or spend them loading a
-# cold 70B, without NDIF having anything new to say — and an idle connection is
-# exactly what a proxy reaps. Well under the usual 60s idle timeouts.
-HEARTBEAT_SECONDS = 15.0
-
-
-async def _with_heartbeat(frames: AsyncIterator[str]) -> AsyncIterator[str]:
-    """Pass frames through, filling any silence with SSE comments.
-
-    A comment (a frame starting ``:``) is defined to be ignored by every SSE
-    client, so this is invisible to the browser and to `runAndStream`; all it does
-    is keep bytes moving so nothing in between decides the connection is dead.
-    """
-    iterator = frames.__aiter__()
-    pending = asyncio.ensure_future(iterator.__anext__())
-    try:
-        while True:
-            try:
-                # Shielded: a timeout must not cancel the receive we are waiting
-                # on, only stop waiting on it for now.
-                yield await asyncio.wait_for(
-                    asyncio.shield(pending), HEARTBEAT_SECONDS
-                )
-            except asyncio.TimeoutError:
-                yield ": keepalive\n\n"
-                continue
-            except StopAsyncIteration:
-                return
-            pending = asyncio.ensure_future(iterator.__anext__())
-    finally:
-        # The client hung up (or we are done): stop waiting on the socket.
-        pending.cancel()
-
-
-def stream_backend(backend, process: ProcessFn) -> AsyncIterator[str]:
+async def stream_backend(backend, process: ProcessFn) -> AsyncIterator[str]:
     """Drive an ``AsyncRemoteBackend`` and yield SSE frames for what it reports.
 
     nnsight's async backend yields raw ``ResponseModel`` updates and then, once the
@@ -118,11 +81,13 @@ def stream_backend(backend, process: ProcessFn) -> AsyncIterator[str]:
 
     ``process`` shapes the saved values into the payload the client wants — for a
     tool, that is its ``to_data_obj``.
+
+    Nothing is sent to fill the silences between updates. A job can sit QUEUED or
+    loading for minutes with nothing to report, and the nginx ingress in front of
+    the preview deployments will cut a connection idle for 60s
+    (``proxy-read-timeout``, not overridden in ``deploy/preview/values.yaml``). If
+    that starts biting, the fix is that annotation or a comment frame here.
     """
-    return _with_heartbeat(_backend_frames(backend, process))
-
-
-async def _backend_frames(backend, process: ProcessFn) -> AsyncIterator[str]:
     try:
         failure = None
 
