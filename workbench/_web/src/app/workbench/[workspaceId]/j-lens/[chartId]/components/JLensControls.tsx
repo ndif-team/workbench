@@ -572,10 +572,17 @@ export function JLensControls({
             // `isJLensRunning`, which gates the display's reseed effect so it
             // can't consume the reset against stale data.
             resetRowExpansion(chartId);
-            await computeJLens({
-                lensRequest: { completion: config, chartId },
-                configId: initialConfig.id,
-            });
+            try {
+                await computeJLens({
+                    lensRequest: { completion: config, chartId },
+                    configId: initialConfig.id,
+                });
+            } catch {
+                // useJLens's onError owns the toast. Stopping here both avoids
+                // an unhandled rejection and keeps the config write below from
+                // recording a run that never produced data.
+                return;
+            }
             await updateConfig({
                 configId: initialConfig.id,
                 chartId,

@@ -12,9 +12,10 @@ import {
 } from "@/types/activationPatching";
 import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
-import { startAndPoll } from "../startAndPoll";
+import { startAndPoll, type JobSink } from "../startAndPoll";
 import { createUserHeadersAction } from "@/actions/auth";
 import { useTrackRun } from "@/lib/analytics";
+import { runErrorMessage } from "@/lib/ndifError";
 
 /**
  * Internal request format for the mutation
@@ -35,6 +36,7 @@ interface ActivationPatchingVariables {
  */
 const getActivationPatching = async (
     request: ActivationPatchingRequest,
+    jobs?: JobSink,
 ): Promise<ActivationPatchingData> => {
     const headers = await createUserHeadersAction();
 
@@ -54,6 +56,7 @@ const getActivationPatching = async (
         apiRequest,
         config.endpoints.resultsActivationPatching,
         headers,
+        jobs,
     );
 };
 
@@ -91,8 +94,8 @@ export const useActivationPatching = () => {
                     tgt_pos_count: completion.tgtPos?.length ?? 0,
                     tgt_freeze_count: completion.tgtFreeze?.length ?? 0,
                 },
-                async () => {
-                    const response = await getActivationPatching(request);
+                async (jobs) => {
+                    const response = await getActivationPatching(request, jobs);
                     // Store the activation patching data as chart data
                     await setChartData(request.chartId, response, "activation-patching");
                     return response;
@@ -103,7 +106,9 @@ export const useActivationPatching = () => {
             if (context?.previousChart) {
                 queryClient.setQueryData(context.chartKey, context.previousChart);
             }
-            toast.error("Failed to compute activation patching visualization");
+            toast.error(
+                runErrorMessage(error, "Failed to compute activation patching visualization"),
+            );
         },
         onSuccess: async (data, variables) => {
             const chartKey = queryKeys.charts.chart(variables.request.chartId);

@@ -810,8 +810,7 @@ export function ActivationPatchingControls({
             setLastRunModel(selectedModel);
             setSrcEditing(false);
             setTgtEditing(false);
-        } catch (error) {
-            toast.error("Failed to run activation patching.");
+        } catch {
         }
     }, [
         srcPrompt,

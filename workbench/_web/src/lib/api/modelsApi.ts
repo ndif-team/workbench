@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import config from "@/lib/config";
 import type { Model, Token } from "@/types/models";
-import { startAndPoll } from "../startAndPoll";
+import { startAndPoll, type JobSink } from "../startAndPoll";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useWorkspace } from "@/stores/useWorkspace";
@@ -9,6 +9,7 @@ import { useModelDeployment } from "@/stores/useModelDeployment";
 import { createUserHeadersAction } from "@/actions/auth";
 import { queryKeys } from "@/lib/queryKeys";
 import { useTrackRun } from "@/lib/analytics";
+import { runErrorMessage } from "@/lib/ndifError";
 
 interface Prediction {
     idx: number;
@@ -28,13 +29,14 @@ export interface GenerationResponse {
     last_token_prediction: Prediction;
 }
 
-const generate = async (request: Completion): Promise<GenerationResponse> => {
+const generate = async (request: Completion, jobs?: JobSink): Promise<GenerationResponse> => {
     const headers = await createUserHeadersAction();
     return await startAndPoll<GenerationResponse>(
         config.endpoints.startGenerate,
         request,
         config.endpoints.resultsGenerate,
         headers,
+        jobs,
     );
 };
 
@@ -50,10 +52,10 @@ export const useGenerate = () => {
                     prompt_length: request.prompt?.length ?? 0,
                     max_new_tokens: request.max_new_tokens,
                 },
-                () => generate(request),
+                (jobs) => generate(request, jobs),
             ),
         onError: (error, variables, context) => {
-            toast.error(`Error: ${error}`);
+            toast.error(runErrorMessage(error, "Generation failed"));
         },
     });
 };

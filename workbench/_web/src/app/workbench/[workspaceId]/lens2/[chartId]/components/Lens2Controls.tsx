@@ -384,10 +384,14 @@ export function Lens2Controls({
                 includeEntropy,
             };
 
-            await computeLens2({
-                lensRequest: { completion: config, chartId },
-                configId: initialConfig.id,
-            });
+            try {
+                await computeLens2({
+                    lensRequest: { completion: config, chartId },
+                    configId: initialConfig.id,
+                });
+            } catch {
+                return;
+            }
             await updateConfig({
                 configId: initialConfig.id,
                 chartId,

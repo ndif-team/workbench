@@ -8,9 +8,10 @@ import { setChartData } from "@/lib/queries/chartQueries";
 import { Lens2ConfigData, Lens2Data } from "@/types/lens2";
 import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
-import { startAndPoll } from "../startAndPoll";
+import { startAndPoll, type JobSink } from "../startAndPoll";
 import { createUserHeadersAction } from "@/actions/auth";
 import { useTrackRun } from "@/lib/analytics";
+import { runErrorMessage } from "@/lib/ndifError";
 
 /**
  * API request for lens2 endpoint
@@ -29,7 +30,7 @@ interface Lens2Variables {
 /**
  * Fetch lens2 data from the backend
  */
-const getLens2 = async (lensRequest: Lens2Request): Promise<Lens2Data> => {
+const getLens2 = async (lensRequest: Lens2Request, jobs?: JobSink): Promise<Lens2Data> => {
     const headers = await createUserHeadersAction();
 
     // Transform to backend request format
@@ -45,6 +46,7 @@ const getLens2 = async (lensRequest: Lens2Request): Promise<Lens2Data> => {
         request,
         config.endpoints.resultsLens2,
         headers,
+        jobs,
     );
 };
 
@@ -80,8 +82,8 @@ export const useLens2 = () => {
                     topk: completion.topk ?? 5,
                     include_entropy: completion.includeEntropy ?? true,
                 },
-                async () => {
-                    const response = await getLens2(lensRequest);
+                async (jobs) => {
+                    const response = await getLens2(lensRequest, jobs);
                     // Store the lens2 data as chart data (in V2 format)
                     await setChartData(lensRequest.chartId, response, "lens2");
                     return response;
@@ -92,7 +94,7 @@ export const useLens2 = () => {
             if (context?.previousChart) {
                 queryClient.setQueryData(context.chartKey, context.previousChart);
             }
-            toast.error("Failed to compute logit lens visualization");
+            toast.error(runErrorMessage(error, "Failed to compute logit lens visualization"));
         },
         onSuccess: async (data, variables) => {
             const chartKey = queryKeys.charts.chart(variables.lensRequest.chartId);

@@ -6,9 +6,10 @@
 
 import config from "@/lib/config";
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { startAndPoll } from "../startAndPoll";
+import { startAndPoll, type JobSink } from "../startAndPoll";
 import { createUserHeadersAction } from "@/actions/auth";
 import { useTrackRun } from "@/lib/analytics";
+import { runErrorMessage } from "@/lib/ndifError";
 import { setChartData, getChartById } from "@/lib/queries/chartQueries";
 import { createLensRun, updateLensRunIntervention } from "@/lib/queries/lensRunQueries";
 import { extractLastRow } from "@/lib/lens-last-row";
@@ -82,6 +83,7 @@ const runLogitLens = async (
     topk: number,
     includeEntropy: boolean,
     headers: Record<string, string>,
+    jobs?: JobSink,
 ): Promise<LogitLensIntroData> => {
     return await startAndPoll<LogitLensIntroData>(
         config.endpoints.startLens2,
@@ -93,6 +95,7 @@ const runLogitLens = async (
         },
         config.endpoints.resultsLens2,
         headers,
+        jobs,
     );
 };
 
@@ -101,6 +104,7 @@ const runLogitLens = async (
 // repo convention; see generateCompletion in modelsApi.ts).
 export const runPatchLensLogitLens = async (
     request: PatchLensRequest,
+    jobs?: JobSink,
 ): Promise<PatchLensResult> => {
     const headers = await createUserHeadersAction();
     const topk = request.topk ?? CM_INTRO_DEFAULT_TOPK;
@@ -108,9 +112,9 @@ export const runPatchLensLogitLens = async (
     const hasTarget = !!request.targetPrompt && request.targetPrompt.trim().length > 0;
 
     const [source, target] = await Promise.all([
-        runLogitLens(request.sourcePrompt, request.model, topk, includeEntropy, headers),
+        runLogitLens(request.sourcePrompt, request.model, topk, includeEntropy, headers, jobs),
         hasTarget
-            ? runLogitLens(request.targetPrompt, request.model, topk, includeEntropy, headers)
+            ? runLogitLens(request.targetPrompt, request.model, topk, includeEntropy, headers, jobs)
             : Promise.resolve(null as unknown as LogitLensIntroData | null),
     ]);
 
@@ -191,10 +195,10 @@ export const usePatchLensLogitLens = () => {
                     target_prompt_length: request.targetPrompt?.length ?? 0,
                     single_prompt: !request.targetPrompt?.trim(),
                 },
-                () => runPatchLensLogitLens(request),
+                (jobs) => runPatchLensLogitLens(request, jobs),
             ),
-        onError: () => {
-            toast.error("Failed to run logit lens.");
+        onError: (error) => {
+            toast.error(runErrorMessage(error, "Failed to run logit lens."));
         },
         onSuccess: async (data, variables) => {
             // Independent invalidations — run concurrently.
@@ -244,11 +248,11 @@ export const usePatchLensIntervention = () => {
                     src_layer: request.intervention.srcLayer,
                     tgt_layer: request.intervention.tgtLayer,
                 },
-                () => runPatchLensIntervention(request, queryClient),
+                (jobs) => runPatchLensIntervention(request, queryClient, jobs),
             );
         },
-        onError: () => {
-            toast.error("Failed to run causal mediation intervention.");
+        onError: (error) => {
+            toast.error(runErrorMessage(error, "Failed to run causal mediation intervention."));
         },
         onSuccess: async (_data, variables) => {
             // Independent invalidations — run concurrently.
@@ -273,6 +277,7 @@ export const usePatchLensIntervention = () => {
 const runPatchLensIntervention = async (
     request: PatchLensInterventionRequest,
     queryClient: QueryClient,
+    jobs?: JobSink,
 ): Promise<LogitLensIntroData> => {
     const headers = await createUserHeadersAction();
     const topk = request.topk ?? CM_INTRO_DEFAULT_TOPK;
@@ -295,6 +300,7 @@ const runPatchLensIntervention = async (
         body,
         config.endpoints.resultsCausalMediation,
         headers,
+        jobs,
     );
 
     // Merge onto existing chart data so we preserve the prompts and the

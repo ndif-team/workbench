@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { usePostHog } from "posthog-js/react";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
+import { errorTypeOf, ndifJobIdOf } from "@/lib/ndifError";
+import type { JobRecord, JobSink } from "@/lib/startAndPoll";
 
 /**
  * Product analytics for the workshop tools. The single place event names live.
@@ -164,6 +166,31 @@ function newRunId(): string {
 }
 
 /**
+ * Flattens the jobs a run dispatched into event properties.
+ *
+ * `ndif_job_id` is the one you'd paste into a lookup; `ndif_job_ids` appears
+ * only for runs that dispatched more than one (patch-lens). Times are MAX
+ * rather than sum — parallel jobs overlap, so the run waited as long as its
+ * slowest job, not the total across them.
+ *
+ * `job_total_ms - queue_wait_ms` is the part of the job not spent queued,
+ * which is as close to execution time as we can measure from outside.
+ */
+function jobProperties(jobs: JobSink): EventProperties {
+    if (jobs.length === 0) return {};
+    const maxOf = (pick: (j: JobRecord) => number | null): number | undefined => {
+        const values = jobs.map(pick).filter((ms): ms is number => typeof ms === "number");
+        return values.length > 0 ? Math.max(...values) : undefined;
+    };
+    return {
+        ndif_job_id: jobs[0].jobId,
+        ndif_job_ids: jobs.length > 1 ? jobs.map((j) => j.jobId) : undefined,
+        queue_wait_ms: maxOf((j) => j.queueWaitMs),
+        job_total_ms: maxOf((j) => j.totalMs),
+    };
+}
+
+/**
  * Wraps one logical run with its `run_submitted` → `run_completed`/`run_failed`
  * pair and a `duration_ms`.
  *
@@ -196,18 +223,33 @@ export function useTrackRun() {
     const capture = useCapture();
 
     return useCallback(
-        async <T>(props: RunProps, run: () => Promise<T>): Promise<T> => {
+        async <T>(props: RunProps, run: (jobs: JobSink) => Promise<T>): Promise<T> => {
+            // Handed down to startAndPoll so the ids and queue waits created
+            // several layers below travel back up without changing what every
+            // wrapper returns.
+            const jobs: JobSink = [];
             const base = { ...props, run_id: newRunId() };
             const startedAt = Date.now();
             capture("run_submitted", base);
             try {
-                const data = await run();
-                capture("run_completed", { ...base, duration_ms: Date.now() - startedAt });
+                const data = await run(jobs);
+                capture("run_completed", {
+                    ...base,
+                    duration_ms: Date.now() - startedAt,
+                    ...jobProperties(jobs),
+                });
                 return data;
             } catch (error) {
+                const fromJobs = jobProperties(jobs);
                 capture("run_failed", {
                     ...base,
                     duration_ms: Date.now() - startedAt,
+                    error_type: errorTypeOf(error),
+                    ...fromJobs,
+                    // The sink is empty when the run failed before any job was
+                    // created (a rejected start request, a tokenizer error);
+                    // the thrown NDIFJobError still knows the id otherwise.
+                    ndif_job_id: fromJobs.ndif_job_id ?? ndifJobIdOf(error),
                     error: String(error),
                 });
                 throw error;
