@@ -376,6 +376,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         if (!charts || charts.length <= 1) return;
         const remaining = charts.filter((c) => c.id !== chartId);
         const nextChart = remaining[0];
+        const doomed = charts.find((c) => c.id === chartId);
+        capture("chart_deleted", {
+            tool: normalizeTool(doomed?.toolType ?? doomed?.chartType),
+            had_data: !!doomed?.hasData,
+        });
         deleteChart(
             { chartId, workspaceId: workspaceId as string },
             {
@@ -397,6 +402,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     const handleDeletePlaceholder = (e: React.MouseEvent, deletedId: string) => {
         e.stopPropagation();
         const remaining = (charts ?? []).filter((c) => c.id !== deletedId);
+        const doomed = (charts ?? []).find((c) => c.id === deletedId);
+        capture("chart_deleted", {
+            tool: normalizeTool(doomed?.toolType ?? doomed?.chartType),
+            had_data: !!doomed?.hasData,
+        });
         deleteChart(
             { chartId: deletedId, workspaceId: workspaceId as string },
             {

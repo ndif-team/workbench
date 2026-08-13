@@ -75,6 +75,8 @@ export function normalizeTool(raw: string | null | undefined): string | undefine
 export type AnalyticsEvent =
     | "tool_opened"
     | "chart_created"
+    | "chart_deleted"
+    | "workspace_deleted"
     | "workspace_created"
     | "landing_submission"
     | "jlens_discovery"

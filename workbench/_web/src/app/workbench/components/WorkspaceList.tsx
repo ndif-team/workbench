@@ -10,6 +10,7 @@ import { Trash2, BarChart3, FileText, ChevronLeft, ChevronRight } from "lucide-r
 import { useEffect, useMemo, useState } from "react";
 import { useIsDark } from "@/hooks/useIsDark";
 import { useModelsSection } from "@/stores/useModelsSection";
+import { useCapture } from "@/lib/analytics";
 
 const PAGE_SIZE_EXPANDED = 8; // 2 rows × 4 cols at lg+, 4 rows × 2 cols at sm
 const PAGE_SIZE_COLLAPSED = 16; // 4 rows × 4 cols at lg+ — uses the freed vertical space
@@ -125,6 +126,7 @@ function WorkspaceCard({
 
 export function WorkspaceList({ userId }: WorkspaceListProps) {
     const deleteWorkspaceMutation = useDeleteWorkspace();
+    const capture = useCapture();
 
     const { data: workspaces, isLoading } = useQuery<Workspace[]>({
         queryKey: ["workspaces"],
@@ -155,6 +157,7 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
         e.preventDefault();
         e.stopPropagation();
         if (confirm("Are you sure you want to delete this workspace?")) {
+            capture("workspace_deleted", { workspace_id: workspaceId });
             deleteWorkspaceMutation.mutate({ userId, workspaceId });
         }
     };
