@@ -46,3 +46,17 @@ def user_has_model_access(user_email: str, model_name: str, state: "AppState") -
 
     return True
 
+
+def require_model_access(state: "AppState", user_email: str, model_name: str) -> None:
+    """Refuse a caller who cannot use this model, before anything runs.
+
+    A route calls this while it can still fail the ordinary way: once it starts
+    streaming, the status line is gone and a refusal can only be an `error` frame
+    (see ``sse``). Local deployments gate nothing -- there is no catalog to be
+    outside of.
+    """
+    if state.remote and not user_has_model_access(user_email, model_name, state):
+        raise HTTPException(
+            status_code=403, detail=f"User does not have access to {model_name}"
+        )
+
