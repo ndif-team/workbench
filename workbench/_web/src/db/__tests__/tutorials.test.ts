@@ -147,6 +147,32 @@ describe("tutorial content", () => {
                 units: [{ ...base, check: { question: "?", kind: "layerBand" as never } }],
             }),
         ).toThrow();
+        // Unsupported check feedback → would fall back to neutral, silently
+        // dropping the verdict a check was authored to show.
+        expect(() =>
+            validateTutorialContent({
+                version: 1,
+                units: [
+                    {
+                        ...base,
+                        check: {
+                            question: "?",
+                            kind: "topToken",
+                            feedback: "scored" as never,
+                        },
+                    },
+                ],
+            }),
+        ).toThrow();
+        // Both supported values pass.
+        for (const feedback of ["verdict", "neutral"] as const) {
+            expect(() =>
+                validateTutorialContent({
+                    version: 1,
+                    units: [{ ...base, check: { question: "?", kind: "topToken", feedback } }],
+                }),
+            ).not.toThrow();
+        }
     });
 
     it("rejects a unit whose rendered fields aren't usable text", () => {

@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 
 import { recordTutorialEvent } from "@/lib/queries/tutorialEventsQueries";
 import type { TutorialEventType, TutorialEventPayload } from "@/types/tutorialEvents";
-import type { TutorialUnit } from "@/types/tutorial-content";
+import type { TutorialUnit, UnitCheck } from "@/types/tutorial-content";
 import { evalSuccessPredicate } from "@/types/tutorial-content";
 
 /**
@@ -152,7 +152,20 @@ interface ProlificTutorialState {
     markReached: (idx: number) => void;
     /** Reveal the next hint rung; returns the new highest stage. */
     revealHint: () => number;
-    answerCheck: (answer: string, correct: boolean) => void;
+    /**
+     * File the participant's answer to this step's check.
+     *
+     * `grading` is required rather than optional: the answer key is what makes
+     * the logged verdict re-checkable, and it is only in scope at the call site
+     * (a run-scored key comes from this unit's own run). An optional argument
+     * would let a future caller drop it and leave a `check_answered` row nobody
+     * can re-grade.
+     */
+    answerCheck: (
+        answer: string,
+        correct: boolean,
+        grading: { expected: string | null; checkKind: UnitCheck["kind"] },
+    ) => void;
     submitObservation: (text: string) => void;
     setPanelPos: (pos: PanelPos) => void;
     setCollapsed: (collapsed: boolean) => void;
@@ -434,7 +447,7 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 return nextStage;
             },
 
-            answerCheck: (answer, correct) => {
+            answerCheck: (answer, correct, grading) => {
                 const state = get();
                 const idx = state.unitIdx;
                 // One check_answered per step, enforced here as well as by the input's
@@ -451,6 +464,12 @@ export const useProlificTutorial = create<ProlificTutorialState>()(
                 emit(state.workspaceId, stepIdForUnit(state, idx), "check_answered", {
                     answer,
                     correct,
+                    // Null key means the check was answerable without one (it
+                    // cannot be, today — `resolveCheckKey` closes the check when
+                    // it has no key), so omit the field rather than logging a
+                    // literal "null" that reads like an answer.
+                    ...(grading.expected != null ? { expected: grading.expected } : {}),
+                    checkKind: grading.checkKind,
                 });
             },
 

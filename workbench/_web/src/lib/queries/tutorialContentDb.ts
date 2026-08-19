@@ -70,6 +70,7 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
     }
     const validOn = new Set(["run", "patch", "manual"]);
     const validCheckKinds = new Set(["topToken", "secondToken", "choice"]);
+    const validCheckFeedback = new Set(["verdict", "neutral"]);
     for (const u of content.units) {
         if (!isText(u.id) || !isText(u.title)) {
             throw new Error("Every unit needs an id and a title");
@@ -194,6 +195,14 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
             }
             if (!isText(u.check.question)) {
                 throw new Error(`Unit "${u.id}" check needs a question`);
+            }
+            // Absent means neutral (the default the panel renders); a typo'd value
+            // would silently fall back to it and quietly un-verdict a check that
+            // was authored to show one.
+            if (u.check.feedback != null && !validCheckFeedback.has(u.check.feedback)) {
+                throw new Error(
+                    `Unit "${u.id}" check has an unsupported feedback "${u.check.feedback}"`,
+                );
             }
         }
         // A choice check is scored entirely from its own content, so a missing or
