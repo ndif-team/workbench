@@ -4,6 +4,8 @@
 // telemetry lives in the app DB only — never PostHog (observation/answer text
 // must not leave the app DB).
 
+import type { UnitCheck } from "./tutorial-content";
+
 export const tutorialEventTypes = [
     "step_started",
     "step_completed",
@@ -26,6 +28,16 @@ export interface TutorialEventPayload {
     // check_answered: the participant's answer + whether it was correct.
     answer?: string;
     correct?: boolean;
+    // check_answered: the answer key the answer was scored against, and which
+    // kind of check produced it. `correct` alone cannot be re-derived after the
+    // fact — a run-scored key comes from the participant's own run, and the
+    // comparison is a lenient string match — so the key is logged alongside the
+    // verdict. That keeps post-hoc re-grading (with a different normaliser, or by
+    // hand) possible from the event row on its own, which matters now that the
+    // participant is no longer shown whether they were right. Absent on rows
+    // written before this field existed.
+    expected?: string;
+    checkKind?: UnitCheck["kind"];
     // Attempt counter context (e.g. which failed-run attempt triggered a hint).
     attempt?: number;
 }

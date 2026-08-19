@@ -233,6 +233,8 @@ export function TutorialActivityPanel({
     // screen still described this unit's prompt. The key is now pinned to the unit
     // the run was initiated from, and the prompt is restored on arrival
     // (PatchLensArea), so the key and the instructions describe the same run.
+    // Bound to a const so the narrowing survives into the answer callback below.
+    const unitCheck = unit.check;
     const { expected: checkExpected, canAnswer: checkHasRun } = resolveCheckKey(
         unit,
         store.runTokensByUnit[store.unitIdx],
@@ -369,10 +371,10 @@ export function TutorialActivityPanel({
             )}
 
             {/* Embedded check — auto-scored, log-only */}
-            {unit.check && (
+            {unitCheck && (
                 <EmbeddedCheck
                     key={`check-${store.unitIdx}`}
-                    check={unit.check}
+                    check={unitCheck}
                     expected={checkExpected}
                     placeholder={unit.answerPlaceholder}
                     // Only answerable once THIS unit's action has run —
@@ -383,7 +385,15 @@ export function TutorialActivityPanel({
                     // than auto-scoring.
                     hasRun={checkHasRun}
                     notRunMessage={isPatchUnit ? "Apply the patch first, then answer." : undefined}
-                    onAnswer={(answer, correct) => store.answerCheck(answer, correct)}
+                    // The key travels with the answer: a run-scored key is this
+                    // unit's own run and is gone by the time anyone grades the
+                    // data (see TutorialEventPayload.expected).
+                    onAnswer={(answer, correct, expected) =>
+                        store.answerCheck(answer, correct, {
+                            expected,
+                            checkKind: unitCheck.kind,
+                        })
+                    }
                     alreadyAnswered={!!store.checkAnsweredByUnit[store.unitIdx]}
                     priorResult={store.checkResultByUnit[store.unitIdx]}
                 />
@@ -689,7 +699,9 @@ function EmbeddedCheck({
      * revisited step restate their answer and whether it was right, instead of the
      * bare "already answered" that a locked check used to show. */
     priorResult?: { answer: string; correct: boolean };
-    onAnswer: (answer: string, correct: boolean) => void;
+    /** `expected` is the key the answer was scored against — a choice check's own
+     * option, or the run-derived key — so the caller can log it. */
+    onAnswer: (answer: string, correct: boolean, expected: string | null) => void;
 }) {
     const [value, setValue] = useState("");
     const [result, setResult] = useState<null | { correct: boolean; expected: string }>(null);
@@ -710,20 +722,27 @@ function EmbeddedCheck({
         if (!value.trim() || locked) return;
         const correct = norm(value) === norm(expected);
         setResult({ correct, expected: expected ?? "?" });
-        onAnswer(value.trim(), correct);
+        onAnswer(value.trim(), correct, expected);
     };
 
     const submitChoice = (idx: number) => {
         if (locked || check.kind !== "choice") return;
         const correct = idx === check.correctIndex;
-        setResult({ correct, expected: check.options[check.correctIndex] ?? "?" });
-        onAnswer(check.options[idx] ?? String(idx), correct);
+        const key = check.options[check.correctIndex] ?? null;
+        setResult({ correct, expected: key ?? "?" });
+        onAnswer(check.options[idx] ?? String(idx), correct, key);
     };
 
     // The correct answer, for restating a wrong prior answer. A choice check
     // carries its own key; a typed one's key is the run it was scored against,
     // which a fresh session may no longer have.
     const correctAnswer = isChoice ? check.options[check.correctIndex] : expected;
+    // Neutral unless the content opts in. A check scored against the
+    // participant's own run is often ambiguous — a token they cannot type as it
+    // renders, a spelling `norm()` does not fold — and being marked wrong on one
+    // of those discourages a participant who did the step correctly. The score
+    // still reaches `answerCheck`, so the engagement measure is unaffected.
+    const showVerdict = check.feedback === "verdict";
 
     return (
         <div className="rounded border bg-background p-2.5 flex flex-col gap-1.5">
@@ -785,31 +804,42 @@ function EmbeddedCheck({
                                 onClick={submitTyped}
                                 disabled={locked || !value.trim()}
                             >
-                                Check
+                                {/* "Check" promises a verdict; a neutral check
+                                    does not give one. */}
+                                {showVerdict ? "Check" : "Submit"}
                             </Button>
                         </div>
                     )}
-                    {result && (
-                        <p
-                            className={`text-xs ${result.correct ? "text-primary" : "text-muted-foreground"}`}
-                        >
-                            {result.correct
-                                ? "✓ Correct."
-                                : `Not quite — the answer was “${result.expected}”.`}
-                        </p>
-                    )}
-                    {!result && priorResult && (
-                        <p
-                            className={`text-xs ${priorResult.correct ? "text-primary" : "text-muted-foreground"}`}
-                        >
-                            {priorResult.correct
-                                ? `✓ You answered “${priorResult.answer}” — correct.`
-                                : `You answered “${priorResult.answer}” — not quite.`}
-                            {!priorResult.correct &&
-                                correctAnswer &&
-                                ` The answer was “${correctAnswer}”.`}
-                        </p>
-                    )}
+                    {result &&
+                        (showVerdict ? (
+                            <p
+                                className={`text-xs ${result.correct ? "text-primary" : "text-muted-foreground"}`}
+                            >
+                                {result.correct
+                                    ? "✓ Correct."
+                                    : `Not quite — the answer was “${result.expected}”.`}
+                            </p>
+                        ) : (
+                            <p className="text-xs text-muted-foreground">Answer recorded.</p>
+                        ))}
+                    {!result &&
+                        priorResult &&
+                        (showVerdict ? (
+                            <p
+                                className={`text-xs ${priorResult.correct ? "text-primary" : "text-muted-foreground"}`}
+                            >
+                                {priorResult.correct
+                                    ? `✓ You answered “${priorResult.answer}” — correct.`
+                                    : `You answered “${priorResult.answer}” — not quite.`}
+                                {!priorResult.correct &&
+                                    correctAnswer &&
+                                    ` The answer was “${correctAnswer}”.`}
+                            </p>
+                        ) : (
+                            <p className="text-xs text-muted-foreground">
+                                You answered “{priorResult.answer}”.
+                            </p>
+                        ))}
                     {/* Fallback for a participant whose stored progress predates
                         `checkResultByUnit`: their answer wasn't kept, so all we can
                         honestly say is that they answered. */}

@@ -171,21 +171,21 @@ describe("useProlificTutorial answer keys", () => {
     });
 
     it("records one check answer per step", () => {
-        store().answerCheck("Paris", true);
+        store().answerCheck("Paris", true, { expected: "Paris", checkKind: "topToken" });
         expect(store().checkAnsweredByUnit[0]).toBe(true);
         // A second answer for the same step would double-count the engagement
         // measure; the store refuses it as well as the input locking.
-        store().answerCheck("Rome", false);
+        store().answerCheck("Rome", false, { expected: "Paris", checkKind: "topToken" });
         expect(store().checkAnsweredByUnit[0]).toBe(true);
     });
 
     it("keeps what was answered, not only that it was", () => {
         // A revisited step restates the answer, so the panel needs more than the
         // "already answered" boolean.
-        store().answerCheck("Rome", false);
+        store().answerCheck("Rome", false, { expected: "Paris", checkKind: "topToken" });
         expect(store().checkResultByUnit[0]).toEqual({ answer: "Rome", correct: false });
         // Same one-per-step rule as the boolean: the first answer is the record.
-        store().answerCheck("Paris", true);
+        store().answerCheck("Paris", true, { expected: "Paris", checkKind: "topToken" });
         expect(store().checkResultByUnit[0]).toEqual({ answer: "Rome", correct: false });
     });
 });
@@ -250,7 +250,7 @@ describe("useProlificTutorial telemetry", () => {
         store().start();
         store().next();
         store().prev();
-        store().answerCheck("Paris", true);
+        store().answerCheck("Paris", true, { expected: "Paris", checkKind: "topToken" });
         expect(await timeline()).toEqual([
             "step_started:u0",
             "step_started:u4",
@@ -259,10 +259,41 @@ describe("useProlificTutorial telemetry", () => {
         ]);
     });
 
+    it("logs the answer key alongside the verdict", async () => {
+        // The participant is not shown whether they were right, so `correct` is the
+        // whole grading record — and it was computed against a key (their own run)
+        // that nothing else persists. Without the key on the row, a lenient
+        // re-grade after the fact is impossible.
+        store().start();
+        store().answerCheck("paris.", false, { expected: "Paris", checkKind: "topToken" });
+        await Bun.sleep(20);
+        const [event] = (await getTutorialEventsForWorkspace(workspaceId)).filter(
+            (e) => e.eventType === "check_answered",
+        );
+        expect(event?.payload).toMatchObject({
+            answer: "paris.",
+            correct: false,
+            expected: "Paris",
+            checkKind: "topToken",
+        });
+    });
+
+    it("omits the key when the check was scored without one", async () => {
+        // A literal "null" in the column reads like an answer key of its own.
+        store().start();
+        store().answerCheck("Paris", false, { expected: null, checkKind: "secondToken" });
+        await Bun.sleep(20);
+        const [event] = (await getTutorialEventsForWorkspace(workspaceId)).filter(
+            (e) => e.eventType === "check_answered",
+        );
+        expect(event?.payload).not.toHaveProperty("expected");
+        expect(event?.payload).toMatchObject({ checkKind: "secondToken" });
+    });
+
     it("emits one check_answered even if the check is answered twice", async () => {
         store().start();
-        store().answerCheck("Paris", true);
-        store().answerCheck("Rome", false);
+        store().answerCheck("Paris", true, { expected: "Paris", checkKind: "topToken" });
+        store().answerCheck("Rome", false, { expected: "Paris", checkKind: "topToken" });
         expect(await timeline()).toEqual(["step_started:u0", "check_answered:u0"]);
     });
 });

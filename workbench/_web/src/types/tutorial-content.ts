@@ -55,12 +55,34 @@ export interface HintRung {
     spotlights?: SpotlightTarget[];
 }
 
+export type CheckFeedback = "verdict" | "neutral";
+
+interface BaseCheck {
+    question: string;
+    /**
+     * What the participant is told once they answer. Defaults to `"neutral"`.
+     *
+     * - `"neutral"` — the answer is acknowledged and nothing else. It is still
+     *   scored, persisted in `checkResultByUnit`, and emitted on
+     *   `check_answered`; the verdict just never reaches the screen.
+     * - `"verdict"` — right/wrong, plus the answer key when wrong.
+     *
+     * Neutral is the default because most of these are engagement checks scored
+     * against the participant's own run, and several have no single right
+     * answer: a token that cannot be typed as it renders, a spelling `norm()`
+     * does not fold, a runner-up that moved between runs. Being told they are
+     * wrong on one of those discourages a participant for no reason, and the
+     * measure we actually want (did they look?) survives without it. Opt a check
+     * into `"verdict"` only when its key is unambiguous.
+     */
+    feedback?: CheckFeedback;
+}
+
 /**
  * An embedded engagement check. Either auto-scored against the participant's own
  * run (`topToken` / `secondToken`), or a fixed multiple choice.
  */
-export interface RunScoredCheck {
-    question: string;
+export interface RunScoredCheck extends BaseCheck {
     // Which facet of the run result the answer is compared against.
     kind: "topToken" | "secondToken";
 }
@@ -71,8 +93,7 @@ export interface RunScoredCheck {
  * newline, punctuation) answers a different question instead — so a check whose
  * point is engagement verification rather than typing accuracy uses this.
  */
-export interface ChoiceCheck {
-    question: string;
+export interface ChoiceCheck extends BaseCheck {
     kind: "choice";
     options: string[];
     correctIndex: number;
