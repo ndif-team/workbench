@@ -7,10 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ..auth import require_user_email
-from ..data_models import NDIFResponse
+from ..sse import stream
 from ..state import AppState, get_state
-
-from nnsightful.types import LogitLensData
 
 router = APIRouter()
 
@@ -25,12 +23,6 @@ class CausalMediationRequest(BaseModel):
     tgt_layer: int = Field(ge=0)
     topk: int = Field(default=5, ge=1)
     include_entropy: bool = True
-
-
-class CausalMediationResponse(NDIFResponse):
-    """Identical shape to LogitLensResponse so the frontend can reuse the
-    existing logit-lens transform/renderer."""
-    data: LogitLensData | None = None
 
 
 def _format_lens(
@@ -171,20 +163,22 @@ def _run_causal_mediation(
                 logits = torch.cat(per_layer_logits, dim=0).save()
 
     if remote and backend is not None:
-        return {"job_id": backend.job_id}
+        # Nothing to return: the values land later, on the backend's stream.
+        return None
 
     return {"logits": logits}
 
 
-@router.post("/start", response_model=CausalMediationResponse)
-async def start_causal_mediation(
+@router.post("/run")
+async def run_causal_mediation(
     req: CausalMediationRequest,
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email),
 ):
+    """Patch one residual across prompts and lens the result, streamed (see ``sse``)."""
     model = state[req.model]
     _validate_indices(req, model)
-    backend = state.make_backend(model=model)
+    backend = state.make_backend(model)
 
     raw = _run_causal_mediation(
         model,
@@ -198,53 +192,23 @@ async def start_causal_mediation(
         backend=backend,
     )
 
-    if "job_id" in raw:
-        return {"job_id": raw["job_id"]}
-
-    input_tokens = _decode_input_tokens(model.tokenizer, req.tgt_prompt)
-    data = _format_lens(
-        raw["logits"],
-        tokenizer=model.tokenizer,
-        model_name=req.model,
-        input_tokens=input_tokens,
-        n_layers=model.num_layers,
-        top_k=req.topk,
-        include_entropy=req.include_entropy,
-    )
-    return {"data": data}
-
-
-@router.post("/results/{job_id}", response_model=CausalMediationResponse)
-async def collect_causal_mediation(
-    job_id: str,
-    req: CausalMediationRequest,
-    state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email),
-):
-    backend = state.make_backend(job_id=job_id)
-    results = backend()
-
-    # The model can be deregistered from the catalog (NDIF stopped serving it)
-    # between /start and /results; state[...] raises KeyError in that case.
-    # Surface a clear 503 instead of an opaque 500.
-    try:
-        model = state[req.model]
-    except KeyError:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Model {req.model} is no longer available; please re-run.",
-        )
+    # Read off the model now rather than when the values land: one connection
+    # holds the request open, so unlike the old collect step there is no window
+    # in which NDIF could stop serving this model and leave `state[...]` raising.
     tokenizer = model.tokenizer
     input_tokens = _decode_input_tokens(tokenizer, req.tgt_prompt)
 
-    data = _format_lens(
-        results["logits"],
-        tokenizer=tokenizer,
-        model_name=req.model,
-        input_tokens=input_tokens,
-        n_layers=model.num_layers,
-        top_k=req.topk,
-        include_entropy=req.include_entropy,
-    )
+    def process(saves: dict):
+        return _format_lens(
+            saves["logits"],
+            tokenizer=tokenizer,
+            model_name=req.model,
+            input_tokens=input_tokens,
+            n_layers=model.num_layers,
+            top_k=req.topk,
+            include_entropy=req.include_entropy,
+        )
 
-    return {"data": data}
+    # `_run_causal_mediation` returns None when remote -- the values come off the
+    # backend's stream -- and the saved values themselves when local.
+    return stream(backend if state.remote else raw, process)

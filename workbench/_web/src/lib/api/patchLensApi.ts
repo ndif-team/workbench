@@ -6,7 +6,7 @@
 
 import config from "@/lib/config";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { startAndPoll } from "../startAndPoll";
+import { runAndStream } from "../runAndStream";
 import { createUserHeadersAction } from "@/actions/auth";
 import { setChartData, getChartById } from "@/lib/queries/chartQueries";
 import { createLensRun, updateLensRunIntervention } from "@/lib/queries/lensRunQueries";
@@ -82,15 +82,14 @@ const runLogitLens = async (
     includeEntropy: boolean,
     headers: Record<string, string>,
 ): Promise<LogitLensIntroData> => {
-    return await startAndPoll<LogitLensIntroData>(
-        config.endpoints.startLens2,
+    return await runAndStream<LogitLensIntroData>(
+        config.endpoints.runLens2,
         {
             model,
             prompt,
             topk,
             include_entropy: includeEntropy,
         },
-        config.endpoints.resultsLens2,
         headers,
     );
 };
@@ -237,10 +236,9 @@ export const usePatchLensIntervention = () => {
                 include_entropy: includeEntropy,
             };
 
-            const result = await startAndPoll<LogitLensIntroData>(
-                config.endpoints.startCausalMediation,
+            const result = await runAndStream<LogitLensIntroData>(
+                config.endpoints.runCausalMediation,
                 body,
-                config.endpoints.resultsCausalMediation,
                 headers,
             );
 

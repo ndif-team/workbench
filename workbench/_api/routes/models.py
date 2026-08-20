@@ -8,8 +8,9 @@ from pydantic import BaseModel
 
 from nnsightful.tools.j_lens import j_lens
 
-from ..auth import get_user_email, require_user_email, user_has_model_access
-from ..data_models import NDIFResponse, Token, ModelHeat
+from ..auth import get_user_email, require_model_access, require_user_email
+from ..data_models import Token, ModelHeat
+from ..sse import stream
 from ..telemetry import TelemetryClient, RequestStatus
 from ..state import AppState, get_state
 
@@ -123,23 +124,83 @@ async def get_models(
     return models
 
 
+def stream_trace(
+    state: AppState,
+    user_email: str,
+    *,
+    model: str,
+    method: str,
+    run,
+    process,
+):
+    """Access-check a trace, run it, and stream it — what both model routes do.
+
+    ``run`` returns the backend to stream (remote) or the saved values themselves
+    (local); ``process`` turns saved values into the client's payload. Telemetry
+    brackets the whole thing.
+
+    The access check raises rather than streaming a failure, because nothing has
+    been sent yet: a 403 is still a 403. Once ``run`` has submitted, every later
+    failure reaches the client as an `error` frame instead (see ``sse``).
+    """
+    try:
+        require_model_access(state, user_email, model)
+    except HTTPException as denied:
+        TelemetryClient.log_request(
+            RequestStatus.ERROR, user_email, method=method, type="NEXT_TOKEN",
+            msg=denied.detail,
+        )
+        raise
+
+    TelemetryClient.log_request(
+        RequestStatus.STARTED, user_email, method=method, type="NEXT_TOKEN",
+    )
+
+    try:
+        result = run()
+    except Exception as error:
+        TelemetryClient.log_request(
+            RequestStatus.ERROR, user_email, method=method, type="NEXT_TOKEN", msg=str(error),
+        )
+        raise
+
+    def finish(saves: dict):
+        data = process(saves)
+        TelemetryClient.log_request(
+            RequestStatus.COMPLETE, user_email, method=method, type="NEXT_TOKEN",
+        )
+        return data
+
+    if state.remote:
+        # No job id to log: it belonged to the poll-and-collect flow, and the
+        # async backend never surfaces one. If telemetry is switched back on and
+        # the correlation matters, take it from the first status update.
+        TelemetryClient.log_request(
+            RequestStatus.READY, user_email, method=method, type="NEXT_TOKEN",
+        )
+
+    return stream(result, finish)
+
+
 class LensCompletion(BaseModel):
     model: str
     prompt: str
     token: Token
 
 
-def prediction(
-    req: LensCompletion, state: AppState
-) -> tuple[t.Tensor, t.Tensor] | str:
+def prediction(req: LensCompletion, state: AppState):
+    """Trace the model for the next-token distribution at the requested position.
+
+    Returns the backend to stream when remote, and the saved values themselves
+    when local — the two things a route can go on to do. Either way what reaches
+    ``process_prediction`` is the same dict, keyed as it is saved here, because
+    that is how NDIF hands the values back.
+    """
     model = state[req.model]
     idx = req.token.idx
+    backend = state.make_backend(model)
 
-    with model.trace(
-        req.prompt,
-        remote=state.remote,
-        backend=state.make_backend(model=model),
-    ) as tracer:
+    with model.trace(req.prompt, remote=state.remote, backend=backend):
         logits_BLV = model.logits
 
         # Get logits for the correct index
@@ -151,17 +212,10 @@ def prediction(
         values_LV = values_LV_indices_LV[0].save()
         indices_LV = values_LV_indices_LV[1].save()
 
-    if state.remote: 
-        return tracer.backend.job_id
+    if state.remote:
+        return backend
 
-    return values_LV, indices_LV
-
-def get_remote_prediction(
-    job_id: str, state: AppState
-) -> tuple[t.Tensor, t.Tensor]:
-    backend = state.make_backend(job_id=job_id)
-    results = backend()
-    return results["values_LV"], results["indices_LV"]
+    return {"values_LV": values_LV, "indices_LV": indices_LV}
 
 
 class Prediction(BaseModel):
@@ -171,16 +225,9 @@ class Prediction(BaseModel):
     texts: list[str]
 
 
-class PredictionResponse(NDIFResponse):
-    data: Prediction | None = None
-
-
-def process_prediction(
-    values_LV: t.Tensor,
-    indices_LV: t.Tensor,
-    req: LensCompletion,
-    state: AppState,
-):
+def process_prediction(saves: dict, req: LensCompletion, state: AppState):
+    """Turn the trace's saved values into the client's `Prediction`."""
+    values_LV, indices_LV = saves["values_LV"], saves["indices_LV"]
     tok = state[req.model].tokenizer
     idxs = [req.token.idx]
 
@@ -202,89 +249,21 @@ def process_prediction(
     return prediction
 
 
-@router.post("/start-prediction", response_model=PredictionResponse)
-async def start_prediction(
-    prediction_request: LensCompletion, 
-    state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
-):
-    if state.remote:
-        if not user_has_model_access(user_email, prediction_request.model, state):
-            message = f"User does not have access to {prediction_request.model}"
-            TelemetryClient.log_request(
-                RequestStatus.ERROR, 
-                user_email,
-                method="PREDICTION",
-                type="NEXT_TOKEN",
-                msg=message,
-            )
-            raise HTTPException(status_code=403, detail=message)
-
-    TelemetryClient.log_request(
-        RequestStatus.STARTED, 
-        user_email,
-        method="PREDICTION",
-        type="NEXT_TOKEN",
-    )
-
-    try:
-        result = prediction(prediction_request, state)
-    except Exception as e:
-        TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email,
-            method="PREDICTION",
-            type="NEXT_TOKEN",
-            msg=str(e),
-        )
-        raise e
-    
-    if state.remote:
-        TelemetryClient.log_request(
-            RequestStatus.READY,
-            user_email,
-            method="PREDICTION",
-            type="NEXT_TOKEN",
-            job_id=result
-        )
-        return {"job_id": result}
-
-    values_LV, indices_LV = result
-    data = process_prediction(values_LV, indices_LV, prediction_request, state)
-    return {"data": data}
-
-
-@router.post("/results-prediction/{job_id}", response_model=PredictionResponse)
-async def results_prediction(
-    job_id: str,
+@router.post("/run-prediction")
+async def run_prediction(
     prediction_request: LensCompletion,
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
-
-    try:
-        values_LV, indices_LV = get_remote_prediction(job_id, state)
-        data = process_prediction(values_LV, indices_LV, prediction_request, state)
-    except Exception as e:
-        TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email,
-            job_id=job_id,
-            method="PREDICTION",
-            type="NEXT_TOKEN",
-            msg=str(e),
-        )
-        raise e
-
-    TelemetryClient.log_request(
-        RequestStatus.COMPLETE, 
+    """Next-token distribution at one position, streamed (see ``sse``)."""
+    return stream_trace(
+        state,
         user_email,
-        job_id=job_id,
+        model=prediction_request.model,
         method="PREDICTION",
-        type="NEXT_TOKEN",
+        run=lambda: prediction(prediction_request, state),
+        process=lambda saves: process_prediction(saves, prediction_request, state),
     )
-
-    return {"data": data}
 
 
 class Completion(BaseModel):
@@ -298,18 +277,20 @@ class Generation(BaseModel):
     last_token_prediction: Prediction
 
 
-class GenerationResponse(NDIFResponse):
-    data: Generation | None = None
-
-
 def generate(req: Completion, state: AppState):
+    """Generate a completion, saving the last step's distribution.
+
+    Returns the backend to stream when remote and the saved values when local,
+    the same way :func:`prediction` does.
+    """
     model = state[req.model]
     last_iter = req.max_new_tokens - 1
+    backend = state.make_backend(model)
     with model.generate(
         req.prompt,
         max_new_tokens=req.max_new_tokens,
         remote=state.remote,
-        backend=state.make_backend(model=model),
+        backend=backend,
     ) as tracer:
 
         with tracer.iter[last_iter]:
@@ -323,26 +304,20 @@ def generate(req: Completion, state: AppState):
         new_token_ids = model.generator.output[0].save()
 
     if state.remote:
-        return tracer.backend.job_id
+        return backend
 
-    return values_V, indices_V, new_token_ids
-
-
-def get_remote_generate(
-    job_id: str, state: AppState
-) -> tuple[t.Tensor, t.Tensor, t.Tensor]:
-    backend = state.make_backend(job_id=job_id)
-    results = backend()
-    return results["values_V"], results["indices_V"], results["new_token_ids"]
+    return {
+        "values_V": values_V,
+        "indices_V": indices_V,
+        "new_token_ids": new_token_ids,
+    }
 
 
-def process_generation_results(
-    values_V: t.Tensor,
-    indices_V: t.Tensor,
-    new_token_ids: t.Tensor,
-    req: Completion,
-    state: AppState,
-):
+def process_generation_results(saves: dict, req: Completion, state: AppState):
+    """Turn the trace's saved values into the client's `Generation`."""
+    values_V = saves["values_V"]
+    indices_V = saves["indices_V"]
+    new_token_ids = saves["new_token_ids"]
     tok = state[req.model].tokenizer
     new_token_text = tok.batch_decode(new_token_ids)
 
@@ -372,93 +347,18 @@ def process_generation_results(
     }
 
 
-@router.post("/start-generate", response_model=GenerationResponse)
-async def start_generate(
-    req: Completion, 
-    state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email)
-):
-
-    if state.remote:
-        if not user_has_model_access(user_email, req.model, state):
-            message = f"User does not have access to {req.model}"
-            TelemetryClient.log_request(
-                RequestStatus.ERROR, 
-                user_email,
-                method="GENERATE",
-                type="NEXT_TOKEN",
-                msg=message,
-            )
-            raise HTTPException(status_code=403, detail=message)
-
-    TelemetryClient.log_request(
-        RequestStatus.STARTED, 
-        user_email,
-        method="GENERATE",
-        type="NEXT_TOKEN",
-    )
-
-    try:
-        result = generate(req, state)
-    except Exception as e:
-        TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email,
-            method="GENERATE",
-            type="NEXT_TOKEN",
-            msg=str(e),
-        )
-        raise e
-    
-    if state.remote:
-        TelemetryClient.log_request(
-            RequestStatus.READY,
-            user_email,
-            method="GENERATE",
-            type="NEXT_TOKEN",
-            job_id=result
-        )
-        return {"job_id": result}
-
-    else:
-        values_V, indices_V, new_token_ids = result
-
-        data = process_generation_results(
-            values_V, indices_V, new_token_ids, req, state
-        )
-        return {"data": data}
-
-
-@router.post("/results-generate/{job_id}", response_model=GenerationResponse)
-async def results_generate(
-    job_id: str,
+@router.post("/run-generate")
+async def run_generate(
     req: Completion,
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email)
 ):
-
-    try:
-        values_V, indices_V, new_token_ids = get_remote_generate(job_id, state)
-        data = process_generation_results(
-            values_V, indices_V, new_token_ids, req, state
-        )
-    except Exception as e:
-        TelemetryClient.log_request(
-            RequestStatus.ERROR, 
-            user_email,
-            job_id=job_id,
-            method="GENERATE",
-            type="NEXT_TOKEN",
-            msg=str(e),
-        )
-        raise e
-
-    TelemetryClient.log_request(
-        RequestStatus.COMPLETE, 
+    """Generate a completion, streamed (see ``sse``)."""
+    return stream_trace(
+        state,
         user_email,
-        job_id=job_id,
+        model=req.model,
         method="GENERATE",
-        type="NEXT_TOKEN",
+        run=lambda: generate(req, state),
+        process=lambda saves: process_generation_results(saves, req, state),
     )
-
-    return {"data": data}

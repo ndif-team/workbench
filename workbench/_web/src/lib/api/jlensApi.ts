@@ -8,7 +8,7 @@ import { setChartData } from "@/lib/queries/chartQueries";
 import { JLensConfigData, JLensData } from "@/types/jlens";
 import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
-import { startAndPoll } from "../startAndPoll";
+import { runAndStream } from "../runAndStream";
 import { createUserHeadersAction } from "@/actions/auth";
 
 /**
@@ -33,12 +33,7 @@ const getJLens = async (lensRequest: JLensRequest): Promise<JLensData> => {
         include_entropy: lensRequest.completion.includeEntropy ?? true,
     };
 
-    return await startAndPoll<JLensData>(
-        config.endpoints.startJLens,
-        request,
-        config.endpoints.resultsJLens,
-        headers,
-    );
+    return await runAndStream<JLensData>(config.endpoints.runJLens, request, headers);
 };
 
 /**

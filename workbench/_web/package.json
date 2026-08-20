@@ -93,6 +93,7 @@
         "typescript": "^5.9.2"
     },
     "trustedDependencies": [
+        "better-sqlite3",
         "nnsightful"
     ]
 }
