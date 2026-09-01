@@ -3,7 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { ModelsSection } from "@/components/models/ModelsSection";
 import { ModelsSectionStateController } from "@/app/workbench/components/ModelsSectionStateController";
 import { WorkspaceList } from "@/app/workbench/components/WorkspaceList";
-import { getWorkspaces, createWorkspace } from "@/lib/queries/workspaceQueries";
+import { getWorkspaces } from "@/lib/queries/workspaceQueries";
 import { AutoWorkspaceCreator } from "@/app/workbench/components/AutoWorkspaceCreator";
 import { PendingRequestHandler } from "@/app/workbench/components/PendingRequestHandler";
 import Link from "next/link";
@@ -49,7 +49,7 @@ export default async function WorkbenchPage({
         hasWorkshopClaim(user);
 
     // Check if user has any workspaces
-    const workspaces = await getWorkspaces(user.id);
+    const workspaces = await getWorkspaces();
 
     // Get the prompt and model from search params
     const params = await searchParams;
@@ -141,7 +141,6 @@ export default async function WorkbenchPage({
 
                     {useExistingWorkspace ? (
                         <AutoWorkspaceCreator
-                            userId={user.id}
                             initialPrompt={prompt}
                             initialModel={model}
                             existingWorkspaceId={workspaceId}
@@ -155,7 +154,6 @@ export default async function WorkbenchPage({
                         />
                     ) : shouldCreateWorkspace ? (
                         <AutoWorkspaceCreator
-                            userId={user.id}
                             initialPrompt={prompt}
                             initialModel={model}
                             workspaceName={createNew ? "Untitled" : "Default Workspace"}
@@ -169,7 +167,7 @@ export default async function WorkbenchPage({
                             deploy={deploy}
                         />
                     ) : (
-                        <WorkspaceList userId={user.id} />
+                        <WorkspaceList />
                     )}
                 </main>
             </div>

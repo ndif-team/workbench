@@ -141,7 +141,6 @@ export const runPatchLensLogitLens = async (
                 ...(target ? { target } : {}),
             };
             const created = await createLensRun({
-                workspaceId: request.workspaceId,
                 chartId: request.chartId,
                 model: request.model,
                 summary,

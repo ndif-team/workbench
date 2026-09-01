@@ -18,12 +18,29 @@ import {
     deleteLensRun,
     updateLensRunIntervention,
 } from "@/lib/queries/lensRunQueries";
+import { createWorkspace } from "@/lib/queries/workspaceQueries";
+import { createLensChartPair } from "@/lib/queries/chartQueries";
+import { setDevUserId } from "@/lib/auth/devUser";
+import { Metrics } from "@/types/lens";
+import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps, LensRunPromptSummary } from "@/types/lensRun";
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
 
-const WS = "ws-test-1";
-const CHART_A = "chart-aaaa";
-const CHART_B = "chart-bbbb";
+const USER = "lens-run-user";
+
+// lens_runs are owner-scoped via their workspace, and createLensRun verifies the
+// caller owns the parent chart — so these tests build a real workspace + two
+// charts and use their ids rather than synthetic strings.
+let WS: string;
+let CHART_A: string;
+let CHART_B: string;
+
+const lensConfig = (prompt: string): LensConfigData => ({
+    prompt,
+    model: "gpt2",
+    statisticType: Metrics.PROBABILITY,
+    token: { idx: 0, id: 0, text: "", targetIds: [] },
+});
 
 // A minimal but well-formed full lens payload (1 layer, 1 token).
 const fakeLens = (finalToken: string): LogitLensIntroData =>
@@ -64,11 +81,19 @@ const heatmaps = (srcTok = " Paris", tgtTok?: string): LensRunHeatmaps => ({
 describe("lens_runs (F1 prompt history)", () => {
     beforeEach(async () => {
         await clearDatabase();
+        setDevUserId(USER);
+        const ws = await createWorkspace("Lens Run Workspace");
+        WS = ws.id;
+        const [{ chart: a }, { chart: b }] = [
+            await createLensChartPair(WS, lensConfig("chart a")),
+            await createLensChartPair(WS, lensConfig("chart b")),
+        ];
+        CHART_A = a.id;
+        CHART_B = b.id;
     });
 
     it("creates a run and reads back the compact summary payload intact", async () => {
         const created = await createLensRun({
-            workspaceId: WS,
             chartId: CHART_A,
             model: "meta-llama/Llama-3.1-8B",
             summary: summary(" Paris", " Rome"),
@@ -86,7 +111,6 @@ describe("lens_runs (F1 prompt history)", () => {
 
     it("never returns the heavy `data` heatmaps from list queries", async () => {
         await createLensRun({
-            workspaceId: WS,
             chartId: CHART_A,
             model: "m1",
             summary: summary(" Paris"),
@@ -98,7 +122,6 @@ describe("lens_runs (F1 prompt history)", () => {
 
     it("fetches full heatmaps on demand by id", async () => {
         const created = await createLensRun({
-            workspaceId: WS,
             chartId: CHART_A,
             model: "m1",
             summary: summary(" Paris", " Rome"),
@@ -122,7 +145,6 @@ describe("lens_runs (F1 prompt history)", () => {
 
     it("attaches a patch to an existing run via updateLensRunIntervention", async () => {
         const created = await createLensRun({
-            workspaceId: WS,
             chartId: CHART_A,
             model: "m1",
             summary: summary(" Paris", " Rome"),
@@ -150,7 +172,6 @@ describe("lens_runs (F1 prompt history)", () => {
     it("returns runs oldest → newest for a chart (createdAt asc, id asc)", async () => {
         for (const tok of [" A", " B", " C"]) {
             await createLensRun({
-                workspaceId: WS,
                 chartId: CHART_A,
                 model: "m1",
                 summary: summary(tok),
@@ -164,21 +185,18 @@ describe("lens_runs (F1 prompt history)", () => {
 
     it("scopes history by chart and (optionally) model", async () => {
         await createLensRun({
-            workspaceId: WS,
             chartId: CHART_A,
             model: "m1",
             summary: summary(" x"),
             heatmaps: heatmaps(" x"),
         });
         await createLensRun({
-            workspaceId: WS,
             chartId: CHART_A,
             model: "m2",
             summary: summary(" y"),
             heatmaps: heatmaps(" y"),
         });
         await createLensRun({
-            workspaceId: WS,
             chartId: CHART_B,
             model: "m1",
             summary: summary(" z"),
@@ -194,14 +212,12 @@ describe("lens_runs (F1 prompt history)", () => {
 
     it("clears a chart's history without touching another chart", async () => {
         await createLensRun({
-            workspaceId: WS,
             chartId: CHART_A,
             model: "m1",
             summary: summary(" x"),
             heatmaps: heatmaps(" x"),
         });
         await createLensRun({
-            workspaceId: WS,
             chartId: CHART_B,
             model: "m1",
             summary: summary(" y"),
@@ -215,7 +231,6 @@ describe("lens_runs (F1 prompt history)", () => {
 
     it("deletes a single run by id", async () => {
         const a = await createLensRun({
-            workspaceId: WS,
             chartId: CHART_A,
             model: "m1",
             summary: summary(" x"),
@@ -223,7 +238,6 @@ describe("lens_runs (F1 prompt history)", () => {
         });
         await new Promise((r) => setTimeout(r, 5));
         await createLensRun({
-            workspaceId: WS,
             chartId: CHART_A,
             model: "m1",
             summary: summary(" y"),
@@ -241,7 +255,6 @@ describe("lens_runs (F1 prompt history)", () => {
         const total = RETENTION_CAP + 3;
         for (let i = 0; i < total; i++) {
             await createLensRun({
-                workspaceId: WS,
                 chartId: CHART_A,
                 model: "m1",
                 summary: summary(` t${i}`),
@@ -260,5 +273,64 @@ describe("lens_runs (F1 prompt history)", () => {
         expect(tokens).not.toContain(" t1");
         expect(tokens).not.toContain(" t2");
         expect(tokens).toContain(` t${total - 1}`);
+    });
+
+    // The outer beforeEach owns WS/CHART_A as USER; these switch to an attacker
+    // to prove the chart-derived authorization contract holds across every op.
+    describe("ownership (cross-user isolation)", () => {
+        const ATTACKER = "lens-run-attacker";
+
+        // Seed one run in the victim's chart, then return its id.
+        const seedVictimRun = async (): Promise<string> => {
+            const run = await createLensRun({
+                chartId: CHART_A,
+                model: "m1",
+                summary: summary(" Paris"),
+                heatmaps: heatmaps(),
+            });
+            return run.id;
+        };
+
+        it("rejects createLensRun against another user's chart", async () => {
+            setDevUserId(ATTACKER);
+            await expect(
+                createLensRun({
+                    chartId: CHART_A,
+                    model: "m1",
+                    summary: summary(" Paris"),
+                    heatmaps: heatmaps(),
+                }),
+            ).rejects.toThrow(/not found or access denied/i);
+        });
+
+        it("hides another user's runs from list and heatmap fetches", async () => {
+            const runId = await seedVictimRun();
+
+            setDevUserId(ATTACKER);
+            expect(await getLensRunsByChart(WS, CHART_A)).toHaveLength(0);
+            expect(await getLensRunHeatmaps(runId)).toBeNull();
+            expect(await getLensRunHeatmapsByIds([runId])).toHaveLength(0);
+        });
+
+        it("does not let another user patch, clear, or delete the victim's runs", async () => {
+            const runId = await seedVictimRun();
+
+            setDevUserId(ATTACKER);
+            await updateLensRunIntervention(
+                runId,
+                { kind: "noop" } as never,
+                promptSummary("x", " y"),
+                fakeLens(" y"),
+            );
+            await clearLensRunsForChart(WS, CHART_A);
+            await deleteLensRun(WS, runId);
+
+            // The owner still sees an untouched run.
+            setDevUserId(USER);
+            const rows = await getLensRunsByChart(WS, CHART_A);
+            expect(rows).toHaveLength(1);
+            expect(rows[0].summary.source.finalToken).toBe(" Paris");
+            expect(rows[0].summary.intervention).toBeUndefined();
+        });
     });
 });

@@ -21,6 +21,7 @@ import {
     deleteWorkshop,
 } from "@/lib/queries/workshopDb";
 import { createWorkspace, getWorkspaceById } from "@/lib/queries/workspaceQueries";
+import { setDevUserId } from "@/lib/auth/devUser";
 import type { WorkshopTool } from "@/db/schema";
 
 const USER = "anon-user-1";
@@ -39,6 +40,8 @@ const input = (overrides: Partial<Parameters<typeof createWorkshop>[0]> = {}) =>
 describe("workshops", () => {
     beforeEach(async () => {
         await clearDatabase();
+        // getWorkspaceById is owner-scoped; act as the participant user.
+        setDevUserId(USER);
     });
 
     it("creates a workshop and reads it back by slug", async () => {
@@ -83,8 +86,8 @@ describe("workshops", () => {
 
     it("resolves a workspace's workshop through workshopId, null otherwise", async () => {
         const workshop = await createWorkshop(input());
-        const stamped = await createWorkspace(USER, "Faculty Pilot", workshop.id);
-        const plain = await createWorkspace(USER, "Personal");
+        const stamped = await createWorkspace("Faculty Pilot", workshop.id);
+        const plain = await createWorkspace("Personal");
 
         const found = await getWorkshopForWorkspace(stamped.id);
         expect(found).not.toBeNull();
@@ -99,9 +102,13 @@ describe("workshops", () => {
 
         expect(await getWorkshopWorkspaceForUser(USER, workshop.id)).toBeNull();
 
-        const ws = await createWorkspace(USER, "Faculty Pilot", workshop.id);
-        await createWorkspace(USER, "Other Session", other.id);
-        await createWorkspace("someone-else", "Their Session", workshop.id);
+        const ws = await createWorkspace("Faculty Pilot", workshop.id);
+        await createWorkspace("Other Session", other.id);
+        // A different participant's workspace in the same workshop — created under
+        // their own identity so it belongs to them, not USER.
+        setDevUserId("someone-else");
+        await createWorkspace("Their Session", workshop.id);
+        setDevUserId(USER);
 
         const found = await getWorkshopWorkspaceForUser(USER, workshop.id);
         expect(found).not.toBeNull();
@@ -110,22 +117,26 @@ describe("workshops", () => {
 
     it("enforces one workspace per (user, workshop); NULL workshopId is unconstrained", async () => {
         const workshop = await createWorkshop(input());
-        await createWorkspace(USER, "First join", workshop.id);
+        await createWorkspace("First join", workshop.id);
 
         // Second insert for the same pair conflicts — this is what makes
         // concurrent join-link clicks converge in joinWorkshopAction.
-        await expect(createWorkspace(USER, "Racing join", workshop.id)).rejects.toThrow(/unique/i);
+        await expect(createWorkspace("Racing join", workshop.id)).rejects.toThrow(/unique/i);
 
         // Normal workspaces (NULL workshopId) stay unconstrained.
-        await createWorkspace(USER, "Personal 1");
-        await createWorkspace(USER, "Personal 2");
+        await createWorkspace("Personal 1");
+        await createWorkspace("Personal 2");
     });
 
     it("lists workshops with participant counts", async () => {
         const a = await createWorkshop(input({ name: "A" }));
         const b = await createWorkshop(input({ name: "B" }));
-        await createWorkspace("u1", "A ws", a.id);
-        await createWorkspace("u2", "A ws", a.id);
+        // Two distinct participants each join workshop A, under their own identity.
+        setDevUserId("u1");
+        await createWorkspace("A ws", a.id);
+        setDevUserId("u2");
+        await createWorkspace("A ws", a.id);
+        setDevUserId(USER);
 
         const list = await listWorkshops();
         expect(list.length).toBe(2);
@@ -151,7 +162,7 @@ describe("workshops", () => {
 
     it("delete nulls participant workspaces' workshopId (workspace survives)", async () => {
         const workshop = await createWorkshop(input());
-        const ws = await createWorkspace(USER, "Faculty Pilot", workshop.id);
+        const ws = await createWorkspace("Faculty Pilot", workshop.id);
 
         await deleteWorkshop(workshop.id);
 
