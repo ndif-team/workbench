@@ -330,27 +330,37 @@ export function TutorialActivityPanel({
     // latest note per step; append order doesn't matter, since orderNotesByUnits
     // re-sorts into unit order.
     const handleSaveNote = async (text: string) => {
-        // Cancel first: the initial notes fetch can still be in flight on an
-        // early step (the participant can reach the note box before it settles
-        // on a slow connection), and `staleTime: Infinity` does not stop an
-        // in-flight request from committing. Without this, that older response
-        // lands after the seed below and overwrites the note with a list that
-        // predates it — permanently, since nothing refetches until the popover
-        // is opened.
-        if (workspaceId) {
-            await queryClient.cancelQueries({
-                queryKey: queryKeys.tutorialEvents.notesByWorkspace(workspaceId),
-            });
+        const notesKey = workspaceId
+            ? queryKeys.tutorialEvents.notesByWorkspace(workspaceId)
+            : null;
+        // Snapshot before cancelling, and seed only if there was something to
+        // seed onto. Two races pull in opposite directions here:
+        //
+        //  - If the initial fetch is still in flight, cancelling it and then
+        //    seeding onto a `[]` default would publish a cache holding only this
+        //    note — a returning participant's earlier notes would vanish from the
+        //    recap until the popover's invalidate reconciled them.
+        //  - If it has already settled, letting it commit *after* the seed would
+        //    overwrite this note with a list that predates it.
+        //
+        // So: cancel and merge when we hold a snapshot, and otherwise leave the
+        // read alone and let it bring the truth. Skipping the seed can leave the
+        // just-written note out of the recap for a moment (the event write is
+        // fire-and-forget, so the in-flight read may not see it), which is the
+        // lesser of the two — dropping notes the participant already wrote is
+        // worse than briefly missing the one they can still see on screen.
+        const previousNotes = notesKey
+            ? queryClient.getQueryData<TutorialNote[]>(notesKey)
+            : undefined;
+        if (notesKey && previousNotes !== undefined) {
+            await queryClient.cancelQueries({ queryKey: notesKey });
         }
         store.submitObservation(text);
-        if (!workspaceId) return;
-        queryClient.setQueryData<TutorialNote[]>(
-            queryKeys.tutorialEvents.notesByWorkspace(workspaceId),
-            (prev = []) => [
-                ...prev.filter((n) => n.stepId !== unit.id),
-                { stepId: unit.id, text: text.trim(), createdAt: new Date() },
-            ],
-        );
+        if (!notesKey || previousNotes === undefined) return;
+        queryClient.setQueryData<TutorialNote[]>(notesKey, [
+            ...previousNotes.filter((n) => n.stepId !== unit.id),
+            { stepId: unit.id, text: text.trim(), createdAt: new Date() },
+        ]);
     };
 
     // Docked, the panel is a column of the tool's layout and wears the same header
