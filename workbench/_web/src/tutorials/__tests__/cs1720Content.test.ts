@@ -51,6 +51,10 @@ describe("cs1720 classroom tutorial content", () => {
     // The highest-value assertion in the suite. It fails the moment a later
     // content edit gives a free-text check a verdict — whether by adding a
     // `topToken` check to this tutorial or by converting one of these back.
+    //
+    // Both shipped contents now resolve to a verdict, so both need this guard:
+    // the mirror for `PROLIFIC_TUTORIAL_SEED` is the identically-named test in
+    // `prolificSeed.test.ts`. Change one, change the other.
     it("shows a verdict only on checks with a static answer key", () => {
         const content = load();
         const verdicted = content.units.filter(

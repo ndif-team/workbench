@@ -69,13 +69,18 @@ interface BaseCheck {
      *   `check_answered`; the verdict just never reaches the screen.
      * - `"verdict"` — right/wrong, plus the answer key when wrong.
      *
-     * Neutral is the default because most of these are engagement checks scored
-     * against the participant's own run, and several have no single right
+     * Neutral is the default because a check need not be gradable to be worth
+     * asking. A run-scored check (`topToken` / `secondToken`) is keyed to
+     * whatever the live model produced, which often has no single typable right
      * answer: a token that cannot be typed as it renders, a spelling `norm()`
      * does not fold, a runner-up that moved between runs. Being told they are
      * wrong on one of those discourages a participant for no reason, and the
      * measure we actually want (did they look?) survives without it. Opt a check
-     * into `"verdict"` only when its key is unambiguous.
+     * into `"verdict"` only when its key is unambiguous — which in practice
+     * means `kind: "choice"`; both shipped contents now set the tutorial-level
+     * default to `"verdict"` and are multiple choice throughout. `"neutral"` on
+     * an individual check is the escape hatch for reintroducing a run-scored one
+     * under a verdicted tutorial.
      */
     feedback?: CheckFeedback;
 }

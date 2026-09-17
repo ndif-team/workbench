@@ -666,4 +666,91 @@ test.describe("guided tutorial notes", () => {
         await expect(recapRows.nth(1)).toHaveAttribute("data-step-id", "u1-layer");
         await expect(recapRows.nth(1)).toContainText(noteB);
     });
+
+    /**
+     * A note is a way back to the step it was written on, from both surfaces
+     * that list notes. The two are one test on purpose: reaching the completion
+     * recap means walking the whole tutorial, so it rides along after the
+     * popover case rather than paying for a second walk.
+     *
+     * The jump target is found by its accessible name ("Go to step 1: The top
+     * prediction"), which is the assertion as much as the locator — the visible
+     * "Step 1 · …" heading plus a paragraph of the participant's own prose would
+     * be a useless name for a screen reader.
+     *
+     * A note whose unit is gone from the content renders no button at all. That
+     * needs a tutorial edited between sessions, which this harness can't stage
+     * (seedTutorialWorkspace deletes and re-inserts the workspace, notes and
+     * all); it is covered by the `stepNumber: null` branch, whose input side is
+     * unit-tested in `src/lib/__tests__/tutorialNotes.test.ts`.
+     */
+    test("a note jumps back to its step, from the popover and from the recap", async ({
+        page,
+    }, testInfo) => {
+        await loginIfRequired(page, user);
+        await page.setViewportSize({ width: 1440, height: 900 });
+
+        const seeded = await seedTutorialWorkspace(
+            user.user_id,
+            TUTORIAL_CHECK_CONTENT,
+            notesSlot(testInfo.workerIndex),
+        );
+        const url = `/workbench/${seeded.workspaceId}/patch-lens/${seeded.chartId}`;
+        const nonce = Math.random().toString(36).slice(2, 8);
+        const firstIdx = unitIndex("u0-top1");
+        const secondIdx = unitIndex("u1-layer");
+        const noteA = `jump-note-1-${nonce}`;
+        const noteB = `jump-note-2-${nonce}`;
+        const jumpTo = (idx: number) =>
+            `Go to step ${idx + 1}: ${TUTORIAL_CHECK_CONTENT.units[idx].title}`;
+
+        await stubBackend(page);
+        await landOnStep(page, seeded.workspaceId, firstIdx);
+        await page.goto(url);
+        await expectPanel(page);
+
+        const saveNote = async (unitIdx: number, text: string) => {
+            const prompt = TUTORIAL_CHECK_CONTENT.units[unitIdx].observationPrompt;
+            await panel(page).getByLabel(prompt, { exact: true }).fill(text);
+            await panel(page).getByRole("button", { name: "Save note", exact: true }).click();
+            await expect(panel(page).getByText("✓ Thanks — your note was saved.")).toBeVisible();
+        };
+
+        await saveNote(firstIdx, noteA);
+        await advanceOneStep(page, firstIdx);
+        await expectStep(page, secondIdx);
+        await saveNote(secondIdx, noteB);
+
+        // From the popover: click the first step's note while standing on the
+        // second, and land on the first.
+        await notesTrigger(page).click();
+        const pop = notesPopover(page);
+        await expect(pop).toBeVisible();
+        const firstRowJump = pop.getByRole("button", { name: jumpTo(firstIdx) });
+        await expect(firstRowJump).toContainText(noteA);
+        await firstRowJump.click();
+        await expectStep(page, firstIdx);
+        // The popover must get out of the way — otherwise it covers the step it
+        // just navigated to.
+        await expect(notesPopover(page)).toHaveCount(0);
+
+        // Walk to the end for the recap.
+        for (let idx = firstIdx; idx < TOTAL_UNITS - 1; idx++) {
+            await advanceOneStep(page, idx);
+        }
+        await expectStep(page, TOTAL_UNITS - 1);
+        await expect(panel(page).getByText("What you noticed", { exact: true })).toBeVisible();
+
+        // From the recap: the same row, keyboard-activated, since these are real
+        // buttons and not click handlers on the <li>.
+        const recapJump = panel(page).getByRole("button", { name: jumpTo(secondIdx) });
+        await expect(recapJump).toContainText(noteB);
+        await recapJump.focus();
+        await page.keyboard.press("Enter");
+        await expectStep(page, secondIdx);
+        // The recap is appended to the final unit's step view, so leaving that
+        // unit takes it away.
+        await expect(panel(page).getByText("What you noticed", { exact: true })).toHaveCount(0);
+        await expect(noteRows(panel(page))).toHaveCount(0);
+    });
 });

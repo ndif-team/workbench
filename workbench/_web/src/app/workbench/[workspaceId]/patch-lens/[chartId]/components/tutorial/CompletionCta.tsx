@@ -25,10 +25,18 @@ export function CompletionCta({
     surveyUrl,
     thanks,
     notes = [],
+    onJumpToStep,
 }: {
     surveyUrl?: string;
     thanks?: string;
     notes?: TutorialNoteView[];
+    /**
+     * Navigate to a note's step. This screen is appended to the final unit
+     * rather than replacing the tutorial, so a jump simply re-renders that unit
+     * and takes the recap with it — going back is a normal move here, not an
+     * escape from a finished state.
+     */
+    onJumpToStep?: (stepId: string) => void;
 }) {
     const url = (surveyUrl ?? "").trim();
     const note = (thanks ?? "").trim();
@@ -67,7 +75,7 @@ export function CompletionCta({
             {notes.length > 0 && (
                 <div className="mt-3 border-t border-primary/30 pt-3">
                     <p className="mb-2 text-sm font-medium">What you noticed</p>
-                    <TutorialNotesList notes={notes} />
+                    <TutorialNotesList notes={notes} onJumpToStep={onJumpToStep} />
                 </div>
             )}
         </div>

@@ -291,6 +291,21 @@ export function TutorialActivityPanel({
               ? "Add a note in the box above to finish this step."
               : "Run a prompt to finish this step.";
 
+    // A note is the way back to the step it was written on, from either surface
+    // that lists them. `goToUnit` guards the range and emits step_started, which
+    // is the right event for a revisit — it is the same move as the Back button.
+    // Resolved through the unit id rather than a stored index so an edited
+    // tutorial can't send a participant to somebody else's step; a note whose
+    // unit is gone renders no button at all (TutorialNotesList), so the miss
+    // here is belt-and-braces.
+    const handleJumpToStep = (stepId: string) => {
+        const idx = units.findIndex((u) => u.id === stepId);
+        if (idx < 0) return;
+        // The finish nudge belongs to the step that raised it.
+        setNudgeToFinish(false);
+        store.goToUnit(idx);
+    };
+
     const handleNext = () => {
         if (!completed && !nudgeToFinish) {
             setNudgeToFinish(true);
@@ -515,7 +530,12 @@ export function TutorialActivityPanel({
 
             {/* Finish screen on the final unit → survey handoff */}
             {isLast && (completed || store.observationByUnit[store.unitIdx]) && (
-                <CompletionCta surveyUrl={surveyUrl} thanks={completionThanks} notes={notes} />
+                <CompletionCta
+                    surveyUrl={surveyUrl}
+                    thanks={completionThanks}
+                    notes={notes}
+                    onJumpToStep={handleJumpToStep}
+                />
             )}
         </div>
     );
@@ -614,6 +634,7 @@ export function TutorialActivityPanel({
                 <TutorialNotes
                     notes={notes}
                     loading={notesLoading}
+                    onJumpToStep={handleJumpToStep}
                     onOpen={() => {
                         // Unit id and a count only — a participant's note text
                         // must never reach PostHog.

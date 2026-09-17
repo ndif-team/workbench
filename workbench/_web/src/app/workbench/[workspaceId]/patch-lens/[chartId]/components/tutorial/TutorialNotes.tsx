@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { NotebookPen } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,17 +25,26 @@ export function TutorialNotes({
     notes,
     loading,
     onOpen,
+    onJumpToStep,
 }: {
     notes: TutorialNoteView[];
     loading?: boolean;
     onOpen?: () => void;
+    /** Navigate to a note's step. Omit to render the list non-interactive. */
+    onJumpToStep?: (stepId: string) => void;
 }) {
+    // Controlled only so a jump can close it: a popover left open over the step
+    // it just navigated to hides the thing the participant asked to see.
+    const [open, setOpen] = useState(false);
+
     return (
         <Popover
+            open={open}
             // onOpenChange rather than the trigger's onClick, so a keyboard open
             // counts too and a close doesn't re-fire the event.
-            onOpenChange={(open) => {
-                if (open) onOpen?.();
+            onOpenChange={(next) => {
+                setOpen(next);
+                if (next) onOpen?.();
             }}
         >
             <PopoverTrigger asChild>
@@ -60,7 +70,17 @@ export function TutorialNotes({
             >
                 <div className="flex flex-col gap-2">
                     <h3 className="text-sm font-medium">What you&apos;ve noticed</h3>
-                    <TutorialNotesList notes={notes} loading={loading} />
+                    <TutorialNotesList
+                        notes={notes}
+                        loading={loading}
+                        onJumpToStep={
+                            onJumpToStep &&
+                            ((stepId) => {
+                                setOpen(false);
+                                onJumpToStep(stepId);
+                            })
+                        }
+                    />
                 </div>
             </PopoverContent>
         </Popover>

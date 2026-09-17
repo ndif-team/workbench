@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test";
 
 import { PROLIFIC_TUTORIAL_SEED } from "@/tutorials/prolificSeed";
 import { TUTORIAL_STEP_ORDER, TUTORIAL_STEP_LABELS } from "@/tutorials/prolificSteps";
-import { evalSuccessPredicate } from "@/types/tutorial-content";
+import { evalSuccessPredicate, resolveCheckFeedback } from "@/types/tutorial-content";
 import { validateTutorialContent } from "@/lib/queries/tutorialContentDb";
 import { promptsForUnitEntry } from "@/tutorials/unitPrompts";
 
@@ -110,7 +110,10 @@ describe("prolific tutorial seed", () => {
         const compare = unit("u4a-compare");
         expect(compare.patchPair).toEqual(unit("u4-patching").patchPair!);
         expect(compare.progression.on).toBe("run");
-        expect(compare.check).toBeUndefined();
+        // Its check is statically keyed off `patchPair` — the pair of cities is
+        // fixed by the two prompts, so reading both heatmaps is gradable without
+        // anyone having dragged anything.
+        expect(compare.check?.kind).toBe("choice");
     });
 
     // The task text says "two cells are ringed for you", so they have to be ringed
@@ -187,12 +190,67 @@ describe("prolific tutorial seed", () => {
         expect(evalSuccessPredicate(undefined, "anything")).toBe(true);
     });
 
-    // The study arm is deliberately neutral: engagement is a covariate, and
-    // several of these checks are scored against the participant's own run with
-    // no unambiguous key. Verdicts belong to the classroom content, which sets
-    // this field; the seed must keep resolving to neutral by omission.
-    it("never shows the study arm a verdict", () => {
-        expect(PROLIFIC_TUTORIAL_SEED.checkFeedback).toBeUndefined();
+    // This used to assert the opposite — the seed stayed neutral because it was a
+    // live Prolific instrument and engagement was a covariate. It is no longer
+    // fielded: it is the demo row and the in-code fallback, so it is what anyone
+    // testing or demoing the tutorial sees, and a check that only says "thanks"
+    // can't be exercised without a live model. Every check is now statically
+    // keyed (see the invariant below), so the verdict it shows is trustworthy.
+    it("shows a verdict on its checks", () => {
+        expect(PROLIFIC_TUTORIAL_SEED.checkFeedback).toBe("verdict");
+        // No per-check overrides, so the tutorial-level default governs all of
+        // them and there is one place to look when the behaviour is questioned.
         expect(PROLIFIC_TUTORIAL_SEED.units.every((u) => u.check?.feedback == null)).toBe(true);
+    });
+
+    // The same invariant `cs1720Content.test.ts` enforces on the authored
+    // classroom JSON (memo SF-7), now that this content resolves to a verdict
+    // too. A free-text check scored against a live model token, shown as
+    // right/wrong, is the configuration that graded the best pilot participant
+    // 1-of-5.
+    it("shows a verdict only on checks with a static answer key", () => {
+        const verdicted = PROLIFIC_TUTORIAL_SEED.units.filter(
+            (u) =>
+                u.check &&
+                resolveCheckFeedback(u.check, PROLIFIC_TUTORIAL_SEED.checkFeedback) === "verdict",
+        );
+        // Not a vacuous pass: the conversion exists to make these gradable.
+        expect(verdicted.length).toBe(8);
+        for (const u of verdicted) {
+            expect(u.check!.kind).toBe("choice");
+        }
+    });
+
+    it("gives every choice check distinct options and a key inside them", () => {
+        for (const u of PROLIFIC_TUTORIAL_SEED.units) {
+            if (u.check?.kind !== "choice") continue;
+            const check = u.check;
+            expect(check.options.length).toBeGreaterThanOrEqual(2);
+            // A duplicated option means two clickable answers, one of which is
+            // marked wrong for saying the same thing as the right one.
+            expect(new Set(check.options).size).toBe(check.options.length);
+            expect(check.options.every((o) => o.trim().length > 0)).toBe(true);
+            expect(Number.isInteger(check.correctIndex)).toBe(true);
+            expect(check.correctIndex).toBeGreaterThanOrEqual(0);
+            expect(check.correctIndex).toBeLessThan(check.options.length);
+        }
+    });
+
+    // Keys spread across positions, matching the classroom JSON. All-zero keys
+    // let a participant score full marks by always clicking the first option,
+    // which measures nothing.
+    it("does not put every answer key in the same position", () => {
+        const keys = PROLIFIC_TUTORIAL_SEED.units
+            .map((u) => (u.check?.kind === "choice" ? u.check.correctIndex : null))
+            .filter((k): k is number => k !== null);
+        expect(new Set(keys).size).toBeGreaterThan(1);
+    });
+
+    it("has no leftover answerPlaceholder from the free-text checks", () => {
+        // It only ever labelled the typed-answer input, which a choice check does
+        // not render — a survivor is dead content that reads as an instruction.
+        for (const u of PROLIFIC_TUTORIAL_SEED.units) {
+            expect(u.answerPlaceholder).toBeUndefined();
+        }
     });
 });
