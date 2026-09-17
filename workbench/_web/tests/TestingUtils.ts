@@ -21,9 +21,60 @@ const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABAS
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ANON_KEY = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-/** Service-role client — bypasses RLS; server-only key, never shipped to the browser. */
-export const supabase: SupabaseClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
+/**
+ * Whether this run talks to the local SQLite dev DB instead of Supabase, and
+ * whether the app is short-circuiting auth to its stub user. CI sets neither and
+ * gets the Supabase path below; the repo's committed `.env` sets both, which is
+ * what lets the tutorial specs run on a laptop with nothing but `bun run dev`.
+ */
+const LOCAL_DB = process.env.NEXT_PUBLIC_LOCAL_DB === "true";
+const AUTH_DISABLED = process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
+
+/**
+ * The user `src/lib/supabase/server.ts` returns when NEXT_PUBLIC_DISABLE_AUTH is
+ * on. Seeding a workspace under this id is what makes the route's owner checks
+ * pass without a Supabase session.
+ */
+const LOCAL_STUB_USER: TestingUser = {
+    email: "dev@localhost",
+    user_id: "local-dev-user",
+};
+
+/**
+ * Service-role client — bypasses RLS; server-only key, never shipped to the browser.
+ *
+ * Constructed lazily behind a Proxy rather than at import time: `createClient`
+ * throws on a missing url/key, and this module is imported by every spec, so an
+ * eager client made the whole suite unloadable on a machine configured for the
+ * local SQLite path (no Supabase keys in `.env`). Now the failure lands only on
+ * the call that actually needs Postgres, with a message that says which env var
+ * is missing.
+ */
+let serviceClient: SupabaseClient | null = null;
+const serviceRoleClient = (): SupabaseClient => {
+    if (!serviceClient) {
+        if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+            throw new Error(
+                "Supabase seeding needs NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY " +
+                    "(this run has NEXT_PUBLIC_LOCAL_DB=" +
+                    String(process.env.NEXT_PUBLIC_LOCAL_DB) +
+                    ")",
+            );
+        }
+        serviceClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+            auth: { autoRefreshToken: false, persistSession: false },
+        });
+    }
+    return serviceClient;
+};
+export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+    get(_target, prop) {
+        const client = serviceRoleClient() as unknown as Record<string | symbol, unknown>;
+        const value = client[prop];
+        // Bind so `supabase.from(...)` keeps its receiver — the proxy hands back
+        // the method itself, which would otherwise be called with `this` unset.
+        return typeof value === "function" ? value.bind(client) : value;
+    },
 });
 
 export type TestingUser = { email: string; user_id: string };
@@ -176,6 +227,31 @@ export async function createAuthenticatedClient(user: TestingUser): Promise<Supa
     return userClient;
 }
 
+/**
+ * The user the specs should own their fixtures as.
+ *
+ * With auth disabled there is exactly one identity the server will ever report
+ * (`LOCAL_STUB_USER`), and asking GoTrue for another would fail — there is no
+ * GoTrue. Under real auth this is `createTestUser`, unchanged.
+ */
+export async function createTestUserOrStub(opts?: {
+    email?: string;
+    admin?: boolean;
+}): Promise<TestingUser> {
+    if (AUTH_DISABLED) return LOCAL_STUB_USER;
+    return createTestUser(opts);
+}
+
+/**
+ * Log in, unless the app is already handing every request the stub user — in
+ * which case /auth/magic-link has nothing to verify against and the browser is
+ * authenticated by definition.
+ */
+export async function loginIfRequired(page: Page, user: TestingUser): Promise<void> {
+    if (AUTH_DISABLED) return;
+    await loginAsUser(page, user);
+}
+
 // ---------------------------------------------------------------------------
 // Seeds (ported from tests/seed-*.cjs; write Postgres via the service client).
 // ---------------------------------------------------------------------------
@@ -268,7 +344,16 @@ const PL_TGT_TOKENS = ["The", " Big", " Ben", " is", " in", " the", " city", " o
 // the last token position is always rendered regardless of token step.
 const PL_INTERVENTION = { srcTokenPos: 7, srcLayer: 8, tgtTokenPos: 7, tgtLayer: 8 };
 
-function buildLensData(finalToken: string, tokens: string[] = PL_TOKENS) {
+/**
+ * A well-formed lens payload whose final-layer top-1 at the last position is
+ * `finalToken` and whose runner-up there is always `" the"`.
+ *
+ * Exported because that makes it the answer key for the guided tutorial's
+ * run-scored checks: PatchLensArea feeds `finalPrediction(source)` and
+ * `finalTopKTokens(source, 2)[1]` into the store, so a spec that fulfils
+ * `/logit_lens/start` with this knows, deterministically, what "correct" is.
+ */
+export function buildLensData(finalToken: string, tokens: string[] = PL_TOKENS) {
     const input = tokens.slice();
     const topk = PL_LAYERS.map(() =>
         input.map((_, pos) =>
@@ -513,4 +598,321 @@ export async function seedPatchLensChart(userId: string): Promise<void> {
 
     // F1-only history clone (base chart + mirror runs, its own chart id).
     await seedPatchLensHistoryChart(now);
+}
+
+// ---------------------------------------------------------------------------
+// Guided-tutorial fixture (tests/tutorial-checks.spec.ts).
+// ---------------------------------------------------------------------------
+
+/**
+ * Fixed, slot-indexed ids. Slots exist because the guided tutorial's state is
+ * per (workspace, participant): a spec that needs its own uncontaminated
+ * `tutorial_events` history (the notes tests) takes a slot of its own rather
+ * than sharing the checks workspace, which every other test in the file writes
+ * `check_answered` rows into.
+ */
+const tutorialSlotIds = (slot: number) => {
+    const s = slot.toString(16);
+    return {
+        tutorialId: `e2e7a1a1-0000-4000-8000-00000000000${s}`,
+        workshopId: `e2e7b2b2-0000-4000-8000-00000000000${s}`,
+        workspaceId: `e2e7c3c3-0000-4000-8000-00000000000${s}`,
+        chartId: `e2e7d4d4-0000-4000-8000-00000000000${s}`,
+        runId: `e2e7e5e5-0000-4000-8000-00000000000${s}`,
+        slug: `e2e-tutorial-checks-slot-${slot}`,
+    };
+};
+
+/**
+ * The model the tutorial fixture pins. A real HF id, because the prompt boxes
+ * tokenize through `@huggingface/transformers` server-side — a made-up name only
+ * costs a toast (tokenize failure is non-fatal), but a real one keeps the run
+ * path clean. The spec stubs `/models/` with exactly this name so the workshop's
+ * model pin resolves and `executeRun` has a `selectedModel`.
+ */
+export const TUTORIAL_MODEL = "openai-community/gpt2";
+
+/** The seeded chart's source prompt (the first unit's prompt bank entry). */
+const TUTORIAL_SOURCE_PROMPT = "The Eiffel Tower is in the city of";
+
+/** The final-layer top-1 of the seeded run — and so the topToken answer key. */
+const TUTORIAL_SEED_FINAL_TOKEN = " Paris";
+
+const secs = (ms: number) => Math.floor(ms / 1000);
+
+/**
+ * Seed a workspace whose guided tutorial runs `content`, and a patch-lens chart
+ * in it with one `lens_runs` row so the route renders a heatmap with no NDIF and
+ * no Python backend.
+ *
+ * The chain is what `resolveTutorialForWorkspace` joins on: tutorial →
+ * workshop.tutorial_id → workspace.workshop_id. Seeding our own tutorial row
+ * (rather than leaning on the global `prolific-patch-lens-demo` slug fallback)
+ * is deliberate — that row is shared, and another spec editing it would silently
+ * change what these assertions are checking.
+ *
+ * Note and accept: a workspace with a `workshop_id` auto-starts the guided
+ * tutorial in `workshopMode` (PatchLensArea's guided-auto-start effect). That is
+ * the classroom path, and it saves the spec a click.
+ *
+ * Delete-then-insert with fixed ids, matching `seedPatchLensChart` — idempotent
+ * across retries, and safe to call again mid-file to reset one slot.
+ */
+export async function seedTutorialWorkspace(
+    userId: string,
+    content: unknown,
+    slot = 0,
+): Promise<{ workspaceId: string; chartId: string; workshopSlug: string }> {
+    const ids = tutorialSlotIds(slot);
+    const now = Date.now();
+    const expiresAt = now + 7 * 24 * 3600 * 1000;
+
+    const chartData = {
+        sourcePrompt: TUTORIAL_SOURCE_PROMPT,
+        targetPrompt: "",
+        lastRunSourcePrompt: TUTORIAL_SOURCE_PROMPT,
+        activeLensRunId: ids.runId,
+    };
+    const runSummary = {
+        source: plPromptSummary(PL_TOKENS, TUTORIAL_SEED_FINAL_TOKEN),
+        params: { topk: 10, includeEntropy: true },
+    };
+    const runHeatmaps = { source: buildLensData(TUTORIAL_SEED_FINAL_TOKEN) };
+
+    if (LOCAL_DB) {
+        await seedTutorialWorkspaceSqlite({
+            ids,
+            userId,
+            content,
+            now,
+            expiresAt,
+            chartData,
+            runSummary,
+            runHeatmaps,
+        });
+        return { workspaceId: ids.workspaceId, chartId: ids.chartId, workshopSlug: ids.slug };
+    }
+
+    // Child → parent, so nothing is orphaned if a later delete fails.
+    await supabase.from("tutorial_events").delete().eq("workspace_id", ids.workspaceId);
+    await supabase.from("lens_runs").delete().eq("chart_id", ids.chartId);
+    await supabase.from("charts").delete().eq("id", ids.chartId);
+    // By workshop AND by id: the (user_id, workshop_id) unique index means a row
+    // left by a previous run under a different user would block the insert.
+    await supabase.from("workspaces").delete().eq("workshop_id", ids.workshopId);
+    await supabase.from("workspaces").delete().eq("id", ids.workspaceId);
+    await supabase.from("workshops").delete().eq("id", ids.workshopId);
+    await supabase.from("tutorials").delete().eq("id", ids.tutorialId);
+
+    const nowIso = new Date(now).toISOString();
+    const fail = (what: string, message?: string) => {
+        if (message) throw new Error(`seedTutorialWorkspace ${what} failed: ${message}`);
+    };
+
+    fail(
+        "tutorial",
+        (
+            await supabase.from("tutorials").insert({
+                id: ids.tutorialId,
+                name: `E2E Tutorial Checks (slot ${slot})`,
+                slug: ids.slug,
+                data: content,
+                created_by: "e2e@seed.local",
+            })
+        ).error?.message,
+    );
+    fail(
+        "workshop",
+        (
+            await supabase.from("workshops").insert({
+                id: ids.workshopId,
+                name: `E2E Tutorial Checks (slot ${slot})`,
+                slug: ids.slug,
+                allowed_tools: ["patch-lens"],
+                model: TUTORIAL_MODEL,
+                starter_prompt: TUTORIAL_SOURCE_PROMPT,
+                tutorial_id: ids.tutorialId,
+                survey_url: "https://example.invalid/survey",
+                expires_at: new Date(expiresAt).toISOString(),
+                created_by: "e2e@seed.local",
+            })
+        ).error?.message,
+    );
+    fail(
+        "workspace",
+        (
+            await supabase.from("workspaces").insert({
+                id: ids.workspaceId,
+                user_id: userId,
+                name: `E2E Tutorial Checks (slot ${slot})`,
+                public: false,
+                workshop_id: ids.workshopId,
+                updated_at: nowIso,
+            })
+        ).error?.message,
+    );
+    fail(
+        "chart",
+        (
+            await supabase.from("charts").insert({
+                id: ids.chartId,
+                workspace_id: ids.workspaceId,
+                name: "Tutorial checks",
+                data: chartData,
+                type: "patch-lens",
+                position: 0,
+                created_at: nowIso,
+                updated_at: nowIso,
+            })
+        ).error?.message,
+    );
+    fail(
+        "lens_run",
+        (
+            await supabase.from("lens_runs").insert({
+                id: ids.runId,
+                workspace_id: ids.workspaceId,
+                chart_id: ids.chartId,
+                model: TUTORIAL_MODEL,
+                summary: runSummary,
+                data: runHeatmaps,
+                created_at: nowIso,
+            })
+        ).error?.message,
+    );
+
+    return { workspaceId: ids.workspaceId, chartId: ids.chartId, workshopSlug: ids.slug };
+}
+
+/**
+ * The same seed against the local SQLite dev DB (`LOCAL_SQLITE_URL`), written
+ * with raw SQL through better-sqlite3 — the driver the Next dev server itself
+ * uses, so there is no second dialect to keep in step.
+ *
+ * Timestamp encodings mirror `schema.sqlite.ts`: drizzle's `mode: "timestamp"`
+ * is unix *seconds*, and `lens_runs.created_at` is `timestamp_ms`. Getting that
+ * wrong doesn't error — it silently dates a row to 1970 and the history rail
+ * orders wrong.
+ */
+async function seedTutorialWorkspaceSqlite(args: {
+    ids: ReturnType<typeof tutorialSlotIds>;
+    userId: string;
+    content: unknown;
+    now: number;
+    expiresAt: number;
+    chartData: unknown;
+    runSummary: unknown;
+    runHeatmaps: unknown;
+}) {
+    const { ids, userId, content, now, expiresAt, chartData, runSummary, runHeatmaps } = args;
+    const url = process.env.LOCAL_SQLITE_URL;
+    if (!url)
+        throw new Error(
+            "seedTutorialWorkspace: NEXT_PUBLIC_LOCAL_DB is set but not LOCAL_SQLITE_URL",
+        );
+
+    // Imported here, not at the top of the file: Playwright loads this module as
+    // ESM (so `require` is undefined), and every spec imports TestingUtils — a
+    // static import would pull the native better-sqlite3 binding into CI runs
+    // that only ever touch Postgres.
+    const { default: Database } = await import("better-sqlite3");
+    const db = new Database(url);
+    try {
+        // The dev server holds its own connection to this file; a short busy
+        // timeout turns the inevitable overlap into a wait rather than SQLITE_BUSY.
+        db.pragma("busy_timeout = 5000");
+        db.exec("BEGIN IMMEDIATE");
+        db.prepare("DELETE FROM tutorial_events WHERE workspace_id = ?").run(ids.workspaceId);
+        db.prepare("DELETE FROM lens_runs WHERE chart_id = ?").run(ids.chartId);
+        db.prepare("DELETE FROM charts WHERE id = ?").run(ids.chartId);
+        db.prepare("DELETE FROM workspaces WHERE workshop_id = ? OR id = ?").run(
+            ids.workshopId,
+            ids.workspaceId,
+        );
+        db.prepare("DELETE FROM workshops WHERE id = ?").run(ids.workshopId);
+        db.prepare("DELETE FROM tutorials WHERE id = ?").run(ids.tutorialId);
+
+        db.prepare(
+            `INSERT INTO tutorials (id, name, slug, data, created_by, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+            ids.tutorialId,
+            "E2E Tutorial Checks",
+            ids.slug,
+            JSON.stringify(content),
+            "e2e@seed.local",
+            secs(now),
+            secs(now),
+        );
+        db.prepare(
+            `INSERT INTO workshops (id, name, slug, allowed_tools, model, starter_prompt,
+                                    tutorial_id, survey_url, completion_text, allow_model_change,
+                                    expires_at, created_by, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+            ids.workshopId,
+            "E2E Tutorial Checks",
+            ids.slug,
+            JSON.stringify(["patch-lens"]),
+            TUTORIAL_MODEL,
+            TUTORIAL_SOURCE_PROMPT,
+            ids.tutorialId,
+            "https://example.invalid/survey",
+            "",
+            0,
+            secs(expiresAt),
+            "e2e@seed.local",
+            secs(now),
+            secs(now),
+        );
+        db.prepare(
+            `INSERT INTO workspaces (id, user_id, name, public, workshop_id, prolific,
+                                     created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+            ids.workspaceId,
+            userId,
+            "E2E Tutorial Checks",
+            0,
+            ids.workshopId,
+            null,
+            secs(now),
+            secs(now),
+        );
+        db.prepare(
+            `INSERT INTO charts (id, workspace_id, name, data, type, position, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+            ids.chartId,
+            ids.workspaceId,
+            "Tutorial checks",
+            JSON.stringify(chartData),
+            "patch-lens",
+            0,
+            secs(now),
+            secs(now),
+        );
+        db.prepare(
+            `INSERT INTO lens_runs (id, workspace_id, chart_id, model, summary, data, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+            ids.runId,
+            ids.workspaceId,
+            ids.chartId,
+            TUTORIAL_MODEL,
+            JSON.stringify(runSummary),
+            JSON.stringify(runHeatmaps),
+            now,
+        );
+        db.exec("COMMIT");
+    } catch (err) {
+        try {
+            db.exec("ROLLBACK");
+        } catch {
+            /* nothing to roll back */
+        }
+        throw err;
+    } finally {
+        db.close();
+    }
 }

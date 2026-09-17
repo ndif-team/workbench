@@ -3,6 +3,8 @@
 import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import type { TutorialNoteView } from "@/lib/tutorialNotes";
+import { TutorialNotesList } from "./TutorialNotesList";
 
 /**
  * Finish screen shown after the final unit. The **survey** (not the tool) issues
@@ -13,8 +15,21 @@ import { Button } from "@/components/ui/button";
  * `thanks` is optional per-workshop copy (the legacy completion_text column,
  * repurposed as a thank-you note). When no survey URL is configured we fall back
  * to a plain thank-you so the participant still gets a clear end state.
+ *
+ * `notes` is the recap of what the participant wrote along the way — the
+ * "afterwards" half of letting them see their own reflections. It renders below
+ * the survey link so the survey stays the primary action here (it is what issues
+ * the completion code).
  */
-export function CompletionCta({ surveyUrl, thanks }: { surveyUrl?: string; thanks?: string }) {
+export function CompletionCta({
+    surveyUrl,
+    thanks,
+    notes = [],
+}: {
+    surveyUrl?: string;
+    thanks?: string;
+    notes?: TutorialNoteView[];
+}) {
     const url = (surveyUrl ?? "").trim();
     const note = (thanks ?? "").trim();
 
@@ -45,6 +60,15 @@ export function CompletionCta({ surveyUrl, thanks }: { surveyUrl?: string; thank
                 <p className="mt-2 text-xs text-muted-foreground">
                     Thanks for completing the tutorial — you can close this tab.
                 </p>
+            )}
+            {/* Nothing at all when they wrote nothing: the notes were optional,
+                and an empty state here would be a reproach at the moment the
+                participant is being thanked. */}
+            {notes.length > 0 && (
+                <div className="mt-3 border-t border-primary/30 pt-3">
+                    <p className="mb-2 text-sm font-medium">What you noticed</p>
+                    <TutorialNotesList notes={notes} />
+                </div>
             )}
         </div>
     );

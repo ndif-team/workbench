@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, useDragControls } from "motion/react";
 import {
     ChevronDown,
@@ -20,12 +21,28 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useCapture } from "@/lib/analytics";
+import { useTutorialNotes } from "@/lib/api/tutorialEventsApi";
+import { queryKeys } from "@/lib/queryKeys";
+import { orderNotesByUnits } from "@/lib/tutorialNotes";
 import { useProlificTutorial, HINT_AUTO_OFFER_AT } from "@/stores/useProlificTutorial";
-import type { GlossaryEntry, HintRung, SpotlightTarget, UnitCheck } from "@/types/tutorial-content";
-import { resolveCheckKey, resolveUnitSpotlights } from "@/types/tutorial-content";
+import type {
+    CheckFeedback,
+    GlossaryEntry,
+    HintRung,
+    SpotlightTarget,
+    UnitCheck,
+} from "@/types/tutorial-content";
+import {
+    normalizeAnswer,
+    resolveCheckFeedback,
+    resolveCheckKey,
+    resolveUnitSpotlights,
+} from "@/types/tutorial-content";
+import type { TutorialNote } from "@/types/tutorialEvents";
 import { DEFAULT_GLOSSARY } from "@/tutorials/glossary";
 import { CompletionCta } from "./CompletionCta";
 import { TutorialGlossary } from "./TutorialGlossary";
+import { TutorialNotes } from "./TutorialNotes";
 import { useTutorialDock } from "./TutorialDock";
 
 /**
@@ -44,16 +61,6 @@ import { useTutorialDock } from "./TutorialDock";
  * Reactour still handles the spotlight explanations for the lens/patch UI; this
  * panel is the reflective activity a facilitator would otherwise run by hand.
  */
-
-// Normalize a token/answer for comparison: strip a leading SentencePiece marker
-// (▁ U+2581), the heatmap's displayed space glyph (␣ U+2423), an ASCII
-// underscore, and whitespace — so "Paris" matches a "␣Paris"/"▁Paris"/"_Paris"
-// token however the participant types the leading space.
-const norm = (s: string | null | undefined) =>
-    (s ?? "")
-        .trim()
-        .toLowerCase()
-        .replace(/^[▁␣_\s]+/, "");
 
 const PANEL_W = 340;
 
@@ -90,6 +97,14 @@ interface TutorialActivityPanelProps {
     runId: string | null;
     /** Terms kept reachable from the header; falls back to DEFAULT_GLOSSARY. */
     glossary?: GlossaryEntry[];
+    /** The tutorial-wide default for what a check tells the participant about
+     * their answer; a check's own `feedback` still wins (resolveCheckFeedback).
+     *
+     * Travels as a prop rather than through the store because the store carries
+     * *progress*, not content: `setUnits` is the only content channel it has, and
+     * this is a tutorial-level field, not a per-unit one. `glossary` above set the
+     * same precedent for the same reason. */
+    checkFeedback?: CheckFeedback;
     /** Per-workshop survey the finish screen links to (workshops.surveyUrl). */
     surveyUrl?: string;
     /** Optional per-workshop thank-you copy (legacy completion_text). */
@@ -110,12 +125,14 @@ export function TutorialActivityPanel({
     runUnitIdx,
     runId,
     glossary,
+    checkFeedback,
     surveyUrl,
     completionThanks,
     workshopMode = false,
 }: TutorialActivityPanelProps) {
     const store = useProlificTutorial();
     const capture = useCapture();
+    const queryClient = useQueryClient();
     const units = store.units;
     const unit = units[store.unitIdx];
     const dragControls = useDragControls();
@@ -214,6 +231,23 @@ export function TutorialActivityPanel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [store.active, store.unitIdx, units.length]);
 
+    // The participant's own saved reflections, for the header popover and the
+    // completion recap.
+    //
+    // This is a server read — not a store read — because the note text is never
+    // kept client-side: the reflection box clears on save, and
+    // `submitObservation` records only a submitted flag in the persisted store
+    // (the text goes straight to tutorial_events). So the DB is the only place a
+    // participant's own note exists to be read back to them. Sits above the
+    // `!store.active` guard below because hooks can't be conditional; the query
+    // itself is gated on `store.active`, so nothing is fetched outside a tutorial.
+    const workspaceId = store.workspaceId ?? undefined;
+    const { data: savedNotes, isLoading: notesLoading } = useTutorialNotes(
+        workspaceId,
+        store.active,
+    );
+    const notes = useMemo(() => orderNotesByUnits(savedNotes ?? [], units), [savedNotes, units]);
+
     if (!mounted || !store.active || !unit) return null;
     // Collapsed and docked, the dock's own strip carries the way back — the page
     // takes the column away entirely rather than leaving a title bar behind.
@@ -264,6 +298,32 @@ export function TutorialActivityPanel({
         }
         setNudgeToFinish(false);
         store.next();
+    };
+
+    // Saving a note writes it twice: through the store (which emits the
+    // observation_submitted event carrying the text) and into the notes query
+    // cache, so the header popover and the completion recap show it immediately.
+    //
+    // The cache seed is load-bearing, not an optimisation. The store's event
+    // write is fire-and-forget, so invalidating here would fire a refetch that
+    // races the insert and can hand back a list missing the note just written —
+    // and with `staleTime: Infinity` that wrong list would then be the cached
+    // truth. Keyed by `unit.id`, the same stable step id the store files the
+    // event under (stepIdForUnit), never the array index: content edited between
+    // sessions would otherwise re-attach a note to a different step. Replacing
+    // any existing entry for this step matches the read path, which keeps the
+    // latest note per step; append order doesn't matter, since orderNotesByUnits
+    // re-sorts into unit order.
+    const handleSaveNote = (text: string) => {
+        store.submitObservation(text);
+        if (!workspaceId) return;
+        queryClient.setQueryData<TutorialNote[]>(
+            queryKeys.tutorialEvents.notesByWorkspace(workspaceId),
+            (prev = []) => [
+                ...prev.filter((n) => n.stepId !== unit.id),
+                { stepId: unit.id, text: text.trim(), createdAt: new Date() },
+            ],
+        );
     };
 
     // Docked, the panel is a column of the tool's layout and wears the same header
@@ -384,6 +444,10 @@ export function TutorialActivityPanel({
                     // A stale result reads as "do the step first" rather
                     // than auto-scoring.
                     hasRun={checkHasRun}
+                    // Resolved here, not inside the check: this unit's own
+                    // `feedback` if it sets one, else the tutorial's default.
+                    // Note the first argument is the check, not the unit.
+                    feedback={resolveCheckFeedback(unitCheck, checkFeedback)}
                     notRunMessage={isPatchUnit ? "Apply the patch first, then answer." : undefined}
                     // The key travels with the answer: a run-scored key is this
                     // unit's own run and is gone by the time anyone grades the
@@ -405,7 +469,7 @@ export function TutorialActivityPanel({
                 prompt={unit.observationPrompt}
                 placeholder={unit.observationPlaceholder}
                 submitted={!!store.observationByUnit[store.unitIdx]}
-                onSubmit={(text) => store.submitObservation(text)}
+                onSubmit={handleSaveNote}
             />
 
             {/* FAQ callouts */}
@@ -439,7 +503,7 @@ export function TutorialActivityPanel({
 
             {/* Finish screen on the final unit → survey handoff */}
             {isLast && (completed || store.observationByUnit[store.unitIdx]) && (
-                <CompletionCta surveyUrl={surveyUrl} thanks={completionThanks} />
+                <CompletionCta surveyUrl={surveyUrl} thanks={completionThanks} notes={notes} />
             )}
         </div>
     );
@@ -531,6 +595,32 @@ export function TutorialActivityPanel({
                 <TutorialGlossary
                     entries={glossary?.length ? glossary : DEFAULT_GLOSSARY}
                     onOpen={() => capture("tutorial_glossary_opened", { unit_id: unit.id })}
+                />
+                {/* Beside the glossary, and for the same reason: each step's
+                    reflection box clears when the step advances, so re-reading
+                    what you noticed two steps ago needs a surface of its own. */}
+                <TutorialNotes
+                    notes={notes}
+                    loading={notesLoading}
+                    onOpen={() => {
+                        // Unit id and a count only — a participant's note text
+                        // must never reach PostHog.
+                        capture("tutorial_notes_opened", {
+                            unit_id: unit.id,
+                            note_count: notes.length,
+                        });
+                        // The query is staleTime: Infinity and kept warm by the
+                        // optimistic write on save, so it never refetches on its
+                        // own. Opening the popover is the one moment staleness
+                        // would be visible — a note written in a second tab, or
+                        // one whose fire-and-forget event write failed — so that
+                        // is where the refresh goes. The cached list stays on
+                        // screen meanwhile, so this can't flash an empty state.
+                        if (workspaceId)
+                            void queryClient.invalidateQueries({
+                                queryKey: queryKeys.tutorialEvents.notesByWorkspace(workspaceId),
+                            });
+                    }}
                 />
                 <Button
                     variant="ghost"
@@ -683,6 +773,7 @@ function EmbeddedCheck({
     expected,
     placeholder,
     hasRun,
+    feedback,
     notRunMessage,
     alreadyAnswered,
     priorResult,
@@ -693,6 +784,11 @@ function EmbeddedCheck({
     expected: string | null;
     placeholder?: string;
     hasRun: boolean;
+    /** Whether to tell the participant if they were right. Required, and resolved
+     * by the caller (resolveCheckFeedback) rather than read off `check` here, so
+     * this component stays presentational and never has to know which tutorial
+     * — classroom or paid study — the check it is rendering came from. */
+    feedback: CheckFeedback;
     notRunMessage?: string;
     alreadyAnswered: boolean;
     /** What this participant answered on an earlier visit (persisted). Lets a
@@ -720,7 +816,10 @@ function EmbeddedCheck({
 
     const submitTyped = () => {
         if (!value.trim() || locked) return;
-        const correct = norm(value) === norm(expected);
+        // One folding rule, shared with the tests that pin it (normalizeAnswer
+        // lives in tutorial-content): two copies of it here and there would let
+        // "what counts as the same answer" drift between the grader and its spec.
+        const correct = normalizeAnswer(value) === normalizeAnswer(expected);
         setResult({ correct, expected: expected ?? "?" });
         onAnswer(value.trim(), correct, expected);
     };
@@ -737,15 +836,25 @@ function EmbeddedCheck({
     // carries its own key; a typed one's key is the run it was scored against,
     // which a fresh session may no longer have.
     const correctAnswer = isChoice ? check.options[check.correctIndex] : expected;
-    // Neutral unless the content opts in. A check scored against the
+    // Neutral unless the content opts in, resolved upstream from the tutorial's
+    // own default and this check's override of it. A check scored against the
     // participant's own run is often ambiguous — a token they cannot type as it
-    // renders, a spelling `norm()` does not fold — and being marked wrong on one
-    // of those discourages a participant who did the step correctly. The score
-    // still reaches `answerCheck`, so the engagement measure is unaffected.
-    const showVerdict = check.feedback === "verdict";
+    // renders, a spelling `normalizeAnswer` does not fold — and being marked
+    // wrong on one of those discourages a participant who did the step
+    // correctly. The score still reaches `answerCheck` either way, so the
+    // engagement measure is unaffected by what is shown here.
+    const showVerdict = feedback === "verdict";
 
     return (
-        <div className="rounded border bg-background p-2.5 flex flex-col gap-1.5">
+        // The testids are the check root and its verdict line, and nothing else:
+        // the visible verdict strings interpolate an answer key into curly quotes
+        // and an em-dash, so a suite asserting those everywhere fails on a copy
+        // tweak. Tests read the boolean `data-correct` attribute for the verdict
+        // and pin the exact string once per shape as a deliberate copy guard.
+        <div
+            data-testid="tutorial-check"
+            className="rounded border bg-background p-2.5 flex flex-col gap-1.5"
+        >
             <p className="text-xs font-medium">{check.question}</p>
             {/* A prior answer outranks the "run first" gate: this participant has
                 already answered, so asking them to re-run a prompt to see what they
@@ -813,6 +922,9 @@ function EmbeddedCheck({
                     {result &&
                         (showVerdict ? (
                             <p
+                                data-testid="tutorial-check-verdict"
+                                data-correct={String(result.correct)}
+                                data-state="fresh"
                                 className={`text-xs ${result.correct ? "text-primary" : "text-muted-foreground"}`}
                             >
                                 {result.correct
@@ -826,6 +938,9 @@ function EmbeddedCheck({
                         priorResult &&
                         (showVerdict ? (
                             <p
+                                data-testid="tutorial-check-verdict"
+                                data-correct={String(priorResult.correct)}
+                                data-state="prior"
                                 className={`text-xs ${priorResult.correct ? "text-primary" : "text-muted-foreground"}`}
                             >
                                 {priorResult.correct

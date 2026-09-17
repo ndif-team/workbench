@@ -18,7 +18,9 @@ import {
     deriveFunnel,
     deriveObservations,
     deriveProgressByWorkspace,
+    deriveLatestNotes,
 } from "@/lib/queries/tutorialEventsDb";
+import { getTutorialNotesForWorkspace } from "@/lib/queries/tutorialEventsQueries";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 import type { WorkshopTool } from "@/db/schema";
@@ -219,5 +221,124 @@ describe("tutorial_events", () => {
         );
         expect(withUnit[ws.id].furthestStepId).toBe("u0-orientation");
         expect(withUnit[ws.id].completedStepIds).toEqual(["u0-orientation"]);
+    });
+});
+
+/**
+ * The participant-facing read side of `observation_submitted`: the "Your notes"
+ * popover and the completion recap. The text is written on every save already —
+ * until this wave the only read path was the admin analytics dashboard.
+ */
+describe("participant notes", () => {
+    beforeEach(async () => {
+        await clearDatabase();
+    });
+
+    const note = (workspaceId: string, stepId: string, observationText: string) =>
+        insertTutorialEvent({
+            workspaceId,
+            stepId,
+            eventType: "observation_submitted",
+            payload: { observationText },
+        });
+
+    it("keeps the latest note per step, in the order the steps were first written about", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const ws = await createWorkspace("u1", "S", workshop.id);
+
+        await note(ws.id, "u0-orientation", "first");
+        await note(ws.id, "u1-answers", "about the runner-up");
+        await note(ws.id, "u0-orientation", "revised");
+
+        const notes = await getTutorialNotesForWorkspace(ws.id);
+        expect(notes.length).toBe(2);
+        // The rewrite replaces the text but not the note's place in the list —
+        // a note that jumped to the bottom on every edit would read as new.
+        expect(notes.map((n) => n.stepId)).toEqual(["u0-orientation", "u1-answers"]);
+        expect(notes[0].text).toBe("revised");
+        expect(notes[1].text).toBe("about the runner-up");
+    });
+
+    it("ignores other event types and blank submissions", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const ws = await createWorkspace("u1", "S", workshop.id);
+
+        await insertTutorialEvent({
+            workspaceId: ws.id,
+            stepId: "u0-orientation",
+            eventType: "step_started",
+        });
+        await insertTutorialEvent({
+            workspaceId: ws.id,
+            stepId: "u0-orientation",
+            eventType: "check_answered",
+            payload: { answer: "Paris", correct: true },
+        });
+        await note(ws.id, "u0-orientation", "a real note");
+        // The panel saves on blur as well as on submit, so an emptied textarea
+        // arrives as a whitespace-only write. It must not erase what is there.
+        await note(ws.id, "u0-orientation", "   ");
+        await note(ws.id, "u1-answers", "");
+
+        const notes = await getTutorialNotesForWorkspace(ws.id);
+        expect(notes.length).toBe(1);
+        expect(notes[0]).toMatchObject({ stepId: "u0-orientation", text: "a real note" });
+    });
+
+    // The test that pins the trust boundary. The action is unguarded by design —
+    // the capability is holding the workspace id — so the one thing it must
+    // never do is widen to the workshop. Two participants in the same room share
+    // a workshop, and one of them must not be able to read the other's
+    // reflections.
+    it("returns only the notes belonging to the workspace asked for", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const a = await createWorkspace("u-a", "A", workshop.id);
+        const b = await createWorkspace("u-b", "B", workshop.id);
+
+        await note(a.id, "u0-orientation", "A's reflection");
+        await note(b.id, "u0-orientation", "B's reflection");
+
+        const notesA = await getTutorialNotesForWorkspace(a.id);
+        expect(notesA.length).toBe(1);
+        expect(notesA[0].text).toBe("A's reflection");
+
+        const notesB = await getTutorialNotesForWorkspace(b.id);
+        expect(notesB.map((n) => n.text)).toEqual(["B's reflection"]);
+    });
+
+    it("has nothing to show for a workspace with no notes, or no id at all", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const ws = await createWorkspace("u1", "S", workshop.id);
+        expect(await getTutorialNotesForWorkspace(ws.id)).toEqual([]);
+        // The panel renders before the workspace id is resolved from the route.
+        expect(await getTutorialNotesForWorkspace("")).toEqual([]);
+        expect(await getTutorialNotesForWorkspace("not-a-workspace")).toEqual([]);
+    });
+
+    it("returns the text trimmed, and carries the step id the note was filed under", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const ws = await createWorkspace("u1", "S", workshop.id);
+        await note(ws.id, "u2-knows", "  it made something up  \n");
+
+        const notes = await getTutorialNotesForWorkspace(ws.id);
+        expect(notes[0].text).toBe("it made something up");
+        // A stable unit id, not an array index: content edited between sessions
+        // cannot silently re-attach a note to a different step.
+        expect(notes[0].stepId).toBe("u2-knows");
+        expect(notes[0].createdAt).toBeInstanceOf(Date);
+    });
+
+    it("derives the same notes from a timeline already in hand", async () => {
+        // The action is `getTutorialEventsForWorkspace` + `deriveLatestNotes`;
+        // the derivation is pure so the panel can seed its cache at save time
+        // without waiting for a round trip.
+        const workshop = await createWorkshop(workshopInput());
+        const ws = await createWorkspace("u1", "S", workshop.id);
+        await note(ws.id, "u0-orientation", "first");
+        await note(ws.id, "u0-orientation", "revised");
+
+        const derived = deriveLatestNotes(await getTutorialEventsForWorkspace(ws.id));
+        expect(derived).toEqual(await getTutorialNotesForWorkspace(ws.id));
+        expect(derived.map((n) => n.text)).toEqual(["revised"]);
     });
 });

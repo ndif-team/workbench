@@ -186,4 +186,13 @@ describe("prolific tutorial seed", () => {
         expect(evalSuccessPredicate({ kind: "always" }, "anything")).toBe(true);
         expect(evalSuccessPredicate(undefined, "anything")).toBe(true);
     });
+
+    // The study arm is deliberately neutral: engagement is a covariate, and
+    // several of these checks are scored against the participant's own run with
+    // no unambiguous key. Verdicts belong to the classroom content, which sets
+    // this field; the seed must keep resolving to neutral by omission.
+    it("never shows the study arm a verdict", () => {
+        expect(PROLIFIC_TUTORIAL_SEED.checkFeedback).toBeUndefined();
+        expect(PROLIFIC_TUTORIAL_SEED.units.every((u) => u.check?.feedback == null)).toBe(true);
+    });
 });

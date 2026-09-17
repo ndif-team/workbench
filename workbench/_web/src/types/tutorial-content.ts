@@ -60,7 +60,9 @@ export type CheckFeedback = "verdict" | "neutral";
 interface BaseCheck {
     question: string;
     /**
-     * What the participant is told once they answer. Defaults to `"neutral"`.
+     * What the participant is told once they answer. Defaults to the tutorial's
+     * `checkFeedback`, and to `"neutral"` when neither is set (see
+     * `resolveCheckFeedback`).
      *
      * - `"neutral"` — the answer is acknowledged and nothing else. It is still
      *   scored, persisted in `checkResultByUnit`, and emitted on
@@ -220,6 +222,24 @@ export interface TutorialContent {
     version: number;
     units: TutorialUnit[];
     /**
+     * The default `feedback` for every check in this tutorial; a check's own
+     * `feedback` still wins (see `resolveCheckFeedback`).
+     *
+     * The default belongs to the tutorial rather than to each check because a
+     * verdict is a property of the *audience*, not of the question. A classroom
+     * wants right/wrong everywhere — being told is the teaching moment, and a
+     * facilitator is standing in the room to handle a wrong answer. A paid study
+     * wants it nowhere: engagement is a covariate there, and telling a participant
+     * they are wrong on a check with no unambiguous key costs data for nothing.
+     * Same questions, opposite setting, so the switch lives one level above them.
+     *
+     * Absent means `"neutral"`, which is what makes content authored before this
+     * field existed — the Prolific study's — unaffected by its arrival. One line
+     * per tutorial also means a session cannot ship half-verdicted because a
+     * rewrite missed a check.
+     */
+    checkFeedback?: CheckFeedback;
+    /**
      * The modal orientation slideshow shown when the tutorial starts (and
      * re-openable from the Tutorial menu). Omit to start straight on step 1.
      */
@@ -231,6 +251,30 @@ export interface TutorialContent {
      */
     glossary?: GlossaryEntry[];
 }
+
+/**
+ * Fold a token or a typed answer for comparison: trim, lowercase, then strip a
+ * *leading* SentencePiece marker (▁ U+2581), the heatmap's displayed space glyph
+ * (␣ U+2423), an ASCII underscore, or whitespace — so "Paris" matches a
+ * "␣Paris"/"▁Paris"/"_Paris" token however the participant types the leading
+ * space.
+ *
+ * The replace is `^`-anchored, so leading markers are the ONLY thing it removes:
+ * `"New York"` folds to `"new york"` (the internal space survives, so it does not
+ * match `"newyork"`) and `"Paris."` folds to `"paris."` (the trailing period
+ * survives, so it does not match `"Paris"`). Spelled out because the previous
+ * comment said it stripped "whitespace" without qualification, and that reading
+ * has already caused a downstream misunderstanding of which tokens a participant
+ * can actually match by typing.
+ *
+ * Lives here rather than in the panel so the folding rule is unit-testable on its
+ * own — it is half of what decides whether a check scores as correct.
+ */
+export const normalizeAnswer = (s: string | null | undefined): string =>
+    (s ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/^[▁␣_\s]+/, "");
 
 /**
  * The answer key for a unit's embedded check, and whether it can be answered yet.
@@ -271,6 +315,29 @@ export function resolveCheckKey(
     // and scoring an answer against nothing marks every answer wrong and logs a
     // check_answered nobody could have got right.
     return { expected, canAnswer: expected != null };
+}
+
+/**
+ * What the participant is told about this check's answer.
+ *
+ * Precedence is the check's own `feedback`, then the tutorial's `checkFeedback`,
+ * then `"neutral"`. Neutral last is what keeps every existing row behaving
+ * exactly as it does today: content that sets neither field resolves neutral
+ * everywhere, as it did before either field existed. The per-check override on
+ * top is what lets a verdict tutorial keep one genuinely ambiguous check quiet —
+ * a runner-up that moves between runs, a token that cannot be typed as it renders
+ * — without giving up verdicts on all the checks whose keys are exact.
+ *
+ * Pure and outside the panel for the same reason `resolveCheckKey` is: the panel
+ * read `check.feedback` inline, which made the tutorial-wide default
+ * un-overridable from content and gave a presentational component a reason to
+ * know which tutorial it belongs to.
+ */
+export function resolveCheckFeedback(
+    check: UnitCheck | undefined,
+    tutorialDefault: CheckFeedback | undefined,
+): CheckFeedback {
+    return check?.feedback ?? tutorialDefault ?? "neutral";
 }
 
 /**

@@ -1,7 +1,7 @@
 import { db } from "@/db/client";
 import { tutorialEvents, workspaces } from "@/db/schema";
 import type { TutorialEvent } from "@/db/schema";
-import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
+import type { TutorialEventPayload, TutorialEventType, TutorialNote } from "@/types/tutorialEvents";
 import { asc, eq } from "drizzle-orm";
 
 /**
@@ -133,6 +133,41 @@ export const deriveObservations = (events: TutorialEvent[]): ObservationRow[] =>
             text: e.payload?.observationText ?? "",
             createdAt: e.createdAt,
         }));
+
+/**
+ * One participant's own reflections, latest per step, for reading back to them.
+ *
+ * Policy: the table is append-only and a participant can legitimately write a
+ * second note for the same step (they cleared localStorage, or came back in a
+ * second browser — the submitted flag lives in the persisted store, the text
+ * lives here), so the raw rows can hold several notes per step id. Every row
+ * stays in the DB and the admin list above still shows all of them, because for
+ * analysis a rewrite is data. The participant's own list shows only the latest
+ * per step: to the person who wrote it a rewrite reads as a correction of the
+ * same note, and showing both makes their list look duplicated.
+ *
+ * Ordering is the order they first wrote about each step — a `Map` keeps its
+ * insertion position when a later row overwrites the value, so a correction
+ * doesn't jump the note to the end of the list. (The caller re-sorts into unit
+ * order; this order is what survives for steps the content no longer knows.)
+ *
+ * Keyed by `stepId`, which `stepIdForUnit` fills with the unit's stable id
+ * string rather than its array index. That is why the DB is the right source
+ * for this and the store is not: notes cannot silently re-attach to a different
+ * step when the content is edited between sessions.
+ */
+export const deriveLatestNotes = (events: TutorialEvent[]): TutorialNote[] => {
+    const latest = new Map<string, TutorialNote>();
+    for (const e of events) {
+        if (e.eventType !== "observation_submitted") continue;
+        const text = (e.payload?.observationText ?? "").trim();
+        // A blank or whitespace-only submission is nothing to re-read, and it
+        // must not blank out a real earlier note for the same step.
+        if (!text) continue;
+        latest.set(e.stepId, { stepId: e.stepId, text, createdAt: e.createdAt });
+    }
+    return [...latest.values()];
+};
 
 export interface CheckAnswerRow {
     workspaceId: string;

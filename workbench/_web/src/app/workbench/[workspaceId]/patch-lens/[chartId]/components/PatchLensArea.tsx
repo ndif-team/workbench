@@ -974,6 +974,7 @@ export default function PatchLensArea({
                     runUnitIdx={runTokens.unitIdx}
                     runId={runTokens.runId}
                     glossary={tutorialContent?.glossary}
+                    checkFeedback={tutorialContent?.checkFeedback}
                     surveyUrl={surveyUrl}
                     completionThanks={workshop?.completionText}
                     workshopMode={!!workshop}

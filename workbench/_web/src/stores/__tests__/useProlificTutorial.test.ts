@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 
 import { clearDatabase } from "@/db/client";
-import { getTutorialEventsForWorkspace } from "@/lib/queries/tutorialEventsDb";
+import { deriveLatestNotes, getTutorialEventsForWorkspace } from "@/lib/queries/tutorialEventsDb";
 import { useProlificTutorial } from "@/stores/useProlificTutorial";
 import type { TutorialUnit } from "@/types/tutorial-content";
 
@@ -295,6 +295,73 @@ describe("useProlificTutorial telemetry", () => {
         store().answerCheck("Paris", true, { expected: "Paris", checkKind: "topToken" });
         store().answerCheck("Rome", false, { expected: "Paris", checkKind: "topToken" });
         expect(await timeline()).toEqual(["step_started:u0", "check_answered:u0"]);
+    });
+
+    it("logs a choice answer with its option label and the key it was graded against", async () => {
+        // Converting the classroom checks to multiple choice changes what lands
+        // in the column — option labels rather than tokens — but not the shape
+        // the analytics read. `correct` is still on the row even though a neutral
+        // check never shows it: the engagement measure is independent of what is
+        // displayed, which is what makes neutral a safe default rather than a
+        // loss of data.
+        store().start();
+        store().answerCheck("France", false, {
+            expected: "Paris",
+            checkKind: "choice",
+        });
+        await Bun.sleep(20);
+        const [event] = (await getTutorialEventsForWorkspace(workspaceId)).filter(
+            (e) => e.eventType === "check_answered",
+        );
+        expect(event?.payload).toMatchObject({
+            answer: "France",
+            correct: false,
+            expected: "Paris",
+            checkKind: "choice",
+        });
+        expect(store().checkResultByUnit[0]).toEqual({ answer: "France", correct: false });
+    });
+
+    it("refuses a second choice answer for the same step, on the row and in the store", async () => {
+        // The one-answer lock again, on the converted shape: a participant who
+        // re-opens a verdicted step must not be able to retry into a correct
+        // answer, and the engagement measure must stay one row per step.
+        store().start();
+        store().answerCheck("France", false, { expected: "Paris", checkKind: "choice" });
+        store().answerCheck("Paris", true, { expected: "Paris", checkKind: "choice" });
+        const rows = (await timeline()).filter((t) => t.startsWith("check_answered"));
+        expect(rows).toEqual(["check_answered:u0"]);
+        expect(store().checkResultByUnit[0]).toEqual({ answer: "France", correct: false });
+    });
+
+    it("writes an observation's text to the DB and never into the store", async () => {
+        // The regression guard for the notes feature: the note text lives only in
+        // tutorial_events, and the store keeps a boolean so the panel can gate
+        // the finish CTA. Persisting the text in zustand would put a
+        // participant's free writing into localStorage and make the DB a copy.
+        store().start();
+        store().submitObservation("  The runner-up was London.  ");
+        await Bun.sleep(20);
+
+        const notes = deriveLatestNotes(await getTutorialEventsForWorkspace(workspaceId));
+        expect(notes).toHaveLength(1);
+        expect(notes[0]).toMatchObject({ stepId: "u0", text: "The runner-up was London." });
+
+        expect(typeof store().observationByUnit[0]).toBe("boolean");
+        expect(store().observationByUnit[0]).toBe(true);
+        const persisted = globalThis.localStorage.getItem("workbench:prolific-tutorial") ?? "";
+        expect(persisted).not.toContain("runner-up was London");
+    });
+
+    it("takes the latest observation for a step, so an edit replaces rather than adds", async () => {
+        store().start();
+        store().submitObservation("first thought");
+        await Bun.sleep(20);
+        store().submitObservation("second thought");
+        await Bun.sleep(20);
+
+        const notes = deriveLatestNotes(await getTutorialEventsForWorkspace(workspaceId));
+        expect(notes.map((n) => n.text)).toEqual(["second thought"]);
     });
 });
 
