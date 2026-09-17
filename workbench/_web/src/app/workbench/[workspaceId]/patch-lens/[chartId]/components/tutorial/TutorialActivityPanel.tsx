@@ -314,7 +314,19 @@ export function TutorialActivityPanel({
     // any existing entry for this step matches the read path, which keeps the
     // latest note per step; append order doesn't matter, since orderNotesByUnits
     // re-sorts into unit order.
-    const handleSaveNote = (text: string) => {
+    const handleSaveNote = async (text: string) => {
+        // Cancel first: the initial notes fetch can still be in flight on an
+        // early step (the participant can reach the note box before it settles
+        // on a slow connection), and `staleTime: Infinity` does not stop an
+        // in-flight request from committing. Without this, that older response
+        // lands after the seed below and overwrites the note with a list that
+        // predates it — permanently, since nothing refetches until the popover
+        // is opened.
+        if (workspaceId) {
+            await queryClient.cancelQueries({
+                queryKey: queryKeys.tutorialEvents.notesByWorkspace(workspaceId),
+            });
+        }
         store.submitObservation(text);
         if (!workspaceId) return;
         queryClient.setQueryData<TutorialNote[]>(

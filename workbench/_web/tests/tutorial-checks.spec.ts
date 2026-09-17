@@ -50,17 +50,36 @@ import {
 // Keep in sync with stores/useProlificTutorial.ts (the persist `name`).
 const STORE_KEY = "workbench:prolific-tutorial";
 
-/** Slot 0 carries the check cases; slot 1 is the notes tests' own workspace. */
-const CHECKS_SLOT = 0;
-const NOTES_SLOT = 1;
+/**
+ * Seeded workspaces are keyed by slot, and slots are keyed by **worker index**.
+ *
+ * `beforeAll` runs once per worker process, not once per run, and
+ * `seedTutorialWorkspace` is delete-then-insert on fixed ids. Under
+ * `fullyParallel` a second worker would therefore delete and re-insert the very
+ * rows the first worker's tests are mid-way through reading — a 404 with no
+ * obvious cause. Giving each worker its own slot keeps the seed idempotent per
+ * worker and the specs genuinely parallel. (CI pins `workers: 1`, so this is
+ * about the local run, which is where the dry-run rehearsal happens.)
+ *
+ * Two slots per worker: checks, and the notes test, which asserts on an *empty*
+ * tutorial_events history and so cannot share a workspace the check tests write
+ * `check_answered` rows into.
+ */
+const SLOTS_PER_WORKER = 2;
+const checksSlot = (workerIndex: number) => workerIndex * SLOTS_PER_WORKER;
+const notesSlot = (workerIndex: number) => workerIndex * SLOTS_PER_WORKER + 1;
 
 let user: TestingUser;
 let checksWorkspaceId: string;
 let checksUrl: string;
 
-test.beforeAll(async () => {
+test.beforeAll(async ({}, workerInfo) => {
     user = await createTestUserOrStub();
-    const seeded = await seedTutorialWorkspace(user.user_id, TUTORIAL_CHECK_CONTENT, CHECKS_SLOT);
+    const seeded = await seedTutorialWorkspace(
+        user.user_id,
+        TUTORIAL_CHECK_CONTENT,
+        checksSlot(workerInfo.workerIndex),
+    );
     checksWorkspaceId = seeded.workspaceId;
     checksUrl = `/workbench/${seeded.workspaceId}/patch-lens/${seeded.chartId}`;
 });
@@ -519,7 +538,7 @@ test.describe("guided tutorial checks (seeded tutorial, no NDIF)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Notes. Own workspace (slot 1), reseeded per test: these assert on an empty
+// Notes. Own per-worker workspace slot, reseeded per test: these assert on an empty
 // starting history, which the shared checks workspace never has.
 // ---------------------------------------------------------------------------
 
@@ -528,7 +547,7 @@ test.describe("guided tutorial notes", () => {
 
     test("notes are attributed to the right step, survive a reload, and are recapped", async ({
         page,
-    }) => {
+    }, testInfo) => {
         await loginIfRequired(page, user);
         await page.setViewportSize({ width: 1440, height: 900 });
 
@@ -538,7 +557,7 @@ test.describe("guided tutorial notes", () => {
         const seeded = await seedTutorialWorkspace(
             user.user_id,
             TUTORIAL_CHECK_CONTENT,
-            NOTES_SLOT,
+            notesSlot(testInfo.workerIndex),
         );
         const url = `/workbench/${seeded.workspaceId}/patch-lens/${seeded.chartId}`;
         const nonce = Math.random().toString(36).slice(2, 8);

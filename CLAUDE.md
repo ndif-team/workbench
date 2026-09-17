@@ -465,10 +465,24 @@ Two gotchas:
 - **`webServer.command` is `bun run start`, which needs a build.** Since you must not
   run `next build`, start `bun run dev` yourself first — `reuseExistingServer` is
   true outside CI, so Playwright attaches to your dev server instead of building.
-- **The harness is CI-shaped.** `TestingUtils.ts` needs `SUPABASE_SERVICE_ROLE_KEY`;
-  a typical local `.env` runs `NEXT_PUBLIC_LOCAL_DB=true` + `NEXT_PUBLIC_DISABLE_AUTH=true`
-  with no Supabase keys, so running the suite locally means `supabase start` plus an
-  `.env` rewrite. Usually cheaper to let CI run it on the PR.
+- **Most of the harness is CI-shaped.** Specs that create real Auth users or hit
+  Postgres need `SUPABASE_SERVICE_ROLE_KEY`, so running those locally means
+  `supabase start` plus an `.env` rewrite — usually cheaper to let CI run them on the PR.
+  **`tutorial-checks.spec.ts` is the exception**: it seeds SQLite directly and uses the
+  stub user, so it runs on a plain local setup. With `NEXT_PUBLIC_LOCAL_DB=true`,
+  `NEXT_PUBLIC_DISABLE_AUTH=true` and `LOCAL_SQLITE_URL` pointing at a writable file in
+  the repo-root `.env`, from `workbench/_web`:
+
+  ```bash
+  bunx drizzle-kit push --force     # the app DB needs a schema; `bun run dev` won't create it
+  bun run dev                       # terminal 1
+  bunx playwright test tests/tutorial-checks.spec.ts   # terminal 2
+  ```
+
+  `reuseExistingServer` is true outside CI, so Playwright attaches to the dev server and
+  `bun run start` (a build) never fires. Note `playwright.config.ts` hardcodes
+  `localhost:3000` — if another project owns that port the suite silently tests the wrong
+  app, so either free the port or point `baseURL` at your dev server.
 
 To avoid a live model in a new spec, stub the tool endpoint — `startAndPoll`
 short-circuits when the start response is `{ job_id: null, data: … }`:
