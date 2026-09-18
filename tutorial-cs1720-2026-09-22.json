@@ -76,15 +76,8 @@
         }
       ],
       "check": {
-        "kind": "choice",
-        "question": "You ran 'The Eiffel Tower is in the city of'. Which token is in the bottom-right cell of the heatmap?",
-        "options": [
-          "France",
-          "Rome",
-          "Paris",
-          "the"
-        ],
-        "correctIndex": 2
+        "kind": "topToken",
+        "question": "Read the bottom-right cell of the heatmap you just ran. What token is in it?"
       },
       "observationPrompt": "What did the model predict? Did anything about the heatmap surprise you?",
       "observationPlaceholder": "What the model predicted, and anything that surprised you…",
@@ -107,7 +100,8 @@
         "successPredicate": {
           "kind": "always"
         }
-      }
+      },
+      "answerPlaceholder": "The token in the bottom-right cell…"
     },
     {
       "id": "u0b-append",
@@ -373,15 +367,8 @@
         }
       ],
       "check": {
-        "kind": "choice",
-        "question": "You ran the version with the wrong example lines above it ('3+3=7', '4+4=9', then '5+5='). What did the model predict for 5+5?",
-        "options": [
-          "Something other than 10, because it followed the pattern",
-          "10, the same as before you added the lines",
-          "Nothing, because it refused to answer",
-          "10, but only at the very last layer"
-        ],
-        "correctIndex": 0
+        "kind": "topToken",
+        "question": "On your most recent run, with the wrong example lines in place, what does the model now predict for 5+5?"
       },
       "observationPrompt": "How many wrong lines did it take before the model gave in? Looking across the layers, where did it commit to the pattern?",
       "observationPlaceholder": "How many lines it took, and where across the layers it committed…",
@@ -397,7 +384,8 @@
           "kind": "topTokenNotEqual",
           "value": "10"
         }
-      }
+      },
+      "answerPlaceholder": "The number the model predicts for 5+5 now…"
     },
     {
       "id": "u4a-compare",
@@ -447,17 +435,6 @@
           ]
         }
       ],
-      "check": {
-        "kind": "choice",
-        "question": "Read the bottom-right cell of each heatmap. Which city does each prompt predict?",
-        "options": [
-          "Eiffel Tower: Rome, Colosseum: Paris",
-          "Both predict Paris",
-          "Both predict Rome",
-          "Eiffel Tower: Paris, Colosseum: Rome"
-        ],
-        "correctIndex": 3
-      },
       "observationPrompt": "What city did each prompt predict? Which row in each heatmap holds the landmark's name?",
       "observationPlaceholder": "The two predicted cities, and where each landmark's name sits…",
       "faqs": [
@@ -553,15 +530,8 @@
         }
       ],
       "check": {
-        "kind": "choice",
-        "question": "After the patch, read the TARGET heatmap's bottom-right cell. Which city does it name now?",
-        "options": [
-          "Rome",
-          "Paris",
-          "London",
-          "Berlin"
-        ],
-        "correctIndex": 1
+        "kind": "topToken",
+        "question": "After the patch, read the TARGET heatmap's bottom-right cell. What city does it name now?"
       },
       "observationPrompt": "Which cell did you patch, and how did the target's prediction change?",
       "observationPlaceholder": "The cell you patched and how the target's prediction changed…",
@@ -593,7 +563,8 @@
       ],
       "progression": {
         "on": "patch"
-      }
+      },
+      "answerPlaceholder": "The city the target predicts after the patch…"
     },
     {
       "id": "u5-explore",

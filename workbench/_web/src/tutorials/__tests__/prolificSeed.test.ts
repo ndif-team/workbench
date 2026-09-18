@@ -10,6 +10,13 @@ const unit = (id: string) => PROLIFIC_TUTORIAL_SEED.units.find((u) => u.id === i
 const indexOf = (id: string) => PROLIFIC_TUTORIAL_SEED.units.findIndex((u) => u.id === id);
 const U3_IDX = indexOf("u3-patterns");
 
+/**
+ * Units whose check is a `choice`. Each asks what something *means*, so the key
+ * holds whatever the model predicts on the day. A question about what the model
+ * actually produced must be run-scored instead.
+ */
+const CONCEPTUAL_CHOICE_UNITS = ["u0b-append", "u1-answers", "u1b-inside", "u2-knows"];
+
 describe("prolific tutorial seed", () => {
     it("has the 10 canonical units in flow order", () => {
         expect(PROLIFIC_TUTORIAL_SEED.units.length).toBe(10);
@@ -110,10 +117,11 @@ describe("prolific tutorial seed", () => {
         const compare = unit("u4a-compare");
         expect(compare.patchPair).toEqual(unit("u4-patching").patchPair!);
         expect(compare.progression.on).toBe("run");
-        // Its check is statically keyed off `patchPair` — the pair of cities is
-        // fixed by the two prompts, so reading both heatmaps is gradable without
-        // anyone having dragged anything.
-        expect(compare.check?.kind).toBe("choice");
+        // No check: it asks the participant to read two heatmaps at once, so there
+        // is no single token to score against, and the multiple-choice version
+        // named both cities in one option — a static assertion about what the
+        // model predicts, which can contradict the grids in front of them.
+        expect(compare.check).toBeUndefined();
     });
 
     // The task text says "two cells are ringed for you", so they have to be ringed
@@ -208,16 +216,40 @@ describe("prolific tutorial seed", () => {
     // too. A free-text check scored against a live model token, shown as
     // right/wrong, is the configuration that graded the best pilot participant
     // 1-of-5.
-    it("shows a verdict only on checks with a static answer key", () => {
+    it("never freezes a model output into a static answer key", () => {
+        // The guard that would have caught `u4-patching`. A verdict is only
+        // honest when its key cannot disagree with the participant's grid: either
+        // a `choice` about what something *means*, or a run-scored key read off
+        // their own run. "The target now says Paris" is neither — it is a claim
+        // about a run, frozen into content, and it marked a correct reading of an
+        // unpatched target wrong.
+        //
+        // Mirrored for the classroom JSON in `cs1720Content.test.ts` under the
+        // same name. Change one, change the other.
         const verdicted = PROLIFIC_TUTORIAL_SEED.units.filter(
             (u) =>
                 u.check &&
                 resolveCheckFeedback(u.check, PROLIFIC_TUTORIAL_SEED.checkFeedback) === "verdict",
         );
-        // Not a vacuous pass: the conversion exists to make these gradable.
-        expect(verdicted.length).toBe(8);
+        expect(verdicted.length).toBe(7);
         for (const u of verdicted) {
-            expect(u.check!.kind).toBe("choice");
+            const kind = u.check!.kind;
+            if (kind === "choice") {
+                expect(CONCEPTUAL_CHOICE_UNITS).toContain(u.id);
+            } else {
+                expect(["topToken", "secondToken"]).toContain(kind);
+            }
+        }
+    });
+
+    it("keeps the patch step's check gated behind the patch", () => {
+        // `resolveCheckKey` keys a patch unit's run-scored check to `patchToken`,
+        // null until the drag lands. That gate is the only thing stopping a
+        // participant answering about a patch they have not made — a `choice`
+        // check here is answerable on arrival.
+        for (const u of PROLIFIC_TUTORIAL_SEED.units) {
+            if (u.progression.on !== "patch" || !u.check) continue;
+            expect(["topToken", "secondToken"]).toContain(u.check.kind);
         }
     });
 
@@ -246,11 +278,16 @@ describe("prolific tutorial seed", () => {
         expect(new Set(keys).size).toBeGreaterThan(1);
     });
 
-    it("has no leftover answerPlaceholder from the free-text checks", () => {
-        // It only ever labelled the typed-answer input, which a choice check does
-        // not render — a survivor is dead content that reads as an instruction.
+    it("carries answerPlaceholder on exactly the checks that render an input", () => {
+        // It labels the typed-answer input, which only a run-scored check renders.
+        // Dead content on a choice unit; a missing label on a run-scored one.
         for (const u of PROLIFIC_TUTORIAL_SEED.units) {
-            expect(u.answerPlaceholder).toBeUndefined();
+            const kind = u.check?.kind;
+            if (kind === "topToken" || kind === "secondToken") {
+                expect(typeof u.answerPlaceholder).toBe("string");
+            } else {
+                expect(u.answerPlaceholder).toBeUndefined();
+            }
         }
     });
 });

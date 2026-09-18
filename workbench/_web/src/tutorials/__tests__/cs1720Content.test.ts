@@ -11,10 +11,13 @@ import type { TutorialContent } from "@/types/tutorial-content";
  * pasted into /admin/tutorials by hand, so the only thing standing between a
  * typo and a room full of students is this file and the manual pre-flight.
  *
- * The invariant that matters is the last one (memo SF-7): a check that resolves
- * to a verdict must have a static answer key. A free-text check scored against a
- * live model token, shown as right/wrong, is the configuration that graded the
- * best pilot participant 1-of-5.
+ * The invariant that matters is `never freezes a model output into a static
+ * answer key`. A verdict is only honest when its key cannot disagree with the
+ * grid in front of the participant, and there are exactly two ways to get that:
+ * a `choice` whose key is a statement about *meaning*, or a run-scored kind
+ * whose key is read off their own run. Freezing "the target now says Paris"
+ * into `options` satisfies neither — it is a claim about a run, and it marked a
+ * correct reading of an unpatched target wrong.
  */
 
 // Authored content lives at the repo root by convention (alongside
@@ -34,6 +37,14 @@ const load = (): TutorialContent => {
     return JSON.parse(readFileSync(CONTENT_PATH, "utf8")) as TutorialContent;
 };
 
+/**
+ * The units whose check is a `choice`. Every one asks what something *means* —
+ * what a runner-up tells you, what the cone can reach — so the key holds
+ * whatever the model on the day happens to predict. Anything asking what the
+ * model actually produced must be run-scored instead; see the invariant below.
+ */
+const CONCEPTUAL_CHOICE_UNITS = ["u0b-append", "u1-answers", "u1b-inside", "u2-knows"];
+
 describe("cs1720 classroom tutorial content", () => {
     it("is legal content the admin dialog would accept", () => {
         // Same validator the paste dialog runs, so a red test here means a red
@@ -48,22 +59,45 @@ describe("cs1720 classroom tutorial content", () => {
         expect(content.units.length).toBeGreaterThan(0);
     });
 
-    // The highest-value assertion in the suite. It fails the moment a later
-    // content edit gives a free-text check a verdict — whether by adding a
-    // `topToken` check to this tutorial or by converting one of these back.
+    // The highest-value assertion in the suite, and the one that would have
+    // caught the `u4-patching` bug: a verdicted `choice` may only be one of the
+    // conceptual questions, because a static key is content, and content cannot
+    // know what a given model on a given run produced.
     //
-    // Both shipped contents now resolve to a verdict, so both need this guard:
-    // the mirror for `PROLIFIC_TUTORIAL_SEED` is the identically-named test in
+    // Both shipped contents carry this guard; the mirror for
+    // `PROLIFIC_TUTORIAL_SEED` is the identically-named test in
     // `prolificSeed.test.ts`. Change one, change the other.
-    it("shows a verdict only on checks with a static answer key", () => {
+    it("never freezes a model output into a static answer key", () => {
         const content = load();
         const verdicted = content.units.filter(
             (u) => u.check && resolveCheckFeedback(u.check, content.checkFeedback) === "verdict",
         );
-        // Not a vacuous pass: the conversion exists to make these gradable.
+        // Not a vacuous pass.
         expect(verdicted.length).toBeGreaterThan(0);
         for (const u of verdicted) {
-            expect(u.check!.kind).toBe("choice");
+            const kind = u.check!.kind;
+            if (kind === "choice") {
+                // Adding a choice check here is a deliberate act: it must be a
+                // question about meaning, not about what the model emitted.
+                expect(CONCEPTUAL_CHOICE_UNITS).toContain(u.id);
+            } else {
+                // Run-scored: the key is the participant's own run, so it agrees
+                // with their screen by construction and `resolveCheckKey` keeps
+                // the check closed until that run exists.
+                expect(["topToken", "secondToken"]).toContain(kind);
+            }
+        }
+    });
+
+    it("keeps the patch step's check gated behind the patch", () => {
+        // `resolveCheckKey` keys a patch unit's run-scored check to `patchToken`,
+        // which is null until the drag lands — that gate is the only thing
+        // stopping a participant answering about a patch they have not made. A
+        // `choice` check here is answerable immediately, which is how "Rome" (a
+        // correct reading of an unpatched target) came back marked wrong.
+        for (const u of load().units) {
+            if (u.progression?.on !== "patch" || !u.check) continue;
+            expect(["topToken", "secondToken"]).toContain(u.check.kind);
         }
     });
 
@@ -86,11 +120,17 @@ describe("cs1720 classroom tutorial content", () => {
         }
     });
 
-    it("has no leftover answerPlaceholder from the free-text checks", () => {
-        // It only ever labelled the typed-answer input, which a choice check does
-        // not render — a survivor is dead content that reads as an instruction.
+    it("carries answerPlaceholder on exactly the checks that render an input", () => {
+        // It labels the typed-answer input, which only a run-scored check renders.
+        // On a choice unit it is dead content that reads as an instruction; on a
+        // run-scored one its absence leaves the input unlabelled.
         for (const u of load().units) {
-            expect(u.answerPlaceholder).toBeUndefined();
+            const kind = u.check?.kind;
+            if (kind === "topToken" || kind === "secondToken") {
+                expect(typeof u.answerPlaceholder).toBe("string");
+            } else {
+                expect(u.answerPlaceholder).toBeUndefined();
+            }
         }
     });
 });

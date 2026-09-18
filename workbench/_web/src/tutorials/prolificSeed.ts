@@ -85,11 +85,25 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
     version: 2,
     // Verdicts on. This content is no longer a live study instrument — it is the
     // demo row and the in-code fallback (`resolveTutorialForWorkspace`), so it is
-    // what anyone testing or demoing the tutorial sees, and a check that only
-    // says "thanks" can't be tested without a live model. Safe to switch on
-    // because every check here is now `kind: "choice"` with a static answer key,
-    // so the right/wrong it shows is trustworthy; no check is scored against the
-    // participant's own run any more.
+    // what anyone testing or demoing the tutorial sees.
+    //
+    // What makes a verdict safe here is that no check's answer key can disagree
+    // with the participant's own screen. Two shapes satisfy that, and both are
+    // used below:
+    //
+    //  - `choice`, where the key is a statement about what something *means*
+    //    (what the runner-up tells you, what the cone can reach). Model-independent,
+    //    so it is true whatever the grid happens to show.
+    //  - `topToken`, where the key IS the grid — read off this participant's own
+    //    run, and gated by `resolveCheckKey` so the check stays closed until that
+    //    run (or patch) exists.
+    //
+    // What is *not* safe, and was briefly shipped here, is a `choice` key that
+    // asserts a model output ("the target now says Paris"). That is a claim about
+    // a run, frozen into content: on a smaller model, or before the participant
+    // has done the step, it marks a correct reading of their own heatmap wrong.
+    // Any new check asserting what the model produced belongs in a run-scored
+    // kind, not in `options`.
     checkFeedback: "verdict",
     welcome: {
         tourCta: "Show me around",
@@ -184,13 +198,18 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                     insertPrompt: EIFFEL,
                 },
             ],
+            // Run-scored, not a static key. The answer is whatever *this*
+            // participant's grid shows, so the check cannot contradict what is on
+            // their screen, and `resolveCheckKey` keeps it closed until they have
+            // actually run something. A `choice` key naming "Paris" asserted a
+            // model output instead: on a smaller model, or before the run, a
+            // participant reading their grid correctly was told they were wrong.
             check: {
-                kind: "choice",
+                kind: "topToken",
                 question:
-                    "You ran 'The Eiffel Tower is in the city of'. Which token is in the bottom-right cell of the heatmap?",
-                options: ["France", "Rome", "Paris", "the"],
-                correctIndex: 2,
+                    "Read the bottom-right cell of the heatmap you just ran. What token is in it?",
             },
+            answerPlaceholder: "The token in the bottom-right cell…",
             observationPrompt:
                 "What did the model predict? Did anything about the heatmap surprise you?",
             observationPlaceholder: "What the model predicted, and anything that surprised you…",
@@ -474,18 +493,15 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             // *starts* with a bare `5+5=`, so a participant who ran only that one
             // would correctly answer "10" to a question phrased about "your most
             // recent run" — and then be told they were wrong.
+            // Run-scored: whether the model actually breaks from 10 is a property
+            // of the model and of how many wrong lines they added, so a static key
+            // saying "something other than 10" can be false on their own screen.
             check: {
-                kind: "choice",
+                kind: "topToken",
                 question:
-                    "You ran the version with the wrong example lines above it ('3+3=7', '4+4=9', then '5+5='). What did the model predict for 5+5?",
-                options: [
-                    "Something other than 10, because it followed the pattern",
-                    "10, the same as before you added the lines",
-                    "Nothing, because it refused to answer",
-                    "10, but only at the very last layer",
-                ],
-                correctIndex: 0,
+                    "On your most recent run, with the wrong example lines in place, what does the model now predict for 5+5?",
             },
+            answerPlaceholder: "The number the model predicts for 5+5 now…",
             observationPrompt:
                 "How many wrong lines did it take before the model gave in? Looking across the layers, where did it commit to the pattern?",
             observationPlaceholder:
@@ -530,18 +546,12 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             ],
             // Fully static: `patchPair` pins both prompts, so the pair of answers
             // is fixed regardless of which model the workshop is running.
-            check: {
-                kind: "choice",
-                question:
-                    "Read the bottom-right cell of each heatmap. Which city does each prompt predict?",
-                options: [
-                    "Eiffel Tower: Rome, Colosseum: Paris",
-                    "Both predict Paris",
-                    "Both predict Rome",
-                    "Eiffel Tower: Paris, Colosseum: Rome",
-                ],
-                correctIndex: 3,
-            },
+            // No check here on purpose. This unit asks the participant to read
+            // two heatmaps at once, so there is no single token to score against:
+            // the multiple-choice version named both cities in one option, which
+            // made it a static assertion about what the model predicts and could
+            // contradict the grids in front of them. The observation prompt below
+            // already captures whether they compared the two.
             observationPrompt:
                 "What city did each prompt predict? Which row in each heatmap holds the landmark's name?",
             observationPlaceholder:
@@ -598,13 +608,19 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                     insertPrompt: EIFFEL,
                 },
             ],
+            // Run-scored, and deliberately so: on a patch unit `resolveCheckKey`
+            // keys this to `patchToken`, which is null until the drag lands. That
+            // does two things a static "Paris" key cannot — it scores against the
+            // participant's own patched grid, and it keeps the check closed ("Apply
+            // the patch first, then answer") instead of inviting an answer about a
+            // patch they have not made yet. The static key marked a participant
+            // wrong for correctly reading "Rome" off an unpatched target.
             check: {
-                kind: "choice",
+                kind: "topToken",
                 question:
-                    "After the patch, read the TARGET heatmap's bottom-right cell. Which city does it name now?",
-                options: ["Rome", "Paris", "London", "Berlin"],
-                correctIndex: 1,
+                    "After the patch, read the TARGET heatmap's bottom-right cell. What city does it name now?",
             },
+            answerPlaceholder: "The city the target predicts after the patch…",
             observationPrompt:
                 "Which cell did you patch, and how did the target's prediction change?",
             observationPlaceholder: "The cell you patched and how the target's prediction changed…",
