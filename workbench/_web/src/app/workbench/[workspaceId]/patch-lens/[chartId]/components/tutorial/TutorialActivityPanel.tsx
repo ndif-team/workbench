@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, useDragControls } from "motion/react";
 import {
     ChevronDown,
@@ -20,12 +21,29 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useCapture } from "@/lib/analytics";
+import { useTutorialNotes } from "@/lib/api/tutorialEventsApi";
+import { queryKeys } from "@/lib/queryKeys";
+import { orderNotesByUnits } from "@/lib/tutorialNotes";
 import { useProlificTutorial, HINT_AUTO_OFFER_AT } from "@/stores/useProlificTutorial";
-import type { GlossaryEntry, HintRung, SpotlightTarget, UnitCheck } from "@/types/tutorial-content";
-import { resolveCheckKey, resolveUnitSpotlights } from "@/types/tutorial-content";
+import type {
+    CheckFeedback,
+    GlossaryEntry,
+    HintRung,
+    SpotlightTarget,
+    UnitCheck,
+} from "@/types/tutorial-content";
+import {
+    hasDoneUnitAction,
+    normalizeAnswer,
+    resolveCheckFeedback,
+    resolveCheckKey,
+    resolveUnitSpotlights,
+} from "@/types/tutorial-content";
+import type { TutorialNote } from "@/types/tutorialEvents";
 import { DEFAULT_GLOSSARY } from "@/tutorials/glossary";
 import { CompletionCta } from "./CompletionCta";
 import { TutorialGlossary } from "./TutorialGlossary";
+import { TutorialNotes } from "./TutorialNotes";
 import { useTutorialDock } from "./TutorialDock";
 
 /**
@@ -44,16 +62,6 @@ import { useTutorialDock } from "./TutorialDock";
  * Reactour still handles the spotlight explanations for the lens/patch UI; this
  * panel is the reflective activity a facilitator would otherwise run by hand.
  */
-
-// Normalize a token/answer for comparison: strip a leading SentencePiece marker
-// (▁ U+2581), the heatmap's displayed space glyph (␣ U+2423), an ASCII
-// underscore, and whitespace — so "Paris" matches a "␣Paris"/"▁Paris"/"_Paris"
-// token however the participant types the leading space.
-const norm = (s: string | null | undefined) =>
-    (s ?? "")
-        .trim()
-        .toLowerCase()
-        .replace(/^[▁␣_\s]+/, "");
 
 const PANEL_W = 340;
 
@@ -90,6 +98,14 @@ interface TutorialActivityPanelProps {
     runId: string | null;
     /** Terms kept reachable from the header; falls back to DEFAULT_GLOSSARY. */
     glossary?: GlossaryEntry[];
+    /** The tutorial-wide default for what a check tells the participant about
+     * their answer; a check's own `feedback` still wins (resolveCheckFeedback).
+     *
+     * Travels as a prop rather than through the store because the store carries
+     * *progress*, not content: `setUnits` is the only content channel it has, and
+     * this is a tutorial-level field, not a per-unit one. `glossary` above set the
+     * same precedent for the same reason. */
+    checkFeedback?: CheckFeedback;
     /** Per-workshop survey the finish screen links to (workshops.surveyUrl). */
     surveyUrl?: string;
     /** Optional per-workshop thank-you copy (legacy completion_text). */
@@ -110,12 +126,14 @@ export function TutorialActivityPanel({
     runUnitIdx,
     runId,
     glossary,
+    checkFeedback,
     surveyUrl,
     completionThanks,
     workshopMode = false,
 }: TutorialActivityPanelProps) {
     const store = useProlificTutorial();
     const capture = useCapture();
+    const queryClient = useQueryClient();
     const units = store.units;
     const unit = units[store.unitIdx];
     const dragControls = useDragControls();
@@ -214,6 +232,23 @@ export function TutorialActivityPanel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [store.active, store.unitIdx, units.length]);
 
+    // The participant's own saved reflections, for the header popover and the
+    // completion recap.
+    //
+    // This is a server read — not a store read — because the note text is never
+    // kept client-side: the reflection box clears on save, and
+    // `submitObservation` records only a submitted flag in the persisted store
+    // (the text goes straight to tutorial_events). So the DB is the only place a
+    // participant's own note exists to be read back to them. Sits above the
+    // `!store.active` guard below because hooks can't be conditional; the query
+    // itself is gated on `store.active`, so nothing is fetched outside a tutorial.
+    const workspaceId = store.workspaceId ?? undefined;
+    const { data: savedNotes, isLoading: notesLoading } = useTutorialNotes(
+        workspaceId,
+        store.active,
+    );
+    const notes = useMemo(() => orderNotesByUnits(savedNotes ?? [], units), [savedNotes, units]);
+
     if (!mounted || !store.active || !unit) return null;
     // Collapsed and docked, the dock's own strip carries the way back — the page
     // takes the column away entirely rather than leaving a title bar behind.
@@ -240,6 +275,32 @@ export function TutorialActivityPanel({
         store.runTokensByUnit[store.unitIdx],
         patchToken,
     );
+
+    // Progressive reveal. The step leads with the task and everything that helps
+    // the participant carry it out; the check and the note box arrive once they
+    // have actually done it. Rendering all of it at once put two things to fill in
+    // beside "try a prompt", where they compete with the instruction to go and do
+    // the thing the step is about — and the instruction is the one that loses.
+    //
+    // The per-progression rule lives in `hasDoneUnitAction` (run / patch /
+    // manual-is-always), including why *any* run counts and a failing
+    // `successPredicate` must not suppress the reveal.
+    const actionDone = hasDoneUnitAction(unit, store.runTokensByUnit[store.unitIdx], patchToken);
+    // ...and once revealed on this step, it stays revealed. This override is
+    // load-bearing rather than belt-and-braces: `runTokensByUnit` is persisted only
+    // for entries naming a `lens_runs` row, and is pruned on load against the
+    // chart's `activeLensRunId` (`pruneRunKeys`), so a step the participant
+    // genuinely finished can read as un-run after a reload or a revisit. Without
+    // these three, a check they had already answered and a note they had already
+    // written would vanish from the step that holds them — which is the same
+    // "you haven't run anything" regression the frozen answer keys were added to
+    // fix, reintroduced one layer up.
+    const revealActivity =
+        actionDone ||
+        !!store.checkAnsweredByUnit[store.unitIdx] ||
+        !!store.observationByUnit[store.unitIdx] ||
+        completed;
+
     // Clamp the persisted position into the current viewport (a window resize or
     // a different monitor could otherwise place it off-screen). Same bounds as
     // the drag-end clamp; reached only after mount, so `window` exists.
@@ -257,6 +318,21 @@ export function TutorialActivityPanel({
               ? "Add a note in the box above to finish this step."
               : "Run a prompt to finish this step.";
 
+    // A note is the way back to the step it was written on, from either surface
+    // that lists them. `goToUnit` guards the range and emits step_started, which
+    // is the right event for a revisit — it is the same move as the Back button.
+    // Resolved through the unit id rather than a stored index so an edited
+    // tutorial can't send a participant to somebody else's step; a note whose
+    // unit is gone renders no button at all (TutorialNotesList), so the miss
+    // here is belt-and-braces.
+    const handleJumpToStep = (stepId: string) => {
+        const idx = units.findIndex((u) => u.id === stepId);
+        if (idx < 0) return;
+        // The finish nudge belongs to the step that raised it.
+        setNudgeToFinish(false);
+        store.goToUnit(idx);
+    };
+
     const handleNext = () => {
         if (!completed && !nudgeToFinish) {
             setNudgeToFinish(true);
@@ -264,6 +340,54 @@ export function TutorialActivityPanel({
         }
         setNudgeToFinish(false);
         store.next();
+    };
+
+    // Saving a note writes it twice: through the store (which emits the
+    // observation_submitted event carrying the text) and into the notes query
+    // cache, so the header popover and the completion recap show it immediately.
+    //
+    // The cache seed is load-bearing, not an optimisation. The store's event
+    // write is fire-and-forget, so invalidating here would fire a refetch that
+    // races the insert and can hand back a list missing the note just written —
+    // and with `staleTime: Infinity` that wrong list would then be the cached
+    // truth. Keyed by `unit.id`, the same stable step id the store files the
+    // event under (stepIdForUnit), never the array index: content edited between
+    // sessions would otherwise re-attach a note to a different step. Replacing
+    // any existing entry for this step matches the read path, which keeps the
+    // latest note per step; append order doesn't matter, since orderNotesByUnits
+    // re-sorts into unit order.
+    const handleSaveNote = async (text: string) => {
+        const notesKey = workspaceId
+            ? queryKeys.tutorialEvents.notesByWorkspace(workspaceId)
+            : null;
+        // Snapshot before cancelling, and seed only if there was something to
+        // seed onto. Two races pull in opposite directions here:
+        //
+        //  - If the initial fetch is still in flight, cancelling it and then
+        //    seeding onto a `[]` default would publish a cache holding only this
+        //    note — a returning participant's earlier notes would vanish from the
+        //    recap until the popover's invalidate reconciled them.
+        //  - If it has already settled, letting it commit *after* the seed would
+        //    overwrite this note with a list that predates it.
+        //
+        // So: cancel and merge when we hold a snapshot, and otherwise leave the
+        // read alone and let it bring the truth. Skipping the seed can leave the
+        // just-written note out of the recap for a moment (the event write is
+        // fire-and-forget, so the in-flight read may not see it), which is the
+        // lesser of the two — dropping notes the participant already wrote is
+        // worse than briefly missing the one they can still see on screen.
+        const previousNotes = notesKey
+            ? queryClient.getQueryData<TutorialNote[]>(notesKey)
+            : undefined;
+        if (notesKey && previousNotes !== undefined) {
+            await queryClient.cancelQueries({ queryKey: notesKey });
+        }
+        store.submitObservation(text);
+        if (!notesKey || previousNotes === undefined) return;
+        queryClient.setQueryData<TutorialNote[]>(notesKey, [
+            ...previousNotes.filter((n) => n.stepId !== unit.id),
+            { stepId: unit.id, text: text.trim(), createdAt: new Date() },
+        ]);
     };
 
     // Docked, the panel is a column of the tool's layout and wears the same header
@@ -370,43 +494,76 @@ export function TutorialActivityPanel({
                 </div>
             )}
 
-            {/* Embedded check — auto-scored, log-only */}
-            {unitCheck && (
-                <EmbeddedCheck
-                    key={`check-${store.unitIdx}`}
-                    check={unitCheck}
-                    expected={checkExpected}
-                    placeholder={unit.answerPlaceholder}
-                    // Only answerable once THIS unit's action has run —
-                    // the answer key (a run's tokens, or the patch
-                    // outcome) belongs to this unit, so scoring a
-                    // different unit's answer against it would be wrong.
-                    // A stale result reads as "do the step first" rather
-                    // than auto-scoring.
-                    hasRun={checkHasRun}
-                    notRunMessage={isPatchUnit ? "Apply the patch first, then answer." : undefined}
-                    // The key travels with the answer: a run-scored key is this
-                    // unit's own run and is gone by the time anyone grades the
-                    // data (see TutorialEventPayload.expected).
-                    onAnswer={(answer, correct, expected) =>
-                        store.answerCheck(answer, correct, {
-                            expected,
-                            checkKind: unitCheck.kind,
-                        })
-                    }
-                    alreadyAnswered={!!store.checkAnsweredByUnit[store.unitIdx]}
-                    priorResult={store.checkResultByUnit[store.unitIdx]}
-                />
-            )}
+            {/* The reflective half of the step: the check and the note box, held
+                back until the participant has done the step's action and then
+                revealed together (see `revealActivity`).
 
-            {/* Observation box */}
-            <ObservationBox
-                key={`obs-${store.unitIdx}`}
-                prompt={unit.observationPrompt}
-                placeholder={unit.observationPlaceholder}
-                submitted={!!store.observationByUnit[store.unitIdx]}
-                onSubmit={(text) => store.submitObservation(text)}
-            />
+                Together, not chained. Gating the note on the check being answered
+                was considered and rejected: a participant who skips the check would
+                then never be asked to reflect at all, and on a manual step the note
+                IS the completion gate.
+
+                The wrapper is always mounted and carries the live region, so the
+                insertion of its children is what gets announced. A container that
+                appears at the same moment as its content usually announces nothing —
+                the region has to exist before it changes. Focus deliberately does
+                not move: the participant is reading the heatmap when this fires, and
+                pulling them into the panel mid-run is worse than saying nothing.
+                `empty:hidden` keeps the parent's `gap-3` from doubling up here
+                before the reveal. No animation — the content appears exactly where
+                they are already looking. */}
+            <div aria-live="polite" className="flex flex-col gap-3 empty:hidden">
+                {/* Embedded check — auto-scored, log-only */}
+                {revealActivity && unitCheck && (
+                    <EmbeddedCheck
+                        key={`check-${store.unitIdx}`}
+                        check={unitCheck}
+                        expected={checkExpected}
+                        placeholder={unit.answerPlaceholder}
+                        // Still passed, and still meaningful after the reveal: a
+                        // `secondToken` check whose run returned a single top-k
+                        // entry has no runner-up, so `resolveCheckKey` can return
+                        // `canAnswer: false` on a step that HAS been run. The check
+                        // then reads "run a prompt first" rather than scoring every
+                        // answer against nothing. See EmbeddedCheck's `!hasRun`
+                        // branch, which is not dead code.
+                        hasRun={checkHasRun}
+                        // Resolved here, not inside the check: this unit's own
+                        // `feedback` if it sets one, else the tutorial's default.
+                        // Note the first argument is the check, not the unit.
+                        feedback={resolveCheckFeedback(unitCheck, checkFeedback)}
+                        notRunMessage={
+                            isPatchUnit ? "Apply the patch first, then answer." : undefined
+                        }
+                        // The key travels with the answer: a run-scored key is this
+                        // unit's own run and is gone by the time anyone grades the
+                        // data (see TutorialEventPayload.expected).
+                        onAnswer={(answer, correct, expected) =>
+                            store.answerCheck(answer, correct, {
+                                expected,
+                                checkKind: unitCheck.kind,
+                            })
+                        }
+                        alreadyAnswered={!!store.checkAnsweredByUnit[store.unitIdx]}
+                        priorResult={store.checkResultByUnit[store.unitIdx]}
+                    />
+                )}
+
+                {/* Observation box */}
+                {revealActivity && (
+                    <ObservationBox
+                        key={`obs-${store.unitIdx}`}
+                        prompt={unit.observationPrompt}
+                        placeholder={unit.observationPlaceholder}
+                        submitted={!!store.observationByUnit[store.unitIdx]}
+                        // Matched on the unit's stable id, never the array index, so a
+                        // tutorial edited between sessions cannot show one step's note
+                        // under another's prompt.
+                        savedText={notes.find((n) => n.stepId === unit.id)?.text}
+                        onSubmit={handleSaveNote}
+                    />
+                )}
+            </div>
 
             {/* FAQ callouts */}
             {unit.faqs && unit.faqs.length > 0 && <FaqCallouts faqs={unit.faqs} />}
@@ -439,7 +596,12 @@ export function TutorialActivityPanel({
 
             {/* Finish screen on the final unit → survey handoff */}
             {isLast && (completed || store.observationByUnit[store.unitIdx]) && (
-                <CompletionCta surveyUrl={surveyUrl} thanks={completionThanks} />
+                <CompletionCta
+                    surveyUrl={surveyUrl}
+                    thanks={completionThanks}
+                    notes={notes}
+                    onJumpToStep={handleJumpToStep}
+                />
             )}
         </div>
     );
@@ -531,6 +693,33 @@ export function TutorialActivityPanel({
                 <TutorialGlossary
                     entries={glossary?.length ? glossary : DEFAULT_GLOSSARY}
                     onOpen={() => capture("tutorial_glossary_opened", { unit_id: unit.id })}
+                />
+                {/* Beside the glossary, and for the same reason: each step's
+                    reflection box clears when the step advances, so re-reading
+                    what you noticed two steps ago needs a surface of its own. */}
+                <TutorialNotes
+                    notes={notes}
+                    loading={notesLoading}
+                    onJumpToStep={handleJumpToStep}
+                    onOpen={() => {
+                        // Unit id and a count only — a participant's note text
+                        // must never reach PostHog.
+                        capture("tutorial_notes_opened", {
+                            unit_id: unit.id,
+                            note_count: notes.length,
+                        });
+                        // The query is staleTime: Infinity and kept warm by the
+                        // optimistic write on save, so it never refetches on its
+                        // own. Opening the popover is the one moment staleness
+                        // would be visible — a note written in a second tab, or
+                        // one whose fire-and-forget event write failed — so that
+                        // is where the refresh goes. The cached list stays on
+                        // screen meanwhile, so this can't flash an empty state.
+                        if (workspaceId)
+                            void queryClient.invalidateQueries({
+                                queryKey: queryKeys.tutorialEvents.notesByWorkspace(workspaceId),
+                            });
+                    }}
                 />
                 <Button
                     variant="ghost"
@@ -683,6 +872,7 @@ function EmbeddedCheck({
     expected,
     placeholder,
     hasRun,
+    feedback,
     notRunMessage,
     alreadyAnswered,
     priorResult,
@@ -693,6 +883,11 @@ function EmbeddedCheck({
     expected: string | null;
     placeholder?: string;
     hasRun: boolean;
+    /** Whether to tell the participant if they were right. Required, and resolved
+     * by the caller (resolveCheckFeedback) rather than read off `check` here, so
+     * this component stays presentational and never has to know which tutorial
+     * — classroom or paid study — the check it is rendering came from. */
+    feedback: CheckFeedback;
     notRunMessage?: string;
     alreadyAnswered: boolean;
     /** What this participant answered on an earlier visit (persisted). Lets a
@@ -720,7 +915,10 @@ function EmbeddedCheck({
 
     const submitTyped = () => {
         if (!value.trim() || locked) return;
-        const correct = norm(value) === norm(expected);
+        // One folding rule, shared with the tests that pin it (normalizeAnswer
+        // lives in tutorial-content): two copies of it here and there would let
+        // "what counts as the same answer" drift between the grader and its spec.
+        const correct = normalizeAnswer(value) === normalizeAnswer(expected);
         setResult({ correct, expected: expected ?? "?" });
         onAnswer(value.trim(), correct, expected);
     };
@@ -737,19 +935,36 @@ function EmbeddedCheck({
     // carries its own key; a typed one's key is the run it was scored against,
     // which a fresh session may no longer have.
     const correctAnswer = isChoice ? check.options[check.correctIndex] : expected;
-    // Neutral unless the content opts in. A check scored against the
+    // Neutral unless the content opts in, resolved upstream from the tutorial's
+    // own default and this check's override of it. A check scored against the
     // participant's own run is often ambiguous — a token they cannot type as it
-    // renders, a spelling `norm()` does not fold — and being marked wrong on one
-    // of those discourages a participant who did the step correctly. The score
-    // still reaches `answerCheck`, so the engagement measure is unaffected.
-    const showVerdict = check.feedback === "verdict";
+    // renders, a spelling `normalizeAnswer` does not fold — and being marked
+    // wrong on one of those discourages a participant who did the step
+    // correctly. The score still reaches `answerCheck` either way, so the
+    // engagement measure is unaffected by what is shown here.
+    const showVerdict = feedback === "verdict";
 
     return (
-        <div className="rounded border bg-background p-2.5 flex flex-col gap-1.5">
+        // The testids are the check root and its verdict line, and nothing else:
+        // the visible verdict strings interpolate an answer key into curly quotes
+        // and an em-dash, so a suite asserting those everywhere fails on a copy
+        // tweak. Tests read the boolean `data-correct` attribute for the verdict
+        // and pin the exact string once per shape as a deliberate copy guard.
+        <div
+            data-testid="tutorial-check"
+            className="rounded border bg-background p-2.5 flex flex-col gap-1.5"
+        >
             <p className="text-xs font-medium">{check.question}</p>
             {/* A prior answer outranks the "run first" gate: this participant has
                 already answered, so asking them to re-run a prompt to see what they
-                said is busywork — the check is locked either way. */}
+                said is busywork — the check is locked either way.
+
+                This branch is NOT dead now that the panel hides the whole check
+                until the step's action is done. `resolveCheckKey` can still return
+                `canAnswer: false` *after* a run: a `secondToken` check whose top-k
+                came back with a single entry has no runner-up to score against. The
+                two gates ask different questions — "have they done the step" vs "is
+                there a key" — so don't collapse them. */}
             {!hasRun && !priorResult ? (
                 <p className="text-xs text-muted-foreground">
                     {notRunMessage ?? "Run a prompt first, then answer."}
@@ -813,6 +1028,9 @@ function EmbeddedCheck({
                     {result &&
                         (showVerdict ? (
                             <p
+                                data-testid="tutorial-check-verdict"
+                                data-correct={String(result.correct)}
+                                data-state="fresh"
                                 className={`text-xs ${result.correct ? "text-primary" : "text-muted-foreground"}`}
                             >
                                 {result.correct
@@ -826,6 +1044,9 @@ function EmbeddedCheck({
                         priorResult &&
                         (showVerdict ? (
                             <p
+                                data-testid="tutorial-check-verdict"
+                                data-correct={String(priorResult.correct)}
+                                data-state="prior"
                                 className={`text-xs ${priorResult.correct ? "text-primary" : "text-muted-foreground"}`}
                             >
                                 {priorResult.correct
@@ -856,11 +1077,24 @@ function ObservationBox({
     prompt,
     placeholder,
     submitted,
+    savedText,
     onSubmit,
 }: {
     prompt: string;
     placeholder?: string;
     submitted: boolean;
+    /**
+     * What this participant wrote here, read back from `tutorial_events` by the
+     * panel. Saving used to replace the note with a bare receipt, which threw
+     * away the one thing the step asked them to produce — on a step about
+     * noticing something, the thing they noticed is worth keeping in front of
+     * them while they read the heatmap it describes.
+     *
+     * Falls back to the text typed this render, because the optimistic cache
+     * seed is skipped when the notes query had not yet settled (see
+     * `handleSaveNote`), so the DB copy can be a beat behind the save.
+     */
+    savedText?: string;
     onSubmit: (text: string) => void;
 }) {
     const [value, setValue] = useState("");
@@ -874,9 +1108,22 @@ function ObservationBox({
     };
 
     if (done) {
+        const kept = (savedText ?? value).trim();
         return (
             <div className="rounded border border-primary/30 bg-primary/5 p-2.5">
                 <p className="text-xs font-medium">{prompt}</p>
+                {/* Read-only on purpose: `tutorial_events` is append-only and
+                    editing a note is its own feature. `pre-wrap` keeps the line
+                    breaks they typed and `break-words` keeps a pasted token from
+                    widening the panel — same treatment the notes popover gives
+                    them, so a note reads the same wherever it appears. Guarded
+                    because progress restored from an older client can have the
+                    submitted flag without any text to show. */}
+                {kept && (
+                    <p className="mt-1 border-l-2 border-primary/40 pl-2 text-xs leading-snug whitespace-pre-wrap break-words">
+                        {kept}
+                    </p>
+                )}
                 <p className="mt-1 text-xs text-primary">✓ Thanks — your note was saved.</p>
             </div>
         );

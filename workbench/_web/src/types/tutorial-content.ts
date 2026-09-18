@@ -60,20 +60,27 @@ export type CheckFeedback = "verdict" | "neutral";
 interface BaseCheck {
     question: string;
     /**
-     * What the participant is told once they answer. Defaults to `"neutral"`.
+     * What the participant is told once they answer. Defaults to the tutorial's
+     * `checkFeedback`, and to `"neutral"` when neither is set (see
+     * `resolveCheckFeedback`).
      *
      * - `"neutral"` — the answer is acknowledged and nothing else. It is still
      *   scored, persisted in `checkResultByUnit`, and emitted on
      *   `check_answered`; the verdict just never reaches the screen.
      * - `"verdict"` — right/wrong, plus the answer key when wrong.
      *
-     * Neutral is the default because most of these are engagement checks scored
-     * against the participant's own run, and several have no single right
+     * Neutral is the default because a check need not be gradable to be worth
+     * asking. A run-scored check (`topToken` / `secondToken`) is keyed to
+     * whatever the live model produced, which often has no single typable right
      * answer: a token that cannot be typed as it renders, a spelling `norm()`
      * does not fold, a runner-up that moved between runs. Being told they are
      * wrong on one of those discourages a participant for no reason, and the
      * measure we actually want (did they look?) survives without it. Opt a check
-     * into `"verdict"` only when its key is unambiguous.
+     * into `"verdict"` only when its key is unambiguous — which in practice
+     * means `kind: "choice"`; both shipped contents now set the tutorial-level
+     * default to `"verdict"` and are multiple choice throughout. `"neutral"` on
+     * an individual check is the escape hatch for reintroducing a run-scored one
+     * under a verdicted tutorial.
      */
     feedback?: CheckFeedback;
 }
@@ -220,6 +227,24 @@ export interface TutorialContent {
     version: number;
     units: TutorialUnit[];
     /**
+     * The default `feedback` for every check in this tutorial; a check's own
+     * `feedback` still wins (see `resolveCheckFeedback`).
+     *
+     * The default belongs to the tutorial rather than to each check because a
+     * verdict is a property of the *audience*, not of the question. A classroom
+     * wants right/wrong everywhere — being told is the teaching moment, and a
+     * facilitator is standing in the room to handle a wrong answer. A paid study
+     * wants it nowhere: engagement is a covariate there, and telling a participant
+     * they are wrong on a check with no unambiguous key costs data for nothing.
+     * Same questions, opposite setting, so the switch lives one level above them.
+     *
+     * Absent means `"neutral"`, which is what makes content authored before this
+     * field existed — the Prolific study's — unaffected by its arrival. One line
+     * per tutorial also means a session cannot ship half-verdicted because a
+     * rewrite missed a check.
+     */
+    checkFeedback?: CheckFeedback;
+    /**
      * The modal orientation slideshow shown when the tutorial starts (and
      * re-openable from the Tutorial menu). Omit to start straight on step 1.
      */
@@ -231,6 +256,30 @@ export interface TutorialContent {
      */
     glossary?: GlossaryEntry[];
 }
+
+/**
+ * Fold a token or a typed answer for comparison: trim, lowercase, then strip a
+ * *leading* SentencePiece marker (▁ U+2581), the heatmap's displayed space glyph
+ * (␣ U+2423), an ASCII underscore, or whitespace — so "Paris" matches a
+ * "␣Paris"/"▁Paris"/"_Paris" token however the participant types the leading
+ * space.
+ *
+ * The replace is `^`-anchored, so leading markers are the ONLY thing it removes:
+ * `"New York"` folds to `"new york"` (the internal space survives, so it does not
+ * match `"newyork"`) and `"Paris."` folds to `"paris."` (the trailing period
+ * survives, so it does not match `"Paris"`). Spelled out because the previous
+ * comment said it stripped "whitespace" without qualification, and that reading
+ * has already caused a downstream misunderstanding of which tokens a participant
+ * can actually match by typing.
+ *
+ * Lives here rather than in the panel so the folding rule is unit-testable on its
+ * own — it is half of what decides whether a check scores as correct.
+ */
+export const normalizeAnswer = (s: string | null | undefined): string =>
+    (s ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/^[▁␣_\s]+/, "");
 
 /**
  * The answer key for a unit's embedded check, and whether it can be answered yet.
@@ -271,6 +320,77 @@ export function resolveCheckKey(
     // and scoring an answer against nothing marks every answer wrong and logs a
     // check_answered nobody could have got right.
     return { expected, canAnswer: expected != null };
+}
+
+/**
+ * Has the participant done the thing this step asks of them?
+ *
+ * The reveal predicate for a step's progressive disclosure: the panel shows the
+ * task, the concept, the prompt bank, the hints and the FAQs straight away, and
+ * holds the embedded check and the note box back until this returns true. A step
+ * that renders all of it at once puts two things to fill in beside the
+ * instruction to go and do something, and the instruction loses.
+ *
+ * Keyed off `progression.on`, which is the only thing that says what this step's
+ * action *is*:
+ *  - `"run"` — a lens run initiated on this unit (its frozen answer key exists).
+ *  - `"patch"` — an intervention applied on this unit.
+ *  - `"manual"` — **always true.** Explore and the final challenge have no action
+ *    to wait for, and on those the note submission is itself the completion gate,
+ *    so gating the box on an action would deadlock the step.
+ *
+ * **Any run reveals, never only a successful one.** A run-gated step can carry a
+ * `successPredicate` (u3-patterns ships `topTokenNotEqual: "10"` — "make the
+ * model get 5+5 wrong"), and requiring it to pass here would hide the check and
+ * the note from precisely the participant whose model *did* answer 10: they ran
+ * the prompt, they have something to report, and they would be shown nothing to
+ * report it in. The predicate governs step *completion*; this governs what is on
+ * screen. They are deliberately different questions.
+ *
+ * Pure and outside the panel for the same reason `resolveCheckKey` is: it is a
+ * per-progression rule with a trap in it, and it should be pinned by tests
+ * rather than read out of a component's JSX.
+ *
+ * @param unit the unit on screen
+ * @param runTokens the frozen key from a lens run initiated on this unit
+ * @param patchToken the target's post-patch top token, from a patch on this unit
+ */
+export function hasDoneUnitAction(
+    unit: TutorialUnit,
+    runTokens: { topToken: string; secondToken: string | null } | undefined,
+    patchToken: string | null,
+): boolean {
+    switch (unit.progression.on) {
+        case "run":
+            return runTokens != null;
+        case "patch":
+            return patchToken != null;
+        case "manual":
+            return true;
+    }
+}
+
+/**
+ * What the participant is told about this check's answer.
+ *
+ * Precedence is the check's own `feedback`, then the tutorial's `checkFeedback`,
+ * then `"neutral"`. Neutral last is what keeps every existing row behaving
+ * exactly as it does today: content that sets neither field resolves neutral
+ * everywhere, as it did before either field existed. The per-check override on
+ * top is what lets a verdict tutorial keep one genuinely ambiguous check quiet —
+ * a runner-up that moves between runs, a token that cannot be typed as it renders
+ * — without giving up verdicts on all the checks whose keys are exact.
+ *
+ * Pure and outside the panel for the same reason `resolveCheckKey` is: the panel
+ * read `check.feedback` inline, which made the tutorial-wide default
+ * un-overridable from content and gave a presentational component a reason to
+ * know which tutorial it belongs to.
+ */
+export function resolveCheckFeedback(
+    check: UnitCheck | undefined,
+    tutorialDefault: CheckFeedback | undefined,
+): CheckFeedback {
+    return check?.feedback ?? tutorialDefault ?? "neutral";
 }
 
 /**

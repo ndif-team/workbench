@@ -413,7 +413,7 @@ bun run lint                 # eslint .
 bun run format / format:check
 bun run knip                 # unused exports / files
 bunx tsc --noEmit            # typecheck
-bun run test                 # bun:test (DB integration tests in src/db/__tests__)
+bun run test                 # bun:test — but see the warning below; prefer scripts/test.sh
 bun run dev                  # next dev -p 3000 --turbopack
 bun run build                # next build  ← see warning below
 ```
@@ -441,10 +441,62 @@ make lens-local              # k6 against http://localhost:8000
 make lens-modal              # k6 against the deployed modal app
 ```
 
+### End-to-end tests (Playwright)
+
+There is a real e2e harness — not stubs. `workbench/_web/tests/` holds ~2.8k lines
+across 12 files:
+
+- `TestingUtils.ts` — creates real Supabase Auth users via the service role,
+  logs in over a magic link with retries, and seeds fixtures. **`seedPatchLensChart(userId)`
+  seeds a workspace + three patch-lens charts + `lens_runs` rows, so the patch-lens
+  route renders a full heatmap with no NDIF and no Python backend.** Start here
+  before writing any new spec.
+- `patch-lens-features.spec.ts`, `workshop-join.spec.ts`, `logit-lens.spec.ts`,
+  `workshop-admin.spec.ts`, … — specs against the real routes.
+- `global-setup.ts` warms gpt2 on NDIF for the specs that do hit a live model.
+- `playwright.config.ts` — chromium only, `fullyParallel`, `baseURL` :3000,
+  Argos visual reporter (uploads only when `ARGOS_TOKEN` is set).
+- `.github/workflows/e2e.yml` stands up local Supabase in Docker, runs
+  `drizzle-kit push`, grants PostgREST roles, starts the FastAPI backend with
+  `CONFIG=e2e` (gpt2 only), then runs the suite.
+
+Two gotchas:
+
+- **`webServer.command` is `bun run start`, which needs a build.** Since you must not
+  run `next build`, start `bun run dev` yourself first — `reuseExistingServer` is
+  true outside CI, so Playwright attaches to your dev server instead of building.
+- **Most of the harness is CI-shaped.** Specs that create real Auth users or hit
+  Postgres need `SUPABASE_SERVICE_ROLE_KEY`, so running those locally means
+  `supabase start` plus an `.env` rewrite — usually cheaper to let CI run them on the PR.
+  **`tutorial-checks.spec.ts` is the exception**: it seeds SQLite directly and uses the
+  stub user, so it runs on a plain local setup. With `NEXT_PUBLIC_LOCAL_DB=true`,
+  `NEXT_PUBLIC_DISABLE_AUTH=true` and `LOCAL_SQLITE_URL` pointing at a writable file in
+  the repo-root `.env`, from `workbench/_web`:
+
+  ```bash
+  bunx drizzle-kit push --force     # the app DB needs a schema; `bun run dev` won't create it
+  bun run dev                       # terminal 1
+  bunx playwright test tests/tutorial-checks.spec.ts   # terminal 2
+  ```
+
+  `reuseExistingServer` is true outside CI, so Playwright attaches to the dev server and
+  `bun run start` (a build) never fires. Note `playwright.config.ts` hardcodes
+  `localhost:3000` — if another project owns that port the suite silently tests the wrong
+  app, so either free the port or point `baseURL` at your dev server.
+
+To avoid a live model in a new spec, stub the tool endpoint — `startAndPoll`
+short-circuits when the start response is `{ job_id: null, data: … }`:
+
+```ts
+await page.route("**/logit_lens/start", (route) =>
+    route.fulfill({ json: { job_id: null, data: LENS_FIXTURE } }));
+```
+
 ### ⚠️ Warnings
 
 - **Do NOT run `next build` while the user's `next dev` is running.** Both write to `.next/`; the build clobbers manifest tempfiles, leaving the dev server with `ENOENT _buildManifest.js.tmp.*` and 500s on server actions. Verify with `bunx tsc --noEmit` and `bun run lint` instead. Recovery if it happens: stop the dev server, `rm -rf .next`, restart.
 - **Auth disabled mode** (`NEXT_PUBLIC_DISABLE_AUTH=true`) returns a stub user (`dev@localhost`) from `src/lib/supabase/server.ts`; useful for local dev without Supabase.
+- **Run the test suite via `bash ./scripts/test.sh` from the repo root, not `bun run test`.** The `test` script is a bare `bun test`, and the DB integration tests need `.test.db` to have a pushed schema. On a fresh checkout (or whenever `.test.db` is stale/0 bytes) `bun run test` fails with `no such table: …` on ~95 tests. `scripts/test.sh` sets `NEXT_PUBLIC_LOCAL_DB` / `LOCAL_SQLITE_URL`, `rm`s and re-pushes the schema, runs the suite, then cleans up. `scripts/test.sh db` runs only `src/db`.
 - **TS errors in build are silenced** (`ignoreBuildErrors: true` in `next.config.js`). Always run `tsc --noEmit` separately to catch them.
 
 ---
@@ -537,5 +589,5 @@ Manual recipe summary (skill has the full version):
 - **Streaming generation**: when (if) the backend grows real streaming for `/models/start-generate`, §10 ("UI assumptions") and the generation-rail loading state need updating; today everything is polling.
 - **NotebookExporter**: explored only briefly here; `actions/notebook.ts` and `src/notebook-templates/` could justify a sub-section if more tools acquire export support.
 - **Modal deployment**: `modal/` and `make modal` are present but I didn't read them in depth; document if they become a hot path for contributors.
-- **k6 / Playwright tests**: only stubs exist; once the test surface grows, add a "Testing" section detailing what's covered.
+- **k6 load tests**: `tests/k6/` and the `make lens-local` / `lens-modal` targets are thin; document the scenarios if they grow.
 - **Telemetry**: InfluxDB telemetry sketched in `_api/telemetry.py` but not exercised in the frontend; document if frontend telemetry is added.

@@ -33,6 +33,10 @@ export type AnalyticsEvent =
     | "run_restored"
     // Guided tutorial: the persistent glossary was opened (unit id only).
     | "tutorial_glossary_opened"
+    // Guided tutorial: the participant reopened their own reflections. Carries
+    // the current unit id and how many notes were listed — never the note text,
+    // which is app-DB-only and must not reach PostHog.
+    | "tutorial_notes_opened"
     // Guided tutorial orientation. `_slide_shown` carries the slide index and
     // title; `_dismissed` carries whether the participant went on to the
     // walkthrough or skipped it. Neither carries participant text.

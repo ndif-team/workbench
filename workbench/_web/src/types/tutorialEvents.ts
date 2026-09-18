@@ -41,3 +41,22 @@ export interface TutorialEventPayload {
     // Attempt counter context (e.g. which failed-run attempt triggered a hint).
     attempt?: number;
 }
+
+/**
+ * One reflection the participant wrote, read back to that same participant.
+ *
+ * This lives here rather than beside the `ObservationRow`/`CheckAnswerRow`
+ * derivations in tutorialEventsDb.ts because those are admin-only shapes that
+ * never leave the server, while this one crosses the server-action boundary into
+ * a client component (the tutorial panel and the completion screen both render
+ * it). Types that a `"use server"` return value hands to the client belong in
+ * `types/`, where a client import doesn't drag the db client along with it.
+ *
+ * `stepId` is the stable unit id the event row was written with, not an index —
+ * see deriveLatestNotes for why that matters.
+ */
+export interface TutorialNote {
+    stepId: string;
+    text: string;
+    createdAt: Date;
+}

@@ -115,4 +115,55 @@ describe("resolveCheckKey", () => {
             canAnswer: false,
         });
     });
+
+    // Same "no key, no question" rule, for the index shapes the out-of-range
+    // case above doesn't reach. All of these index off the end of the array and
+    // so resolve to no key at all — which is what keeps the check closed rather
+    // than open and ungradable. Now that verdicts can be on, an open check with
+    // no key would tell the participant they were wrong.
+    it("closes a choice check whose correctIndex isn't a position in the options", () => {
+        const withIndex = (correctIndex: number) =>
+            resolveCheckKey(
+                unit({ question: "?", kind: "choice", options: ["Paris", "Rome"], correctIndex }),
+                undefined,
+                null,
+            );
+        expect(withIndex(-1)).toEqual({ expected: null, canAnswer: false });
+        expect(withIndex(0.5)).toEqual({ expected: null, canAnswer: false });
+        expect(withIndex(2)).toEqual({ expected: null, canAnswer: false });
+        expect(withIndex(Number.NaN)).toEqual({ expected: null, canAnswer: false });
+        // …and the in-range neighbours still answer.
+        expect(withIndex(0)).toEqual({ expected: "Paris", canAnswer: true });
+        expect(withIndex(1)).toEqual({ expected: "Rome", canAnswer: true });
+    });
+
+    // Pinned, not endorsed: an empty-string option resolves to a key, because
+    // the guard is `key != null` and "" isn't nullish. The check opens with a
+    // blank answer key. `validateTutorialContent` is what keeps this content out
+    // of the DB (it requires non-empty option text); nothing in the key
+    // derivation would.
+    it("treats an empty option as a real (blank) answer key", () => {
+        const blankOption = unit({
+            question: "?",
+            kind: "choice",
+            options: ["", "Rome"],
+            correctIndex: 0,
+        });
+        expect(resolveCheckKey(blankOption, undefined, null)).toEqual({
+            expected: "",
+            canAnswer: true,
+        });
+    });
+
+    // The key and what the participant is told about it are separate concerns —
+    // `resolveCheckFeedback` owns the second one. A check that opts out of a
+    // verdict is still scored, still persisted, still emitted.
+    it("derives the same key whatever feedback the check asks for", () => {
+        const base = { question: "?", kind: "choice" as const, options: ["Paris", "Rome"] };
+        for (const feedback of [undefined, "neutral", "verdict"] as const) {
+            expect(
+                resolveCheckKey(unit({ ...base, correctIndex: 1, feedback }), undefined, null),
+            ).toEqual({ expected: "Rome", canAnswer: true });
+        }
+    });
 });

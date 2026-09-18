@@ -38,4 +38,10 @@ export const queryKeys = {
         one: (id: string) => ["tutorial", id] as const,
         byWorkspace: (workspaceId: string) => ["tutorial-for-workspace", workspaceId] as const,
     },
+    // Participant-facing reads over tutorial_events. Admin aggregations over the
+    // same table (funnel, observations, check stats) live under
+    // workshops.analytics, keyed by workshop rather than workspace.
+    tutorialEvents: {
+        notesByWorkspace: (workspaceId: string) => ["tutorial-notes", workspaceId] as const,
+    },
 };

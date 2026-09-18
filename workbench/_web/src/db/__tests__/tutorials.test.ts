@@ -175,6 +175,46 @@ describe("tutorial content", () => {
         }
     });
 
+    it("accepts a tutorial-level checkFeedback, and only the values the panel reads", () => {
+        const base = tinyContent().units[0];
+        const withContent = (extra: Partial<TutorialContent>) =>
+            validateTutorialContent({ version: 1, units: [base], ...extra });
+
+        // Absent is the pre-existing shape and must stay legal — it is how every
+        // tutorial authored before this field existed resolves to neutral.
+        expect(() => withContent({})).not.toThrow();
+        for (const checkFeedback of ["verdict", "neutral"] as const) {
+            expect(() => withContent({ checkFeedback })).not.toThrow();
+        }
+        // A typo here is the worst failure this field can have: the panel's gate
+        // is `feedback === "verdict"`, so an unrecognised value falls through to
+        // neutral and silently un-verdicts every check in a classroom session at
+        // once — with nothing on screen to say so. Authored JSON bypasses the TS
+        // types, hence the cast.
+        expect(() => withContent({ checkFeedback: "scored" as never })).toThrow();
+        expect(() => withContent({ checkFeedback: "Verdict" as never })).toThrow();
+    });
+
+    it("accepts a check that opts out of its tutorial's verdict", () => {
+        // A verdict tutorial with one deliberately quiet check is legal content,
+        // not a contradiction — it is the whole point of the per-check override.
+        const base = tinyContent().units[0];
+        const check: UnitCheck = {
+            question: "Which is the runner-up?",
+            kind: "choice",
+            options: ["Paris", "Rome"],
+            correctIndex: 0,
+            feedback: "neutral",
+        };
+        expect(() =>
+            validateTutorialContent({
+                version: 1,
+                checkFeedback: "verdict",
+                units: [{ ...base, check }],
+            }),
+        ).not.toThrow();
+    });
+
     it("rejects a unit whose rendered fields aren't usable text", () => {
         const base = tinyContent().units[0];
         const withUnit = (overrides: Partial<TutorialUnit>) =>

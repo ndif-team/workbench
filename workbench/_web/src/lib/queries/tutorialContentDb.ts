@@ -223,6 +223,13 @@ export const validateTutorialContent = (content: TutorialContent): TutorialConte
             }
         }
     }
+    // Same guard as the per-check `feedback` above, and it matters more here: an
+    // unrecognized value falls back to neutral, so one typo silently un-verdicts
+    // every check in the tutorial at once — a classroom session that quietly stops
+    // telling anyone whether they were right, with nothing on screen to say so.
+    if (content.checkFeedback != null && !validCheckFeedback.has(content.checkFeedback)) {
+        throw new Error(`Tutorial checkFeedback "${content.checkFeedback}" is not supported`);
+    }
     if (content.glossary !== undefined) {
         if (!Array.isArray(content.glossary)) {
             throw new Error("Tutorial glossary must be an array");

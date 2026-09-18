@@ -7,9 +7,11 @@ import type { TutorialContent } from "@/types/tutorial-content";
  * (see lib/queries/tutorialContentDb.ts). The seed script inserts this as one
  * "Prolific Patch Lens (demo)" row; admins then edit copy in the workshop UI.
  *
- * Embedded checks are auto-scored against the participant's OWN run result
- * (greedy decoding is deterministic), so they need no answer keys and stay
- * correct across models. They are log-only and never gate progress.
+ * Embedded checks are all multiple choice with static answer keys, and the
+ * tutorial sets `checkFeedback: "verdict"` so the participant is told whether
+ * they were right. Keys are pinned to the prompt bank (`patchPair` for the patch
+ * pair), or ask what the run meant rather than which token it produced, so they
+ * hold across models. They are log-only and never gate progress.
  *
  * Progression is data-driven: most lens units complete on any run
  * (`successPredicate: always`); u3 completes only when the model is coaxed off the
@@ -80,7 +82,29 @@ const PATCH_DRAG = [
 const PATCH_COLUMNS = PATCH_DRAG.map(({ grid, layer }) => ({ grid, layer }));
 
 export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
-    version: 1,
+    version: 2,
+    // Verdicts on. This content is no longer a live study instrument — it is the
+    // demo row and the in-code fallback (`resolveTutorialForWorkspace`), so it is
+    // what anyone testing or demoing the tutorial sees.
+    //
+    // What makes a verdict safe here is that no check's answer key can disagree
+    // with the participant's own screen. Two shapes satisfy that, and both are
+    // used below:
+    //
+    //  - `choice`, where the key is a statement about what something *means*
+    //    (what the runner-up tells you, what the cone can reach). Model-independent,
+    //    so it is true whatever the grid happens to show.
+    //  - `topToken`, where the key IS the grid — read off this participant's own
+    //    run, and gated by `resolveCheckKey` so the check stays closed until that
+    //    run (or patch) exists.
+    //
+    // What is *not* safe, and was briefly shipped here, is a `choice` key that
+    // asserts a model output ("the target now says Paris"). That is a claim about
+    // a run, frozen into content: on a smaller model, or before the participant
+    // has done the step, it marks a correct reading of their own heatmap wrong.
+    // Any new check asserting what the model produced belongs in a run-scored
+    // kind, not in `options`.
+    checkFeedback: "verdict",
     welcome: {
         tourCta: "Show me around",
         slides: [
@@ -174,6 +198,12 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                     insertPrompt: EIFFEL,
                 },
             ],
+            // Run-scored, not a static key. The answer is whatever *this*
+            // participant's grid shows, so the check cannot contradict what is on
+            // their screen, and `resolveCheckKey` keeps it closed until they have
+            // actually run something. A `choice` key naming "Paris" asserted a
+            // model output instead: on a smaller model, or before the run, a
+            // participant reading their grid correctly was told they were wrong.
             check: {
                 kind: "topToken",
                 question:
@@ -226,11 +256,17 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                 },
             ],
             check: {
-                kind: "topToken",
+                kind: "choice",
                 question:
-                    "After adding the prediction to the end of your prompt and running again, what token is in the bottom-right cell now?",
+                    "You added the model's own prediction to the end of the prompt and ran again. What does the new bottom-right cell tell you?",
+                options: [
+                    "The same prediction as before, confirmed a second time",
+                    "The prediction for the token after the one you appended",
+                    "The model's plan for the rest of the sentence",
+                    "A correction of the token you appended",
+                ],
+                correctIndex: 1,
             },
-            answerPlaceholder: "The new token in the bottom-right cell…",
             observationPrompt:
                 "What did the sentence turn into after a few rounds? Was each new token the one you expected?",
             observationPlaceholder:
@@ -278,10 +314,17 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                 },
             ],
             check: {
-                kind: "secondToken",
-                question: "In the side panel, what token is ranked SECOND, just below the top one?",
+                kind: "choice",
+                question:
+                    "The side panel showed a second-ranked token just below the top one. What does that runner-up tell you?",
+                options: [
+                    "The model looked the answer up and kept a spare copy",
+                    "The runner-up is the token that comes after the top one",
+                    "The runner-up is the answer a person would have given",
+                    "The model was choosing among ranked candidates, not looking one answer up",
+                ],
+                correctIndex: 3,
             },
-            answerPlaceholder: "The second-ranked token in the panel…",
             observationPrompt:
                 "What was the top answer and its runner-up, and would a person have answered the same way? Looking across the layers, roughly where did the top answer first appear?",
             observationPlaceholder:
@@ -325,20 +368,21 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                     spotlights: [{ grid: "source", layer: 16, position: 5 }],
                 },
             ],
-            // A conceptual question, so a conceptual instrument: there is no token to
-            // read off here, and a free-text answer would be scored against the
-            // bottom-right cell — the one cell this step is asking them to ignore.
+            // The first check written as multiple choice, and the reason the rest
+            // followed: there is no token to read off here, and a free-text answer
+            // would have been scored against the bottom-right cell — the one cell
+            // this step is asking them to ignore.
             check: {
                 kind: "choice",
                 question:
                     "Which cells could have fed into the one you clicked, according to the cone?",
                 options: [
-                    "Earlier layers, at the same position or earlier ones",
                     "Every other cell in the grid",
+                    "Earlier layers, at the same position or earlier ones",
                     "Only the cell immediately to its left",
                     "Later layers, at later positions",
                 ],
-                correctIndex: 0,
+                correctIndex: 1,
             },
             observationPrompt:
                 "What was the model's top guess at the cell you clicked, and how sure was it? Was that guess anything like the final answer?",
@@ -390,11 +434,17 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                 },
             ],
             check: {
-                kind: "topToken",
+                kind: "choice",
                 question:
-                    "What did the model invent for the 'remembered' detail it was never actually told?",
+                    "You never told the model your favorite. What did it do with the question?",
+                options: [
+                    "Left the answer blank",
+                    "Said it had no way to know",
+                    "Invented a plausible answer anyway",
+                    "Found the answer earlier in the prompt",
+                ],
+                correctIndex: 2,
             },
-            answerPlaceholder: "The detail the model made up…",
             observationPrompt: "The model had no way to know the answer. What did it do instead?",
             observationPlaceholder: "What the model did when it had nothing to recall…",
             faqs: [
@@ -439,6 +489,13 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                     insertPrompt: "3+3=7\n4+4=9\n5+5=",
                 },
             ],
+            // The question names the specific prompt on purpose. This step's bank
+            // *starts* with a bare `5+5=`, so a participant who ran only that one
+            // would correctly answer "10" to a question phrased about "your most
+            // recent run" — and then be told they were wrong.
+            // Run-scored: whether the model actually breaks from 10 is a property
+            // of the model and of how many wrong lines they added, so a static key
+            // saying "something other than 10" can be false on their own screen.
             check: {
                 kind: "topToken",
                 question:
@@ -487,6 +544,14 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                     spotlights: PATCH_DRAG,
                 },
             ],
+            // Fully static: `patchPair` pins both prompts, so the pair of answers
+            // is fixed regardless of which model the workshop is running.
+            // No check here on purpose. This unit asks the participant to read
+            // two heatmaps at once, so there is no single token to score against:
+            // the multiple-choice version named both cities in one option, which
+            // made it a static assertion about what the model predicts and could
+            // contradict the grids in front of them. The observation prompt below
+            // already captures whether they compared the two.
             observationPrompt:
                 "What city did each prompt predict? Which row in each heatmap holds the landmark's name?",
             observationPlaceholder:
@@ -543,6 +608,13 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                     insertPrompt: EIFFEL,
                 },
             ],
+            // Run-scored, and deliberately so: on a patch unit `resolveCheckKey`
+            // keys this to `patchToken`, which is null until the drag lands. That
+            // does two things a static "Paris" key cannot — it scores against the
+            // participant's own patched grid, and it keeps the check closed ("Apply
+            // the patch first, then answer") instead of inviting an answer about a
+            // patch they have not made yet. The static key marked a participant
+            // wrong for correctly reading "Rome" off an unpatched target.
             check: {
                 kind: "topToken",
                 question:
