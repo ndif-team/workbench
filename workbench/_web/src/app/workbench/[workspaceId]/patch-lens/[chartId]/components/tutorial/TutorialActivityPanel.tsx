@@ -556,6 +556,10 @@ export function TutorialActivityPanel({
                         prompt={unit.observationPrompt}
                         placeholder={unit.observationPlaceholder}
                         submitted={!!store.observationByUnit[store.unitIdx]}
+                        // Matched on the unit's stable id, never the array index, so a
+                        // tutorial edited between sessions cannot show one step's note
+                        // under another's prompt.
+                        savedText={notes.find((n) => n.stepId === unit.id)?.text}
                         onSubmit={handleSaveNote}
                     />
                 )}
@@ -1073,11 +1077,24 @@ function ObservationBox({
     prompt,
     placeholder,
     submitted,
+    savedText,
     onSubmit,
 }: {
     prompt: string;
     placeholder?: string;
     submitted: boolean;
+    /**
+     * What this participant wrote here, read back from `tutorial_events` by the
+     * panel. Saving used to replace the note with a bare receipt, which threw
+     * away the one thing the step asked them to produce — on a step about
+     * noticing something, the thing they noticed is worth keeping in front of
+     * them while they read the heatmap it describes.
+     *
+     * Falls back to the text typed this render, because the optimistic cache
+     * seed is skipped when the notes query had not yet settled (see
+     * `handleSaveNote`), so the DB copy can be a beat behind the save.
+     */
+    savedText?: string;
     onSubmit: (text: string) => void;
 }) {
     const [value, setValue] = useState("");
@@ -1091,9 +1108,22 @@ function ObservationBox({
     };
 
     if (done) {
+        const kept = (savedText ?? value).trim();
         return (
             <div className="rounded border border-primary/30 bg-primary/5 p-2.5">
                 <p className="text-xs font-medium">{prompt}</p>
+                {/* Read-only on purpose: `tutorial_events` is append-only and
+                    editing a note is its own feature. `pre-wrap` keeps the line
+                    breaks they typed and `break-words` keeps a pasted token from
+                    widening the panel — same treatment the notes popover gives
+                    them, so a note reads the same wherever it appears. Guarded
+                    because progress restored from an older client can have the
+                    submitted flag without any text to show. */}
+                {kept && (
+                    <p className="mt-1 border-l-2 border-primary/40 pl-2 text-xs leading-snug whitespace-pre-wrap break-words">
+                        {kept}
+                    </p>
+                )}
                 <p className="mt-1 text-xs text-primary">✓ Thanks — your note was saved.</p>
             </div>
         );

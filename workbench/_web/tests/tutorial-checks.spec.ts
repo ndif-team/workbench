@@ -699,6 +699,12 @@ test.describe("guided tutorial notes", () => {
             await panel(page).getByLabel(prompt, { exact: true }).fill(text);
             await panel(page).getByRole("button", { name: "Save note", exact: true }).click();
             await expect(panel(page).getByText("✓ Thanks — your note was saved.")).toBeVisible();
+            // Saving acknowledges the note without throwing it away: the text they
+            // wrote stays on the step beside the receipt. The textarea is gone (a
+            // saved note is read-only), which is what distinguishes this from "the
+            // save did nothing".
+            await expect(panel(page).getByText(text, { exact: false })).toBeVisible();
+            await expect(panel(page).getByLabel(prompt, { exact: true })).toHaveCount(0);
         };
         const openNotes = async () => {
             await notesTrigger(page).click();
@@ -756,6 +762,10 @@ test.describe("guided tutorial notes", () => {
         // exercises the actual DB read path. This is that assertion.
         await page.reload();
         await expectPanel(page);
+        // The step itself keeps the note too, and after a reload that text can only
+        // have come from the DB — the component's own state is fresh, so this is the
+        // `savedText` read path rather than the just-typed fallback.
+        await expect(panel(page).getByText(noteB, { exact: false })).toBeVisible();
         pop = await openNotes();
         await expect(pop.getByTestId("tutorial-note")).toHaveCount(2);
         await expect(pop.getByTestId("tutorial-note").nth(0)).toHaveAttribute(
@@ -837,6 +847,12 @@ test.describe("guided tutorial notes", () => {
             await panel(page).getByLabel(prompt, { exact: true }).fill(text);
             await panel(page).getByRole("button", { name: "Save note", exact: true }).click();
             await expect(panel(page).getByText("✓ Thanks — your note was saved.")).toBeVisible();
+            // Saving acknowledges the note without throwing it away: the text they
+            // wrote stays on the step beside the receipt. The textarea is gone (a
+            // saved note is read-only), which is what distinguishes this from "the
+            // save did nothing".
+            await expect(panel(page).getByText(text, { exact: false })).toBeVisible();
+            await expect(panel(page).getByLabel(prompt, { exact: true })).toHaveCount(0);
         };
 
         await saveNote(firstIdx, noteA);
