@@ -24,15 +24,21 @@ import {
  * (`usePatchLensTutorial`); this drives the Prolific/classroom guided tutorial
  * (`useProlificTutorial`), which had no e2e coverage at all.
  *
- * No NDIF and no Python backend. Choice checks need nothing at all
- * (`resolveCheckKey` returns `canAnswer: true` for them). Run-scored checks get
- * a stubbed `/logit_lens/start` returning `{ job_id: null, data }`, the shape
+ * No NDIF and no Python backend. A choice check needs no run to *score*
+ * (`resolveCheckKey` returns `canAnswer: true` for them), but it may still need
+ * one to be on screen: the panel withholds a step's check and note box until the
+ * step's action is done (`hasDoneUnitAction`), so anything but a `manual` unit
+ * has to be run first — see `openCheck` and the fixture's `needsRun`. Runs get a
+ * stubbed `/logit_lens/start` returning `{ job_id: null, data }`, the shape
  * `startAndPoll` short-circuits on — while `createLensRun` still writes a real
  * `lens_runs` row, which is what makes the reload tests mean something.
  *
  * The high-value cases, in rough order:
  *   - per check: correct → data-correct="true"/state="fresh"; wrong → "false"
  *     plus the right key in the message; locked after one answer.
+ *   - progressive reveal: a run-gated step renders neither its check nor its note
+ *     box until the prompt has been run, in both check shapes — and an answered
+ *     check and a saved note stay on screen even when the run key is gone.
  *   - R1: answer → reload → the same verdict restated as data-state="prior",
  *     data-correct unchanged. This is the revisit case the pilot got wrong.
  *   - R2: the stale-key reproduction — a run on a later step must not re-key an
@@ -92,6 +98,12 @@ const panel = (page: Page) => page.locator('section[aria-label="Guided tutorial"
 const checkRoot = (page: Page) => panel(page).getByTestId("tutorial-check");
 const verdict = (page: Page) => panel(page).getByTestId("tutorial-check-verdict");
 const stepCounter = (page: Page) => panel(page).getByText(/^Step \d+ of \d+$/);
+/** The note box's textarea, found by the unit's own reflective prompt (its label). */
+const noteField = (page: Page, unitIdx: number) =>
+    panel(page).getByLabel(TUTORIAL_CHECK_CONTENT.units[unitIdx].observationPrompt, {
+        exact: true,
+    });
+const noteSaved = (page: Page) => panel(page).getByText("✓ Thanks — your note was saved.");
 const notesTrigger = (page: Page) =>
     panel(page).getByRole("button", { name: "Your notes from earlier steps" });
 const notesPopover = (page: Page) => page.getByRole("dialog").filter({ hasText: "What you" });
@@ -142,9 +154,28 @@ async function stubBackend(page: Page): Promise<{ finalToken: string }> {
  * so an unguarded write would clobber the participant's own progress on
  * `page.reload()` — and the reload tests are the point of this file.
  */
-async function landOnStep(page: Page, workspaceId: string, unitIdx: number) {
+async function landOnStep(
+    page: Page,
+    workspaceId: string,
+    unitIdx: number,
+    /**
+     * Extra persisted store fields, merged over the blank-slate defaults below.
+     *
+     * The blank slate is what most tests want. This is for staging progress that
+     * the app itself cannot be driven into within one page life — notably a step
+     * whose check is answered and whose note is written while `runTokensByUnit` is
+     * empty, which is exactly the state `pruneRunKeys` leaves behind after a
+     * reload and the state the reveal override has to survive.
+     */
+    extra: Record<string, unknown> = {},
+) {
     await page.addInitScript(
-        (seed: { key: string; workspaceId: string; unitIdx: number }) => {
+        (seed: {
+            key: string;
+            workspaceId: string;
+            unitIdx: number;
+            extra: Record<string, unknown>;
+        }) => {
             try {
                 if (localStorage.getItem(seed.key)) return;
                 localStorage.setItem(
@@ -164,6 +195,7 @@ async function landOnStep(page: Page, workspaceId: string, unitIdx: number) {
                             runTokensByUnit: {},
                             panelPos: null,
                             collapsed: false,
+                            ...seed.extra,
                         },
                         version: 0,
                     }),
@@ -172,7 +204,7 @@ async function landOnStep(page: Page, workspaceId: string, unitIdx: number) {
                 /* about:blank has no accessible storage — the next document does */
             }
         },
-        { key: STORE_KEY, workspaceId, unitIdx },
+        { key: STORE_KEY, workspaceId, unitIdx, extra },
     );
 }
 
@@ -209,12 +241,21 @@ async function answerCheck(page: Page, c: CheckCase, value: string) {
         .click();
 }
 
-/** Open the check: run-scored ones stay shut until this unit has its own run. */
+/**
+ * Get the check on screen and answerable.
+ *
+ * The panel reveals a step's check and note box only once the step's action is
+ * done (`hasDoneUnitAction`), so on anything but a `manual` unit the check does
+ * not exist in the DOM until the prompt has been run — hence `needsRun`, which
+ * the fixture reads off the unit's progression.
+ *
+ * Waits on the check *root*, not on `getByLabel(question)`: that label is the
+ * typed input's accessible name and a choice check has no input at all, so the
+ * old wait silently no-op'd for the shape that now also has to be revealed.
+ */
 async function openCheck(page: Page, c: CheckCase) {
-    if (!c.needsRun) return;
-    await runUnitPrompt(page, c.unitIdx);
-    const root = checkRoot(page);
-    await expect(root.getByLabel(c.question, { exact: true })).toBeVisible({ timeout: 30_000 });
+    if (c.needsRun) await runUnitPrompt(page, c.unitIdx);
+    await expect(checkRoot(page)).toBeVisible({ timeout: 30_000 });
 }
 
 /** The check is locked after one answer, whichever shape it is. */
@@ -325,6 +366,88 @@ test.describe("guided tutorial checks (seeded tutorial, no NDIF)", () => {
             await expectLocked(page, c);
         });
     }
+
+    // ---- Progressive reveal: the check and the note box arrive with the action ----
+
+    // One per check shape, and the shapes are the point. A choice check's answer
+    // key resolves with no run at all, so a reveal wired to the answer-key gate
+    // would leave `u2-inherit` on screen from the start and only the typed case
+    // would fail; a reveal wired to `kind` would do the reverse.
+    for (const unitId of ["u2-inherit", "u4-run-top"] as const) {
+        test(`progressive reveal: ${unitId} withholds its check and note box until the run`, async ({
+            page,
+        }) => {
+            const c = CHECK_CASES.find((x) => x.unitId === unitId)!;
+            // Guard the premise: a `manual` unit reveals immediately and this test
+            // would assert nothing.
+            expect(c.needsRun, `${unitId} must be run-gated for this test to mean anything`).toBe(
+                true,
+            );
+            const u = TUTORIAL_CHECK_CONTENT.units[c.unitIdx];
+
+            await stubBackend(page);
+            await landOnStep(page, checksWorkspaceId, c.unitIdx);
+            await page.goto(checksUrl);
+            await expectPanel(page);
+            await expectStep(page, c.unitIdx);
+
+            // Everything that helps them perform the action is there from the
+            // start. Gating these too would be a different (worse) feature.
+            await expect(panel(page).getByText(u.task, { exact: true })).toBeVisible();
+            await expect(
+                panel(page).getByRole("button", { name: u.prompts[0], exact: true }),
+            ).toBeVisible();
+            await expect(
+                panel(page).getByRole("button", { name: /^Start this step fresh/ }),
+            ).toBeVisible();
+
+            // The two things that were competing with it are not rendered at all —
+            // absent from the DOM, not merely hidden, so a participant cannot tab
+            // into the note box before they have run anything.
+            await expect(checkRoot(page)).toHaveCount(0);
+            await expect(noteField(page, c.unitIdx)).toHaveCount(0);
+
+            await runUnitPrompt(page, c.unitIdx);
+
+            // ...and both arrive together on the one action.
+            await expect(checkRoot(page)).toBeVisible({ timeout: 30_000 });
+            await expect(checkRoot(page)).toContainText(c.question);
+            await expect(noteField(page, c.unitIdx)).toBeVisible();
+        });
+    }
+
+    test("progressive reveal: an answered check and a saved note outrank a pruned run key", async ({
+        page,
+    }) => {
+        // The override, staged rather than driven, because the app cannot be put
+        // into this state inside one page life: `runTokensByUnit` is persisted only
+        // for entries naming a `lens_runs` row and is pruned on load against the
+        // chart's `activeLensRunId` (`pruneRunKeys`), so after a reload a step the
+        // participant genuinely finished can read as never run. Without the
+        // override, the check they already answered and the note they already wrote
+        // would both vanish from the step that holds them.
+        const c = CHECK_CASES.find((x) => x.unitId === "u2-inherit")!;
+        await stubBackend(page);
+        await landOnStep(page, checksWorkspaceId, c.unitIdx, {
+            // Answered and noted, with no run key and the step not marked complete:
+            // each of the three overrides is on its own here.
+            checkAnsweredByUnit: { [c.unitIdx]: true },
+            checkResultByUnit: { [c.unitIdx]: { answer: c.correctAnswer, correct: true } },
+            observationByUnit: { [c.unitIdx]: true },
+            runTokensByUnit: {},
+            completedUnits: [],
+        });
+        await page.goto(checksUrl);
+        await expectPanel(page);
+        await expectStep(page, c.unitIdx);
+
+        // Their own answer, restated.
+        await expect(checkRoot(page)).toBeVisible({ timeout: 15_000 });
+        await expect(verdict(page)).toHaveAttribute("data-state", "prior");
+        await expect(verdict(page)).toHaveAttribute("data-correct", "true");
+        // And their own note, still acknowledged.
+        await expect(noteSaved(page)).toBeVisible();
+    });
 
     test("typed checks label their submit button by whether a verdict is coming", async ({
         page,

@@ -13,7 +13,10 @@
  *  - `u1` `correctIndex: 2` — a hardcoded zero. Also the copy guard: the exact
  *    visible verdict strings are pinned on this unit and nowhere else.
  *  - `u2` no `feedback` field at all — inheritance of the tutorial-level
- *    `checkFeedback`, proved in a real render rather than a unit test.
+ *    `checkFeedback`, proved in a real render rather than a unit test. It is also
+ *    the only *run-gated choice* check here, which is what catches a progressive
+ *    reveal wired to the answer-key gate (`canAnswer`, true for a choice check
+ *    from the start) instead of to the step's action (`hasDoneUnitAction`).
  *  - `u3` `feedback: "neutral"` against a `"verdict"` tutorial — the override,
  *    and the negative case: no verdict element may appear.
  *  - `u4` / `u5` run-scored (`topToken` / `secondToken`) with verdicts. Their
@@ -95,9 +98,9 @@ export const TUTORIAL_CHECK_CONTENT: TutorialContent = {
         }),
         unit({
             id: "u2-inherit",
-            kind: "explore",
+            kind: "lens",
             title: "Inherited feedback",
-            task: "Answer without looking anything up.",
+            task: "Run the prompt, then answer.",
             concept: "This check sets no feedback of its own.",
             prompts: ["Rome is the capital of"],
             hints: [{ stage: 1, text: "Only one of these describes patching." }],
@@ -112,7 +115,13 @@ export const TUTORIAL_CHECK_CONTENT: TutorialContent = {
                 correctIndex: 1,
             },
             observationPrompt: "What do you expect patching to change?",
-            progression: { on: "manual" },
+            // The only run-gated CHOICE check in the fixture, and it is run-gated on
+            // purpose. A choice check's answer key needs no run at all
+            // (`resolveCheckKey` returns `canAnswer: true` immediately), so an
+            // implementation that reused *that* gate for the progressive reveal
+            // would leave every choice check on screen from the start and no other
+            // case here would notice. This unit is what notices.
+            progression: { on: "run" },
         }),
         unit({
             id: "u3-neutral",
@@ -228,7 +237,17 @@ export interface CheckCase {
     kind: "choice" | "topToken" | "secondToken";
     /** What the panel resolves this check's feedback to. */
     feedback: "verdict" | "neutral";
-    /** Run-scored checks stay closed until this unit has its own lens run. */
+    /**
+     * Whether the spec has to run this unit's prompt before the check is on
+     * screen at all.
+     *
+     * Derived from the unit's `progression.on`, never from the check's kind — the
+     * panel's progressive reveal is keyed off the progression (`hasDoneUnitAction`)
+     * and a `manual` step reveals immediately, because there is no action to wait
+     * for and its note submission is the completion gate. So a choice check on a
+     * run-gated unit needs a run even though its answer key needs nothing, and the
+     * manual units below need none even though their checks are gradable.
+     */
     needsRun: boolean;
     /** An answer that must score correct. */
     correctAnswer: string;
@@ -237,6 +256,14 @@ export interface CheckCase {
     /** The key the verdict quotes when the answer is wrong. */
     expectedKey: string;
 }
+
+/**
+ * Read the reveal gate off the content instead of restating it per case, so
+ * re-pointing a fixture unit at a different progression can't leave the spec
+ * waiting for a check that is already on screen (or clicking one that is not).
+ */
+const revealNeedsRun = (idx: number): boolean =>
+    TUTORIAL_CHECK_CONTENT.units[idx].progression.on !== "manual";
 
 const choiceCase = (
     unitId: string,
@@ -253,7 +280,7 @@ const choiceCase = (
         question: check.question,
         kind: "choice",
         feedback,
-        needsRun: false,
+        needsRun: revealNeedsRun(idx),
         correctAnswer: check.options[correctIdx],
         wrongAnswer: check.options[wrongIdx],
         expectedKey: check.options[check.correctIndex],
@@ -270,7 +297,9 @@ const typedCase = (unitId: string, key: string, feedback: "verdict" | "neutral")
         question: check.question,
         kind: check.kind,
         feedback,
-        needsRun: true,
+        // Every typed check in this fixture is run-scored, hence run-gated; read it
+        // off the content anyway so the two shapes agree on where the gate lives.
+        needsRun: revealNeedsRun(idx),
         // Typed without the leading space, which is the whole point of
         // `normalizeAnswer`: a participant cannot type a space marker.
         correctAnswer: key.trim(),

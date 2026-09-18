@@ -323,6 +323,54 @@ export function resolveCheckKey(
 }
 
 /**
+ * Has the participant done the thing this step asks of them?
+ *
+ * The reveal predicate for a step's progressive disclosure: the panel shows the
+ * task, the concept, the prompt bank, the hints and the FAQs straight away, and
+ * holds the embedded check and the note box back until this returns true. A step
+ * that renders all of it at once puts two things to fill in beside the
+ * instruction to go and do something, and the instruction loses.
+ *
+ * Keyed off `progression.on`, which is the only thing that says what this step's
+ * action *is*:
+ *  - `"run"` — a lens run initiated on this unit (its frozen answer key exists).
+ *  - `"patch"` — an intervention applied on this unit.
+ *  - `"manual"` — **always true.** Explore and the final challenge have no action
+ *    to wait for, and on those the note submission is itself the completion gate,
+ *    so gating the box on an action would deadlock the step.
+ *
+ * **Any run reveals, never only a successful one.** A run-gated step can carry a
+ * `successPredicate` (u3-patterns ships `topTokenNotEqual: "10"` — "make the
+ * model get 5+5 wrong"), and requiring it to pass here would hide the check and
+ * the note from precisely the participant whose model *did* answer 10: they ran
+ * the prompt, they have something to report, and they would be shown nothing to
+ * report it in. The predicate governs step *completion*; this governs what is on
+ * screen. They are deliberately different questions.
+ *
+ * Pure and outside the panel for the same reason `resolveCheckKey` is: it is a
+ * per-progression rule with a trap in it, and it should be pinned by tests
+ * rather than read out of a component's JSX.
+ *
+ * @param unit the unit on screen
+ * @param runTokens the frozen key from a lens run initiated on this unit
+ * @param patchToken the target's post-patch top token, from a patch on this unit
+ */
+export function hasDoneUnitAction(
+    unit: TutorialUnit,
+    runTokens: { topToken: string; secondToken: string | null } | undefined,
+    patchToken: string | null,
+): boolean {
+    switch (unit.progression.on) {
+        case "run":
+            return runTokens != null;
+        case "patch":
+            return patchToken != null;
+        case "manual":
+            return true;
+    }
+}
+
+/**
  * What the participant is told about this check's answer.
  *
  * Precedence is the check's own `feedback`, then the tutorial's `checkFeedback`,

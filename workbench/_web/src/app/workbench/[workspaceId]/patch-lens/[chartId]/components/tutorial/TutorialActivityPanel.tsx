@@ -33,6 +33,7 @@ import type {
     UnitCheck,
 } from "@/types/tutorial-content";
 import {
+    hasDoneUnitAction,
     normalizeAnswer,
     resolveCheckFeedback,
     resolveCheckKey,
@@ -274,6 +275,32 @@ export function TutorialActivityPanel({
         store.runTokensByUnit[store.unitIdx],
         patchToken,
     );
+
+    // Progressive reveal. The step leads with the task and everything that helps
+    // the participant carry it out; the check and the note box arrive once they
+    // have actually done it. Rendering all of it at once put two things to fill in
+    // beside "try a prompt", where they compete with the instruction to go and do
+    // the thing the step is about — and the instruction is the one that loses.
+    //
+    // The per-progression rule lives in `hasDoneUnitAction` (run / patch /
+    // manual-is-always), including why *any* run counts and a failing
+    // `successPredicate` must not suppress the reveal.
+    const actionDone = hasDoneUnitAction(unit, store.runTokensByUnit[store.unitIdx], patchToken);
+    // ...and once revealed on this step, it stays revealed. This override is
+    // load-bearing rather than belt-and-braces: `runTokensByUnit` is persisted only
+    // for entries naming a `lens_runs` row, and is pruned on load against the
+    // chart's `activeLensRunId` (`pruneRunKeys`), so a step the participant
+    // genuinely finished can read as un-run after a reload or a revisit. Without
+    // these three, a check they had already answered and a note they had already
+    // written would vanish from the step that holds them — which is the same
+    // "you haven't run anything" regression the frozen answer keys were added to
+    // fix, reintroduced one layer up.
+    const revealActivity =
+        actionDone ||
+        !!store.checkAnsweredByUnit[store.unitIdx] ||
+        !!store.observationByUnit[store.unitIdx] ||
+        completed;
+
     // Clamp the persisted position into the current viewport (a window resize or
     // a different monitor could otherwise place it off-screen). Same bounds as
     // the drag-end clamp; reached only after mount, so `window` exists.
@@ -467,47 +494,72 @@ export function TutorialActivityPanel({
                 </div>
             )}
 
-            {/* Embedded check — auto-scored, log-only */}
-            {unitCheck && (
-                <EmbeddedCheck
-                    key={`check-${store.unitIdx}`}
-                    check={unitCheck}
-                    expected={checkExpected}
-                    placeholder={unit.answerPlaceholder}
-                    // Only answerable once THIS unit's action has run —
-                    // the answer key (a run's tokens, or the patch
-                    // outcome) belongs to this unit, so scoring a
-                    // different unit's answer against it would be wrong.
-                    // A stale result reads as "do the step first" rather
-                    // than auto-scoring.
-                    hasRun={checkHasRun}
-                    // Resolved here, not inside the check: this unit's own
-                    // `feedback` if it sets one, else the tutorial's default.
-                    // Note the first argument is the check, not the unit.
-                    feedback={resolveCheckFeedback(unitCheck, checkFeedback)}
-                    notRunMessage={isPatchUnit ? "Apply the patch first, then answer." : undefined}
-                    // The key travels with the answer: a run-scored key is this
-                    // unit's own run and is gone by the time anyone grades the
-                    // data (see TutorialEventPayload.expected).
-                    onAnswer={(answer, correct, expected) =>
-                        store.answerCheck(answer, correct, {
-                            expected,
-                            checkKind: unitCheck.kind,
-                        })
-                    }
-                    alreadyAnswered={!!store.checkAnsweredByUnit[store.unitIdx]}
-                    priorResult={store.checkResultByUnit[store.unitIdx]}
-                />
-            )}
+            {/* The reflective half of the step: the check and the note box, held
+                back until the participant has done the step's action and then
+                revealed together (see `revealActivity`).
 
-            {/* Observation box */}
-            <ObservationBox
-                key={`obs-${store.unitIdx}`}
-                prompt={unit.observationPrompt}
-                placeholder={unit.observationPlaceholder}
-                submitted={!!store.observationByUnit[store.unitIdx]}
-                onSubmit={handleSaveNote}
-            />
+                Together, not chained. Gating the note on the check being answered
+                was considered and rejected: a participant who skips the check would
+                then never be asked to reflect at all, and on a manual step the note
+                IS the completion gate.
+
+                The wrapper is always mounted and carries the live region, so the
+                insertion of its children is what gets announced. A container that
+                appears at the same moment as its content usually announces nothing —
+                the region has to exist before it changes. Focus deliberately does
+                not move: the participant is reading the heatmap when this fires, and
+                pulling them into the panel mid-run is worse than saying nothing.
+                `empty:hidden` keeps the parent's `gap-3` from doubling up here
+                before the reveal. No animation — the content appears exactly where
+                they are already looking. */}
+            <div aria-live="polite" className="flex flex-col gap-3 empty:hidden">
+                {/* Embedded check — auto-scored, log-only */}
+                {revealActivity && unitCheck && (
+                    <EmbeddedCheck
+                        key={`check-${store.unitIdx}`}
+                        check={unitCheck}
+                        expected={checkExpected}
+                        placeholder={unit.answerPlaceholder}
+                        // Still passed, and still meaningful after the reveal: a
+                        // `secondToken` check whose run returned a single top-k
+                        // entry has no runner-up, so `resolveCheckKey` can return
+                        // `canAnswer: false` on a step that HAS been run. The check
+                        // then reads "run a prompt first" rather than scoring every
+                        // answer against nothing. See EmbeddedCheck's `!hasRun`
+                        // branch, which is not dead code.
+                        hasRun={checkHasRun}
+                        // Resolved here, not inside the check: this unit's own
+                        // `feedback` if it sets one, else the tutorial's default.
+                        // Note the first argument is the check, not the unit.
+                        feedback={resolveCheckFeedback(unitCheck, checkFeedback)}
+                        notRunMessage={
+                            isPatchUnit ? "Apply the patch first, then answer." : undefined
+                        }
+                        // The key travels with the answer: a run-scored key is this
+                        // unit's own run and is gone by the time anyone grades the
+                        // data (see TutorialEventPayload.expected).
+                        onAnswer={(answer, correct, expected) =>
+                            store.answerCheck(answer, correct, {
+                                expected,
+                                checkKind: unitCheck.kind,
+                            })
+                        }
+                        alreadyAnswered={!!store.checkAnsweredByUnit[store.unitIdx]}
+                        priorResult={store.checkResultByUnit[store.unitIdx]}
+                    />
+                )}
+
+                {/* Observation box */}
+                {revealActivity && (
+                    <ObservationBox
+                        key={`obs-${store.unitIdx}`}
+                        prompt={unit.observationPrompt}
+                        placeholder={unit.observationPlaceholder}
+                        submitted={!!store.observationByUnit[store.unitIdx]}
+                        onSubmit={handleSaveNote}
+                    />
+                )}
+            </div>
 
             {/* FAQ callouts */}
             {unit.faqs && unit.faqs.length > 0 && <FaqCallouts faqs={unit.faqs} />}
@@ -901,7 +953,14 @@ function EmbeddedCheck({
             <p className="text-xs font-medium">{check.question}</p>
             {/* A prior answer outranks the "run first" gate: this participant has
                 already answered, so asking them to re-run a prompt to see what they
-                said is busywork — the check is locked either way. */}
+                said is busywork — the check is locked either way.
+
+                This branch is NOT dead now that the panel hides the whole check
+                until the step's action is done. `resolveCheckKey` can still return
+                `canAnswer: false` *after* a run: a `secondToken` check whose top-k
+                came back with a single entry has no runner-up to score against. The
+                two gates ask different questions — "have they done the step" vs "is
+                there a key" — so don't collapse them. */}
             {!hasRun && !priorResult ? (
                 <p className="text-xs text-muted-foreground">
                     {notRunMessage ?? "Run a prompt first, then answer."}
