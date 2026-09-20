@@ -1,18 +1,16 @@
-from fastapi import APIRouter, Request, Depends
 from typing import List, Union
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from ..data_models import NDIFResponse
-
-
-from ..state import AppState
-from ..auth import require_user_email
-from ..state import get_state
-
-from nnsightful.types import ActivationPatchingData
 from nnsightful.tools.activation_patching import activation_patching
 
+from ..auth import require_user_email
+from ..sse import stream_tool
+from ..state import AppState, get_state
+
 router = APIRouter()
+
 
 class ActivationPatchingRequest(BaseModel):
     model_name: str
@@ -23,48 +21,21 @@ class ActivationPatchingRequest(BaseModel):
     tgt_freeze: List[int] = []
     token_ids: List[int]
 
-class ActivationPatchingResponse(NDIFResponse):
-    data: ActivationPatchingData | None = None
 
-
-@router.post("/start", response_model=ActivationPatchingResponse)
-async def start_activation_patching(
+@router.post("/run")
+async def run_activation_patching(
     request: ActivationPatchingRequest,
     state: AppState = Depends(get_state),
     user_email: str = Depends(require_user_email),
 ):
-    model = state[request.model_name]
-    backend = state.make_backend(model=model)
-
-    output = activation_patching._run(
-        model,
+    """Run activation patching, streaming status until the data lands (see ``sse``)."""
+    return stream_tool(
+        state,
+        activation_patching,
+        state[request.model_name],
         request.src_prompt,
         request.tgt_prompt,
         request.src_pos,
         request.tgt_pos,
         request.tgt_freeze,
-        remote=state.remote,
-        backend=backend,
-        non_blocking=state.remote,
-        raw=False,
     )
-
-    if not backend.blocking:
-        return {"job_id": output}
-
-    return {"data": activation_patching.to_data_obj(**output)}
-
-
-@router.post("/results/{job_id}", response_model=ActivationPatchingResponse)
-async def collect_results(
-    job_id: str,
-    request: ActivationPatchingRequest,
-    state: AppState = Depends(get_state),
-    user_email: str = Depends(require_user_email),
-):
-    backend = state.make_backend(job_id=job_id)
-    results = backend()['results']
-
-    data = activation_patching.to_data_obj(**results)
-
-    return {"data": data}

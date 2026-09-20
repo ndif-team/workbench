@@ -17,7 +17,6 @@ export interface DeploymentState {
     model: string;
     phase: DeploymentPhase;
     /** NDIF job id of the in-flight warmup request, once started. */
-    jobId?: string;
     /** Human-readable error when phase === "error". */
     error?: string;
 }

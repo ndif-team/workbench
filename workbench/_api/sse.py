@@ -1,0 +1,166 @@
+"""Server-Sent Events helpers shared by the tool routes.
+
+Every model-touching route is one POST that stays open: the browser gets each
+NDIF status update as it lands and then the finished payload, over a single
+connection. That replaces a three-legged flow — POST /start for a job id, poll
+NDIF directly until COMPLETED, POST /results/{job_id} — and with it the browser's
+need to reach NDIF at all. NDIF is now only ever spoken to from this process.
+
+The event vocabulary is small and every route emits the same one:
+
+    status  a raw nnsight ResponseModel, minus `data` (RECEIVED, QUEUED, RUNNING…)
+    data    the finished payload, JSON-encoded. Exactly one, and it ends the stream
+    error   {"error": "..."}. Also terminal
+
+Once the stream is open a failure has to be an `error` frame rather than an HTTP
+status, because the headers went out when the stream opened and the status line
+is long gone. A route may still fail the ordinary way *before* it starts
+streaming — a 403 for a model the caller cannot use is still a 403 — and the
+client handles both; what it must never see is a request that returns 200 and
+then goes quiet.
+
+Local execution (``REMOTE=false``) is streamed too, as a single `data` frame. It
+has nothing to report, but giving it the same shape keeps the development mode
+off its own path through the UI.
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Any, AsyncIterator, Callable
+
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
+from nnsight.intervention.backends.remote import AsyncRemoteBackend
+from nnsight.schema.response import ResponseModel, Status
+
+MEDIA_TYPE = "text/event-stream"
+
+# Given the dict of saved values NDIF returns, produce what the client should
+# get. Called on the event loop, so it must not block for long -- every one of
+# these is arithmetic over tensors that are already in memory.
+ProcessFn = Callable[[dict], Any]
+
+# Sent to whatever sits in front of this app. SSE only works if nothing between
+# here and the browser buffers the response: nginx (and the ingress in front of
+# the preview deployments) buffers proxied responses by default, which holds
+# every frame until the stream closes and turns live status into one burst at
+# the end.
+HEADERS = {
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+}
+
+
+def sse_event(event: str, data: str) -> str:
+    """Format one SSE frame."""
+    return f"event: {event}\ndata: {data}\n\n"
+
+
+def jsonify(payload: Any) -> str:
+    """JSON-encode a payload that may be, or contain, pydantic models.
+
+    ``jsonable_encoder`` is what FastAPI applied itself when these routes still
+    declared a ``response_model``; a frame is written by hand now, so it has to be
+    applied here. Not just ``model_dump_json`` on the top level: a payload is
+    often a plain dict or list with models *inside* it — a generation's
+    ``completion`` is a list of ``Token`` — which plain ``json.dumps`` refuses.
+    """
+    return json.dumps(jsonable_encoder(payload))
+
+
+def stream(result: Any, process: ProcessFn) -> StreamingResponse:
+    """The SSE response for a run, however that run turned out.
+
+    ``result`` is what tracing produced, and it comes in two shapes: an
+    ``AsyncRemoteBackend`` to follow, or — when the model ran in this process —
+    the saved values themselves. Dispatching on the object rather than on
+    ``state.remote`` keeps this in step with what the trace actually did, since
+    that flag is what decided the shape in the first place.
+
+    ``process`` turns saved values into the client's payload and runs either way:
+    a local run has no status to report, so it is one `data` frame and the client
+    cannot tell the difference. That is the point — ``REMOTE=false`` is a
+    development mode, and it should not need its own path through the UI.
+    """
+    frames = (
+        backend_frames(result, process)
+        if isinstance(result, AsyncRemoteBackend)
+        else value_frames(process(result))
+    )
+    return StreamingResponse(frames, media_type=MEDIA_TYPE, headers=HEADERS)
+
+
+def stream_tool(state, tool, model, *args: Any, **kwargs: Any) -> StreamingResponse:
+    """Run an nnsightful tool and stream it — the whole of what a tool route does.
+
+    Three of them (logit lens, j-lens, activation patching) differ only in which
+    tool and which arguments, so they say exactly that and nothing else.
+
+    The tool's ``to_data_obj`` is what turns NDIF's dict of saved values into the
+    payload. That dict is keyed by the *name of the variable the tool saved*,
+    which for every nnsightful tool is ``results`` — so unwrapping that key is
+    what turns NDIF's reply into the tool's own arguments. It is a real coupling
+    to the tool's internals, and it is the one the previous collect routes had too
+    (``backend()["results"]``).
+    """
+    if not state.remote:
+        # The tool has already shaped this one: `__call__` ends in to_data_obj.
+        return stream(tool(model, *args, remote=False, **kwargs), lambda data: data)
+
+    backend = state.make_backend(model)
+    # Submits on the trace's exit and returns; the awaiting happens in the
+    # stream. `non_blocking` keeps the tool from reaching for a result that, on
+    # this path, arrives long after the block's frame is gone.
+    tool._run(
+        model,
+        *args,
+        remote=True,
+        backend=backend,
+        non_blocking=True,
+        raw=False,
+        **kwargs,
+    )
+
+    return stream(backend, lambda saves: tool.to_data_obj(**saves["results"]))
+
+
+async def backend_frames(backend, process: ProcessFn) -> AsyncIterator[str]:
+    """Drive an ``AsyncRemoteBackend``, yielding SSE frames for what it reports.
+
+    nnsight's async backend yields raw ``ResponseModel`` updates and then, once the
+    job completes, the downloaded dict of saved values as its final item — so the
+    type of the yielded object, not a status check, is what says "this is the
+    result". Deliberately the *raw* stream: it neither renders nnsight's terminal
+    display nor raises on a server-side error, which is what lets an ERROR become
+    an `error` frame here rather than a traceback out of a half-written response.
+
+    Nothing is sent to fill the silences between updates. A job can sit QUEUED or
+    loading for minutes with nothing to report, and the nginx ingress in front of
+    the preview deployments will cut a connection idle for 60s
+    (``proxy-read-timeout``, not overridden in ``deploy/preview/values.yaml``). If
+    that starts biting, the fix is that annotation or a comment frame here.
+    """
+    try:
+        async for update in backend:
+            if not isinstance(update, ResponseModel):
+                # The saved values, which only arrive after COMPLETED.
+                yield sse_event("data", jsonify(process(update)))
+                continue
+
+            # Forward the status as-is. `data` is dropped: on COMPLETED it is the
+            # object-store URL, which is this process's business and often signed
+            # for a host the browser cannot reach anyway.
+            yield sse_event("status", update.model_dump_json(exclude={"data"}))
+            if update.status == Status.ERROR:
+                yield sse_event("error", json.dumps({"error": update.description}))
+    except Exception as error:
+        # Includes anything `process` raised. The stream has to close cleanly
+        # either way, so the exception becomes the last frame.
+        yield sse_event("error", json.dumps({"error": str(error)}))
+
+
+async def value_frames(value: Any) -> AsyncIterator[str]:
+    """A one-frame stream: for local execution, which has nothing to report."""
+    yield sse_event("data", jsonify(value))

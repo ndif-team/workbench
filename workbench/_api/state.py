@@ -7,7 +7,7 @@ from fastapi import Request
 
 from nnsight import CONFIG
 from nnterp import StandardizedTransformer
-from nnsight.intervention.backends.remote import RemoteBackend
+from nnsight.intervention.backends.remote import AsyncRemoteBackend
 
 from .data_models import ModelHeat
 
@@ -226,25 +226,27 @@ class AppState:
         """
         return self._metadata.all_dumped()
 
-    def make_backend(self, model: StandardizedTransformer | None = None, job_id: str | None = None):
+    def make_backend(self, model: StandardizedTransformer):
         """Create an nnsight backend for the current deployment mode.
 
-        Returns a ``RemoteBackend`` when ``self.remote`` is True, otherwise
-        ``None`` (local execution uses the in-process model directly).
+        Returns an ``AsyncRemoteBackend`` when ``self.remote`` is True, otherwise
+        ``None`` — local execution runs the model in this process and has no
+        backend and nothing to stream.
+
+        The async backend submits the moment the trace block exits, exactly as the
+        blocking one does; what differs is that it then hands back the status
+        updates instead of consuming them, so a route can forward each to the
+        browser (see ``sse.stream_backend``). Nothing here holds a job id: a
+        request now lives for one HTTP connection rather than being started,
+        polled and collected across three.
 
         Args:
-            model: Loaded wrapper; its model key is forwarded to NDIF when
-                starting a new remote job.
-            job_id: Existing NDIF job ID for polling results.
+            model: Loaded wrapper; its model key tells NDIF what to run on.
         """
-        if self.remote:
-            return RemoteBackend(
-                job_id=job_id,
-                blocking=False,
-                model_key=model.to_model_key() if model is not None else None,
-            )
-        else:
+        if not self.remote:
             return None
+
+        return AsyncRemoteBackend(model.to_model_key())
 
     def __getitem__(self, model_name: str):
         """Alias for ``get_model`` — enables ``state[model_name]`` in handlers."""

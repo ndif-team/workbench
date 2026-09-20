@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { toast } from "sonner";
 
 import type { DeploymentPhase, DeploymentState } from "@/types/deployment";
-import { submitWarmup, pollUntilDeployed, DeploymentError } from "@/lib/api/deployApi";
+import { deployModel, DeploymentError } from "@/lib/api/deployApi";
 
 /** Deploy toasts read a touch lighter than the default — a translucent popover
  * surface with a subtle blur instead of a fully opaque panel. The blur earns
@@ -59,20 +59,13 @@ export const useModelDeployment = create<ModelDeploymentStore>()((set, get) => {
         });
 
     const run = async (model: string) => {
-        setPhase(model, { phase: "submitting", error: undefined, jobId: undefined });
+        setPhase(model, { phase: "submitting", error: undefined });
         try {
-            const jobId = await submitWarmup(model);
-            if (!jobId) {
-                // Local backend (or non-remote): the model is effectively
-                // available immediately.
-                setPhase(model, { phase: "ready" });
-                toast.success(`${model.split("/").pop()} is now available`, {
-                    style: DEPLOY_TOAST_STYLE,
-                });
-                return;
-            }
-            setPhase(model, { phase: "deploying", jobId });
-            await pollUntilDeployed(jobId);
+            // One request that stays open until the warmup generation returns.
+            // A local (non-remote) backend answers it immediately; a cold remote
+            // one takes as long as the load does.
+            setPhase(model, { phase: "deploying" });
+            await deployModel(model);
             setPhase(model, { phase: "ready" });
             toast.success(`${model.split("/").pop()} is now available`, {
                 description: "The model is deployed and ready to run.",

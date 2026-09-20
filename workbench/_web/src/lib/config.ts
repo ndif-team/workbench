@@ -1,40 +1,26 @@
 // Configuration for the application
 
+// Every model-touching endpoint is one streaming POST (see runAndStream.ts).
+// There is deliberately no NDIF URL here: the browser talks only to this app's
+// own backend, which is the only thing that speaks to NDIF.
 const config = {
     backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000",
-    ndifUrl:
-        process.env.NEXT_PUBLIC_LOCAL_NDIF === "true"
-            ? "http://localhost:5001"
-            : "https://api.ndif.us",
     endpoints: {
-        startLensLine: "/lens/start-line",
-        resultsLensLine: (jobId: string) => `/lens/results-line/${jobId}`,
+        // Lens v1 — hidden, do not extend (see CLAUDE.md).
+        runLensLine: "/lens/run-line",
+        runLensGrid: "/lens/run-grid",
 
-        startLensGrid: "/lens/start-grid",
-        resultsLensGrid: (jobId: string) => `/lens/results-grid/${jobId}`,
+        runLens2: "/logit_lens/run",
+        runJLens: "/j_lens/run",
+        runCausalMediation: "/causal_mediation/run",
+        runActivationPatching: "/activation_patching/run",
 
-        startLens2: "/logit_lens/start",
-        resultsLens2: (jobId: string) => `/logit_lens/results/${jobId}`,
-
-        startJLens: "/j_lens/start",
-        resultsJLens: (jobId: string) => `/j_lens/results/${jobId}`,
-
-        startCausalMediation: "/causal_mediation/start",
-        resultsCausalMediation: (jobId: string) => `/causal_mediation/results/${jobId}`,
-
-        startActivationPatching: "/activation_patching/start",
-        resultsActivationPatching: (jobId: string) => `/activation_patching/results/${jobId}`,
-
-        startPrediction: "/models/start-prediction",
-        resultsPrediction: (jobId: string) => `/models/results-prediction/${jobId}`,
-
-        startGenerate: "/models/start-generate",
-        resultsGenerate: (jobId: string) => `/models/results-generate/${jobId}`,
+        runPrediction: "/models/run-prediction",
+        runGenerate: "/models/run-generate",
 
         models: "/models/",
     },
     getApiUrl: (endpoint: string) => `${config.backendUrl}${endpoint}`,
-    ndifStatusUrl: (jobId: string) => `${config.ndifUrl}/response/${jobId}`,
 } as const;
 
 export default config;
