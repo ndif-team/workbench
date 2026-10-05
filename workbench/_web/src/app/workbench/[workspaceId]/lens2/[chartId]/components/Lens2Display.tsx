@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
@@ -16,6 +16,7 @@ import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
+import { isVisualTestMode, maskLogitLensDataForVisualTest } from "@/lib/visualTest";
 
 interface Lens2Chart {
     id: string;
@@ -66,6 +67,14 @@ export function Lens2Display() {
     const lens2Chart = chart as Lens2Chart | undefined;
     const lens2Config = config as Lens2Config | undefined;
     const hasData = lens2Chart?.data && "meta" in lens2Chart.data;
+
+    // In visual-test mode, blank the noisy heatmap values so Argos snapshots
+    // are deterministic against real NDIF (keeps only the final prediction).
+    const widgetData = useMemo(() => {
+        const raw = lens2Chart?.data as LogitLensData | undefined;
+        if (!raw || !hasData) return raw;
+        return isVisualTestMode() ? maskLogitLensDataForVisualTest(raw) : raw;
+    }, [lens2Chart?.data, hasData]);
 
     // ── Persist heatmap UI state (pins, selection, layer window, appearance)
     // into the chart config, mirroring ActivationPatchingDisplay. Debounced
@@ -218,7 +227,7 @@ export function Lens2Display() {
                 {stale && chartModel && <ChartModelPill modelName={chartModel} />}
             </div>
             <LogitLensWidget
-                data={lens2Chart.data! as LogitLensData}
+                data={widgetData as LogitLensData}
                 darkMode={isDarkMode}
                 uiState={savedUiState}
                 onStateChange={handleStateChange}
