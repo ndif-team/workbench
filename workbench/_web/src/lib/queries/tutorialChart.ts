@@ -53,6 +53,10 @@ const replaceChartIds = (
 };
 
 export async function pushTutorialChart(workspaceId: string) {
+    // No pre-flight ownership check: the first DB write below (createLensChartPair)
+    // guards the workspace via requireWorkspaceOwner before anything is inserted,
+    // and every create/update helper re-checks — so a non-owner throws before any
+    // row is written.
     const createdCharts = [];
 
     // Tutorial chart 1 - Translation (Heatmap)

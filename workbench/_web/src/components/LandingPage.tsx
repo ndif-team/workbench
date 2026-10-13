@@ -265,7 +265,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
 
     const { data: workspacesList } = useQuery({
         queryKey: ["workspaces", currentUser?.id],
-        queryFn: () => getWorkspaces(currentUser!.id),
+        queryFn: () => getWorkspaces(),
         enabled: !!isSignedInUser,
     });
 

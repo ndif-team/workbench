@@ -4,12 +4,16 @@ import { db } from "@/db/client";
 import { workspaces, charts, documents } from "@/db/schema";
 import { eq, and, sql, desc, isNull } from "drizzle-orm";
 import type { ProlificParams } from "@/lib/prolific";
+import { requireUserId, requireWorkspaceOwner } from "@/lib/auth/ownership";
 
 export async function getWorkspaceById(workspaceId: string) {
+    // Scoped to the caller: the row carries user_id + prolific identifiers, so an
+    // unowned id must read as "not found" rather than leak another user's data.
+    const userId = await requireUserId();
     const [workspace] = await db
         .select()
         .from(workspaces)
-        .where(eq(workspaces.id, workspaceId))
+        .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
         .limit(1);
 
     return workspace || null;
@@ -18,8 +22,8 @@ export async function getWorkspaceById(workspaceId: string) {
 export async function updateWorkspace(
     workspaceId: string,
     updates: { name?: string; public?: boolean },
-    userId: string,
 ) {
+    const userId = await requireUserId();
     const [updatedWorkspace] = await db
         .update(workspaces)
         .set(updates)
@@ -33,7 +37,8 @@ export async function updateWorkspace(
     return updatedWorkspace;
 }
 
-export const getWorkspaces = async (userId: string) => {
+export const getWorkspaces = async () => {
+    const userId = await requireUserId();
     const workspaceList = await db
         .select({
             id: workspaces.id,
@@ -54,32 +59,11 @@ export const getWorkspaces = async (userId: string) => {
     return workspaceList;
 };
 
-export const deleteWorkspace = async (userId: string, workspaceId: string) => {
+export const deleteWorkspace = async (workspaceId: string) => {
+    const userId = await requireUserId();
     await db
         .delete(workspaces)
         .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)));
-};
-
-export const touchWorkspace = async (workspaceId: string) => {
-    await db
-        .update(workspaces)
-        .set({ updatedAt: new Date() })
-        .where(eq(workspaces.id, workspaceId));
-};
-
-export const getNextWorkspaceItemPosition = async (workspaceId: string): Promise<number> => {
-    const [chartRows, docRows] = await Promise.all([
-        db
-            .select({ max: sql<number | null>`max(${charts.position})` })
-            .from(charts)
-            .where(eq(charts.workspaceId, workspaceId)),
-        db
-            .select({ max: sql<number | null>`max(${documents.position})` })
-            .from(documents)
-            .where(eq(documents.workspaceId, workspaceId)),
-    ]);
-    const maxPos = Math.max(Number(chartRows[0]?.max ?? -1), Number(docRows[0]?.max ?? -1));
-    return maxPos + 1;
 };
 
 export type WorkspaceItemKind = "chart" | "report";
@@ -88,6 +72,10 @@ export const reorderWorkspaceItems = async (
     workspaceId: string,
     items: { kind: WorkspaceItemKind; id: string }[],
 ): Promise<void> => {
+    // Both the workspace and every item are re-scoped: the workspace by owner,
+    // and each update by `workspace_id` so a foreign chart/doc id can't be
+    // slipped into another user's reorder batch.
+    await requireWorkspaceOwner(workspaceId);
     await db.transaction(async (tx: typeof db) => {
         for (let i = 0; i < items.length; i++) {
             const { kind, id } = items[i];
@@ -106,13 +94,12 @@ export const reorderWorkspaceItems = async (
     });
 };
 
-// Wrapped versions for use with server actions/components that use withAuth
 export const createWorkspace = async (
-    userId: string,
     name: string,
     workshopId?: string,
     prolific?: ProlificParams | null,
 ) => {
+    const userId = await requireUserId();
     const [workspace] = await db
         .insert(workspaces)
         .values({
@@ -134,6 +121,7 @@ export const setWorkspaceProlificIfEmpty = async (
     workspaceId: string,
     prolific: ProlificParams,
 ) => {
+    await requireWorkspaceOwner(workspaceId);
     await db
         .update(workspaces)
         .set({ prolific })

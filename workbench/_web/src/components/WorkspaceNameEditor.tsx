@@ -6,28 +6,14 @@ import { useQuery } from "@tanstack/react-query";
 import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { useUpdateWorkspaceName } from "@/lib/api/workspaceApi";
 import { queryKeys } from "@/lib/queryKeys";
-import { createClient } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
 
 export function WorkspaceNameEditor() {
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const [localName, setLocalName] = useState<string | null>(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [userId, setUserId] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Get user ID
-    useEffect(() => {
-        const getUser = async () => {
-            const supabase = createClient();
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-            setUserId(user?.id ?? null);
-        };
-        getUser();
-    }, []);
 
     // Fetch workspace data
     const { data: workspace, isLoading } = useQuery({
@@ -59,7 +45,7 @@ export function WorkspaceNameEditor() {
     // Save name (debounced)
     const saveName = useCallback(
         (newName: string) => {
-            if (!workspaceId || !userId) return;
+            if (!workspaceId) return;
 
             if (saveTimeoutRef.current) {
                 clearTimeout(saveTimeoutRef.current);
@@ -67,11 +53,11 @@ export function WorkspaceNameEditor() {
 
             saveTimeoutRef.current = setTimeout(() => {
                 if (newName.trim()) {
-                    updateName({ workspaceId, name: newName.trim(), userId });
+                    updateName({ workspaceId, name: newName.trim() });
                 }
             }, 500);
         },
-        [workspaceId, userId, updateName],
+        [workspaceId, updateName],
     );
 
     // Handle name change

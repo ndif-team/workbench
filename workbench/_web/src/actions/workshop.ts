@@ -102,7 +102,7 @@ export async function joinWorkshopAction(
     // insert conflicts and it reuses the winner's workspace.
     let workspace;
     try {
-        workspace = await createWorkspace(user.id, workshop.name, workshop.id, prolific);
+        workspace = await createWorkspace(workshop.name, workshop.id, prolific);
     } catch (err) {
         if (!isUniqueViolation(err)) throw err;
         const winner = await getWorkshopWorkspaceForUser(user.id, workshop.id);
