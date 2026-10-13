@@ -197,11 +197,51 @@ const activationPatchingHandler: NotebookToolHandler = {
     },
 };
 
+// ── Logit Lens handler ───────────────────────────────────────────────
+
+const logitLensHandler: NotebookToolHandler = {
+    templateName: "logit-lens",
+
+    buildParameterSource(config) {
+        const prompt = escapePythonTripleDoubleQuoted((config.prompt as string) ?? "");
+        const topk = (config.topk as number) ?? 5;
+        const includeEntropy = (config.includeEntropy as boolean) ?? true;
+
+        return [
+            `prompt = """${prompt}"""`,
+            `top_k = ${topk}`,
+            `include_entropy = ${includeEntropy ? "True" : "False"}`,
+        ].join("\n");
+    },
+
+    buildConfigSource(config) {
+        const model = (config.model as string) ?? "";
+        return [`MODEL_NAME = "${model}"`, `REMOTE = True`].join("\n");
+    },
+
+    buildVisualizationPayload(chartData, config) {
+        // The widget consumes the full LogitLensData object (meta, layers,
+        // input, tracked, topk, entropy, positions) — the same shape stored as
+        // chart data. Skip embedding until the lens has actually been computed.
+        if (!chartData || !("meta" in chartData)) return null;
+
+        const uiState = (config.uiState as Record<string, unknown> | undefined) ?? {};
+
+        return {
+            widget: "LogitLensWidget",
+            widgetKey: "logit_lens",
+            data: chartData,
+            options: uiState,
+        };
+    },
+};
+
 // ── Handler registry ─────────────────────────────────────────────────
 // Add new tool handlers here as they're implemented.
 
 const toolHandlers: Record<string, NotebookToolHandler> = {
     "activation-patching": activationPatchingHandler,
+    lens2: logitLensHandler,
 };
 
 // ── Public API ───────────────────────────────────────────────────────
