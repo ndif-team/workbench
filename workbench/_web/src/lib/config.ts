@@ -4,7 +4,7 @@ const config = {
     backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000",
     ndifUrl:
         process.env.NEXT_PUBLIC_LOCAL_NDIF === "true"
-            ? "http://localhost:5001"
+            ? "http://localhost:8001"
             : "https://api.ndif.us",
     endpoints: {
         startLensLine: "/lens/start-line",
