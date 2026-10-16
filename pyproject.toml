@@ -20,6 +20,7 @@ dependencies = [
     # architectures land in our env: OLMo 3, recent Gemma, etc.
     "transformers>=5.11.0",
     "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git",
+    "requests>=2.32.5",
 ]
 
 [project.optional-dependencies]
