@@ -9,6 +9,9 @@ import { JLensConfigData } from "@/types/jlens";
 import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { PatchLensChartData } from "@/types/patchLens";
+import type { AlgorithmHypothesisChartData } from "@/types/algorithmHypothesis";
+import { createAlgorithm, duplicateAlgorithm } from "@/lib/queries/algorithmQueries";
+import { blankAlgorithm, DEFAULT_PROMPT } from "@/lib/algorithmHypothesis/grids";
 import { eq, asc, desc, sql } from "drizzle-orm";
 import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
 // From workshopDb (not workshopQueries) — workshopQueries imports the chart
@@ -63,7 +66,8 @@ type ConfigPayload =
     | { type: "jlens"; data: JLensConfigData }
     | { type: "patch"; data: PatchingConfig }
     | { type: "activation-patching"; data: ActivationPatchingConfigData }
-    | { type: "patch-lens"; data: Record<string, never> };
+    | { type: "patch-lens"; data: Record<string, never> }
+    | { type: "algorithm-hypothesis"; data: Record<string, never> };
 
 // Creates a chart, its config, and the link between them, with the chart
 // positioned at the bottom of the unified sidebar list.
@@ -74,6 +78,9 @@ const createChartConfigPair = async (
     // prompts on the chart (not the config), so seeding a starter prompt for a
     // patch-lens chart flows through here.
     chartData?: ChartData,
+    // Stamped on the chart row at creation for tools whose sidebar card should
+    // show their label before the first save (other tools set it on first run).
+    chartType?: ChartType,
 ): Promise<{ chart: Chart; config: Config }> => {
     // Workshop workspaces only allow their configured tools. The sidebar
     // filters its buttons, but every create wrapper here is a public server
@@ -85,7 +92,12 @@ const createChartConfigPair = async (
     const position = await getNextWorkspaceItemPosition(workspaceId);
     const [newChart] = await db
         .insert(charts)
-        .values({ workspaceId, position, ...(chartData !== undefined ? { data: chartData } : {}) })
+        .values({
+            workspaceId,
+            position,
+            ...(chartData !== undefined ? { data: chartData } : {}),
+            ...(chartType ? { type: chartType } : {}),
+        })
         .returning();
     const [newConfig] = await db
         .insert(configs)
@@ -114,6 +126,21 @@ export const createPatchLensChartPair = async (
     workspaceId: string,
     chartData?: PatchLensChartData,
 ) => createChartConfigPair(workspaceId, { type: "patch-lens", data: {} }, chartData);
+
+/** A new Algorithm Hypothesis chart, pointing at a new blank algorithm. */
+export const createAlgorithmHypothesisChartPair = async (workspaceId: string) => {
+    const algorithm = await createAlgorithm(workspaceId, blankAlgorithm());
+    const chartData: AlgorithmHypothesisChartData = {
+        algorithmId: algorithm.id,
+        prompt: DEFAULT_PROMPT,
+    };
+    return createChartConfigPair(
+        workspaceId,
+        { type: "algorithm-hypothesis", data: {} },
+        chartData,
+        "algorithm-hypothesis",
+    );
+};
 
 export const createPatchChartPair = async (workspaceId: string, defaultConfig: PatchingConfig) =>
     createChartConfigPair(workspaceId, { type: "patch", data: defaultConfig });
@@ -257,6 +284,17 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
         const rest = { ...(copiedData as Record<string, unknown>) };
         delete rest.activeLensRunId;
         copiedData = rest as typeof originalChart.data;
+    }
+    // An Algorithm Hypothesis copy gets its own algorithm, so editing one chart
+    // doesn't change the other.
+    if (
+        originalChart.type === "algorithm-hypothesis" &&
+        copiedData &&
+        typeof copiedData === "object"
+    ) {
+        const data = copiedData as AlgorithmHypothesisChartData;
+        const algorithm = await duplicateAlgorithm(data.algorithmId);
+        if (algorithm) copiedData = { ...data, algorithmId: algorithm.id };
     }
 
     const position = await getNextWorkspaceItemPosition(originalChart.workspaceId);

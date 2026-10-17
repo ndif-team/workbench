@@ -30,6 +30,8 @@ const TOOL_SUPPORT: Record<ToolType, ToolSupport> = {
     lens2: { supportsAll: true },
     "activation-patching": { supportsAll: true },
     "patch-lens": { supportsAll: true },
+    // Runs no model: it only borrows a model's tokenizer and layer count.
+    "algorithm-hypothesis": { supportsAll: true },
     patch: { supportsAll: true },
     jlens: {
         supportsAll: false,

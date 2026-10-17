@@ -6,6 +6,7 @@ import {
     createLens2ChartPair,
     createJLensChartPair,
     createPatchLensChartPair,
+    createAlgorithmHypothesisChartPair,
     createPatchChartPair,
     createActivationPatchingChartPair,
     updateChartName,
@@ -309,6 +310,22 @@ export const useCreatePatchLensChartPair = () => {
         },
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+        },
+    });
+};
+
+export const useCreateAlgorithmHypothesisChartPair = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ workspaceId }: { workspaceId: string }) => {
+            return await createAlgorithmHypothesisChartPair(workspaceId);
+        },
+        onSuccess: (_, { workspaceId }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.algorithms.byWorkspace(workspaceId),
+            });
         },
     });
 };

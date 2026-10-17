@@ -56,6 +56,8 @@ export default async function Page({
         redirect(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
     } else if (chartType === "patch-lens") {
         redirect(`/workbench/${workspaceId}/patch-lens/${chart.id}`);
+    } else if (chartType === "algorithm-hypothesis") {
+        redirect(`/workbench/${workspaceId}/algorithm-hypothesis/${chart.id}`);
     } else {
         redirect(`/workbench/${workspaceId}/${chart.id}`);
     }

@@ -1,0 +1,22 @@
+[project]
+name = "algorithm-hypothesis"
+version = "0.1.0"
+description = "Algorithms placed on a transformer's layers × tokens grid, compiled to causalab and intervened on."
+requires-python = ">=3.10"
+# Needs causalab.causal on the path. That module uses only the standard library,
+# so causalab is not a declared dependency (installing it pulls in torch).
+# Set CAUSALAB_PATH, or keep causalab checked out next to this project.
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8", "jsonschema>=4"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/algorithm_hypothesis"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

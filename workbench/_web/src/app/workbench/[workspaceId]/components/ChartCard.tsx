@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Grid3X3, ChartLine, Trash2, Copy, MoreVertical, GitBranch } from "lucide-react";
+import { Grid3X3, ChartLine, Trash2, Copy, MoreVertical, GitBranch, Workflow } from "lucide-react";
 import { ChartMetadata, ChartType } from "@/types/charts";
 import { PatchLensIcon } from "@/components/PatchLensIcon";
 import { JLensIcon } from "@/components/JLensIcon";
@@ -30,6 +30,7 @@ const TOOL_META: Record<
     jlens: { label: "J-Lens", Icon: JLensIcon },
     "activation-patching": { label: "Act. Patching", Icon: GitBranch },
     "patch-lens": { label: "Patch Lens", Icon: PatchLensIcon },
+    "algorithm-hypothesis": { label: "Algorithm", Icon: Workflow },
 };
 
 export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCardProps) {
@@ -59,6 +60,11 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
             router.push(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
         } else if (chart.toolType === "patch-lens" || chart.chartType === "patch-lens") {
             router.push(`/workbench/${workspaceId}/patch-lens/${chart.id}`);
+        } else if (
+            chart.toolType === "algorithm-hypothesis" ||
+            chart.chartType === "algorithm-hypothesis"
+        ) {
+            router.push(`/workbench/${workspaceId}/algorithm-hypothesis/${chart.id}`);
         } else {
             router.push(`/workbench/${workspaceId}/${chart.id}`);
         }

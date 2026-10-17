@@ -9,6 +9,7 @@ import {
     workshops as sqliteWorkshops,
     tutorials as sqliteTutorials,
     tutorialEvents as sqliteTutorialEvents,
+    algorithms as sqliteAlgorithms,
 } from "./schema.sqlite";
 import {
     workspaces as pgWorkspaces,
@@ -21,6 +22,7 @@ import {
     workshops as pgWorkshops,
     tutorials as pgTutorials,
     tutorialEvents as pgTutorialEvents,
+    algorithms as pgAlgorithms,
 } from "./schema.pg";
 import type { LensConfigData } from "@/types/lens";
 import type { HeatmapRow, HeatmapViewData, LineViewData, Line } from "@/types/charts";
@@ -38,6 +40,7 @@ export const lensRuns = isLocal ? sqliteLensRuns : pgLensRuns;
 export const workshops = isLocal ? sqliteWorkshops : pgWorkshops;
 export const tutorials = isLocal ? sqliteTutorials : pgTutorials;
 export const tutorialEvents = isLocal ? sqliteTutorialEvents : pgTutorialEvents;
+export const algorithms = isLocal ? sqliteAlgorithms : pgAlgorithms;
 
 // Identical in both schema files; re-exported from one for a single import site.
 export { workshopTools } from "./schema.pg";
@@ -73,6 +76,8 @@ export type NewTutorial = typeof tutorials.$inferInsert;
 
 export type TutorialEvent = typeof tutorialEvents.$inferSelect;
 export type NewTutorialEvent = typeof tutorialEvents.$inferInsert;
+
+export type AlgorithmRow = typeof algorithms.$inferSelect;
 
 export type HeatmapView = Omit<View, "data"> & {
     data: HeatmapViewData;

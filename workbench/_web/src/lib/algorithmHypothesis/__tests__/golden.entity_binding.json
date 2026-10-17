@@ -1,0 +1,11182 @@
+{
+ "prompts": {
+  "target": "Ann loves ale, Joe loves jam, Pete loves pie, Tim loves tea. What does Tim love?",
+  "source": "Joe loves ale, Ann loves pie, Pete loves jam, Tim loves tea. What does Ann love?",
+  "source_cod": "Joe loves ale, Ann loves cod, Pete loves jam, Tim loves tea. What does Ann love?"
+ },
+ "tokens": {
+  "target": [
+   "Ann",
+   "loves",
+   "ale",
+   ",",
+   "Joe",
+   "loves",
+   "jam",
+   ",",
+   "Pete",
+   "loves",
+   "pie",
+   ",",
+   "Tim",
+   "loves",
+   "tea",
+   ".",
+   "What",
+   "does",
+   "Tim",
+   "love",
+   "?"
+  ],
+  "source": [
+   "Joe",
+   "loves",
+   "ale",
+   ",",
+   "Ann",
+   "loves",
+   "pie",
+   ",",
+   "Pete",
+   "loves",
+   "jam",
+   ",",
+   "Tim",
+   "loves",
+   "tea",
+   ".",
+   "What",
+   "does",
+   "Ann",
+   "love",
+   "?"
+  ],
+  "source_cod": [
+   "Joe",
+   "loves",
+   "ale",
+   ",",
+   "Ann",
+   "loves",
+   "cod",
+   ",",
+   "Pete",
+   "loves",
+   "jam",
+   ",",
+   "Tim",
+   "loves",
+   "tea",
+   ".",
+   "What",
+   "does",
+   "Ann",
+   "love",
+   "?"
+  ]
+ },
+ "primitives": {
+  "position_id": {
+   "label": "Position ID",
+   "slots": [
+    {
+     "name": "token",
+     "type": {
+      "kind": "string"
+     }
+    },
+    {
+     "name": "specials",
+     "type": {
+      "kind": "list",
+      "of": {
+       "kind": "string"
+      }
+     }
+    }
+   ],
+   "returns": {
+    "kind": "pair",
+    "key": {
+     "kind": "position"
+    },
+    "value": {
+     "kind": "string"
+    }
+   },
+   "options": [],
+   "source": "def position_id(token: str, specials: list[str]) -> Pair[Position, str]:\n    \"\"\"The token's position ID, stored as position ID : token. Each distinct\n    special token (such as a name) gets the next ID in order of first\n    appearance, so a name mentioned again gets its first mention's ID.\n    `specials` are the special tokens up to this one; a possessive ('s) is\n    ignored when comparing them.\"\"\"\n\n    def name(t):\n        return str(t).strip().split(\"'\")[0]\n\n    ids = {}\n    for t in specials:\n        if t is not None:\n            ids.setdefault(name(t), len(ids) + 1)\n    if token is None or name(token) not in ids:\n        return None\n    return Pair(ids[name(token)], token)\n"
+  },
+  "copy": {
+   "label": "Copy",
+   "slots": [
+    {
+     "name": "x",
+     "type": {
+      "kind": "var",
+      "name": "T"
+     }
+    }
+   ],
+   "returns": {
+    "kind": "var",
+    "name": "T"
+   },
+   "options": [],
+   "source": "def copy(x: T) -> T:\n    \"\"\"The value, unchanged, in another cell. Copying a token carries the\n    token itself.\"\"\"\n    return x\n"
+  },
+  "pair": {
+   "label": "Pair",
+   "slots": [
+    {
+     "name": "key",
+     "type": {
+      "kind": "var",
+      "name": "K"
+     }
+    },
+    {
+     "name": "value",
+     "type": {
+      "kind": "var",
+      "name": "V"
+     }
+    }
+   ],
+   "returns": {
+    "kind": "pair",
+    "key": {
+     "kind": "var",
+     "name": "K"
+    },
+    "value": {
+     "kind": "var",
+     "name": "V"
+    }
+   },
+   "options": [],
+   "source": "def pair(key: K, value: V) -> Pair[K, V]:\n    \"\"\"Bind a key to a value.\"\"\"\n    return Pair(key, value)\n"
+  },
+  "retrieve": {
+   "label": "Retrieve",
+   "slots": [
+    {
+     "name": "key",
+     "type": {
+      "kind": "var",
+      "name": "K"
+     }
+    },
+    {
+     "name": "pairs",
+     "type": {
+      "kind": "list",
+      "of": {
+       "kind": "pair",
+       "key": {
+        "kind": "var",
+        "name": "K"
+       },
+       "value": {
+        "kind": "var",
+        "name": "V"
+       }
+      }
+     }
+    }
+   ],
+   "returns": {
+    "kind": "var",
+    "name": "V"
+   },
+   "options": [
+    {
+     "name": "match",
+     "default": "key",
+     "choices": [
+      "key",
+      "value"
+     ]
+    }
+   ],
+   "source": "def retrieve(key: K, pairs: list[Pair[K, V]], *, match: str = \"key\") -> V | None:\n    \"\"\"The value of the first pair whose key equals `key`, the way attention\n    matches a query against keys and reads the matching value. With\n    match=\"value\", the first value equal to `key`: dereferencing a pointer,\n    which finds nothing if that value isn't in context.\"\"\"\n    for p in pairs:\n        if key is None or not isinstance(p, Pair):\n            continue\n        if (p.key if match == \"key\" else p.value) == key:\n            return p.value\n    return None\n"
+  },
+  "index": {
+   "label": "Index",
+   "slots": [
+    {
+     "name": "i",
+     "type": {
+      "kind": "position"
+     }
+    },
+    {
+     "name": "values",
+     "type": {
+      "kind": "list",
+      "of": {
+       "kind": "var",
+       "name": "V"
+      }
+     }
+    }
+   ],
+   "returns": {
+    "kind": "var",
+    "name": "V"
+   },
+   "options": [],
+   "source": "def index(i: Position, values: list[V]) -> V | None:\n    \"\"\"The i-th value, counting from 1.\"\"\"\n    if isinstance(i, int) and 1 <= i <= len(values):\n        return values[i - 1]\n    return None\n"
+  },
+  "key_of": {
+   "label": "KeyOf",
+   "slots": [
+    {
+     "name": "pair",
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "var",
+       "name": "K"
+      },
+      "value": {
+       "kind": "var",
+       "name": "V"
+      }
+     }
+    }
+   ],
+   "returns": {
+    "kind": "var",
+    "name": "K"
+   },
+   "options": [],
+   "source": "def key_of(pair: Pair[K, V]) -> K | None:\n    \"\"\"The key of a key : value pair, such as the position ID of 4:Tim.\"\"\"\n    return pair.key if isinstance(pair, Pair) else None\n"
+  },
+  "value_of": {
+   "label": "ValueOf",
+   "slots": [
+    {
+     "name": "pair",
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "var",
+       "name": "K"
+      },
+      "value": {
+       "kind": "var",
+       "name": "V"
+      }
+     }
+    }
+   ],
+   "returns": {
+    "kind": "var",
+    "name": "V"
+   },
+   "options": [],
+   "source": "def value_of(pair: Pair[K, V]) -> V | None:\n    \"\"\"The value of a key : value pair, such as the token of 4:Tim.\"\"\"\n    return pair.value if isinstance(pair, Pair) else None\n"
+  },
+  "mixture": {
+   "label": "Mixture",
+   "slots": [
+    {
+     "name": "answers",
+     "type": {
+      "kind": "list",
+      "of": {
+       "kind": "var",
+       "name": "V"
+      }
+     }
+    }
+   ],
+   "returns": {
+    "kind": "string"
+   },
+   "options": [
+    {
+     "name": "weights",
+     "default": "",
+     "choices": null
+    }
+   ],
+   "source": "def mixture(answers: list[V], *, weights: str = \"\") -> Distribution:\n    \"\"\"A linear combination of the answers, such as one per mechanism: each\n    answer gets its weight, and the weights of equal answers add up.\n    `weights` lists one weight per answer, separated by commas; a missing\n    weight is 1. The result is normalized to sum to 1.\"\"\"\n    w = [float(x) for x in weights.split(\",\") if x.strip()]\n    w = (w + [1.0] * len(answers))[: len(answers)]\n    total = sum(w) or 1.0\n    p: dict[str, float] = {}\n    for answer, weight in zip(answers, w):\n        p[show(answer)] = p.get(show(answer), 0.0) + weight / total\n    return Distribution(tuple(p.items()))\n"
+  },
+  "constant": {
+   "label": "Constant",
+   "slots": [],
+   "returns": null,
+   "options": [
+    {
+     "name": "value",
+     "default": "",
+     "choices": null
+    },
+    {
+     "name": "type",
+     "default": "string",
+     "choices": [
+      "string",
+      "int",
+      "position"
+     ]
+    }
+   ],
+   "source": "def constant(*, value: str = \"\", type: str = \"string\") -> str | int | None:\n    \"\"\"A fixed value.\"\"\"\n    if value == \"\":\n        return None\n    return value if type == \"string\" else int(value)\n"
+  }
+ },
+ "python_calls": [
+  {
+   "source": "def compute(word: str) -> str:\n    return str(word).upper()\n",
+   "args": {
+    "word": {
+     "kind": "token",
+     "text": " ale",
+     "index": 2
+    }
+   },
+   "type": {
+    "kind": "string"
+   },
+   "result": {
+    "ok": true,
+    "value": "ALE"
+   }
+  },
+  {
+   "source": "def compute(key, pairs):\n    for p in pairs:\n        if p.key == key:\n            return p.value\n    return None\n",
+   "args": {
+    "key": 2,
+    "pairs": [
+     {
+      "kind": "pair",
+      "key": 1,
+      "value": {
+       "kind": "token",
+       "text": "ale",
+       "index": 2
+      }
+     },
+     {
+      "kind": "pair",
+      "key": 2,
+      "value": {
+       "kind": "token",
+       "text": "jam",
+       "index": 6
+      }
+     }
+    ]
+   },
+   "type": {
+    "kind": "string"
+   },
+   "result": {
+    "ok": true,
+    "value": {
+     "kind": "token",
+     "text": "jam",
+     "index": 6
+    }
+   }
+  },
+  {
+   "source": "def compute(token, template):\n    return 1 + sum(1 for t in template[: token.index] if t == ',')\n",
+   "args": {
+    "token": {
+     "kind": "token",
+     "text": "Joe",
+     "index": 4
+    }
+   },
+   "type": {
+    "kind": "position"
+   },
+   "result": {
+    "ok": true,
+    "value": 2
+   }
+  },
+  {
+   "source": "def compute(a, b):\n    return Pair(a, Pair(b, a))\n",
+   "args": {
+    "a": 1,
+    "b": "x"
+   },
+   "type": {
+    "kind": "pair",
+    "key": {
+     "kind": "position"
+    },
+    "value": {
+     "kind": "pair",
+     "key": {
+      "kind": "string"
+     },
+     "value": {
+      "kind": "position"
+     }
+    }
+   },
+   "result": {
+    "ok": true,
+    "value": {
+     "kind": "pair",
+     "key": 1,
+     "value": {
+      "kind": "pair",
+      "key": "x",
+      "value": 1
+     }
+    }
+   }
+  },
+  {
+   "source": "def compute(x):\n    return x / 0\n",
+   "args": {
+    "x": 1
+   },
+   "type": {
+    "kind": "int"
+   },
+   "result": {
+    "ok": false,
+    "error": "ZeroDivisionError: division by zero (line 2)"
+   }
+  },
+  {
+   "source": "def compute(x):\n    return [x]\n",
+   "args": {
+    "x": 1
+   },
+   "type": {
+    "kind": "int"
+   },
+   "result": {
+    "ok": false,
+    "error": "compute returned a list; a variable holds a string, an int, a position ID or a key : value pair."
+   }
+  },
+  {
+   "source": "def compute(x):\n    return 'ale'\n",
+   "args": {
+    "x": 1
+   },
+   "type": {
+    "kind": "position"
+   },
+   "result": {
+    "ok": false,
+    "error": "compute returned 'ale' (a string), but this variable is a position ID."
+   }
+  },
+  {
+   "source": "def compute(x)\n    return x\n",
+   "args": {
+    "x": 1
+   },
+   "type": {
+    "kind": "int"
+   },
+   "result": {
+    "ok": false,
+    "error": "SyntaxError: expected ':' (line 1)"
+   }
+  },
+  {
+   "source": "def helper(x):\n    return x\n",
+   "args": {},
+   "type": {
+    "kind": "int"
+   },
+   "result": {
+    "ok": false,
+    "error": "The Python source must define compute(...)."
+   }
+  }
+ ],
+ "algorithms": {
+  "positional_8": {
+   "schema": "algorithm-hypothesis/v4",
+   "name": "Positional",
+   "description": "Each name's position ID is copied onto its bound entity; the recalled name's position ID retrieves it.",
+   "grid": {
+    "kind": "abstract",
+    "layers": 8
+   },
+   "template": "Ann loves ale, Joe loves jam, Pete loves pie, Tim loves tea. What does Tim love?",
+   "variables": [
+    {
+     "id": "pos1",
+     "name": "pos1",
+     "cell": {
+      "layer": 1,
+      "token": 0
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 0
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos2",
+     "name": "pos2",
+     "cell": {
+      "layer": 1,
+      "token": 4
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 4
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos3",
+     "name": "pos3",
+     "cell": {
+      "layer": 1,
+      "token": 8
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 8
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        },
+        {
+         "token": 8
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos4",
+     "name": "pos4",
+     "cell": {
+      "layer": 1,
+      "token": 12
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 12
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        },
+        {
+         "token": 8
+        },
+        {
+         "token": 12
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id1",
+     "name": "id1",
+     "cell": {
+      "layer": 2,
+      "token": 2
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos1"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id2",
+     "name": "id2",
+     "cell": {
+      "layer": 2,
+      "token": 6
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos2"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id3",
+     "name": "id3",
+     "cell": {
+      "layer": 2,
+      "token": 10
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos3"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id4",
+     "name": "id4",
+     "cell": {
+      "layer": 2,
+      "token": 14
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos4"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "bind1",
+     "name": "bind1",
+     "cell": {
+      "layer": 3,
+      "token": 2
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id1"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 2
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "bind2",
+     "name": "bind2",
+     "cell": {
+      "layer": 3,
+      "token": 6
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id2"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 6
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "bind3",
+     "name": "bind3",
+     "cell": {
+      "layer": 3,
+      "token": 10
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id3"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 10
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "bind4",
+     "name": "bind4",
+     "cell": {
+      "layer": 3,
+      "token": 14
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id4"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 14
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "q_pos",
+     "name": "q_pos",
+     "cell": {
+      "layer": 3,
+      "token": 18
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 18
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        },
+        {
+         "token": 8
+        },
+        {
+         "token": 12
+        },
+        {
+         "token": 18
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "P",
+     "name": "P",
+     "cell": {
+      "layer": 5,
+      "token": 20
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "q_pos"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "answer",
+     "name": "answer",
+     "cell": {
+      "layer": 7,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "retrieve",
+      "options": {
+       "match": "key"
+      }
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "P"
+        }
+       ]
+      },
+      {
+       "name": "pairs",
+       "refs": [
+        {
+         "variable": "bind1"
+        },
+        {
+         "variable": "bind2"
+        },
+        {
+         "variable": "bind3"
+        },
+        {
+         "variable": "bind4"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    }
+   ],
+   "output": "answer",
+   "specialTokens": [
+    0,
+    4,
+    8,
+    12,
+    18
+   ]
+  },
+  "lexical_8": {
+   "schema": "algorithm-hypothesis/v4",
+   "name": "Lexical",
+   "description": "Each entity is bound to its name; the recalled name itself retrieves the bound entity.",
+   "grid": {
+    "kind": "abstract",
+    "layers": 8
+   },
+   "template": "Ann loves ale, Joe loves jam, Pete loves pie, Tim loves tea. What does Tim love?",
+   "variables": [
+    {
+     "id": "bind1",
+     "name": "bind1",
+     "cell": {
+      "layer": 2,
+      "token": 2
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 0
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 2
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "bind2",
+     "name": "bind2",
+     "cell": {
+      "layer": 2,
+      "token": 6
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 4
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 6
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "bind3",
+     "name": "bind3",
+     "cell": {
+      "layer": 2,
+      "token": 10
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 8
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 10
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "bind4",
+     "name": "bind4",
+     "cell": {
+      "layer": 2,
+      "token": 14
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 12
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 14
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "q_key",
+     "name": "q_key",
+     "cell": {
+      "layer": 3,
+      "token": 18
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "copy",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "x",
+       "refs": [
+        {
+         "token": 18
+        }
+       ]
+      }
+     ],
+     "color": "emerald",
+     "tags": [
+      "lexical"
+     ]
+    },
+    {
+     "id": "L",
+     "name": "L",
+     "cell": {
+      "layer": 5,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "copy",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "x",
+       "refs": [
+        {
+         "variable": "q_key"
+        }
+       ]
+      }
+     ],
+     "color": "emerald",
+     "tags": [
+      "lexical"
+     ]
+    },
+    {
+     "id": "answer",
+     "name": "answer",
+     "cell": {
+      "layer": 7,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "retrieve",
+      "options": {
+       "match": "key"
+      }
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "L"
+        }
+       ]
+      },
+      {
+       "name": "pairs",
+       "refs": [
+        {
+         "variable": "bind1"
+        },
+        {
+         "variable": "bind2"
+        },
+        {
+         "variable": "bind3"
+        },
+        {
+         "variable": "bind4"
+        }
+       ]
+      }
+     ],
+     "color": "emerald",
+     "tags": [
+      "lexical"
+     ]
+    }
+   ],
+   "output": "answer",
+   "specialTokens": [
+    0,
+    4,
+    8,
+    12,
+    18
+   ]
+  },
+  "reflexive_8": {
+   "schema": "algorithm-hypothesis/v4",
+   "name": "Reflexive",
+   "description": "The query retrieves a pointer to the answer entity itself, which is dereferenced at the end. Fails if the entity isn't in context.",
+   "grid": {
+    "kind": "abstract",
+    "layers": 8
+   },
+   "template": "Ann loves ale, Joe loves jam, Pete loves pie, Tim loves tea. What does Tim love?",
+   "variables": [
+    {
+     "id": "bind1",
+     "name": "bind1",
+     "cell": {
+      "layer": 2,
+      "token": 2
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 0
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 2
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "bind2",
+     "name": "bind2",
+     "cell": {
+      "layer": 2,
+      "token": 6
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 4
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 6
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "bind3",
+     "name": "bind3",
+     "cell": {
+      "layer": 2,
+      "token": 10
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 8
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 10
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "bind4",
+     "name": "bind4",
+     "cell": {
+      "layer": 2,
+      "token": 14
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 12
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 14
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "q_ptr",
+     "name": "q_ptr",
+     "cell": {
+      "layer": 3,
+      "token": 18
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "retrieve",
+      "options": {
+       "match": "key"
+      }
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 18
+        }
+       ]
+      },
+      {
+       "name": "pairs",
+       "refs": [
+        {
+         "variable": "bind1"
+        },
+        {
+         "variable": "bind2"
+        },
+        {
+         "variable": "bind3"
+        },
+        {
+         "variable": "bind4"
+        }
+       ]
+      }
+     ],
+     "color": "amber",
+     "tags": [
+      "reflexive"
+     ]
+    },
+    {
+     "id": "R",
+     "name": "R",
+     "cell": {
+      "layer": 5,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "copy",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "x",
+       "refs": [
+        {
+         "variable": "q_ptr"
+        }
+       ]
+      }
+     ],
+     "color": "amber",
+     "tags": [
+      "reflexive"
+     ]
+    },
+    {
+     "id": "answer",
+     "name": "answer",
+     "cell": {
+      "layer": 7,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "retrieve",
+      "options": {
+       "match": "value"
+      }
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "R"
+        }
+       ]
+      },
+      {
+       "name": "pairs",
+       "refs": [
+        {
+         "variable": "bind1"
+        },
+        {
+         "variable": "bind2"
+        },
+        {
+         "variable": "bind3"
+        },
+        {
+         "variable": "bind4"
+        }
+       ]
+      }
+     ],
+     "color": "amber",
+     "tags": [
+      "reflexive"
+     ]
+    }
+   ],
+   "output": "answer",
+   "specialTokens": [
+    0,
+    4,
+    8,
+    12,
+    18
+   ]
+  },
+  "mixed_8": {
+   "schema": "algorithm-hypothesis/v4",
+   "name": "Mixed",
+   "description": "The union of the three algorithms: each computes its own answer, and the last token combines them linearly into a distribution over the entities.",
+   "grid": {
+    "kind": "abstract",
+    "layers": 8
+   },
+   "template": "Ann loves ale, Joe loves jam, Pete loves pie, Tim loves tea. What does Tim love?",
+   "variables": [
+    {
+     "id": "pos1",
+     "name": "pos1",
+     "cell": {
+      "layer": 1,
+      "token": 0
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 0
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos2",
+     "name": "pos2",
+     "cell": {
+      "layer": 1,
+      "token": 4
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 4
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos3",
+     "name": "pos3",
+     "cell": {
+      "layer": 1,
+      "token": 8
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 8
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        },
+        {
+         "token": 8
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos4",
+     "name": "pos4",
+     "cell": {
+      "layer": 1,
+      "token": 12
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 12
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        },
+        {
+         "token": 8
+        },
+        {
+         "token": 12
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id1",
+     "name": "id1",
+     "cell": {
+      "layer": 2,
+      "token": 2
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos1"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id2",
+     "name": "id2",
+     "cell": {
+      "layer": 2,
+      "token": 6
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos2"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id3",
+     "name": "id3",
+     "cell": {
+      "layer": 2,
+      "token": 10
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos3"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id4",
+     "name": "id4",
+     "cell": {
+      "layer": 2,
+      "token": 14
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos4"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos_bind1",
+     "name": "pos_bind1",
+     "cell": {
+      "layer": 3,
+      "token": 2
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id1"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 2
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos_bind2",
+     "name": "pos_bind2",
+     "cell": {
+      "layer": 3,
+      "token": 6
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id2"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 6
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos_bind3",
+     "name": "pos_bind3",
+     "cell": {
+      "layer": 3,
+      "token": 10
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id3"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 10
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos_bind4",
+     "name": "pos_bind4",
+     "cell": {
+      "layer": 3,
+      "token": 14
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id4"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 14
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "q_pos",
+     "name": "q_pos",
+     "cell": {
+      "layer": 3,
+      "token": 18
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 18
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        },
+        {
+         "token": 8
+        },
+        {
+         "token": 12
+        },
+        {
+         "token": 18
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "P",
+     "name": "P",
+     "cell": {
+      "layer": 5,
+      "token": 20
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "q_pos"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos_answer",
+     "name": "pos_answer",
+     "cell": {
+      "layer": 6,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "retrieve",
+      "options": {
+       "match": "key"
+      }
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "P"
+        }
+       ]
+      },
+      {
+       "name": "pairs",
+       "refs": [
+        {
+         "variable": "pos_bind1"
+        },
+        {
+         "variable": "pos_bind2"
+        },
+        {
+         "variable": "pos_bind3"
+        },
+        {
+         "variable": "pos_bind4"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "bind1",
+     "name": "bind1",
+     "cell": {
+      "layer": 2,
+      "token": 2
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 0
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 2
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "bind2",
+     "name": "bind2",
+     "cell": {
+      "layer": 2,
+      "token": 6
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 4
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 6
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "bind3",
+     "name": "bind3",
+     "cell": {
+      "layer": 2,
+      "token": 10
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 8
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 10
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "bind4",
+     "name": "bind4",
+     "cell": {
+      "layer": 2,
+      "token": 14
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "string"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 12
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 14
+        }
+       ]
+      }
+     ],
+     "tags": [
+      "lexical",
+      "reflexive"
+     ]
+    },
+    {
+     "id": "q_key",
+     "name": "q_key",
+     "cell": {
+      "layer": 3,
+      "token": 18
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "copy",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "x",
+       "refs": [
+        {
+         "token": 18
+        }
+       ]
+      }
+     ],
+     "color": "emerald",
+     "tags": [
+      "lexical"
+     ]
+    },
+    {
+     "id": "L",
+     "name": "L",
+     "cell": {
+      "layer": 5,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "copy",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "x",
+       "refs": [
+        {
+         "variable": "q_key"
+        }
+       ]
+      }
+     ],
+     "color": "emerald",
+     "tags": [
+      "lexical"
+     ]
+    },
+    {
+     "id": "lex_answer",
+     "name": "lex_answer",
+     "cell": {
+      "layer": 6,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "retrieve",
+      "options": {
+       "match": "key"
+      }
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "L"
+        }
+       ]
+      },
+      {
+       "name": "pairs",
+       "refs": [
+        {
+         "variable": "bind1"
+        },
+        {
+         "variable": "bind2"
+        },
+        {
+         "variable": "bind3"
+        },
+        {
+         "variable": "bind4"
+        }
+       ]
+      }
+     ],
+     "color": "emerald",
+     "tags": [
+      "lexical"
+     ]
+    },
+    {
+     "id": "q_ptr",
+     "name": "q_ptr",
+     "cell": {
+      "layer": 3,
+      "token": 18
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "retrieve",
+      "options": {
+       "match": "key"
+      }
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "token": 18
+        }
+       ]
+      },
+      {
+       "name": "pairs",
+       "refs": [
+        {
+         "variable": "bind1"
+        },
+        {
+         "variable": "bind2"
+        },
+        {
+         "variable": "bind3"
+        },
+        {
+         "variable": "bind4"
+        }
+       ]
+      }
+     ],
+     "color": "amber",
+     "tags": [
+      "reflexive"
+     ]
+    },
+    {
+     "id": "R",
+     "name": "R",
+     "cell": {
+      "layer": 5,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "copy",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "x",
+       "refs": [
+        {
+         "variable": "q_ptr"
+        }
+       ]
+      }
+     ],
+     "color": "amber",
+     "tags": [
+      "reflexive"
+     ]
+    },
+    {
+     "id": "ref_answer",
+     "name": "ref_answer",
+     "cell": {
+      "layer": 6,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "retrieve",
+      "options": {
+       "match": "value"
+      }
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "R"
+        }
+       ]
+      },
+      {
+       "name": "pairs",
+       "refs": [
+        {
+         "variable": "bind1"
+        },
+        {
+         "variable": "bind2"
+        },
+        {
+         "variable": "bind3"
+        },
+        {
+         "variable": "bind4"
+        }
+       ]
+      }
+     ],
+     "color": "amber",
+     "tags": [
+      "reflexive"
+     ]
+    },
+    {
+     "id": "answer",
+     "name": "answer",
+     "cell": {
+      "layer": 7,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "mixture",
+      "options": {
+       "weights": "1, 1, 1"
+      }
+     },
+     "args": [
+      {
+       "name": "answers",
+       "refs": [
+        {
+         "variable": "pos_answer"
+        },
+        {
+         "variable": "lex_answer"
+        },
+        {
+         "variable": "ref_answer"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "output": "answer",
+   "specialTokens": [
+    0,
+    4,
+    8,
+    12,
+    18
+   ]
+  },
+  "positional_26": {
+   "schema": "algorithm-hypothesis/v4",
+   "name": "Positional",
+   "description": "Each name's position ID is copied onto its bound entity; the recalled name's position ID retrieves it.",
+   "grid": {
+    "kind": "abstract",
+    "layers": 26
+   },
+   "template": "Ann loves ale, Joe loves jam, Pete loves pie, Tim loves tea. What does Tim love?",
+   "variables": [
+    {
+     "id": "pos1",
+     "name": "pos1",
+     "cell": {
+      "layer": 6,
+      "token": 0
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 0
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos2",
+     "name": "pos2",
+     "cell": {
+      "layer": 6,
+      "token": 4
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 4
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos3",
+     "name": "pos3",
+     "cell": {
+      "layer": 6,
+      "token": 8
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 8
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        },
+        {
+         "token": 8
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "pos4",
+     "name": "pos4",
+     "cell": {
+      "layer": 6,
+      "token": 12
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 12
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        },
+        {
+         "token": 8
+        },
+        {
+         "token": 12
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id1",
+     "name": "id1",
+     "cell": {
+      "layer": 7,
+      "token": 2
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos1"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id2",
+     "name": "id2",
+     "cell": {
+      "layer": 7,
+      "token": 6
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos2"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id3",
+     "name": "id3",
+     "cell": {
+      "layer": 7,
+      "token": 10
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos3"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "id4",
+     "name": "id4",
+     "cell": {
+      "layer": 7,
+      "token": 14
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "pos4"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "bind1",
+     "name": "bind1",
+     "cell": {
+      "layer": 8,
+      "token": 2
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id1"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 2
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "bind2",
+     "name": "bind2",
+     "cell": {
+      "layer": 8,
+      "token": 6
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id2"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 6
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "bind3",
+     "name": "bind3",
+     "cell": {
+      "layer": 8,
+      "token": 10
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id3"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 10
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "bind4",
+     "name": "bind4",
+     "cell": {
+      "layer": 8,
+      "token": 14
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "pair",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "id4"
+        }
+       ]
+      },
+      {
+       "name": "value",
+       "refs": [
+        {
+         "token": 14
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "q_pos",
+     "name": "q_pos",
+     "cell": {
+      "layer": 12,
+      "token": 18
+     },
+     "type": {
+      "kind": "pair",
+      "key": {
+       "kind": "position"
+      },
+      "value": {
+       "kind": "string"
+      }
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "position_id",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "token",
+       "refs": [
+        {
+         "token": 18
+        }
+       ]
+      },
+      {
+       "name": "specials",
+       "refs": [
+        {
+         "token": 0
+        },
+        {
+         "token": 4
+        },
+        {
+         "token": 8
+        },
+        {
+         "token": 12
+        },
+        {
+         "token": 18
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "P",
+     "name": "P",
+     "cell": {
+      "layer": 16,
+      "token": 20
+     },
+     "type": {
+      "kind": "position"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "key_of",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "pair",
+       "refs": [
+        {
+         "variable": "q_pos"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "answer",
+     "name": "answer",
+     "cell": {
+      "layer": 19,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "retrieve",
+      "options": {
+       "match": "key"
+      }
+     },
+     "args": [
+      {
+       "name": "key",
+       "refs": [
+        {
+         "variable": "P"
+        }
+       ]
+      },
+      {
+       "name": "pairs",
+       "refs": [
+        {
+         "variable": "bind1"
+        },
+        {
+         "variable": "bind2"
+        },
+        {
+         "variable": "bind3"
+        },
+        {
+         "variable": "bind4"
+        }
+       ]
+      }
+     ],
+     "color": "indigo",
+     "tags": [
+      "positional"
+     ]
+    },
+    {
+     "id": "output",
+     "name": "output",
+     "cell": {
+      "layer": 25,
+      "token": 20
+     },
+     "type": {
+      "kind": "string"
+     },
+     "function": {
+      "kind": "primitive",
+      "name": "copy",
+      "options": {}
+     },
+     "args": [
+      {
+       "name": "x",
+       "refs": [
+        {
+         "variable": "answer"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "output": "output",
+   "specialTokens": [
+    0,
+    4,
+    8,
+    12,
+    18
+   ]
+  }
+ },
+ "base_outputs": {
+  "positional_8": "tea",
+  "lexical_8": "tea",
+  "reflexive_8": "tea",
+  "mixed_8": "tea",
+  "positional_26": "tea"
+ },
+ "sweeps": [
+  {
+   "algorithm": "positional_8",
+   "source": "source",
+   "token": 20,
+   "label": "last",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "jam",
+     "status": "ok"
+    },
+    {
+     "layer": 6,
+     "output": "jam",
+     "status": "ok"
+    },
+    {
+     "layer": 7,
+     "output": "pie",
+     "status": "ok"
+    }
+   ]
+  },
+  {
+   "algorithm": "positional_8",
+   "source": "source",
+   "token": 12,
+   "label": "query",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "empty"
+    }
+   ]
+  },
+  {
+   "algorithm": "positional_8",
+   "source": "source_cod",
+   "token": 20,
+   "label": "last",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "jam",
+     "status": "ok"
+    },
+    {
+     "layer": 6,
+     "output": "jam",
+     "status": "ok"
+    },
+    {
+     "layer": 7,
+     "output": "cod",
+     "status": "ok"
+    }
+   ]
+  },
+  {
+   "algorithm": "positional_8",
+   "source": "source_cod",
+   "token": 12,
+   "label": "query",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "empty"
+    }
+   ]
+  },
+  {
+   "algorithm": "lexical_8",
+   "source": "source",
+   "token": 20,
+   "label": "last",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "ale",
+     "status": "ok"
+    },
+    {
+     "layer": 6,
+     "output": "ale",
+     "status": "ok"
+    },
+    {
+     "layer": 7,
+     "output": "pie",
+     "status": "ok"
+    }
+   ]
+  },
+  {
+   "algorithm": "lexical_8",
+   "source": "source",
+   "token": 12,
+   "label": "query",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "empty"
+    }
+   ]
+  },
+  {
+   "algorithm": "lexical_8",
+   "source": "source_cod",
+   "token": 20,
+   "label": "last",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "ale",
+     "status": "ok"
+    },
+    {
+     "layer": 6,
+     "output": "ale",
+     "status": "ok"
+    },
+    {
+     "layer": 7,
+     "output": "cod",
+     "status": "ok"
+    }
+   ]
+  },
+  {
+   "algorithm": "lexical_8",
+   "source": "source_cod",
+   "token": 12,
+   "label": "query",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "empty"
+    }
+   ]
+  },
+  {
+   "algorithm": "reflexive_8",
+   "source": "source",
+   "token": 20,
+   "label": "last",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "pie",
+     "status": "ok"
+    },
+    {
+     "layer": 6,
+     "output": "pie",
+     "status": "ok"
+    },
+    {
+     "layer": 7,
+     "output": "pie",
+     "status": "ok"
+    }
+   ]
+  },
+  {
+   "algorithm": "reflexive_8",
+   "source": "source",
+   "token": 12,
+   "label": "query",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "empty"
+    }
+   ]
+  },
+  {
+   "algorithm": "reflexive_8",
+   "source": "source_cod",
+   "token": 20,
+   "label": "last",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "∅",
+     "status": "ok"
+    },
+    {
+     "layer": 6,
+     "output": "∅",
+     "status": "ok"
+    },
+    {
+     "layer": 7,
+     "output": "cod",
+     "status": "ok"
+    }
+   ]
+  },
+  {
+   "algorithm": "reflexive_8",
+   "source": "source_cod",
+   "token": 12,
+   "label": "query",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "empty"
+    }
+   ]
+  },
+  {
+   "algorithm": "mixed_8",
+   "source": "source",
+   "token": 20,
+   "label": "last",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "jam / ale / pie",
+     "status": "ok"
+    },
+    {
+     "layer": 6,
+     "output": "pie",
+     "status": "ok"
+    },
+    {
+     "layer": 7,
+     "output": "pie",
+     "status": "ok"
+    }
+   ]
+  },
+  {
+   "algorithm": "mixed_8",
+   "source": "source",
+   "token": 12,
+   "label": "query",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "empty"
+    }
+   ]
+  },
+  {
+   "algorithm": "mixed_8",
+   "source": "source_cod",
+   "token": 20,
+   "label": "last",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "jam / ale / ∅",
+     "status": "ok"
+    },
+    {
+     "layer": 6,
+     "output": "cod",
+     "status": "ok"
+    },
+    {
+     "layer": 7,
+     "output": "cod",
+     "status": "ok"
+    }
+   ]
+  },
+  {
+   "algorithm": "mixed_8",
+   "source": "source_cod",
+   "token": 12,
+   "label": "query",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "empty"
+    }
+   ]
+  },
+  {
+   "algorithm": "positional_26",
+   "source": "source",
+   "token": 20,
+   "label": "last",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 8,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 9,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 10,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 11,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 12,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 13,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 14,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 15,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 16,
+     "output": "jam",
+     "status": "ok"
+    },
+    {
+     "layer": 17,
+     "output": "jam",
+     "status": "ok"
+    },
+    {
+     "layer": 18,
+     "output": "jam",
+     "status": "ok"
+    },
+    {
+     "layer": 19,
+     "output": "pie",
+     "status": "ok"
+    },
+    {
+     "layer": 20,
+     "output": "pie",
+     "status": "ok"
+    },
+    {
+     "layer": 21,
+     "output": "pie",
+     "status": "ok"
+    },
+    {
+     "layer": 22,
+     "output": "pie",
+     "status": "ok"
+    },
+    {
+     "layer": 23,
+     "output": "pie",
+     "status": "ok"
+    },
+    {
+     "layer": 24,
+     "output": "pie",
+     "status": "ok"
+    },
+    {
+     "layer": 25,
+     "output": "pie",
+     "status": "ok"
+    }
+   ]
+  },
+  {
+   "algorithm": "positional_26",
+   "source": "source",
+   "token": 12,
+   "label": "query",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 8,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 9,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 10,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 11,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 12,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 13,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 14,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 15,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 16,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 17,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 18,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 19,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 20,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 21,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 22,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 23,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 24,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 25,
+     "output": "tea",
+     "status": "empty"
+    }
+   ]
+  },
+  {
+   "algorithm": "positional_26",
+   "source": "source_cod",
+   "token": 20,
+   "label": "last",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 8,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 9,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 10,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 11,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 12,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 13,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 14,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 15,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 16,
+     "output": "jam",
+     "status": "ok"
+    },
+    {
+     "layer": 17,
+     "output": "jam",
+     "status": "ok"
+    },
+    {
+     "layer": 18,
+     "output": "jam",
+     "status": "ok"
+    },
+    {
+     "layer": 19,
+     "output": "cod",
+     "status": "ok"
+    },
+    {
+     "layer": 20,
+     "output": "cod",
+     "status": "ok"
+    },
+    {
+     "layer": 21,
+     "output": "cod",
+     "status": "ok"
+    },
+    {
+     "layer": 22,
+     "output": "cod",
+     "status": "ok"
+    },
+    {
+     "layer": 23,
+     "output": "cod",
+     "status": "ok"
+    },
+    {
+     "layer": 24,
+     "output": "cod",
+     "status": "ok"
+    },
+    {
+     "layer": 25,
+     "output": "cod",
+     "status": "ok"
+    }
+   ]
+  },
+  {
+   "algorithm": "positional_26",
+   "source": "source_cod",
+   "token": 12,
+   "label": "query",
+   "rows": [
+    {
+     "layer": -1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 0,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 1,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 2,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 3,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 4,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 5,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 6,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 7,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 8,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 9,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 10,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 11,
+     "output": "tea",
+     "status": "ok"
+    },
+    {
+     "layer": 12,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 13,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 14,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 15,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 16,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 17,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 18,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 19,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 20,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 21,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 22,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 23,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 24,
+     "output": "tea",
+     "status": "empty"
+    },
+    {
+     "layer": 25,
+     "output": "tea",
+     "status": "empty"
+    }
+   ]
+  }
+ ],
+ "full": [
+  {
+   "algorithm": "positional_8",
+   "source": "source",
+   "outputs": [
+    [
+     "tea",
+     "tea",
+     "pie",
+     "pie",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "pie",
+     "pie",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "jam",
+     "jam",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "jam",
+     "jam",
+     "pie"
+    ]
+   ],
+   "status": [
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "ok",
+     "ok",
+     "ok"
+    ]
+   ]
+  },
+  {
+   "algorithm": "positional_8",
+   "source": "source_cod",
+   "outputs": [
+    [
+     "tea",
+     "tea",
+     "pie",
+     "pie",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "pie",
+     "pie",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "jam",
+     "jam",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "jam",
+     "jam",
+     "cod"
+    ]
+   ],
+   "status": [
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "ok",
+     "ok",
+     "ok"
+    ]
+   ]
+  },
+  {
+   "algorithm": "lexical_8",
+   "source": "source",
+   "outputs": [
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "ale",
+     "ale",
+     "pie"
+    ]
+   ],
+   "status": [
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "ok",
+     "ok",
+     "ok"
+    ]
+   ]
+  },
+  {
+   "algorithm": "lexical_8",
+   "source": "source_cod",
+   "outputs": [
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "ale",
+     "ale",
+     "cod"
+    ]
+   ],
+   "status": [
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "ok",
+     "ok",
+     "ok"
+    ]
+   ]
+  },
+  {
+   "algorithm": "reflexive_8",
+   "source": "source",
+   "outputs": [
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "pie",
+     "pie",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "pie",
+     "pie",
+     "pie"
+    ]
+   ],
+   "status": [
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "ok",
+     "ok",
+     "ok"
+    ]
+   ]
+  },
+  {
+   "algorithm": "reflexive_8",
+   "source": "source_cod",
+   "outputs": [
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "∅",
+     "∅",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "∅",
+     "∅",
+     "cod"
+    ]
+   ],
+   "status": [
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "ok",
+     "ok",
+     "ok"
+    ]
+   ]
+  },
+  {
+   "algorithm": "mixed_8",
+   "source": "source",
+   "outputs": [
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "jam / ale / pie",
+     "jam / ale / pie",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "jam / ale / pie",
+     "pie",
+     "pie"
+    ]
+   ],
+   "status": [
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "ok",
+     "ok",
+     "ok"
+    ]
+   ]
+  },
+  {
+   "algorithm": "mixed_8",
+   "source": "source_cod",
+   "outputs": [
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "jam / ale / ∅",
+     "jam / ale / ∅",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "jam / ale / ∅",
+     "cod",
+     "cod"
+    ]
+   ],
+   "status": [
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "ok",
+     "ok",
+     "ok"
+    ]
+   ]
+  },
+  {
+   "algorithm": "positional_26",
+   "source": "source",
+   "outputs": [
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "jam",
+     "jam",
+     "jam",
+     "jam",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "jam",
+     "jam",
+     "jam",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "pie"
+    ]
+   ],
+   "status": [
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok"
+    ]
+   ]
+  },
+  {
+   "algorithm": "positional_26",
+   "source": "source_cod",
+   "outputs": [
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "pie",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "ale",
+     "jam",
+     "jam",
+     "jam",
+     "jam",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea"
+    ],
+    [
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "tea",
+     "jam",
+     "jam",
+     "jam",
+     "cod",
+     "cod",
+     "cod",
+     "cod",
+     "cod",
+     "cod",
+     "cod"
+    ]
+   ],
+   "status": [
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty"
+    ],
+    [
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "empty",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok",
+     "ok"
+    ]
+   ]
+  }
+ ]
+}

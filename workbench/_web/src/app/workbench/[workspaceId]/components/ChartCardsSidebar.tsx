@@ -7,6 +7,7 @@ import {
     useCreateLens2ChartPair,
     useCreateJLensChartPair,
     useCreatePatchLensChartPair,
+    useCreateAlgorithmHypothesisChartPair,
     useCreatePatchChartPair,
     useCreateActivationPatchingChartPair,
     useDeleteChart,
@@ -39,6 +40,7 @@ import {
     FileText,
     Layers,
     GitBranch,
+    Workflow,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -84,6 +86,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     const { mutate: createJLensPair, isPending: isCreatingJLens } = useCreateJLensChartPair();
     const { mutate: createPatchLensPair, isPending: isCreatingPatchLens } =
         useCreatePatchLensChartPair();
+    const { mutate: createAlgorithmPair, isPending: isCreatingAlgorithm } =
+        useCreateAlgorithmHypothesisChartPair();
     const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
     const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
         useCreateActivationPatchingChartPair();
@@ -224,6 +228,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             router.push(`/workbench/${workspaceId}/activation-patching/${chartId}`);
         } else if (toolType === "patch-lens") {
             router.push(`/workbench/${workspaceId}/patch-lens/${chartId}`);
+        } else if (toolType === "algorithm-hypothesis") {
+            router.push(`/workbench/${workspaceId}/algorithm-hypothesis/${chartId}`);
         } else {
             router.push(`/workbench/${workspaceId}/${chartId}`);
         }
@@ -234,7 +240,13 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     };
 
     const handleCreate = (
-        toolType: "lens2" | "jlens" | "patch" | "activation-patching" | "patch-lens",
+        toolType:
+            | "lens2"
+            | "jlens"
+            | "patch"
+            | "activation-patching"
+            | "patch-lens"
+            | "algorithm-hypothesis",
     ) => {
         // Guard against stale UI / programmatic calls; the buttons below are
         // already filtered. createChartConfigPair re-checks server-side.
@@ -254,6 +266,15 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                 { workspaceId: workspaceId as string },
                 {
                     onSuccess: ({ chart }) => navigateToChart(chart.id, "jlens"),
+                },
+            );
+            return;
+        }
+        if (toolType === "algorithm-hypothesis") {
+            createAlgorithmPair(
+                { workspaceId: workspaceId as string },
+                {
+                    onSuccess: ({ chart }) => navigateToChart(chart.id, "algorithm-hypothesis"),
                 },
             );
             return;
@@ -366,6 +387,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         isCreatingLens2 ||
         isCreatingJLens ||
         isCreatingPatchLens ||
+        isCreatingAlgorithm ||
         isCreatingPatch ||
         isCreatingActivationPatching ||
         isCreatingDocument;
@@ -400,6 +422,13 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             title: "New Patch Lens",
             Icon: PatchLensIcon,
             isCreating: isCreatingPatchLens,
+        },
+        {
+            tool: "algorithm-hypothesis" as const,
+            label: "Algorithm Hypothesis",
+            title: "New Algorithm Hypothesis",
+            Icon: Workflow,
+            isCreating: isCreatingAlgorithm,
         },
     ].filter(({ tool }) => !workshop || workshop.allowedTools.includes(tool as WorkshopTool));
 
