@@ -144,7 +144,7 @@ def _run_causal_mediation(
     lens over the *patched* forward pass.
 
     Patching pattern mirrors `nnsightful.tools.activation_patching._run`:
-    a slice-assign on `model.layers_output[i]` is sufficient to register the
+    a slice-assign on `model.layers[i].layer_output` is sufficient to register the
     intervention and have it propagate through subsequent layers — no
     explicit `model.layers[i].output = (...)` reassignment is needed.
     """
@@ -154,7 +154,7 @@ def _run_causal_mediation(
         with model.session(remote=remote, backend=backend):
             # 1) Source pass — capture the residual at (src_layer, src_token_pos).
             with model.trace(src_prompt):
-                src_hidden = model.layers_output[src_layer][0, src_token_pos].save()
+                src_hidden = model.layers[src_layer].layer_output[0, src_token_pos].save()
 
             # 2) Target pass — at tgt_layer, slice-assign the source residual
             #    into the target's tgt_token_pos. project_on_vocab at every
@@ -162,7 +162,7 @@ def _run_causal_mediation(
             with model.trace(tgt_prompt):
                 per_layer_logits = []
                 for i in range(n_layers):
-                    hs = model.layers_output[i]
+                    hs = model.layers[i].layer_output
                     if i == tgt_layer:
                         hs[0, tgt_token_pos][:] = src_hidden
                     per_layer_logits.append(model.project_on_vocab(hs))
