@@ -52,7 +52,7 @@ async def start_activation_patching(
     if not backend.blocking:
         return {"job_id": output}
 
-    return {"data": activation_patching.to_data_obj(**output)}
+    return {"data": output}
 
 
 @router.post("/results/{job_id}", response_model=ActivationPatchingResponse)
@@ -63,8 +63,6 @@ async def collect_results(
     user_email: str = Depends(require_user_email),
 ):
     backend = state.make_backend(job_id=job_id)
-    results = backend()['results']
-
-    data = activation_patching.to_data_obj(**results)
+    data = activation_patching.load(backend()['results'])
 
     return {"data": data}
