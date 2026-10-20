@@ -47,6 +47,6 @@ async def collect_logit_lens(
     user_email: str = Depends(require_user_email),
 ):
     backend = state.make_backend(job_id=job_id)
-    data = logit_lens.load(backend()['results'])
+    data = backend()['results']
 
     return {"data": data}
