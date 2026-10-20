@@ -63,6 +63,6 @@ async def collect_results(
     user_email: str = Depends(require_user_email),
 ):
     backend = state.make_backend(job_id=job_id)
-    data = activation_patching.load(backend()['results'])
+    data = backend()['results']
 
     return {"data": data}

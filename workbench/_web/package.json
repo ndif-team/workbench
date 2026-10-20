@@ -54,7 +54,7 @@
         "motion": "^12.23.12",
         "next": "15.5.9",
         "next-themes": "^0.4.6",
-        "nnsightful": "github:AdamBelfki3/nnsightful#ec80cc47febd1e53d1d99b847cb8781c50fefb66",
+        "nnsightful": "github:AdamBelfki3/nnsightful#4aadcce1e5d7f6feeb8f07f8fc8c83cab63e46ab",
         "postgres": "^3.4.7",
         "posthog-js": "^1.271.0",
         "posthog-node": "^5.9.2",
