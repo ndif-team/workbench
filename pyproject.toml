@@ -19,7 +19,7 @@ dependencies = [
     # Pulled in transitively by nnsight/nnterp, but pinned here so recent model
     # architectures land in our env: OLMo 3, recent Gemma, etc.
     "transformers>=5.11.0",
-    "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git@4aadcce1e5d7f6feeb8f07f8fc8c83cab63e46ab",
+    "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git@be73ac52681f780023b81926a8760fcf807d24c9",
     "requests>=2.32.5",
     # nnsightful's tools return pydantic objects built on NDIF, which only
     # unpickle with the pydantic-core version NDIF's server runs; keep in step.
