@@ -876,7 +876,7 @@ wheels = [
 
 [[package]]
 name = "nnsight"
-version = "0.8.0"
+version = "0.8.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cloudpickle" },
@@ -892,18 +892,18 @@ dependencies = [
     { name = "websocket-client" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1a/37/2947f40b82d744aeec23110c94f6b1b2184ba5ab22e0835224ca2661928b/nnsight-0.8.0.tar.gz", hash = "sha256:41ae6312cf918513213e635a6e3569d571f9414e2c67cb271f6a4ea46613a0d8", size = 766215, upload-time = "2026-10-16T14:49:46.482Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/30/af/2a496d72e601485993a419a5f607082e05bff715fe0810ea314b1006c35d/nnsight-0.8.1.tar.gz", hash = "sha256:0fd9bd354b202d39f1d1ae90cdd02c1112e628325878b49a600876994b210867", size = 770446, upload-time = "2026-10-20T01:53:31.838Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3e/87/42a6429835636edc7844f47df66718c99b182e5696f6fabed6ec4723eff3/nnsight-0.8.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:78a97de98b8831184a2bcb02d3e85fa12b21845338eff4e3a53182a7d0fcfeb9", size = 304145, upload-time = "2026-10-16T14:49:21.8Z" },
-    { url = "https://files.pythonhosted.org/packages/b7/08/82e59d35ddf1f16e58e580dfc7f2ea5d3b4831f7a26a8c608adb46795bf4/nnsight-0.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:dc465f89e1044234170b735b97155434e6e60ef2dd8870c98fa0e5d6122c4fb8", size = 311632, upload-time = "2026-10-16T14:49:23.31Z" },
-    { url = "https://files.pythonhosted.org/packages/67/29/14cf3bbe89e720ff47c23a9be46abb6ed84ef469e1073d13423955c62bf2/nnsight-0.8.0-cp312-cp312-win32.whl", hash = "sha256:7a09afbbe48857f0381ad5a8a5c4f7c550007f6aa754d77628fd6c9be29e3edf", size = 306450, upload-time = "2026-10-16T14:49:25.971Z" },
-    { url = "https://files.pythonhosted.org/packages/c9/b3/6ce7fc2744ba6b754f7bd5b078a1d7e986b4d9eb0cc7bb17a404ff5eb23f/nnsight-0.8.0-cp312-cp312-win_amd64.whl", hash = "sha256:eb85d319a390a85a62d80041cc409207236546740ced7329a0701cbb5b6855c3", size = 306714, upload-time = "2026-10-16T14:49:27.523Z" },
+    { url = "https://files.pythonhosted.org/packages/82/86/df7da21a5ea63c80dbf35d11b2655ce99e20f644a53e883b9801005937fd/nnsight-0.8.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:9da71fefca3be6052a077e2dcd6356f31bb3e6532f5e7c95024a25a1db80752f", size = 305697, upload-time = "2026-10-20T01:53:07.847Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/ae/ca50a9d7088a9670dce9e0f786bb69389bd49e94e3dcbf26d1f6897b86b9/nnsight-0.8.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:b539d3d6f1ef698ca1d9799eff274d37947ead4127e8b3bd4e26b7246e105650", size = 313180, upload-time = "2026-10-20T01:53:09.54Z" },
+    { url = "https://files.pythonhosted.org/packages/42/dd/f8d046f25e42ea4450a38c321bb66ed6474a3cef963b01ad294fdb127d77/nnsight-0.8.1-cp312-cp312-win32.whl", hash = "sha256:f33b6b25435131511520cd4262df4b8d46bcbf079a65687f6a96002d2bb1529f", size = 308012, upload-time = "2026-10-20T01:53:11.163Z" },
+    { url = "https://files.pythonhosted.org/packages/12/7b/3482d71548d50bfb7995bc62f8684a99903486b4dda141cd9938e154c20b/nnsight-0.8.1-cp312-cp312-win_amd64.whl", hash = "sha256:b31bf95f1532432a83dff2e949dfae5b412000f04b552b739460ad5042c2c141", size = 308279, upload-time = "2026-10-20T01:53:12.471Z" },
 ]
 
 [[package]]
 name = "nnsightful"
 version = "0.1.0"
-source = { git = "https://github.com/AdamBelfki3/nnsightful.git#98e1bc82a9d022679a422f15aff541da247e1b57" }
+source = { git = "https://github.com/AdamBelfki3/nnsightful.git?rev=ec80cc47febd1e53d1d99b847cb8781c50fefb66#ec80cc47febd1e53d1d99b847cb8781c50fefb66" }
 dependencies = [
     { name = "hf-xet" },
     { name = "ipython" },
@@ -1777,8 +1777,8 @@ requires-dist = [
     { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.6.1" },
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.6.16" },
     { name = "modal", specifier = ">=0.65.66" },
-    { name = "nnsight", specifier = ">=0.7.0" },
-    { name = "nnsightful", git = "https://github.com/AdamBelfki3/nnsightful.git" },
+    { name = "nnsight", specifier = ">=0.8.1" },
+    { name = "nnsightful", git = "https://github.com/AdamBelfki3/nnsightful.git?rev=ec80cc47febd1e53d1d99b847cb8781c50fefb66" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "toml", specifier = ">=0.10.2" },

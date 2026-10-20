@@ -36,7 +36,7 @@ async def start_logit_lens(
         return {"job_id": output}
 
 
-    return {"data": logit_lens.to_data_obj(**output)}
+    return {"data": output}
 
 
 @router.post("/results/{job_id}", response_model=LogitLensResponse)
@@ -47,8 +47,6 @@ async def collect_logit_lens(
     user_email: str = Depends(require_user_email),
 ):
     backend = state.make_backend(job_id=job_id)
-    results = backend()['results']
-
-    data = logit_lens.to_data_obj(**results)
+    data = logit_lens.load(backend()['results'])
 
     return {"data": data}

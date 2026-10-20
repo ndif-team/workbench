@@ -6,7 +6,7 @@ requires-python = "==3.12.*"
 dependencies = [
     "fastapi>=0.115.6",
     "python-dotenv>=1.0.1",
-    "nnsight>=0.7.0",
+    "nnsight>=0.8.1",
     # Required for .uv_sync on Modal image
     "modal>=0.65.66",
     "einops>=0.8.1",
@@ -19,7 +19,7 @@ dependencies = [
     # Pulled in transitively by nnsight/nnterp, but pinned here so recent model
     # architectures land in our env: OLMo 3, recent Gemma, etc.
     "transformers>=5.11.0",
-    "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git",
+    "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git@ec80cc47febd1e53d1d99b847cb8781c50fefb66",
     "requests>=2.32.5",
 ]
 
