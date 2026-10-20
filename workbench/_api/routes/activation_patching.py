@@ -36,7 +36,7 @@ async def start_activation_patching(
     model = state[request.model_name]
     backend = state.make_backend(model=model)
 
-    output = activation_patching._run(
+    output = activation_patching(
         model,
         request.src_prompt,
         request.tgt_prompt,
@@ -46,7 +46,6 @@ async def start_activation_patching(
         remote=state.remote,
         backend=backend,
         non_blocking=state.remote,
-        raw=False,
     )
 
     if not backend.blocking:
