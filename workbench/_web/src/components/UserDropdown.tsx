@@ -17,7 +17,12 @@ import Link from "next/link";
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
 
-export function UserDropdown() {
+interface UserDropdownProps {
+    /** Where a guest's "Log In" button goes. */
+    loginHref?: string;
+}
+
+export function UserDropdown({ loginHref = "/login" }: UserDropdownProps) {
     const router = useRouter();
     // const posthog = usePostHog();
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -59,7 +64,7 @@ export function UserDropdown() {
 
     if (isGuest) {
         return (
-            <Link href="/login">
+            <Link href={loginHref}>
                 <Button
                     variant="outline"
                     size="default"
