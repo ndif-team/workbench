@@ -41,6 +41,9 @@ type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
 
 const PILL_TRIGGER = SHARED_PILL_TRIGGER;
 
+// Signing in from here returns to this page rather than to /workbench
+const LOGIN_HREF = "/login?next=/";
+
 function ModelPillOrSelect({
     modelsLoading,
     modelsError,
@@ -528,9 +531,9 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                     )}
                     <ModeToggle />
                     {loggedIn ? (
-                        <UserDropdown />
+                        <UserDropdown loginHref={LOGIN_HREF} />
                     ) : (
-                        <Link href="/login">
+                        <Link href={LOGIN_HREF}>
                             <Button
                                 variant="outline"
                                 size="default"

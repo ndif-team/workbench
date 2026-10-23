@@ -53,6 +53,17 @@ export function getPendingRequest(): PendingRequest | null {
     }
 }
 
+/**
+ * The `next` param as a path to return to after sign-in, or null when absent or
+ * not a same-origin path ("//host" and "/\host" are read by browsers as another origin).
+ */
+function returnPath(next: string | null): string | null {
+    if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
+        return null;
+    }
+    return next;
+}
+
 function LoginContent() {
     const [showCaptcha, setShowCaptcha] = useState(false);
     const captchaRef = useRef<ElementRef<typeof HCaptcha> | null>(null);
@@ -61,6 +72,9 @@ function LoginContent() {
     // Get pending request params (from gated model redirect)
     const pendingModel = searchParams.get("model");
     const isGatedModelRequest = searchParams.get("gatedModel") === "true";
+
+    // Where to go after sign-in, e.g. back to the landing page; /workbench otherwise
+    const next = returnPath(searchParams.get("next"));
 
     // Save pending request to localStorage when the page loads with gated model params
     useEffect(() => {
@@ -83,7 +97,8 @@ function LoginContent() {
     }
 
     const getRedirectUrl = () => {
-        return `${process.env.NEXT_PUBLIC_BASE_URL || window.location.origin}/auth/callback`;
+        const callback = `${process.env.NEXT_PUBLIC_BASE_URL || window.location.origin}/auth/callback`;
+        return next ? `${callback}?next=${encodeURIComponent(next)}` : callback;
     };
 
     const handleGitHubLogin = async () => {
@@ -148,7 +163,7 @@ function LoginContent() {
                 setShowCaptcha(false);
                 captchaRef.current?.resetCaptcha();
             } else {
-                window.location.href = "/workbench";
+                window.location.href = next ?? "/workbench";
             }
         } catch (err) {
             console.error("Anonymous sign-in error:", err);
