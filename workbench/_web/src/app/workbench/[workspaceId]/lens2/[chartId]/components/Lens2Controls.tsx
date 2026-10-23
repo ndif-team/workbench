@@ -38,6 +38,8 @@ interface Lens2ControlsProps {
      * an error. */
     modelsLoading?: boolean;
     hasExistingData?: boolean;
+    /** The saved run's predicted next token, shown after the prompt's tokens. */
+    nextToken?: string | null;
 }
 
 const TOKEN_STYLES = {
@@ -55,7 +57,15 @@ const fixTokenText = (text: string) => {
     return { result, numNewlines };
 };
 
-function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }) {
+function TokenDisplay({
+    tokens,
+    loading,
+    nextToken,
+}: {
+    tokens: Token[];
+    loading: boolean;
+    nextToken?: string | null;
+}) {
     return (
         <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.map((token, idx) => {
@@ -78,6 +88,17 @@ function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }
                     </span>
                 );
             })}
+            {nextToken && tokens.length > 0 && (
+                <span
+                    className={cn(
+                        TOKEN_STYLES.base,
+                        "cursor-default italic text-zinc-500 dark:text-zinc-400",
+                    )}
+                    title={`Predicted next token: "${nextToken}"`}
+                >
+                    {fixTokenText(nextToken).result}
+                </span>
+            )}
         </div>
     );
 }
@@ -88,6 +109,7 @@ export function Lens2Controls({
     modelsAvailable,
     modelsLoading = false,
     hasExistingData = false,
+    nextToken = null,
 }: Lens2ControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
     const capture = useCapture();
@@ -544,6 +566,10 @@ export function Lens2Controls({
         tokenizedModel === selectedModel &&
         lastTokenizedPromptRef.current === prompt;
 
+    // The next token belongs to the saved run, so show it only on that run's tokens
+    const showNextToken =
+        tokenizedModel === savedModel && lastTokenizedPromptRef.current === savedPrompt;
+
     return (
         <>
             <ToolPanelHeader
@@ -588,7 +614,11 @@ export function Lens2Controls({
                                     if (interactive) escapeTokenArea();
                                 }}
                             >
-                                <TokenDisplay tokens={tokenData} loading={isExecuting} />
+                                <TokenDisplay
+                                    tokens={tokenData}
+                                    loading={isExecuting}
+                                    nextToken={showNextToken ? nextToken : null}
+                                />
                             </div>
                         )}
                     </div>

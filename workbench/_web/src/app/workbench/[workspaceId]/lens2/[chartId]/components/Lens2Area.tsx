@@ -3,6 +3,7 @@
 import { useToolArea } from "@/hooks/useToolArea";
 import { Lens2Controls } from "./Lens2Controls";
 import { Lens2ConfigData, Lens2Data } from "@/types/lens2";
+import { finalPrediction } from "@/lib/lens-last-row";
 
 interface Lens2Config {
     id: string;
@@ -19,6 +20,7 @@ interface Lens2Chart {
 export default function Lens2Area() {
     const {
         config,
+        chart,
         isChartLoading,
         modelsAvailable,
         modelsFetching,
@@ -50,6 +52,7 @@ export default function Lens2Area() {
                 modelsAvailable={modelsAvailable && modelRunnable}
                 modelsLoading={modelsFetching}
                 hasExistingData={hasExistingData}
+                nextToken={finalPrediction(chart?.data)}
             />
         </div>
     );
