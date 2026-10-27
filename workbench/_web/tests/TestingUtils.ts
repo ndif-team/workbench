@@ -351,7 +351,7 @@ const PL_INTERVENTION = { srcTokenPos: 7, srcLayer: 8, tgtTokenPos: 7, tgtLayer:
  * Exported because that makes it the answer key for the guided tutorial's
  * run-scored checks: PatchLensArea feeds `finalPrediction(source)` and
  * `finalTopKTokens(source, 2)[1]` into the store, so a spec that fulfils
- * `/logit_lens/start` with this knows, deterministically, what "correct" is.
+ * `/logit_lens/run` with this knows, deterministically, what "correct" is.
  */
 export function buildLensData(finalToken: string, tokens: string[] = PL_TOKENS) {
     const input = tokens.slice();
