@@ -29,9 +29,9 @@ import {
  * one to be on screen: the panel withholds a step's check and note box until the
  * step's action is done (`hasDoneUnitAction`), so anything but a `manual` unit
  * has to be run first — see `openCheck` and the fixture's `needsRun`. Runs get a
- * stubbed `/logit_lens/start` returning `{ job_id: null, data }`, the shape
- * `startAndPoll` short-circuits on — while `createLensRun` still writes a real
- * `lens_runs` row, which is what makes the reload tests mean something.
+ * stubbed `/logit_lens/run` answering with a single SSE `data` event, the stream
+ * a local run sends — while `createLensRun` still writes a real `lens_runs` row,
+ * which is what makes the reload tests mean something.
  *
  * The high-value cases, in rough order:
  *   - per check: correct → data-correct="true"/state="fresh"; wrong → "false"
@@ -136,8 +136,11 @@ async function stubBackend(page: Page): Promise<{ finalToken: string }> {
             ],
         }),
     );
-    await page.route("**/logit_lens/start", (route) =>
-        route.fulfill({ json: { job_id: null, data: buildLensData(state.finalToken) } }),
+    await page.route("**/logit_lens/run", (route) =>
+        route.fulfill({
+            contentType: "text/event-stream",
+            body: `event: data\ndata: ${JSON.stringify(buildLensData(state.finalToken))}\n\n`,
+        }),
     );
     return state;
 }

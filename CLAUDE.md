@@ -27,7 +27,7 @@ If you're proposing visual UI changes, also follow `.claude/skills/product-nativ
        ├─server actions──► [Postgres (Supabase) OR local SQLite] via Drizzle
        └─auth via Supabase SSR cookies
 ```
-The backend speaks `nnsight` to either NDIF (remote model deployments) or local weights; it's stateless from the frontend's POV — all persistence is on the frontend's DB layer. Long-running model jobs return a `job_id` that the frontend polls.
+The backend speaks `nnsight` to either NDIF (remote model deployments) or local weights; it's stateless from the frontend's POV — all persistence is on the frontend's DB layer. The nnsightful tool routes (logit lens, j-lens, activation patching) stream each run back as Server-Sent Events; the other model routes return a `job_id` that the frontend polls.
 
 ---
 
@@ -79,8 +79,8 @@ workbench/                          # repo root
 │       ├── __init__.py             # registers nnsightful with NDIF (`ndif.register(nnsightful)`)
 │       ├── models.py               # /models  (list, /start-prediction, /start-generate, ...)
 │       ├── lens.py                 # /lens    (legacy lens v1)
-│       ├── logit_lens.py           # /logit_lens  (lens2 — uses nnsightful.tools.logit_lens)
-│       ├── activation_patching.py  # /activation_patching (uses nnsightful.tools.activation_patching)
+│       ├── logit_lens.py           # /logit_lens/run  (lens2 — streams nnsightful.tools.logit_lens)
+│       ├── activation_patching.py  # /activation_patching/run (streams nnsightful.tools.activation_patching)
 │       └── patch.py                # /patch (legacy)
 │
 └── workbench/_web/                 # Next.js frontend
@@ -136,7 +136,8 @@ workbench/                          # repo root
         │
         ├── lib/
         │   ├── config.ts           # backendUrl + ndifUrl + endpoint paths
-        │   ├── startAndPoll.ts     # NDIF job orchestration
+        │   ├── runAndStream.ts     # SSE client for the nnsightful tool routes
+        │   ├── startAndPoll.ts     # NDIF job polling for the other model routes
         │   ├── utils.ts            # cn(), hslFromCssVar()
         │   ├── queryKeys.ts        # all React Query keys
         │   ├── api/                # CLIENT-side API wrappers (use*Mutation hooks)
@@ -303,7 +304,9 @@ The current implementation stores history in zustand+localStorage. The plan to d
 
 Frontend ↔ FastAPI:
 - `src/lib/config.ts` lists every endpoint path. **Add new routes here**, don't hardcode.
-- `src/lib/startAndPoll.ts` is the NDIF job runner: POST start → poll `ndif.us/response/{job_id}` until COMPLETED → POST results. Updates `useWorkspace.jobStatus` ("QUEUED: 3", "Idle", etc.) so the header status pill reflects state.
+- `src/lib/runAndStream.ts` runs the nnsightful tools (`/logit_lens/run`, `/j_lens/run`, `/activation_patching/run`): one POST whose response is a stream of Server-Sent Events — `status` for each NDIF update, then `data` or `error` (see `workbench/_api/sse.py`).
+- `src/lib/startAndPoll.ts` is the NDIF job runner for the other model routes: POST start → poll `ndif.us/response/{job_id}` until COMPLETED → POST results.
+- Both update `useWorkspace.jobStatus` ("QUEUED: 3", "Idle", etc.) so the header status pill reflects state.
 - All FastAPI calls include the `X-User-Email` header. Build it via `createUserHeadersAction()` from `src/actions/auth.ts`.
 
 ### Mutation conventions (see `src/lib/api/lensApi.ts`, `chartApi.ts`)
@@ -484,12 +487,16 @@ Two gotchas:
   `localhost:3000` — if another project owns that port the suite silently tests the wrong
   app, so either free the port or point `baseURL` at your dev server.
 
-To avoid a live model in a new spec, stub the tool endpoint — `startAndPoll`
-short-circuits when the start response is `{ job_id: null, data: … }`:
+To avoid a live model in a new spec, stub the tool endpoint. A tool route
+(`/logit_lens/run` etc.) answers with a stream, so the stub is a single SSE
+`data` event:
 
 ```ts
-await page.route("**/logit_lens/start", (route) =>
-    route.fulfill({ json: { job_id: null, data: LENS_FIXTURE } }));
+await page.route("**/logit_lens/run", (route) =>
+    route.fulfill({
+        contentType: "text/event-stream",
+        body: `event: data\ndata: ${JSON.stringify(LENS_FIXTURE)}\n\n`,
+    }));
 ```
 
 ### ⚠️ Warnings
@@ -530,8 +537,8 @@ The contract between workbench and nnsightful is: **workbench wires tools to UI;
 
 **Backend** (`workbench/_api/`):
 - `routes/__init__.py` registers nnsightful with NDIF: `from nnsight import ndif; import nnsightful; ndif.register(nnsightful)` — this lets NDIF's remote backend serialize+execute nnsightful tools.
-- `routes/logit_lens.py` imports `from nnsightful.types import LogitLensData` and `from nnsightful.tools.logit_lens import logit_lens`. The `/logit_lens/start` and `/logit_lens/results/{job_id}` endpoints call `logit_lens._run(...)` and shape via `logit_lens.to_data_obj(...)`.
-- `routes/activation_patching.py` mirrors the same pattern for activation patching.
+- `routes/logit_lens.py` imports `from nnsightful.tools.logit_lens import logit_lens`. The `/logit_lens/run` endpoint hands the tool call to `ToolEventStream` (`workbench/_api/sse.py`), which runs it with `ExecMode.REMOTE_ASYNC` in remote mode and streams the result.
+- `routes/j_lens.py` and `routes/activation_patching.py` mirror the same pattern.
 
 **Frontend** (`workbench/_web/src/`):
 - `app/workbench/[workspaceId]/lens2/[chartId]/components/Lens2Display.tsx` — `import { LogitLensWidget } from "nnsightful"; import type { LogitLensData } from "nnsightful";` and renders the widget directly with `chart.data`.
@@ -542,19 +549,20 @@ The contract between workbench and nnsightful is: **workbench wires tools to UI;
 
 ### Workbench's wrappers around nnsightful
 
-- **Backend**: each tool route is a thin FastAPI shim around `tool._run(...)` and `tool.to_data_obj(...)`. The wrapper handles auth (`require_user_email`), state injection (`Depends(get_state)`), telemetry, NDIF job-id flow, and the `NDIFResponse` envelope (in `workbench/_api/data_models.py`):
-  ```ts
-  // shape returned to frontend
-  { job_id?: string; data?: T }
+- **Backend**: each tool route is a thin FastAPI shim that handles auth (`require_user_email`) and state injection (`Depends(get_state)`), then returns `ToolEventStream(tool, model, *args, remote=state.remote, **kwargs).response()` (`workbench/_api/sse.py`). The response is a stream of Server-Sent Events:
   ```
-  When `state.remote=True`, `_run` returns a `job_id` and the workbench responds `{job_id}`; the frontend then polls and finally hits `/results/{job_id}` which calls `to_data_obj(...)` on the materialized backend result.
-- **Frontend**: `lib/startAndPoll.ts` is the polling state machine that turns the two-step start→results NDIF flow into a single `Promise<T>`. `lib/api/*.ts` wraps `startAndPoll` per tool. Components consume the resulting `data` directly via the nnsightful widget.
+  status  an NDIF status update (nnsight's ResponseModel without `data`)
+  data    the tool's data; ends the stream
+  error   {"error": "..."}; ends the stream
+  ```
+  When `state.remote=True` the tool runs with `ExecMode.REMOTE_ASYNC`, and each update of its `AsyncToolBackend` becomes a `status` event; a `: keepalive` comment goes out every 15 s while waiting so proxies don't close the connection. A local run is a single `data` event. Once streaming, failures are `error` events, not HTTP statuses.
+- **Frontend**: `lib/runAndStream.ts` POSTs, parses the event stream, mirrors `status` into `useWorkspace.jobStatus`, and resolves with the `data` payload as a single `Promise<T>`. `lib/api/*.ts` wraps it per tool. Components consume the resulting `data` directly via the nnsightful widget.
 
 ### Assumptions the UI makes about nnsightful responses
 
-1. **Two-step async, not streaming.** Tools return either a `data` payload immediately (local mode, `state.remote=False`) or a `job_id` that takes ~seconds to minutes to complete on NDIF. Today the workbench polls; **streaming is not currently supported** — don't add a "streaming" label/UI without changing the underlying flow.
+1. **One streamed request per run.** The status updates and the result arrive over a single connection that lives as long as the run; a reload loses a run in progress (there is no job id to rejoin). The stream carries status, not partial results — don't add a "streaming results" label/UI.
 2. **Result shape is dictated by `to_data_obj(...)`.** `LogitLensData` and `ActivationPatchingData` are the contract. Don't hand-massage these in workbench code; if the shape needs to change, it changes in nnsightful first and workbench updates its imports.
-3. **Errors are NDIF-shaped.** The poll loop in `startAndPoll.ts` recognizes `ERROR` and `NNSIGHT_ERROR` statuses from the NDIF response endpoint and throws — error UX flows from there (toast + inline). Errors from tool internals surface as job failures, not HTTP 500s.
+3. **Errors arrive as `error` events.** An NDIF `ERROR` status, a failed submit, or a tool error becomes an `error` event, and `runAndStream` throws its message — error UX flows from there (toast + inline). Only failures before the stream opens (e.g. an unknown model) are HTTP errors.
 4. **Widgets are self-contained.** `LogitLensWidget` and `ActivationPatchingWidget` render their full UI given `data` and a small UI-state prop. Workbench supplies theme via `next-themes` (`useTheme().resolvedTheme`) and lets the widget handle internal interactions.
 5. **viz/charts.js path is stable.** `actions/notebook.ts` reads `node_modules/nnsightful/src/nnsightful/viz/charts.js` directly. If nnsightful restructures its viz folder, this path needs updating in `notebook.ts` AND in `next.config.js`'s `outputFileTracingIncludes`.
 
@@ -577,7 +585,7 @@ Manual recipe summary (skill has the full version):
 2. **Persistence is fully on the frontend's DB layer.** Backend has no DB. Charts/configs/documents/workspaces all flow through Drizzle → Supabase or local SQLite. This is why durability for the generation panel needs to be added to the frontend DB, not the backend.
 3. **Two-DB setup is real and tested.** Schemas are mirrored across `schema.pg.ts` and `schema.sqlite.ts`; `bun:test` exercises the SQLite path. New tables must be added to both files.
 4. **nnsightful is the load-bearing dependency** for both visualization (frontend widgets) and experiments (backend tools). It's git-installed, locally symlinked, and transpiled. Breaks here will surface as cryptic build/runtime errors.
-5. **NDIF is the model-execution backplane.** Job ID polling is a first-class concern (see `startAndPoll.ts` and the `state.remote` branches in every tool route). Anything model-touching has to think in start→poll→results.
+5. **NDIF is the model-execution backplane.** The nnsightful tools stream each run (`sse.py`, `runAndStream.ts`); the other model routes still go start→poll→results (`startAndPoll.ts` and the `state.remote` branches in those routes).
 6. **shadcn primitives + a clear panel-header pattern carry the design language.** New UI that copies the panel pattern, reuses primitives, and respects the few hard rules in §4 will look native. New UI that doesn't will look like a separate product.
 7. **Auth is Supabase cookies refreshed by middleware**, with `NEXT_PUBLIC_DISABLE_AUTH=true` short-circuiting both client and server to a stub user. The same pattern (`X-User-Email` header) propagates identity to the FastAPI backend.
 

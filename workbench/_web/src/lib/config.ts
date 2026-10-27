@@ -13,17 +13,14 @@ const config = {
         startLensGrid: "/lens/start-grid",
         resultsLensGrid: (jobId: string) => `/lens/results-grid/${jobId}`,
 
-        startLens2: "/logit_lens/start",
-        resultsLens2: (jobId: string) => `/logit_lens/results/${jobId}`,
+        runLens2: "/logit_lens/run",
 
-        startJLens: "/j_lens/start",
-        resultsJLens: (jobId: string) => `/j_lens/results/${jobId}`,
+        runJLens: "/j_lens/run",
 
         startCausalMediation: "/causal_mediation/start",
         resultsCausalMediation: (jobId: string) => `/causal_mediation/results/${jobId}`,
 
-        startActivationPatching: "/activation_patching/start",
-        resultsActivationPatching: (jobId: string) => `/activation_patching/results/${jobId}`,
+        runActivationPatching: "/activation_patching/run",
 
         startPrediction: "/models/start-prediction",
         resultsPrediction: (jobId: string) => `/models/results-prediction/${jobId}`,
