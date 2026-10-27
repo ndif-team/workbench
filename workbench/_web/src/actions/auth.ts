@@ -30,10 +30,10 @@ export async function signInWithMagicLinkAction(formData: FormData): Promise<voi
 }
 
 /**
- * Server action to get the current user's email using server-side Supabase client
+ * Get the current user's email using server-side Supabase client
  * This can access HTTP-only cookies and is more secure than client-side auth
  */
-export async function getCurrentUserEmailAction(): Promise<string | null> {
+async function getCurrentUserEmailAction(): Promise<string | null> {
     try {
         const supabase = await createClient();
         const {

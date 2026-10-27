@@ -13,7 +13,7 @@ import type { getWorkspaces } from "@/lib/queries/workspaceQueries";
  * fresh workspace) that feed the same `/workbench?...` chart-creation route.
  */
 
-export type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number];
+type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number];
 
 /** "New" badge marking a recently added tool in the picker. */
 const NewBadge = () => (
@@ -23,7 +23,7 @@ const NewBadge = () => (
 );
 
 /** The tool values the chart-creation flow understands. */
-export const TOOL_OPTIONS: PillPopoverOption[] = [
+const TOOL_OPTIONS: PillPopoverOption[] = [
     { value: "Logit Lens", label: "Logit Lens", group: "Tools" },
     { value: "J-Lens", label: "J-Lens", group: "Tools", trailing: <NewBadge /> },
     { value: "Activation Patching", label: "Activation Patching", group: "Tools" },

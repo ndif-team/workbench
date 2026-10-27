@@ -26,11 +26,9 @@ type ToolSupport =
       };
 
 const TOOL_SUPPORT: Record<ToolType, ToolSupport> = {
-    lens: { supportsAll: true },
     lens2: { supportsAll: true },
     "activation-patching": { supportsAll: true },
     "patch-lens": { supportsAll: true },
-    patch: { supportsAll: true },
     jlens: {
         supportsAll: false,
         // `has_jacobian` is optional; a missing value means the backend couldn't
@@ -42,27 +40,27 @@ const TOOL_SUPPORT: Record<ToolType, ToolSupport> = {
 };
 
 /** Landing page / launch dialog tool *display names* → the internal ToolType. */
-export const TOOL_DISPLAY_TO_TYPE: Record<string, ToolType> = {
+const TOOL_DISPLAY_TO_TYPE: Record<string, ToolType> = {
     "Logit Lens": "lens2",
     "J-Lens": "jlens",
     "Activation Patching": "activation-patching",
 };
 
+/** Support rule for a tool. A type outside ToolType (a config row of a
+ * retired tool) is treated as supporting every model. */
+function supportFor(tool: ToolType): ToolSupport {
+    return TOOL_SUPPORT[tool] ?? { supportsAll: true };
+}
+
 /** Whether a tool only supports a subset of models (vs. every model). */
 export function isToolModelRestricted(tool: ToolType): boolean {
-    return !TOOL_SUPPORT[tool].supportsAll;
+    return !supportFor(tool).supportsAll;
 }
 
 /** Whether `model` supports `tool`. Unrestricted tools support every model. */
 export function isToolSupportedForModel(tool: ToolType, model: Model): boolean {
-    const rule = TOOL_SUPPORT[tool];
+    const rule = supportFor(tool);
     return rule.supportsAll || rule.isSupported(model);
-}
-
-/** Filter `models` to those that support `tool`. */
-export function supportedModelsFor(tool: ToolType, models: Model[]): Model[] {
-    if (!isToolModelRestricted(tool)) return models;
-    return models.filter((m) => isToolSupportedForModel(tool, m));
 }
 
 /**
@@ -70,7 +68,7 @@ export function supportedModelsFor(tool: ToolType, models: Model[]): Model[] {
  * for tools that support every model.
  */
 export function unsupportedReasonFor(tool: ToolType): string | null {
-    const rule = TOOL_SUPPORT[tool];
+    const rule = supportFor(tool);
     return rule.supportsAll ? null : rule.unsupportedReason;
 }
 

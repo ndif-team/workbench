@@ -33,12 +33,3 @@ clean:
 
 modal:
 	modal deploy modal/image.py
-
-
-# TESTING
-
-lens-local: 
-	k6 run -e BACKEND_URL=http://localhost:8000 workbench/_web/tests/k6/lens.ts
-
-lens-modal: 
-	k6 run -e BACKEND_URL=https://ndif--interp-workbench-modal-app.modal.run workbench/_web/tests/k6/lens.ts

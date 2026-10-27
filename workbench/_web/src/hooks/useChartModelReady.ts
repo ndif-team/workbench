@@ -39,7 +39,7 @@ export function isChartModelDeploying(
     return isModelCold(catalogModel) || isModelDeploying(catalogModel) || phase !== "idle";
 }
 
-export type ChartModelReadiness =
+type ChartModelReadiness =
     | { state: "loading"; modelName: string | null }
     | { state: "ready"; modelName: string }
     | { state: "deploying"; modelName: string; phase: DeploymentPhase };

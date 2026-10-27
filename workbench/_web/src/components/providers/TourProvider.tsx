@@ -17,10 +17,6 @@ function ContentComponent({ currentStep, steps, setIsOpen, setCurrentStep }: Pop
         return <div>Unsupported content type</div>;
     }
 
-    if (step.selector === "sidebar") {
-        return <></>;
-    }
-
     const isFirst = currentStep === 0;
     const isLast = currentStep === steps.length - 1;
 
@@ -112,7 +108,7 @@ interface ParsedSegment {
     content: string;
 }
 
-export function parseBackticks(text: string): ParsedSegment[] {
+function parseBackticks(text: string): ParsedSegment[] {
     const segments: ParsedSegment[] = [];
     let currentIndex = 0;
 
@@ -162,7 +158,7 @@ export function parseBackticks(text: string): ParsedSegment[] {
     return segments;
 }
 
-export function renderTextWithBackticks(text: string): React.ReactElement {
+function renderTextWithBackticks(text: string): React.ReactElement {
     const segments = parseBackticks(text);
 
     return (

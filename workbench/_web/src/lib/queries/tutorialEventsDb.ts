@@ -234,7 +234,7 @@ export const deriveCheckStats = (
     }));
 };
 
-export interface WorkspaceTutorialProgress {
+interface WorkspaceTutorialProgress {
     completedStepIds: string[];
     furthestStepId: string | null;
     hintsUsed: number;

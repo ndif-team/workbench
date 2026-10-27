@@ -7,7 +7,6 @@ import {
     useCreateLens2ChartPair,
     useCreateJLensChartPair,
     useCreatePatchLensChartPair,
-    useCreatePatchChartPair,
     useCreateActivationPatchingChartPair,
     useDeleteChart,
 } from "@/lib/api/chartApi";
@@ -20,6 +19,7 @@ import { useReorderWorkspaceItems } from "@/lib/api/workspaceApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { queryKeys } from "@/lib/queryKeys";
 import { useCapture } from "@/lib/analytics";
+import { chartPath } from "@/lib/chartRoutes";
 import type { WorkshopTool } from "@/db/schema";
 import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
@@ -29,7 +29,7 @@ import { useModelDeployment } from "@/stores/useModelDeployment";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { isChartModelDeploying } from "@/hooks/useChartModelReady";
 import { isModelDeploying } from "@/components/model-selector/status";
-import { ChartMetadata } from "@/types/charts";
+import type { ChartMetadata, ToolType } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
 import {
     Loader2,
@@ -84,7 +84,6 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     const { mutate: createJLensPair, isPending: isCreatingJLens } = useCreateJLensChartPair();
     const { mutate: createPatchLensPair, isPending: isCreatingPatchLens } =
         useCreatePatchLensChartPair();
-    const { mutate: createPatchPair, isPending: isCreatingPatch } = useCreatePatchChartPair();
     const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
         useCreateActivationPatchingChartPair();
     const { mutate: deleteChart } = useDeleteChart();
@@ -215,27 +214,14 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     }, [charts, reports]);
 
     const navigateToChart = (chartId: string, toolType?: string) => {
-        // Route based on tool type
-        if (toolType === "lens2") {
-            router.push(`/workbench/${workspaceId}/lens2/${chartId}`);
-        } else if (toolType === "jlens") {
-            router.push(`/workbench/${workspaceId}/j-lens/${chartId}`);
-        } else if (toolType === "activation-patching") {
-            router.push(`/workbench/${workspaceId}/activation-patching/${chartId}`);
-        } else if (toolType === "patch-lens") {
-            router.push(`/workbench/${workspaceId}/patch-lens/${chartId}`);
-        } else {
-            router.push(`/workbench/${workspaceId}/${chartId}`);
-        }
+        router.push(chartPath(workspaceId, chartId, toolType));
     };
 
     const navigateToOverview = (documentId: string) => {
         router.push(`/workbench/${workspaceId}/overview/${documentId}`);
     };
 
-    const handleCreate = (
-        toolType: "lens2" | "jlens" | "patch" | "activation-patching" | "patch-lens",
-    ) => {
+    const handleCreate = (toolType: ToolType) => {
         // Guard against stale UI / programmatic calls; the buttons below are
         // already filtered. createChartConfigPair re-checks server-side.
         if (workshop && !workshop.allowedTools.includes(toolType as WorkshopTool)) return;
@@ -267,21 +253,10 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
             );
             return;
         }
-        if (toolType === "activation-patching") {
-            createActivationPatchingPair(
-                { workspaceId: workspaceId as string },
-                {
-                    onSuccess: ({ chart }) => navigateToChart(chart.id, "activation-patching"),
-                },
-            );
-            return;
-        }
-        createPatchPair(
+        createActivationPatchingPair(
+            { workspaceId: workspaceId as string },
             {
-                workspaceId: workspaceId as string,
-            },
-            {
-                onSuccess: ({ chart }) => navigateToChart(chart.id, toolType),
+                onSuccess: ({ chart }) => navigateToChart(chart.id, "activation-patching"),
             },
         );
     };
@@ -366,7 +341,6 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         isCreatingLens2 ||
         isCreatingJLens ||
         isCreatingPatchLens ||
-        isCreatingPatch ||
         isCreatingActivationPatching ||
         isCreatingDocument;
 

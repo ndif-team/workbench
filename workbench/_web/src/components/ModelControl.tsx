@@ -19,17 +19,7 @@ import {
     isToolSupportedForModel,
     unsupportedReasonFor,
 } from "@/lib/toolSupport";
-
-/** Workspace route segment (`/workbench/[id]/<segment>/[chartId]`) → the tool
- * whose chart lives there. Used to gate the model picker to models the active
- * tool supports. Segments not listed here (e.g. the legacy lens route, overview)
- * impose no restriction. */
-const ROUTE_SEGMENT_TO_TOOL: Record<string, ToolType> = {
-    lens2: "lens2",
-    "j-lens": "jlens",
-    "activation-patching": "activation-patching",
-    "patch-lens": "patch-lens",
-};
+import { toolForRouteSegment } from "@/lib/chartRoutes";
 
 // ----- status vocabularies ----------------------------------------------------------
 
@@ -107,7 +97,7 @@ export function ModelControl({ className }: ModelControlProps) {
     const pathname = usePathname();
     const activeTool = React.useMemo<ToolType | null>(() => {
         const segment = pathname.split("/").filter(Boolean)[2];
-        const tool = segment ? ROUTE_SEGMENT_TO_TOOL[segment] : undefined;
+        const tool = segment ? toolForRouteSegment(segment) : undefined;
         return tool && isToolModelRestricted(tool) ? tool : null;
     }, [pathname]);
 

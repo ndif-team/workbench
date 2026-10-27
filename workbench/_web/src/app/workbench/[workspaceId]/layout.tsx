@@ -6,7 +6,6 @@ import { UserDropdown } from "@/components/UserDropdown";
 import Link from "next/link";
 import { ArrowLeft, HelpCircle } from "lucide-react";
 import { ModelControl } from "@/components/ModelControl";
-import { CaptureProvider } from "@/components/providers/CaptureProvider";
 import { Button } from "@/components/ui/button";
 import { WorkspaceNameEditor } from "@/components/WorkspaceNameEditor";
 
@@ -90,9 +89,7 @@ export default function WorkbenchLayout({
                     <UserDropdown />
                 </nav>
             </header>
-            <main className="flex-1 min-h-0 overflow-hidden">
-                <CaptureProvider>{children}</CaptureProvider>
-            </main>
+            <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
         </div>
     );
 }

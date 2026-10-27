@@ -8,16 +8,8 @@ export const setConfig = async (configId: string, config: NewConfig): Promise<vo
     await db.update(configs).set(config).where(eq(configs.id, configId));
 };
 
-export const addConfig = async (config: NewConfig): Promise<void> => {
-    await db.insert(configs).values(config);
-};
-
 export const deleteConfig = async (configId: string): Promise<void> => {
     await db.delete(configs).where(eq(configs.id, configId));
-};
-
-export const addChartConfigLink = async (configId: string, chartId: string): Promise<void> => {
-    await db.insert(chartConfigLinks).values({ configId, chartId });
 };
 
 export const getConfigs = async (chartId: string): Promise<Config[]> => {

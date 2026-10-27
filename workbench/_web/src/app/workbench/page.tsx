@@ -159,7 +159,6 @@ export default async function WorkbenchPage({
                             initialPrompt={prompt}
                             initialModel={model}
                             workspaceName={createNew ? "Untitled" : "Default Workspace"}
-                            seedWithExamples={!createNew}
                             tool={tool}
                             srcPrompt={srcPrompt}
                             tgtPrompt={tgtPrompt}

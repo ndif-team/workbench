@@ -41,7 +41,7 @@ export function chartModelFromConfig(
  * Both sides may be partial — we treat missing values via the getter
  * (`?? default` lives inside the getter, not here).
  */
-export function configFieldsEqual<T extends object>(
+function configFieldsEqual<T extends object>(
     saved: T | null | undefined,
     draft: Partial<T> | null | undefined,
     fields: ReadonlyArray<(obj: T) => unknown>,

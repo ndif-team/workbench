@@ -11,6 +11,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { db, clearDatabase } from "../client";
+import { charts, configs, chartConfigLinks } from "../schema";
 
 // Import actual query functions
 import {
@@ -22,8 +23,8 @@ import {
 } from "@/lib/queries/workspaceQueries";
 
 import {
-    createLensChartPair,
-    createPatchChartPair,
+    createLens2ChartPair,
+    createActivationPatchingChartPair,
     getChartById,
     updateChartName,
     setChartData,
@@ -36,8 +37,6 @@ import {
 
 import { getConfigs, setConfig, deleteConfig } from "@/lib/queries/configQueries";
 
-import { createView, getView, updateView, deleteView } from "@/lib/queries/viewQueries";
-
 import {
     createDocument,
     getDocumentById,
@@ -47,19 +46,29 @@ import {
     deleteDocument,
 } from "@/lib/queries/documentQueries";
 
-import { Metrics } from "@/types/lens";
-import type { LensConfigData } from "@/types/lens";
+import type { Lens2ConfigData } from "@/types/lens2";
 
 // Test user ID (simulating the mock user from disabled auth)
 const TEST_USER_ID = "test-user-123";
 
-// Helper to create a valid LensConfigData for tests
-const createTestLensConfig = (prompt: string = "test"): LensConfigData => ({
+// Helper to create a valid Lens2ConfigData for tests
+const createTestLensConfig = (prompt: string = "test"): Lens2ConfigData => ({
     prompt,
     model: "gpt2",
-    statisticType: Metrics.PROBABILITY,
-    token: { idx: 0, id: 0, text: "", targetIds: [] },
+    topk: 5,
+    includeEntropy: true,
 });
+
+// Seeds a chart of a retired tool the way old rows sit in user databases.
+const insertRetiredToolChart = async (workspaceId: string, updatedAt: Date) => {
+    const [chart] = await db.insert(charts).values({ workspaceId, updatedAt }).returning();
+    const [config] = await db
+        .insert(configs)
+        .values({ workspaceId, type: "lens", data: {} })
+        .returning();
+    await db.insert(chartConfigLinks).values({ chartId: chart.id, configId: config.id });
+    return chart;
+};
 
 // Schema is created by drizzle-kit push in setup.ts
 
@@ -106,8 +115,8 @@ describe("Workspace Queries", () => {
         const ws2 = await createWorkspace(TEST_USER_ID, "Workspace 2");
 
         // Add charts to workspace 1
-        await createLensChartPair(ws1.id, createTestLensConfig());
-        await createLensChartPair(ws1.id, createTestLensConfig("test2"));
+        await createLens2ChartPair(ws1.id, createTestLensConfig());
+        await createLens2ChartPair(ws1.id, createTestLensConfig("test2"));
 
         // Add document to workspace 2
         await createDocument(ws2.id);
@@ -172,34 +181,22 @@ describe("Chart Queries", () => {
         workspaceId = workspace.id;
     });
 
-    it("should create a lens chart pair", async () => {
+    it("should create a lens2 chart pair", async () => {
         const lensConfig = createTestLensConfig("The capital of France is");
 
-        const { chart, config } = await createLensChartPair(workspaceId, lensConfig);
+        const { chart, config } = await createLens2ChartPair(workspaceId, lensConfig);
 
         expect(chart).toBeDefined();
         expect(chart.id).toBeDefined();
         expect(chart.workspaceId).toBe(workspaceId);
 
         expect(config).toBeDefined();
-        expect(config.type).toBe("lens");
+        expect(config.type).toBe("lens2");
         expect(config.data).toEqual(lensConfig);
     });
 
-    it("should create a patch chart pair", async () => {
-        const patchConfig = {
-            patches: [{ layer: 1, position: 0, value: 0.5 }],
-        };
-
-        const { chart, config } = await createPatchChartPair(workspaceId, patchConfig as any);
-
-        expect(chart).toBeDefined();
-        expect(config.type).toBe("patch");
-        expect(config.data).toEqual(patchConfig);
-    });
-
     it("should get chart by ID", async () => {
-        const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
 
         const found = await getChartById(chart.id);
 
@@ -208,7 +205,7 @@ describe("Chart Queries", () => {
     });
 
     it("should update chart name", async () => {
-        const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
 
         await updateChartName(chart.id, "My Custom Chart");
         const updated = await getChartById(chart.id);
@@ -217,38 +214,38 @@ describe("Chart Queries", () => {
     });
 
     it("should set chart data with JSON", async () => {
-        const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
 
         const chartData = {
             series: [{ name: "test", data: [1, 2, 3] }],
             labels: ["a", "b", "c"],
         };
 
-        await setChartData(chart.id, chartData as any, "line");
+        await setChartData(chart.id, chartData as any, "lens2");
         const updated = await getChartById(chart.id);
 
         expect(updated!.data).toEqual(chartData);
-        expect(updated!.type).toBe("line");
+        expect(updated!.type).toBe("lens2");
     });
 
     it("should get config for chart via link", async () => {
         const lensConfig = createTestLensConfig("linked config");
-        const { chart } = await createLensChartPair(workspaceId, lensConfig);
+        const { chart } = await createLens2ChartPair(workspaceId, lensConfig);
 
         const config = await getConfigForChart(chart.id);
 
         expect(config).not.toBeNull();
-        expect(config!.type).toBe("lens");
+        expect(config!.type).toBe("lens2");
         expect(config!.data).toEqual(lensConfig);
     });
 
     it("should get most recent chart for workspace", async () => {
-        const { chart: chart1 } = await createLensChartPair(
+        const { chart: chart1 } = await createLens2ChartPair(
             workspaceId,
             createTestLensConfig("first"),
         );
 
-        const { chart: chart2 } = await createLensChartPair(
+        const { chart: chart2 } = await createLens2ChartPair(
             workspaceId,
             createTestLensConfig("second"),
         );
@@ -257,35 +254,67 @@ describe("Chart Queries", () => {
 
         // Should return one of the charts we created
         expect(mostRecent).not.toBeNull();
-        expect([chart1.id, chart2.id]).toContain(mostRecent!.id);
-        expect(mostRecent!.workspaceId).toBe(workspaceId);
+        expect([chart1.id, chart2.id]).toContain(mostRecent!.chart.id);
+        expect(mostRecent!.chart.workspaceId).toBe(workspaceId);
+        expect(mostRecent!.toolType).toBe("lens2");
+    });
+
+    it("should skip charts of retired tools when picking the most recent chart", async () => {
+        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
+        await insertRetiredToolChart(workspaceId, new Date(Date.now() + 60_000));
+
+        const mostRecent = await getMostRecentChartForWorkspace(workspaceId);
+
+        expect(mostRecent).not.toBeNull();
+        expect(mostRecent!.chart.id).toBe(chart.id);
+        expect(mostRecent!.toolType).toBe("lens2");
+    });
+
+    it("should find no most recent chart when only retired-tool charts exist", async () => {
+        await insertRetiredToolChart(workspaceId, new Date());
+
+        expect(await getMostRecentChartForWorkspace(workspaceId)).toBeNull();
+    });
+
+    it("should route a chart without a config by its own type", async () => {
+        await createLens2ChartPair(workspaceId, createTestLensConfig());
+        const [chart] = await db
+            .insert(charts)
+            .values({ workspaceId, type: "patch-lens", updatedAt: new Date(Date.now() + 60_000) })
+            .returning();
+
+        const mostRecent = await getMostRecentChartForWorkspace(workspaceId);
+
+        expect(mostRecent).not.toBeNull();
+        expect(mostRecent!.chart.id).toBe(chart.id);
+        expect(mostRecent!.toolType).toBe("patch-lens");
     });
 
     it("should get charts metadata", async () => {
-        const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
         await updateChartName(chart.id, "Named Chart");
 
         const metadata = await getChartsMetadata(workspaceId);
 
         expect(metadata).toHaveLength(1);
         expect(metadata[0].name).toBe("Named Chart");
-        expect(metadata[0].toolType).toBe("lens");
+        expect(metadata[0].toolType).toBe("lens2");
     });
 
     it("should copy a chart", async () => {
-        const { chart: original } = await createLensChartPair(
+        const { chart: original } = await createLens2ChartPair(
             workspaceId,
             createTestLensConfig("original"),
         );
         await updateChartName(original.id, "Original Chart");
-        await setChartData(original.id, { test: "data" } as any, "heatmap");
+        await setChartData(original.id, { test: "data" } as any, "lens2");
 
         const copy = await copyChart(original.id);
 
         expect(copy.id).not.toBe(original.id);
         expect(copy.name).toBe("Copy of Original Chart");
         expect(copy.data).toEqual({ test: "data" });
-        expect(copy.type).toBe("heatmap");
+        expect(copy.type).toBe("lens2");
 
         // Verify copy has its own config
         const copyConfig = await getConfigForChart(copy.id);
@@ -293,7 +322,7 @@ describe("Chart Queries", () => {
     });
 
     it("should delete a chart", async () => {
-        const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
 
         await deleteChart(chart.id);
         const found = await getChartById(chart.id);
@@ -310,7 +339,7 @@ describe("Config Queries", () => {
         await clearDatabase();
         const workspace = await createWorkspace(TEST_USER_ID, "Config Test Workspace");
         workspaceId = workspace.id;
-        const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
         chartId = chart.id;
     });
 
@@ -318,22 +347,23 @@ describe("Config Queries", () => {
         const configs = await getConfigs(chartId);
 
         expect(configs).toHaveLength(1);
-        expect(configs[0].type).toBe("lens");
+        expect(configs[0].type).toBe("lens2");
     });
 
     it("should update config data", async () => {
         const configs = await getConfigs(chartId);
         const configId = configs[0].id;
 
-        const updatedData = {
+        const updatedData: Lens2ConfigData = {
             prompt: "updated prompt",
             model: "gpt2-large",
-            token: { idx: 1, id: 1, text: "test", targetIds: [] },
+            topk: 10,
+            includeEntropy: false,
         };
 
         await setConfig(configId, {
             workspaceId,
-            type: "lens",
+            type: "lens2",
             data: updatedData,
         });
 
@@ -350,61 +380,6 @@ describe("Config Queries", () => {
         // Note: This doesn't clean up the link, just the config
         const remainingConfigs = await getConfigs(chartId);
         expect(remainingConfigs).toHaveLength(0);
-    });
-});
-
-describe("View Queries", () => {
-    let workspaceId: string;
-    let chartId: string;
-
-    beforeEach(async () => {
-        await clearDatabase();
-        const workspace = await createWorkspace(TEST_USER_ID, "View Test Workspace");
-        workspaceId = workspace.id;
-        const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
-        chartId = chart.id;
-    });
-
-    it("should create a view for a chart", async () => {
-        const viewData = {
-            zoom: { x: [0, 100], y: [0, 50] },
-            selection: [1, 2, 3],
-        };
-
-        const view = await createView({
-            chartId,
-            data: viewData,
-        });
-
-        expect(view).toBeDefined();
-        expect(view.chartId).toBe(chartId);
-        expect(view.data).toEqual(viewData);
-    });
-
-    it("should get view for a chart", async () => {
-        const viewData = { test: "view data" };
-        await createView({ chartId, data: viewData });
-
-        const result = await getView(chartId);
-
-        expect(result).not.toBeNull();
-        expect(result!.view.data).toEqual(viewData);
-    });
-
-    it("should update view data", async () => {
-        const view = await createView({ chartId, data: { original: true } });
-
-        const updated = await updateView(view.id, { updated: true, zoom: 2 } as any);
-
-        expect(updated.data).toEqual({ updated: true, zoom: 2 });
-    });
-
-    it("should delete a view", async () => {
-        const view = await createView({ chartId, data: { test: true } });
-        await deleteView(view.id);
-
-        const found = await getView(chartId);
-        expect(found).toBeNull();
     });
 });
 
@@ -493,7 +468,7 @@ describe("JSON Storage in SQLite", () => {
     });
 
     it("should handle complex nested JSON in chart data", async () => {
-        const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
 
         const complexData = {
             metadata: {
@@ -509,39 +484,39 @@ describe("JSON Storage in SQLite", () => {
             booleanFalse: false,
         };
 
-        await setChartData(chart.id, complexData as any, "heatmap");
+        await setChartData(chart.id, complexData as any, "lens2");
         const retrieved = await getChartById(chart.id);
 
         expect(retrieved!.data).toEqual(complexData);
     });
 
     it("should handle special characters in JSON strings", async () => {
-        const { chart } = await createLensChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
 
         const specialData = {
             text: "Special chars: \"quotes\", 'apostrophes', \n newlines",
             unicode: "Unicode: 日本語, émojis 🎉",
         };
 
-        await setChartData(chart.id, specialData as any, "line");
+        await setChartData(chart.id, specialData as any, "lens2");
         const retrieved = await getChartById(chart.id);
 
         expect(retrieved!.data).toEqual(specialData);
     });
 
     it("should handle arrays and nested objects in config data", async () => {
-        const complexConfig: LensConfigData & { settings?: unknown } = {
+        const complexConfig: Lens2ConfigData & { settings?: unknown } = {
             prompt: "test",
             model: "gpt2",
-            statisticType: Metrics.PROBABILITY,
-            token: { idx: 0, id: 0, text: "", targetIds: [1, 2, 3] },
+            topk: 5,
+            includeEntropy: true,
             settings: {
                 layers: [0, 1, 2],
                 options: { normalize: true, scale: 1.5 },
             },
         };
 
-        const { config } = await createLensChartPair(workspaceId, complexConfig as LensConfigData);
+        const { config } = await createLens2ChartPair(workspaceId, complexConfig);
 
         expect(config.data).toEqual(complexConfig);
     });
@@ -552,13 +527,18 @@ describe("Cross-Table Relationships", () => {
         const workspace = await createWorkspace(TEST_USER_ID, "Relationship Test");
 
         // Create multiple charts with configs
-        const { chart: chart1 } = await createLensChartPair(
+        const { chart: chart1 } = await createLens2ChartPair(
             workspace.id,
             createTestLensConfig("chart1"),
         );
-        const { chart: chart2 } = await createPatchChartPair(workspace.id, {
-            patches: [],
-        } as any);
+        const { chart: chart2 } = await createActivationPatchingChartPair(workspace.id, {
+            model: "gpt2",
+            srcPrompt: "source",
+            tgtPrompt: "target",
+            srcPos: [],
+            tgtPos: [],
+            tgtFreeze: [],
+        });
 
         // Verify charts belong to workspace
         const metadata = await getChartsMetadata(workspace.id);
@@ -567,8 +547,8 @@ describe("Cross-Table Relationships", () => {
         // Verify configs are linked to charts
         const config1 = await getConfigForChart(chart1.id);
         const config2 = await getConfigForChart(chart2.id);
-        expect(config1!.type).toBe("lens");
-        expect(config2!.type).toBe("patch");
+        expect(config1!.type).toBe("lens2");
+        expect(config2!.type).toBe("activation-patching");
 
         // Verify workspace count includes charts
         const workspaces = await getWorkspaces(TEST_USER_ID);

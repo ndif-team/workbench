@@ -18,7 +18,7 @@ import type { ModelCardModel } from "./ModelCard";
 
 const GROUPS: ReadonlyArray<ModelGroup> = ["base", "chat"];
 
-export interface GroupPreview {
+interface GroupPreview {
     total: number;
     preview: ModelCardModel[];
 }

@@ -20,7 +20,6 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
-// import { SlashCommandPlugin } from './plugins/SlashCommandPlugin';
 import { ChartEmbedNode } from "./nodes/ChartEmbedNode";
 import { DragDropChartPlugin } from "./plugins/DragDropChartPlugin";
 import { Check, Loader2 } from "lucide-react";
@@ -165,7 +164,6 @@ export function Editor() {
                             {/* <LinkPlugin /> */}
                             <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
                             <AutoFocusPlugin />
-                            {/* <SlashCommandPlugin /> */}
                             <DragDropChartPlugin />
                         </div>
                     </div>

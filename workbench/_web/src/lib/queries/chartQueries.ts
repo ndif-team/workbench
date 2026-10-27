@@ -1,15 +1,14 @@
 "use server";
 
-import type { ChartData, ChartMetadata, ChartView, ChartType, ToolType } from "@/types/charts";
+import { toolTypes } from "@/types/charts";
+import type { ChartData, ChartMetadata, ChartType, ToolType } from "@/types/charts";
 import { db } from "@/db/client";
-import { charts, configs, chartConfigLinks, Chart, LensConfig, Config } from "@/db/schema";
-import { LensConfigData } from "@/types/lens";
+import { charts, configs, chartConfigLinks, Chart, Config } from "@/db/schema";
 import { Lens2ConfigData } from "@/types/lens2";
 import { JLensConfigData } from "@/types/jlens";
-import { PatchingConfig } from "@/types/patching";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { PatchLensChartData } from "@/types/patchLens";
-import { eq, asc, desc, sql } from "drizzle-orm";
+import { and, eq, asc, desc, inArray, sql } from "drizzle-orm";
 import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
 // From workshopDb (not workshopQueries) — workshopQueries imports the chart
 // pair creators below, so importing it back here would be circular.
@@ -33,15 +32,6 @@ export const getChartById = async (chartId: string): Promise<Chart | null> => {
     return (chart ?? null) as Chart | null;
 };
 
-export const getChartView = async (chartId: string): Promise<ChartView | null> => {
-    const [chart] = await db.select().from(charts).where(eq(charts.id, chartId));
-    return (chart?.view ?? null) as ChartView | null;
-};
-
-export const updateChartView = async (chartId: string, view: ChartView) => {
-    await db.update(charts).set({ view }).where(eq(charts.id, chartId));
-};
-
 export const deleteChart = async (chartId: string): Promise<void> => {
     await db.delete(charts).where(eq(charts.id, chartId));
 };
@@ -58,10 +48,8 @@ export const getConfigForChart = async (chartId: string): Promise<Config | null>
 };
 
 type ConfigPayload =
-    | { type: "lens"; data: LensConfigData }
     | { type: "lens2"; data: Lens2ConfigData }
     | { type: "jlens"; data: JLensConfigData }
-    | { type: "patch"; data: PatchingConfig }
     | { type: "activation-patching"; data: ActivationPatchingConfigData }
     | { type: "patch-lens"; data: Record<string, never> };
 
@@ -96,14 +84,6 @@ const createChartConfigPair = async (
     return { chart: newChart as Chart, config: newConfig as Config };
 };
 
-export const createLensChartPair = async (
-    workspaceId: string,
-    defaultConfig: LensConfigData,
-): Promise<{ chart: Chart; config: LensConfig }> => {
-    const result = await createChartConfigPair(workspaceId, { type: "lens", data: defaultConfig });
-    return { chart: result.chart, config: result.config as LensConfig };
-};
-
 export const createLens2ChartPair = async (workspaceId: string, defaultConfig: Lens2ConfigData) =>
     createChartConfigPair(workspaceId, { type: "lens2", data: defaultConfig });
 
@@ -115,44 +95,10 @@ export const createPatchLensChartPair = async (
     chartData?: PatchLensChartData,
 ) => createChartConfigPair(workspaceId, { type: "patch-lens", data: {} }, chartData);
 
-export const createPatchChartPair = async (workspaceId: string, defaultConfig: PatchingConfig) =>
-    createChartConfigPair(workspaceId, { type: "patch", data: defaultConfig });
-
 export const createActivationPatchingChartPair = async (
     workspaceId: string,
     defaultConfig: ActivationPatchingConfigData,
 ) => createChartConfigPair(workspaceId, { type: "activation-patching", data: defaultConfig });
-
-export const getAllChartsByType = async (
-    workspaceId?: string,
-): Promise<Record<string, Chart[]>> => {
-    // Join charts with their configs to get the config type
-    const query = db
-        .select({
-            chart: charts,
-            configType: configs.type,
-        })
-        .from(charts)
-        .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
-        .leftJoin(configs, eq(chartConfigLinks.configId, configs.id));
-
-    const chartsWithConfigs = workspaceId
-        ? await query.where(eq(charts.workspaceId, workspaceId))
-        : await query;
-
-    // Group charts by their config type
-    const chartsByType: Record<string, Chart[]> = {};
-
-    for (const { chart, configType } of chartsWithConfigs) {
-        const type = configType || "unknown";
-        if (!chartsByType[type]) {
-            chartsByType[type] = [];
-        }
-        chartsByType[type].push(chart);
-    }
-
-    return chartsByType;
-};
 
 export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetadata[]> => {
     // Whether the chart has a saved result, derived cheaply from the column
@@ -219,17 +165,26 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
     );
 };
 
+/**
+ * The workspace's most recently updated chart of a live tool, with that tool.
+ * A chart's tool is its config's type, or the chart's own type when it has no
+ * config. Charts of retired tools are skipped, so the workspace root never
+ * redirects to a chart page that no longer exists.
+ */
 export const getMostRecentChartForWorkspace = async (
     workspaceId: string,
-): Promise<Chart | null> => {
-    const [chart] = await db
-        .select()
+): Promise<{ chart: Chart; toolType: ToolType } | null> => {
+    const toolType = sql<ToolType>`coalesce(${configs.type}, ${charts.type})`;
+    const [row] = await db
+        .select({ chart: charts, toolType })
         .from(charts)
-        .where(eq(charts.workspaceId, workspaceId))
+        .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
+        .leftJoin(configs, eq(chartConfigLinks.configId, configs.id))
+        .where(and(eq(charts.workspaceId, workspaceId), inArray(toolType, [...toolTypes])))
         .orderBy(desc(charts.updatedAt))
         .limit(1);
 
-    return (chart ?? null) as Chart | null;
+    return row ? { chart: row.chart as Chart, toolType: row.toolType } : null;
 };
 
 export const copyChart = async (chartId: string): Promise<Chart> => {
@@ -267,7 +222,6 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
             name: `Copy of ${originalChart.name}`,
             data: copiedData,
             type: originalChart.type,
-            view: originalChart.view,
             position,
         })
         .returning();

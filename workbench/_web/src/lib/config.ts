@@ -7,12 +7,6 @@ const config = {
             ? "http://localhost:8001"
             : "https://api.ndif.us",
     endpoints: {
-        startLensLine: "/lens/start-line",
-        resultsLensLine: (jobId: string) => `/lens/results-line/${jobId}`,
-
-        startLensGrid: "/lens/start-grid",
-        resultsLensGrid: (jobId: string) => `/lens/results-grid/${jobId}`,
-
         runLens2: "/logit_lens/run",
 
         runJLens: "/j_lens/run",
@@ -22,11 +16,7 @@ const config = {
 
         runActivationPatching: "/activation_patching/run",
 
-        startPrediction: "/models/start-prediction",
-        resultsPrediction: (jobId: string) => `/models/results-prediction/${jobId}`,
-
         startGenerate: "/models/start-generate",
-        resultsGenerate: (jobId: string) => `/models/results-generate/${jobId}`,
 
         models: "/models/",
     },

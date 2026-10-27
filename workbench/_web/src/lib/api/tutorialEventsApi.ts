@@ -3,11 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { getTutorialNotesForWorkspace } from "@/lib/queries/tutorialEventsQueries";
 import { queryKeys } from "../queryKeys";
 
-// Re-export the bare server action alongside the hook so a caller that wants the
-// raw async function (no React Query lifecycle) can import from here — same
-// convention as tutorialContentApi.ts.
-export { getTutorialNotesForWorkspace };
-
 /**
  * The participant's own reflections for this workspace, latest per step.
  *

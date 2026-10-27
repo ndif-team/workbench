@@ -9,7 +9,6 @@ dependencies = [
     "nnsight>=0.8.1",
     # Required for .uv_sync on Modal image
     "modal>=0.65.66",
-    "einops>=0.8.1",
     # Needed bc nnsight 0.5 requires 3.10 which does not have tomllib in stdlib
     "toml>=0.10.2",
     "dill>=0.4.0",

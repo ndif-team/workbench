@@ -6,7 +6,7 @@
 
 type ClaimUser = { app_metadata?: Record<string, unknown> } | null | undefined;
 
-export const getWorkshopSlugClaim = (user: ClaimUser): string | null => {
+const getWorkshopSlugClaim = (user: ClaimUser): string | null => {
     const slug = user?.app_metadata?.workshop_slug;
     return typeof slug === "string" && slug.length > 0 ? slug : null;
 };
