@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     getDocumentById,
-    getDocumentByWorkspaceId,
     getDocumentsForWorkspace,
     createDocument,
 } from "@/lib/queries/documentQueries";
@@ -15,14 +14,6 @@ export const useGetDocument = (documentId: string) => {
         queryKey: queryKeys.documents.one(documentId),
         queryFn: () => getDocumentById(documentId),
         enabled: !!documentId,
-    });
-};
-
-export const useGetDocumentByWorkspace = (workspaceId: string) => {
-    return useQuery({
-        queryKey: queryKeys.documents.workspaceDoc(workspaceId),
-        queryFn: () => getDocumentByWorkspaceId(workspaceId),
-        enabled: !!workspaceId,
     });
 };
 

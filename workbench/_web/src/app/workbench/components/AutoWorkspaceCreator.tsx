@@ -4,15 +4,16 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
-// import { pushTutorialChart } from "@/lib/queries/tutorialChart";
 import {
     createLens2ChartPair,
     createJLensChartPair,
     createActivationPatchingChartPair,
 } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
+import { toolChartPath } from "@/lib/chartRoutes";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { ToolType } from "@/types/charts";
 import type { Lens2ConfigData } from "@/types/lens2";
 import type { JLensConfigData } from "@/types/jlens";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
@@ -21,7 +22,6 @@ interface AutoWorkspaceCreatorProps {
     userId: string;
     initialPrompt?: string;
     initialModel?: string;
-    seedWithExamples?: boolean; // New prop to control seeding
     workspaceName?: string; // Custom workspace name
     existingWorkspaceId?: string; // Use existing workspace instead of creating new
     tool?: string; // Tool type: "Logit Lens" or "Activation Patching"
@@ -39,7 +39,6 @@ export function AutoWorkspaceCreator({
     userId,
     initialPrompt,
     initialModel,
-    seedWithExamples = true, // Default to true for new users
     workspaceName = "Default Workspace", // Default name
     existingWorkspaceId,
     tool = "Logit Lens",
@@ -79,19 +78,11 @@ export function AutoWorkspaceCreator({
                     const newWorkspace = await createWorkspace(userId, workspaceName);
                     console.log("Created workspace:", newWorkspace);
                     targetWorkspaceId = newWorkspace.id;
-
-                    // Seed with example charts if enabled
-                    // Temporarily disabled — example charts use the legacy Lens v1 format.
-                    // if (seedWithExamples) {
-                    //     console.log("Seeding workspace with example charts...");
-                    //     await pushTutorialChart(targetWorkspaceId);
-                    //     console.log("Successfully seeded workspace with examples");
-                    // }
                 }
 
                 // If user submitted a prompt from landing page, create a chart for it
                 let userChartId: string | null = null;
-                let chartType: string = "lens2";
+                let chartType: ToolType = "lens2";
 
                 if (deploy) {
                     // Cold-model deploy: create an EMPTY chart of the chosen
@@ -217,15 +208,7 @@ export function AutoWorkspaceCreator({
                 // Small delay to ensure the workspace is fully created
                 setTimeout(() => {
                     if (userChartId) {
-                        if (chartType === "activation-patching") {
-                            router.push(
-                                `/workbench/${targetWorkspaceId}/activation-patching/${userChartId}`,
-                            );
-                        } else if (chartType === "jlens") {
-                            router.push(`/workbench/${targetWorkspaceId}/j-lens/${userChartId}`);
-                        } else {
-                            router.push(`/workbench/${targetWorkspaceId}/lens2/${userChartId}`);
-                        }
+                        router.push(toolChartPath(targetWorkspaceId, userChartId, chartType));
                     } else {
                         router.push(`/workbench/${targetWorkspaceId}`);
                     }
@@ -243,7 +226,6 @@ export function AutoWorkspaceCreator({
         router,
         initialPrompt,
         initialModel,
-        seedWithExamples,
         workspaceName,
         existingWorkspaceId,
         tool,

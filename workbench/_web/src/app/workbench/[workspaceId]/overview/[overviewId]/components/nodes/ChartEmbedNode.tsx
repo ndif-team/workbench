@@ -13,55 +13,34 @@ import {
 } from "lexical";
 import * as React from "react";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
-import type { ChartMetadata } from "@/types/charts";
 import { useQuery } from "@tanstack/react-query";
-import type { LensConfigData, LensHeatmapMetrics, LensLineMetrics } from "@/types/lens";
-import { Metrics } from "@/types/lens";
-import { StaticHeatmapCard } from "@/components/charts/heatmap/StaticHeatmapCard";
 import { Card } from "@/components/ui/card";
 import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { mergeRegister } from "@lexical/utils";
-import { StaticLineCard } from "@/components/charts/line/StaticLineCard";
-import { HeatmapChart, LineChart } from "@/db/schema";
 import { Separator } from "@/components/ui/separator";
-// no-op
-
-// Command payload and command export
-import { createCommand } from "lexical";
 import { useParams } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { queryKeys } from "@/lib/queryKeys";
-export const INSERT_CHART_EMBED_COMMAND = createCommand<{ chart: ChartMetadata }>(
-    "INSERT_CHART_EMBED_COMMAND",
-);
+import { chartPath } from "@/lib/chartRoutes";
+import { toolMeta } from "@/app/workbench/[workspaceId]/components/toolMeta";
 
-// Node payload
+// Node payload. `chartType` is the chart's stored type when it was embedded;
+// documents saved before a tool was retired may still hold its old type.
 export type ChartEmbedPayload = {
     chartId: string;
-    chartType: "line" | "heatmap" | null;
+    chartType: string | null;
 };
 
 export type SerializedChartEmbedNode = Spread<
-    { type: "chart-embed"; version: 1; chartId: string; chartType: "line" | "heatmap" | null },
+    { type: "chart-embed"; version: 1; chartId: string; chartType: string | null },
     SerializedLexicalNode
 >;
 
 export class ChartEmbedNode extends DecoratorNode<JSX.Element> {
     __chartId: string;
-    __chartType: "line" | "heatmap" | null;
+    __chartType: string | null;
 
     static getType(): string {
         return "chart-embed";
@@ -71,7 +50,7 @@ export class ChartEmbedNode extends DecoratorNode<JSX.Element> {
         return new ChartEmbedNode(node.__chartId, node.__chartType, node.__key);
     }
 
-    constructor(chartId: string, chartType: "line" | "heatmap" | null, key?: NodeKey) {
+    constructor(chartId: string, chartType: string | null, key?: NodeKey) {
         super(key);
         this.__chartId = chartId;
         this.__chartType = chartType;
@@ -116,7 +95,7 @@ export function $createChartEmbedNode(payload: ChartEmbedPayload): ChartEmbedNod
     return new ChartEmbedNode(payload.chartId, payload.chartType);
 }
 
-// React renderer that fetches chart and renders a static version
+// React renderer that fetches the chart and shows its name, model and status
 function ChartEmbedComponent({
     nodeKey,
     chartId,
@@ -124,7 +103,7 @@ function ChartEmbedComponent({
 }: {
     nodeKey: NodeKey;
     chartId: string;
-    chartType: "line" | "heatmap" | null;
+    chartType: string | null;
 }) {
     const [editor] = useLexicalComposerContext();
     const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -151,8 +130,6 @@ function ChartEmbedComponent({
         retry: 3,
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
-
-    const [size, setSize] = useState<"small" | "medium" | "large">("medium");
 
     React.useEffect(() => {
         return mergeRegister(
@@ -194,16 +171,15 @@ function ChartEmbedComponent({
     }, [editor, isSelected, nodeKey]);
 
     const name = chart?.name ?? "Untitled";
-    const type = chart?.type ?? chartType;
-
-    // Get statistic from config and ensure it's valid for the chart type
-    const configStatistic = (config?.data as LensConfigData)?.statisticType;
-    const modelName = (config?.data as LensConfigData)?.model;
+    const modelName = (config?.data as { model?: string } | undefined)?.model;
+    const toolType = config?.type ?? chart?.type ?? chartType;
+    const tool = toolMeta(toolType);
+    const hasData = chart?.data != null && Object.keys(chart.data).length > 0;
 
     const openChart = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        window.open(`/workbench/${workspaceId}/${chartId}`, "_blank");
+        window.open(chartPath(workspaceId, chartId, toolType), "_blank");
     };
 
     return (
@@ -219,71 +195,36 @@ function ChartEmbedComponent({
         >
             <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-muted-foreground">{name}</span>
-                <div className="flex items-center gap-2">
-                    <Select
-                        value={size}
-                        onValueChange={(value) => setSize(value as "small" | "medium" | "large")}
-                    >
-                        <SelectTrigger
-                            className={cn(
-                                "w-fit gap-1 border-none !bg-transparent p-0 text-xs text-muted-foreground hover:text-foreground",
-                            )}
-                        >
-                            <SelectValue />
-                        </SelectTrigger>
-
-                        <SelectContent align="center">
-                            <SelectItem value="small">Small</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="large">Large</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <button
-                        className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground"
-                        onClick={openChart}
-                    >
-                        Open <ExternalLink className="w-3 h-3" />
-                    </button>
-                </div>
+                <button
+                    className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                    onClick={openChart}
+                >
+                    Open <ExternalLink className="w-3 h-3" />
+                </button>
             </div>
-            <Badge className="h-5 min-w-5 rounded-md px-1 font-mono tabular-nums" variant="outline">
-                {modelName}
-            </Badge>
+            {modelName && (
+                <Badge
+                    className="h-5 min-w-5 rounded-md px-1 font-mono tabular-nums"
+                    variant="outline"
+                >
+                    {modelName}
+                </Badge>
+            )}
             {isChartLoading || isConfigLoading ? (
                 <div className="text-sm text-muted-foreground">Loading chart…</div>
             ) : isChartError || isConfigError ? (
                 <div className="text-sm text-destructive">Failed to load chart</div>
             ) : !chart ? (
                 <div className="text-sm text-muted-foreground">Chart not found</div>
-            ) : type === "line" && chart.data ? (
-                <div
-                    className={cn("w-full", {
-                        "h-[40vh]": size === "small",
-                        "h-[60vh]": size === "medium",
-                        "h-[80vh]": size === "large",
-                    })}
-                >
-                    <StaticLineCard
-                        chart={chart as LineChart}
-                        metricType={configStatistic as LensLineMetrics}
-                    />
-                </div>
-            ) : type === "heatmap" && chart.data ? (
-                <div
-                    className={cn("w-full", {
-                        "h-[40vh]": size === "small",
-                        "h-[60vh]": size === "medium",
-                        "h-[80vh]": size === "large",
-                    })}
-                >
-                    <StaticHeatmapCard
-                        chart={chart as HeatmapChart}
-                        statisticType={configStatistic as LensHeatmapMetrics}
-                    />
-                </div>
+            ) : toolType && !tool ? (
+                <div className="text-sm text-muted-foreground">Made with a retired tool</div>
+            ) : !hasData ? (
+                <div className="text-sm text-muted-foreground">Not run yet</div>
             ) : (
-                <div className="text-sm text-muted-foreground">No data available</div>
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    {tool && <tool.Icon className="h-3.5 w-3.5 shrink-0" />}
+                    <span>{tool ? `${tool.label} · Open to view` : "Open to view"}</span>
+                </div>
             )}
         </Card>
     );

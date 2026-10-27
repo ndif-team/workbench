@@ -23,7 +23,7 @@ export type LensRunListItem = Omit<LensRun, "data">;
 /** How many runs to keep per chart; older runs are pruned after each insert. */
 const RETENTION_CAP = 50;
 
-export interface CreateLensRunInput {
+interface CreateLensRunInput {
     workspaceId: string;
     chartId: string;
     model: string;

@@ -45,7 +45,6 @@ export const clearDatabase = async () => {
         DELETE FROM tutorial_events;
         DELETE FROM lens_runs;
         DELETE FROM chart_config_links;
-        DELETE FROM views;
         DELETE FROM documents;
         DELETE FROM configs;
         DELETE FROM charts;

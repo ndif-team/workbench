@@ -3,7 +3,6 @@ import {
     charts as sqliteCharts,
     configs as sqliteConfigs,
     chartConfigLinks as sqliteChartConfigLinks,
-    views as sqliteViews,
     documents as sqliteDocuments,
     lensRuns as sqliteLensRuns,
     workshops as sqliteWorkshops,
@@ -15,15 +14,12 @@ import {
     charts as pgCharts,
     configs as pgConfigs,
     chartConfigLinks as pgChartConfigLinks,
-    views as pgViews,
     documents as pgDocuments,
     lensRuns as pgLensRuns,
     workshops as pgWorkshops,
     tutorials as pgTutorials,
     tutorialEvents as pgTutorialEvents,
 } from "./schema.pg";
-import type { LensConfigData } from "@/types/lens";
-import type { HeatmapRow, HeatmapViewData, LineViewData, Line } from "@/types/charts";
 
 // Conditionally export the appropriate schema based on environment
 const isLocal = process.env.NEXT_PUBLIC_LOCAL_DB === "true";
@@ -33,7 +29,6 @@ export const charts = isLocal ? sqliteCharts : pgCharts;
 export const configs = isLocal ? sqliteConfigs : pgConfigs;
 export const chartConfigLinks = isLocal ? sqliteChartConfigLinks : pgChartConfigLinks;
 export const documents = isLocal ? sqliteDocuments : pgDocuments;
-export const views = isLocal ? sqliteViews : pgViews;
 export const lensRuns = isLocal ? sqliteLensRuns : pgLensRuns;
 export const workshops = isLocal ? sqliteWorkshops : pgWorkshops;
 export const tutorials = isLocal ? sqliteTutorials : pgTutorials;
@@ -59,9 +54,6 @@ export type NewChartConfigLink = typeof chartConfigLinks.$inferInsert;
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 
-export type View = typeof views.$inferSelect;
-export type NewView = typeof views.$inferInsert;
-
 export type LensRun = typeof lensRuns.$inferSelect;
 export type NewLensRun = typeof lensRuns.$inferInsert;
 
@@ -73,24 +65,3 @@ export type NewTutorial = typeof tutorials.$inferInsert;
 
 export type TutorialEvent = typeof tutorialEvents.$inferSelect;
 export type NewTutorialEvent = typeof tutorialEvents.$inferInsert;
-
-export type HeatmapView = Omit<View, "data"> & {
-    data: HeatmapViewData;
-};
-
-export type LineView = Omit<View, "data"> & {
-    data: LineViewData;
-};
-
-export type HeatmapChart = Omit<Chart, "data"> & {
-    data: HeatmapRow[];
-};
-
-export type LineChart = Omit<Chart, "data"> & {
-    data: Line[];
-};
-
-// Specific chart config types
-export type LensConfig = Omit<Config, "data"> & {
-    data: LensConfigData;
-};

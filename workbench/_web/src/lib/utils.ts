@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Resolves CSS variables to concrete color strings for Canvas compatibility
  */
-export function hslFromCssVar(name: string, fallback = "#000000"): string {
+function hslFromCssVar(name: string, fallback = "#000000"): string {
     if (typeof window === "undefined") return fallback;
     const root = document.documentElement;
     const raw = getComputedStyle(root).getPropertyValue(name).trim();

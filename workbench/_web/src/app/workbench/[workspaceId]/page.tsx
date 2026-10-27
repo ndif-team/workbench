@@ -1,10 +1,7 @@
 import { redirect } from "next/navigation";
-import {
-    getMostRecentChartForWorkspace,
-    createLens2ChartPair,
-    getConfigForChart,
-} from "@/lib/queries/chartQueries";
+import { getMostRecentChartForWorkspace, createLens2ChartPair } from "@/lib/queries/chartQueries";
 import { getWorkshopForWorkspace, seedWorkshopChart } from "@/lib/queries/workshopQueries";
+import { toolChartPath } from "@/lib/chartRoutes";
 import { Lens2ConfigData } from "@/types/lens2";
 
 export default async function Page({
@@ -19,17 +16,17 @@ export default async function Page({
     const initialPrompt = urlParams?.prompt || "";
     const initialModel = urlParams?.model || "";
 
-    // Check if there's an existing chart
-    let chart = await getMostRecentChartForWorkspace(workspaceId);
+    // Open the most recent chart of a live tool
+    let recent = await getMostRecentChartForWorkspace(workspaceId);
 
-    // If no chart exists, create a new Logit Lens chart pair with default
+    // If there is none, create a new Logit Lens chart pair with default
     // config — except in workshop workspaces, which seed their workshop's
     // first allowed tool with its pinned model and starter prompt.
-    if (!chart) {
+    if (!recent) {
         const workshop = await getWorkshopForWorkspace(workspaceId);
         if (workshop) {
-            const result = await seedWorkshopChart(workspaceId, workshop);
-            chart = result.chart;
+            const { chart, tool } = await seedWorkshopChart(workspaceId, workshop);
+            recent = { chart, toolType: tool };
         } else {
             const defaultConfig: Lens2ConfigData = {
                 prompt: initialPrompt,
@@ -38,25 +35,10 @@ export default async function Page({
                 includeEntropy: true,
             };
 
-            const result = await createLens2ChartPair(workspaceId, defaultConfig);
-            chart = result.chart;
+            const { chart } = await createLens2ChartPair(workspaceId, defaultConfig);
+            recent = { chart, toolType: "lens2" };
         }
     }
 
-    // Check the chart/config type to determine the route
-    const config = await getConfigForChart(chart.id);
-    const chartType = config?.type || chart.type;
-
-    // Redirect to the appropriate chart route based on type
-    if (chartType === "lens2") {
-        redirect(`/workbench/${workspaceId}/lens2/${chart.id}`);
-    } else if (chartType === "jlens") {
-        redirect(`/workbench/${workspaceId}/j-lens/${chart.id}`);
-    } else if (chartType === "activation-patching") {
-        redirect(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
-    } else if (chartType === "patch-lens") {
-        redirect(`/workbench/${workspaceId}/patch-lens/${chart.id}`);
-    } else {
-        redirect(`/workbench/${workspaceId}/${chart.id}`);
-    }
+    redirect(toolChartPath(workspaceId, recent.chart.id, recent.toolType));
 }

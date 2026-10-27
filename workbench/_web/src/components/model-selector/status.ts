@@ -37,7 +37,7 @@ export const FILTERABLE_HEAT: ReadonlyArray<ModelHeat> = ["hot", "warm", "cold"]
 /** Heats a user can run right now. COLD models must be deployed (warmed up
  * via the deploy flow) before they become runnable. Centralized here so cold
  * checks don't get scattered across the selector, cards, and chart panels. */
-export const SELECTABLE_HEATS: ReadonlyArray<ModelHeat> = ["hot", "warm"];
+const SELECTABLE_HEATS: ReadonlyArray<ModelHeat> = ["hot", "warm"];
 
 /** True when the model is deployed and immediately runnable (hot or warm). */
 export const isModelRunnable = (model: Model | undefined): boolean =>

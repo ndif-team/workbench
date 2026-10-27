@@ -35,7 +35,7 @@ const toPromptSummary = (prompt: string, data: LogitLensIntroData): LensRunPromp
     };
 };
 
-export interface PatchLensRequest {
+interface PatchLensRequest {
     sourcePrompt: string;
     targetPrompt: string;
     model: string;
@@ -61,7 +61,7 @@ export interface PatchLensResult {
     summary?: LensRunSummary;
 }
 
-export interface PatchLensInterventionRequest {
+interface PatchLensInterventionRequest {
     model: string;
     srcPrompt: string;
     tgtPrompt: string;
@@ -97,7 +97,7 @@ const runLogitLens = async (
 
 // Bare async executor, exported alongside the hook so a feature can run the
 // CM-intro lens pair without the hook's toast/invalidation wiring (per the
-// repo convention; see generateCompletion in modelsApi.ts).
+// repo convention of exporting the bare function next to its mutation hook).
 export const runPatchLensLogitLens = async (
     request: PatchLensRequest,
 ): Promise<PatchLensResult> => {

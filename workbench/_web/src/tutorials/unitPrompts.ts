@@ -4,7 +4,7 @@ import type { TutorialUnit } from "@/types/tutorial-content";
  * Prompt-box contents to apply when a participant arrives at a tutorial unit.
  * Only the boxes that need changing are present.
  */
-export interface UnitPromptRestore {
+interface UnitPromptRestore {
     source?: string;
     target?: string;
 }

@@ -15,7 +15,7 @@ import { $createChartEmbedNode } from "../nodes/ChartEmbedNode";
 // MIME type must match what sidebar sets
 const CHART_MIME = "application/x-chart";
 
-type ChartPayload = { chartId: string; chartType: "line" | "heatmap" | null };
+type ChartPayload = { chartId: string; chartType: string | null };
 
 export function DragDropChartPlugin() {
     const [editor] = useLexicalComposerContext();

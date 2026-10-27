@@ -43,11 +43,8 @@ export const PATCH_COLORS = [
     }, // pink
 ];
 
-// Freeze color (cyan) for frozen tokens
-export const FREEZE_COLOR = { bg: "#06b6d4", ring: "#06b6d4" };
-
 // Token styling constants
-export const TOKEN_STYLES = {
+const TOKEN_STYLES = {
     base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
     clickable: "bg-muted/60 ring-1 ring-border/50 ring-inset",
     hover: "hover:bg-violet-500/20 hover:ring-1 hover:ring-violet-400/50 hover:ring-inset cursor-pointer",
@@ -55,10 +52,7 @@ export const TOKEN_STYLES = {
 } as const;
 
 // Create a smooth bezier curve path between two points
-export function createCurvePath(
-    start: { x: number; y: number },
-    end: { x: number; y: number },
-): string {
+function createCurvePath(start: { x: number; y: number }, end: { x: number; y: number }): string {
     const midY = (start.y + end.y) / 2;
     const c1 = { x: start.x, y: midY };
     const c2 = { x: end.x, y: midY };
@@ -66,7 +60,7 @@ export function createCurvePath(
 }
 
 // Helper to fix newlines for display
-export const fixTokenText = (text: string) => {
+const fixTokenText = (text: string) => {
     const numNewlines = (text.match(/\n/g) || []).length;
     const result = text
         .replace(/\r\n/g, "\\r\\n")
@@ -77,7 +71,7 @@ export const fixTokenText = (text: string) => {
 };
 
 // Helper to check if a token index is part of a source position (single or range)
-export function isTokenInSourcePosition(tokenIdx: number, pos: SourcePosition): boolean {
+function isTokenInSourcePosition(tokenIdx: number, pos: SourcePosition): boolean {
     if (typeof pos === "number") {
         return tokenIdx === pos;
     }
@@ -85,7 +79,7 @@ export function isTokenInSourcePosition(tokenIdx: number, pos: SourcePosition): 
 }
 
 // Helper to find which source position (and its index) a token belongs to
-export function findSourcePositionForToken(
+function findSourcePositionForToken(
     tokenIdx: number,
     positions: SourcePosition[],
 ): { pos: SourcePosition; index: number } | null {
@@ -97,16 +91,8 @@ export function findSourcePositionForToken(
     return null;
 }
 
-// Helper to get display text for a source position
-export function getSourcePositionLabel(pos: SourcePosition): string {
-    if (typeof pos === "number") {
-        return `${pos}`;
-    }
-    return `${pos[0]}-${pos[1] - 1}`;
-}
-
 // Token display with click-to-select functionality (supports multiple selections and freeze)
-export function SelectableTokenDisplay({
+function SelectableTokenDisplay({
     tokens,
     loading,
     selectedPositions,
@@ -240,7 +226,7 @@ export function SelectableTokenDisplay({
 }
 
 // Source token display with range selection support (shift+click)
-export function SourceTokenDisplay({
+function SourceTokenDisplay({
     tokens,
     loading,
     selectedPositions,
@@ -383,223 +369,12 @@ export function SourceTokenDisplay({
     );
 }
 
-// Arrow SVG component for visualizing patch connections
-export function PatchArrows({
-    arrows,
-    connectingArrow,
-    idPrefix = "patch",
-}: {
-    arrows: { path: string; color: string }[];
-    connectingArrow?: { path: string; color: string } | null;
-    idPrefix?: string;
-}) {
-    if (arrows.length === 0 && !connectingArrow) return null;
-
-    return (
-        <svg
-            className="absolute inset-0 w-full h-full pointer-events-none z-10"
-            style={{ overflow: "visible" }}
-        >
-            <defs>
-                {arrows.map((arrow, idx) => (
-                    <marker
-                        key={`marker-${idx}`}
-                        id={`${idPrefix}-arrowhead-${idx}`}
-                        markerWidth="6"
-                        markerHeight="6"
-                        refX="5"
-                        refY="3"
-                        orient="auto"
-                    >
-                        <polygon points="0 0, 6 3, 0 6" fill={arrow.color} />
-                    </marker>
-                ))}
-                {connectingArrow && (
-                    <marker
-                        id={`${idPrefix}-arrowhead-connecting`}
-                        markerWidth="6"
-                        markerHeight="6"
-                        refX="5"
-                        refY="3"
-                        orient="auto"
-                    >
-                        <polygon points="0 0, 6 3, 0 6" fill={connectingArrow.color} />
-                    </marker>
-                )}
-            </defs>
-            {arrows.map((arrow, idx) => (
-                <path
-                    key={idx}
-                    d={arrow.path}
-                    stroke={arrow.color}
-                    strokeWidth="2"
-                    fill="none"
-                    opacity="0.7"
-                    markerEnd={`url(#${idPrefix}-arrowhead-${idx})`}
-                />
-            ))}
-            {connectingArrow && (
-                <path
-                    d={connectingArrow.path}
-                    stroke={connectingArrow.color}
-                    strokeWidth="2"
-                    strokeDasharray="4 4"
-                    fill="none"
-                    opacity="0.5"
-                    markerEnd={`url(#${idPrefix}-arrowhead-connecting)`}
-                    className="animate-pulse"
-                />
-            )}
-        </svg>
-    );
-}
-
-// Hook for managing arrow calculations
-export function useArrowCalculations({
-    containerRef,
-    srcPos,
-    tgtPos,
-    srcEditing,
-    tgtEditing,
-    hoverTgtIdx,
-}: {
-    containerRef: React.RefObject<HTMLDivElement | null>;
-    srcPos: number[] | SourcePosition[];
-    tgtPos: number[];
-    srcEditing: boolean;
-    tgtEditing: boolean;
-    hoverTgtIdx?: number | null;
-}) {
-    const [arrows, setArrows] = useState<{ path: string; color: string }[]>([]);
-    const [connectingArrow, setConnectingArrow] = useState<{ path: string; color: string } | null>(
-        null,
-    );
-    const rafRef = useRef<number | null>(null);
-
-    // Update arrows when positions change
-    useEffect(() => {
-        if (!containerRef.current || srcEditing || tgtEditing) {
-            setArrows([]);
-            setConnectingArrow(null);
-            return;
-        }
-
-        const updateArrows = () => {
-            const container = containerRef.current;
-            if (!container) return;
-
-            const containerRect = container.getBoundingClientRect();
-            const newArrows: { path: string; color: string }[] = [];
-
-            // Get first token position for each source position (for ranges, use the first token)
-            const getSrcTokenPos = (pos: number | SourcePosition): number => {
-                return typeof pos === "number" ? pos : pos[0];
-            };
-
-            // Draw arrows for each matched pair
-            const numPairs = Math.min(srcPos.length, tgtPos.length);
-            for (let i = 0; i < numPairs; i++) {
-                const srcTokenPos = getSrcTokenPos(srcPos[i]);
-                const srcTokenEl = container.querySelector(
-                    `[data-token-id="${srcTokenPos}"][data-token-side="source"]`,
-                );
-                const tgtTokenEl = container.querySelector(
-                    `[data-token-id="${tgtPos[i]}"][data-token-side="target"]`,
-                );
-
-                if (srcTokenEl && tgtTokenEl) {
-                    const srcRect = srcTokenEl.getBoundingClientRect();
-                    const tgtRect = tgtTokenEl.getBoundingClientRect();
-
-                    const start = {
-                        x: srcRect.left + srcRect.width / 2 - containerRect.left,
-                        y: srcRect.bottom - containerRect.top + 2,
-                    };
-                    const end = {
-                        x: tgtRect.left + tgtRect.width / 2 - containerRect.left,
-                        y: tgtRect.top - containerRect.top - 2,
-                    };
-
-                    const color = PATCH_COLORS[i % PATCH_COLORS.length].bg;
-                    newArrows.push({ path: createCurvePath(start, end), color });
-                }
-            }
-
-            setArrows(newArrows);
-        };
-
-        const timer = setTimeout(updateArrows, 50);
-        return () => clearTimeout(timer);
-    }, [srcPos, tgtPos, srcEditing, tgtEditing, containerRef]);
-
-    // Update connecting arrow on hover
-    useEffect(() => {
-        if (rafRef.current) {
-            cancelAnimationFrame(rafRef.current);
-        }
-
-        if (hoverTgtIdx === null || hoverTgtIdx === undefined || srcEditing || tgtEditing) {
-            setConnectingArrow(null);
-            return;
-        }
-
-        const container = containerRef.current;
-        if (!container) return;
-
-        // Determine which source position we're connecting from
-        const connectingFromIdx = tgtPos.length;
-        if (connectingFromIdx >= srcPos.length) {
-            setConnectingArrow(null);
-            return;
-        }
-
-        rafRef.current = requestAnimationFrame(() => {
-            const containerRect = container.getBoundingClientRect();
-            const srcTokenPos =
-                typeof srcPos[connectingFromIdx] === "number"
-                    ? srcPos[connectingFromIdx]
-                    : (srcPos[connectingFromIdx] as [number, number])[0];
-            const srcTokenEl = container.querySelector(
-                `[data-token-id="${srcTokenPos}"][data-token-side="source"]`,
-            );
-            const tgtTokenEl = container.querySelector(
-                `[data-token-id="${hoverTgtIdx}"][data-token-side="target"]`,
-            );
-
-            if (srcTokenEl && tgtTokenEl) {
-                const srcRect = srcTokenEl.getBoundingClientRect();
-                const tgtRect = tgtTokenEl.getBoundingClientRect();
-
-                const start = {
-                    x: srcRect.left + srcRect.width / 2 - containerRect.left,
-                    y: srcRect.bottom - containerRect.top + 2,
-                };
-                const end = {
-                    x: tgtRect.left + tgtRect.width / 2 - containerRect.left,
-                    y: tgtRect.top - containerRect.top - 2,
-                };
-
-                const color = PATCH_COLORS[connectingFromIdx % PATCH_COLORS.length].bg;
-                setConnectingArrow({ path: createCurvePath(start, end), color });
-            }
-        });
-
-        return () => {
-            if (rafRef.current) {
-                cancelAnimationFrame(rafRef.current);
-            }
-        };
-    }, [hoverTgtIdx, srcPos, tgtPos, srcEditing, tgtEditing, containerRef]);
-
-    return { arrows, connectingArrow };
-}
-
 // ============================================================================
 // ENHANCED ARROW RENDERING
 // Full-featured arrow component with glow effects and mouse-following
 // ============================================================================
 
-export interface EnhancedPatchArrowsProps {
+interface EnhancedPatchArrowsProps {
     containerRef: React.RefObject<HTMLDivElement | null>;
     srcPos: SourcePosition[];
     tgtPos: number[];
@@ -928,7 +703,7 @@ export function EnhancedPatchArrows({
 // Manages source/target positions, range selection, and validation
 // ============================================================================
 
-export interface UseActivationPatchingStateProps {
+interface UseActivationPatchingStateProps {
     srcPos: SourcePosition[];
     setSrcPos: (positions: SourcePosition[]) => void;
     tgtPos: number[];
@@ -937,7 +712,7 @@ export interface UseActivationPatchingStateProps {
     setTgtFreeze: (positions: number[]) => void;
 }
 
-export interface UseActivationPatchingStateReturn {
+interface UseActivationPatchingStateReturn {
     pendingRangeStart: number | null;
     setPendingRangeStart: (pos: number | null) => void;
     handleSrcTokenClick: (pos: number, shiftKey: boolean) => void;
@@ -1082,156 +857,13 @@ export function useActivationPatchingState({
     };
 }
 
-// Compact prompt input component with tokenization
-export function CompactPromptInput({
-    label,
-    prompt,
-    setPrompt,
-    tokens,
-    setTokens,
-    selectedPositions,
-    frozenPositions = [],
-    onTokenClick,
-    onTokenHover,
-    onTokenLeave,
-    selectedModel,
-    side,
-    disabled = false,
-    placeholder,
-    isEditing,
-    setIsEditing,
-    pendingRangeStart,
-    compact = false,
-}: {
-    label: string;
-    prompt: string;
-    setPrompt: (value: string) => void;
-    tokens: Token[];
-    setTokens: (tokens: Token[]) => void;
-    selectedPositions: number[] | SourcePosition[];
-    frozenPositions?: number[];
-    onTokenClick: (pos: number, modifierKey: boolean) => void;
-    onTokenHover?: (pos: number) => void;
-    onTokenLeave?: () => void;
-    selectedModel: string;
-    side: "source" | "target";
-    disabled?: boolean;
-    placeholder?: string;
-    isEditing: boolean;
-    setIsEditing: (value: boolean) => void;
-    pendingRangeStart?: number | null;
-    compact?: boolean;
-}) {
-    const [isTokenizing, setIsTokenizing] = useState(false);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    const handleBlur = useCallback(async () => {
-        if (!prompt) {
-            setTokens([]);
-            setIsEditing(false);
-            return;
-        }
-
-        setIsTokenizing(true);
-        setIsEditing(false);
-        try {
-            const newTokens = await encodeText(prompt, selectedModel);
-            setTokens(newTokens);
-        } catch (error) {
-            console.error("Tokenization error:", error);
-            setTokens([]);
-        }
-        setIsTokenizing(false);
-    }, [prompt, selectedModel, setTokens, setIsEditing]);
-
-    const handleContainerClick = useCallback(() => {
-        if (disabled || isTokenizing) return;
-        setIsEditing(true);
-        setTimeout(() => {
-            if (textareaRef.current) {
-                textareaRef.current.focus();
-                const length = textareaRef.current.value.length;
-                textareaRef.current.setSelectionRange(length, length);
-            }
-        }, 0);
-    }, [disabled, isTokenizing, setIsEditing]);
-
-    useEffect(() => {
-        if (tokens.length > 0 && prompt && !isEditing) {
-            handleBlur();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedModel]);
-
-    return (
-        <div className="space-y-1">
-            <Label
-                className={cn("font-medium text-muted-foreground", compact ? "text-xs" : "text-sm")}
-            >
-                {label}
-            </Label>
-            <div className="relative">
-                {isEditing ? (
-                    <Textarea
-                        ref={textareaRef}
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        onBlur={handleBlur}
-                        placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
-                        className={cn(
-                            "resize-none bg-background/50 border-border/50 focus:border-primary/50 transition-colors",
-                            compact ? "min-h-[50px] text-sm" : "min-h-24 !text-sm !leading-5",
-                        )}
-                        disabled={disabled}
-                        autoFocus
-                    />
-                ) : (
-                    <div
-                        onClick={handleContainerClick}
-                        className={cn(
-                            "p-2 bg-background/50 border border-border/50 rounded-md",
-                            compact ? "min-h-[50px] max-h-24 overflow-auto" : "min-h-24",
-                            disabled || isTokenizing ? "cursor-progress" : "cursor-text",
-                        )}
-                    >
-                        {side === "source" && pendingRangeStart !== undefined ? (
-                            <SourceTokenDisplay
-                                tokens={tokens}
-                                loading={isTokenizing}
-                                selectedPositions={selectedPositions as SourcePosition[]}
-                                pendingRangeStart={pendingRangeStart}
-                                onTokenClick={onTokenClick}
-                                label={label}
-                                compact={compact}
-                            />
-                        ) : (
-                            <SelectableTokenDisplay
-                                tokens={tokens}
-                                loading={isTokenizing}
-                                selectedPositions={selectedPositions as number[]}
-                                frozenPositions={frozenPositions}
-                                onTokenClick={onTokenClick}
-                                onTokenHover={onTokenHover}
-                                onTokenLeave={onTokenLeave}
-                                label={label}
-                                side={side}
-                                compact={compact}
-                            />
-                        )}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
 // ============================================================================
 // UNIFIED PROMPT SECTION COMPONENT
 // Handles both source (with range selection) and target (with freeze) variants
 // Supports compact mode (landing page) and full mode (chart page)
 // ============================================================================
 
-export interface PatchPromptSectionProps {
+interface PatchPromptSectionProps {
     variant: "source" | "target";
     mode: "compact" | "full";
     label: string;

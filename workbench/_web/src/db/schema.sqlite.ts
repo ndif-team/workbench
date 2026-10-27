@@ -1,5 +1,4 @@
 import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
-import type { LensConfigData } from "@/types/lens";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
@@ -90,7 +89,7 @@ export const workspaces = sqliteTable(
     (table) => [uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId)],
 );
 
-export const chartTypes = ["line", "heatmap"] as const;
+export const chartTypes = ["lens2", "jlens", "activation-patching", "patch-lens"] as const;
 
 export const charts = sqliteTable("charts", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
@@ -110,7 +109,7 @@ export const charts = sqliteTable("charts", {
         .$onUpdate(() => new Date()),
 });
 
-export const configTypes = ["lens", "patch"] as const;
+export const configTypes = ["lens2", "jlens", "activation-patching", "patch-lens"] as const;
 
 export const configs = sqliteTable("configs", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
@@ -126,12 +125,6 @@ export const chartConfigLinks = sqliteTable("chart_config_links", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
     chartId: text("chart_id").notNull(),
     configId: text("config_id").notNull(),
-});
-
-export const views = sqliteTable("views", {
-    id: text("id").primaryKey().$defaultFn(generateUUID),
-    chartId: text("chart_id").notNull(),
-    data: text("data", { mode: "json" }).notNull(), // JSON stored as text in SQLite
 });
 
 export const documents = sqliteTable("documents", {
@@ -207,9 +200,6 @@ export type NewConfig = typeof configs.$inferInsert;
 
 export type ChartConfigLink = typeof chartConfigLinks.$inferSelect;
 export type NewChartConfigLink = typeof chartConfigLinks.$inferInsert;
-
-export type View = typeof views.$inferSelect;
-export type NewView = typeof views.$inferInsert;
 
 export type LensRun = typeof lensRuns.$inferSelect;
 export type NewLensRun = typeof lensRuns.$inferInsert;

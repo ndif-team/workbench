@@ -10,10 +10,11 @@ import {
 import { createWorkspace, setWorkspaceProlificIfEmpty } from "@/lib/queries/workspaceQueries";
 import { isUniqueViolation } from "@/lib/queries/workshopDb";
 import { isWorkshopExpired } from "@/lib/workshop";
+import { toolChartPath } from "@/lib/chartRoutes";
 import { getPostHogServer } from "@/lib/posthog-server";
 import type { ProlificParams } from "@/lib/prolific";
 
-export type JoinWorkshopResult =
+type JoinWorkshopResult =
     | { ok: true; redirectTo: string }
     | { ok: false; error: string; captchaRequired?: boolean };
 
@@ -120,5 +121,5 @@ export async function joinWorkshopAction(
         properties: { tool },
     });
 
-    return { ok: true, redirectTo: `/workbench/${workspace.id}/${tool}/${chart.id}` };
+    return { ok: true, redirectTo: toolChartPath(workspace.id, chart.id, tool) };
 }

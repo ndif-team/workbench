@@ -2,13 +2,13 @@
 
 import React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Grid3X3, ChartLine, Trash2, Copy, MoreVertical, GitBranch } from "lucide-react";
-import { ChartMetadata, ChartType } from "@/types/charts";
-import { PatchLensIcon } from "@/components/PatchLensIcon";
-import { JLensIcon } from "@/components/JLensIcon";
+import { Trash2, Copy, MoreVertical } from "lucide-react";
+import { ChartMetadata } from "@/types/charts";
 import { cn } from "@/lib/utils";
+import { chartPath } from "@/lib/chartRoutes";
 import { ChartRenameDialog } from "./ChartRenameDialog";
 import { sidebarCardShell } from "./sidebarCardShell";
+import { toolMeta } from "./toolMeta";
 import { useCopyChart } from "@/lib/api/chartApi";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -17,19 +17,6 @@ export type ChartCardProps = {
     metadata: ChartMetadata;
     handleDelete: (e: React.MouseEvent, chartId: string) => void;
     canDelete: boolean;
-};
-
-/** tool → label + icon. Keyed by the chart's stored `chartType`. */
-const TOOL_META: Record<
-    ChartType,
-    { label: string; Icon: React.ComponentType<{ className?: string }> }
-> = {
-    line: { label: "Line", Icon: ChartLine },
-    heatmap: { label: "Heatmap", Icon: Grid3X3 },
-    lens2: { label: "Logit Lens", Icon: Grid3X3 },
-    jlens: { label: "J-Lens", Icon: JLensIcon },
-    "activation-patching": { label: "Act. Patching", Icon: GitBranch },
-    "patch-lens": { label: "Patch Lens", Icon: PatchLensIcon },
 };
 
 export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCardProps) {
@@ -45,23 +32,10 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
           })
         : "";
 
-    const tool = metadata.chartType ? TOOL_META[metadata.chartType] : undefined;
+    const tool = toolMeta(metadata.toolType ?? metadata.chartType);
 
     const navigateToChart = (chart: ChartMetadata) => {
-        if (chart.toolType === "lens2" || chart.chartType === "lens2") {
-            router.push(`/workbench/${workspaceId}/lens2/${chart.id}`);
-        } else if (chart.toolType === "jlens" || chart.chartType === "jlens") {
-            router.push(`/workbench/${workspaceId}/j-lens/${chart.id}`);
-        } else if (
-            chart.toolType === "activation-patching" ||
-            chart.chartType === "activation-patching"
-        ) {
-            router.push(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
-        } else if (chart.toolType === "patch-lens" || chart.chartType === "patch-lens") {
-            router.push(`/workbench/${workspaceId}/patch-lens/${chart.id}`);
-        } else {
-            router.push(`/workbench/${workspaceId}/${chart.id}`);
-        }
+        router.push(chartPath(workspaceId, chart.id, chart.toolType ?? chart.chartType));
     };
 
     const handleCopy = async (e: React.MouseEvent, id: string) => {
@@ -161,7 +135,7 @@ export default function ChartCard({ metadata, handleDelete, canDelete }: ChartCa
                     {tool ? (
                         <>
                             <tool.Icon className="h-3 w-3 shrink-0 opacity-80" />
-                            <span className="truncate">{tool.label}</span>
+                            <span className="truncate">{tool.shortLabel ?? tool.label}</span>
                         </>
                     ) : (
                         <span className="truncate opacity-60">unknown</span>

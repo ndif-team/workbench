@@ -3,7 +3,6 @@
 import { useCallback } from "react";
 import { useParams } from "next/navigation";
 import { usePostHog } from "posthog-js/react";
-import type { WorkshopTool } from "@/db/schema";
 
 /**
  * Product analytics for the workshop tools. The single place event names live.
@@ -17,10 +16,7 @@ import type { WorkshopTool } from "@/db/schema";
  * full prompt lives in the Postgres config row, joinable via `chart_id`.
  */
 
-/** The interpretability tools, tagged on every tool event via `tool`. */
-export type Tool = WorkshopTool;
-
-export type AnalyticsEvent =
+type AnalyticsEvent =
     | "tool_opened"
     | "chart_created"
     | "run_submitted"
