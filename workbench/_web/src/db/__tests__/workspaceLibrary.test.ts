@@ -31,6 +31,7 @@ import {
     deleteWorkspace,
     getWorkspaceById,
     getWorkspaces,
+    reorderWorkspaceItems,
     updateWorkspace,
 } from "@/lib/queries/workspaceQueries";
 import {
@@ -258,6 +259,22 @@ describe("workspace library", () => {
         expect(promptOf(lens)?.prompt).toBe("The Eiffel Tower is in");
         expect(promptOf(patch.id)?.prompt).toBe("The capital of France is");
         expect(promptOf(blank.id)?.prompt).toBeNull();
+    });
+
+    it("lists a folder's items in the order they were reordered to", async () => {
+        const folder = await createWorkspace(USER, "Folder");
+        const first = await createChart(folder.id, "First");
+        const second = await createChart(folder.id, "Second");
+        const report = await createDocument(folder.id);
+
+        await reorderWorkspaceItems(folder.id, [
+            { kind: "report", id: report.id },
+            { kind: "chart", id: second },
+            { kind: "chart", id: first },
+        ]);
+
+        const library = await getWorkspaceLibrary(USER);
+        expect(ids(library.workspaces[0].items)).toEqual([report.id, second, first]);
     });
 
     it("creates the default workspace on first read", async () => {

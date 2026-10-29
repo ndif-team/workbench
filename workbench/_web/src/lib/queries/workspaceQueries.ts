@@ -80,26 +80,30 @@ export const deleteWorkspace = async (userId: string, workspaceId: string) => {
 
 export type WorkspaceItemKind = "chart" | "report";
 
+/**
+ * Saves a workspace's item order: each item's position is its index.
+ * Sequential rather than a transaction, since drizzle's sqlite drivers reject
+ * async transaction callbacks; every write is idempotent, so a retry after a
+ * partial failure converges.
+ */
 export const reorderWorkspaceItems = async (
     workspaceId: string,
     items: { kind: WorkspaceItemKind; id: string }[],
 ): Promise<void> => {
-    await db.transaction(async (tx: typeof db) => {
-        for (let i = 0; i < items.length; i++) {
-            const { kind, id } = items[i];
-            if (kind === "chart") {
-                await tx
-                    .update(charts)
-                    .set({ position: i, updatedAt: sql`${charts.updatedAt}` })
-                    .where(and(eq(charts.id, id), eq(charts.workspaceId, workspaceId)));
-            } else {
-                await tx
-                    .update(documents)
-                    .set({ position: i, updatedAt: sql`${documents.updatedAt}` })
-                    .where(and(eq(documents.id, id), eq(documents.workspaceId, workspaceId)));
-            }
+    for (let i = 0; i < items.length; i++) {
+        const { kind, id } = items[i];
+        if (kind === "chart") {
+            await db
+                .update(charts)
+                .set({ position: i, updatedAt: sql`${charts.updatedAt}` })
+                .where(and(eq(charts.id, id), eq(charts.workspaceId, workspaceId)));
+        } else {
+            await db
+                .update(documents)
+                .set({ position: i, updatedAt: sql`${documents.updatedAt}` })
+                .where(and(eq(documents.id, id), eq(documents.workspaceId, workspaceId)));
         }
-    });
+    }
 };
 
 // Wrapped versions for use with server actions/components that use withAuth
