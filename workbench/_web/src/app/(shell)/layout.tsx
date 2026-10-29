@@ -9,12 +9,14 @@ import { ModelControl } from "@/components/ModelControl";
 import { Button } from "@/components/ui/button";
 import { WorkspaceNameEditor } from "@/components/WorkspaceNameEditor";
 import { WorkspaceScopeHost } from "@/components/providers/WorkspaceScopeProvider";
+import { PendingRequestHandler } from "./components/PendingRequestHandler";
 
 /**
  * App shell around the chart, report and app pages. Temporary: this is the old
  * workspace header (back link, model pill, workspace name, links) until the
  * global sidebar replaces it. Header chrome reads the current item's workspace
- * through `WorkspaceScopeHost`.
+ * through `WorkspaceScopeHost`. Keep `PendingRequestHandler` mounted here: it
+ * resumes a chart launch that waited on sign-in, wherever sign-in lands.
  */
 export default function ShellLayout({
     children,
@@ -23,11 +25,12 @@ export default function ShellLayout({
 }>) {
     return (
         <WorkspaceScopeHost>
+            <PendingRequestHandler />
             <div className="flex flex-col h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
                 <header className="p-2 px-3 md:p-3 md:px-5 flex items-center justify-between relative">
                     {/* Left: Back button + Model control */}
                     <div className="flex items-center gap-2 md:gap-3 z-10">
-                        <Link href="/workbench">
+                        <Link href="/workspaces">
                             <Button
                                 variant="ghost"
                                 className="bg-transparent hover:!white/10 border-1"

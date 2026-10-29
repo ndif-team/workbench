@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { getWorkspaces } from "@/lib/queries/workspaceQueries";
 import { hasWorkshopClaim } from "@/lib/workshop";
+import { newChartPath } from "@/lib/chartRoutes";
 import { useModelDeployment } from "@/stores/useModelDeployment";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import {
@@ -60,7 +61,7 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
 
     const [user, setUser] = useState<CurrentUser | null>(null);
     const [tool, setTool] = useState("Logit Lens");
-    const [workspace, setWorkspace] = useState("new");
+    const [workspace, setWorkspace] = useState("");
 
     const open = model !== null;
     const isDeploy = mode === "deploy";
@@ -129,11 +130,10 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
             tool,
             deploy: "true",
         });
-        if (workspace && workspace !== "new") params.set("workspaceId", workspace);
-        else params.set("createNew", "true");
+        if (workspace) params.set("workspaceId", workspace);
 
         onOpenChange(false);
-        router.push(`/workbench?${params.toString()}`);
+        router.push(newChartPath(params));
     };
 
     return (

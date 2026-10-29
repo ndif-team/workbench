@@ -7,51 +7,9 @@ import { useRef, useState, useEffect, type ElementRef, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HatGlasses, Sparkles } from "lucide-react";
+import { savePendingRequest } from "@/lib/pendingRequest";
 
 export const dynamic = "force-dynamic";
-
-// Key for storing pending request in localStorage
-const PENDING_REQUEST_KEY = "workbench_pending_request";
-
-export interface PendingRequest {
-    model: string;
-    tool?: string;
-    prompt?: string;
-    srcPrompt?: string;
-    tgtPrompt?: string;
-    srcPos?: string;
-    tgtPos?: string;
-    tgtFreeze?: string;
-    timestamp: number;
-}
-
-// Helper to save pending request to localStorage
-export function savePendingRequest(request: Omit<PendingRequest, "timestamp">) {
-    const payload: PendingRequest = { ...request, timestamp: Date.now() };
-    localStorage.setItem(PENDING_REQUEST_KEY, JSON.stringify(payload));
-}
-
-// Helper to get and clear pending request from localStorage
-export function getPendingRequest(): PendingRequest | null {
-    const stored = localStorage.getItem(PENDING_REQUEST_KEY);
-    if (!stored) return null;
-
-    try {
-        const request = JSON.parse(stored) as PendingRequest;
-        // Clear after reading
-        localStorage.removeItem(PENDING_REQUEST_KEY);
-
-        // Expire after 10 minutes
-        if (Date.now() - request.timestamp > 10 * 60 * 1000) {
-            return null;
-        }
-
-        return request;
-    } catch {
-        localStorage.removeItem(PENDING_REQUEST_KEY);
-        return null;
-    }
-}
 
 /**
  * The `next` param as a path to return to after sign-in, or null when absent or

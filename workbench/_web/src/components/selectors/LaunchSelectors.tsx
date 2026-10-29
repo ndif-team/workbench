@@ -1,6 +1,6 @@
 "use client";
 
-import { Layers, Plus } from "lucide-react";
+import { Layers } from "lucide-react";
 
 import { PillPopover, type PillPopoverOption } from "@/components/ui/pill-popover";
 import { cn } from "@/lib/utils";
@@ -9,8 +9,9 @@ import type { getWorkspaces } from "@/lib/queries/workspaceQueries";
 /**
  * Tool + workspace pickers used to launch a chart. Shared between the landing
  * page and the cold-model Deploy dialog so the selection flow is identical in
- * both places — both produce a tool name and a workspace id ("new" for a
- * fresh workspace) that feed the same `/workbench?...` chart-creation route.
+ * both places — both produce a tool name and a workspace id ("" for no
+ * workspace, i.e. the default one) that feed the same `/new?...` chart-creation
+ * route.
  */
 
 type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number];
@@ -74,6 +75,7 @@ export function ToolPill({
     );
 }
 
+/** Workspace picker: "No workspace" (value "", the default workspace) or one of `workspaces`. */
 export function WorkspacePill({
     value,
     onChange,
@@ -93,13 +95,13 @@ export function WorkspacePill({
     /** Set when used inside a Dialog so the menu list can scroll. */
     modal?: boolean;
 }) {
+    // The menu needs a non-empty value for its "No workspace" row.
+    const noWorkspace = "default";
     const currentLabel =
-        value === "new"
-            ? "New Workspace"
-            : (workspaces.find((ws) => ws.id === value)?.name ?? "Workspace");
+        (value && workspaces.find((ws) => ws.id === value)?.name) || "No workspace";
 
     const options: PillPopoverOption[] = [
-        { value: "new", label: "New Workspace", icon: <Plus />, tone: "primary" },
+        { value: noWorkspace, label: "No workspace" },
         ...workspaces.map((ws) => ({
             value: ws.id,
             label: ws.name,
@@ -109,8 +111,8 @@ export function WorkspacePill({
 
     return (
         <PillPopover
-            value={value}
-            onChange={onChange}
+            value={value || noWorkspace}
+            onChange={(v) => onChange(v === noWorkspace ? "" : v)}
             disabled={disabled}
             ariaLabel="Select workspace"
             triggerClassName={cn(triggerClassName, "max-w-[180px]")}

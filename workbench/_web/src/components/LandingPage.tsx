@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { getWorkspaces } from "@/lib/queries/workspaceQueries";
+import { newChartPath } from "@/lib/chartRoutes";
 import { Select, SelectTrigger } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
@@ -201,7 +202,7 @@ function ModelTriggerPopover({
                     footer={
                         moreCount > 0 ? (
                             <Link
-                                href={loggedIn ? "/workbench?models=open" : "/login"}
+                                href={loggedIn ? "/models?models=open" : "/login"}
                                 className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors group"
                             >
                                 <span>
@@ -234,7 +235,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
     const [selectedTool, setSelectedTool] = useState<string>("Logit Lens");
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const captchaRef = useRef<ElementRef<typeof HCaptcha> | null>(null);
-    // A prebuilt `/workbench?…` query to redirect to after anonymous sign-in.
+    // A prebuilt `/new?…` query to redirect to after anonymous sign-in.
     // Set by the one-click launches (e.g. Discover J-Lens) that don't go through
     // the prompt form; null → fall back to building params from the form state.
     const pendingLaunchRef = useRef<string | null>(null);
@@ -329,13 +330,13 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                         params.set("prompt", prompt);
                     }
 
-                    if (selectedWorkspace && selectedWorkspace !== "new") {
+                    if (selectedWorkspace) {
                         params.set("workspaceId", selectedWorkspace);
                     }
                     qs = params.toString();
                 }
                 pendingLaunchRef.current = null;
-                window.location.href = `/workbench?${qs}`;
+                window.location.href = newChartPath(qs);
             }
         } catch (err) {
             console.error("Anonymous sign-in error:", err);
@@ -398,10 +399,8 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
             tool: selectedTool,
         });
 
-        if (selectedWorkspace && selectedWorkspace !== "new") {
+        if (selectedWorkspace) {
             params.set("workspaceId", selectedWorkspace);
-        } else {
-            params.set("createNew", "true");
         }
 
         if (selectedTool === "Activation Patching") {
@@ -416,9 +415,9 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
             params.set("prompt", prompt);
         }
 
-        // If user is logged in (not anonymous), redirect directly to workbench with prompt
+        // If user is logged in (not anonymous), create the chart directly
         if (loggedIn && currentUser && !currentUser.is_anonymous) {
-            router.push(`/workbench?${params.toString()}`);
+            router.push(newChartPath(params));
         } else {
             // Show captcha for anonymous/non-logged-in users
             setShowCaptcha(true);
@@ -427,8 +426,8 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
 
     // One-click launch of the new J-Lens tool: pick a J-Lens-supported model
     // (the one already selected if it qualifies, else the best available hot
-    // one), then run the normal workspace-creation pipeline with no prompt —
-    // signing in anonymously first if the visitor isn't authenticated.
+    // one), then create an empty J-Lens chart through /new — signing in
+    // anonymously first if the visitor isn't authenticated.
     const handleDiscoverJLens = () => {
         // "Usable" = the current user can actually run it: supports j-lens AND
         // is allowed for this session. `allowed` is false for gated models when
@@ -452,14 +451,12 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
 
         // Empty chart (no prompt), mirroring the model launch dialog's deploy flow.
         const params = new URLSearchParams({ model: model.name, tool: "J-Lens", deploy: "true" });
-        if (selectedWorkspace && selectedWorkspace !== "new") {
+        if (selectedWorkspace) {
             params.set("workspaceId", selectedWorkspace);
-        } else {
-            params.set("createNew", "true");
         }
 
         if (loggedIn && currentUser && !currentUser.is_anonymous) {
-            router.push(`/workbench?${params.toString()}`);
+            router.push(newChartPath(params));
         } else {
             // Anonymous / signed-out — sign in via captcha, then resume here.
             pendingLaunchRef.current = params.toString();
@@ -506,7 +503,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                     className="flex items-center gap-3"
                 >
                     {loggedIn && (
-                        <Link href="/workbench">
+                        <Link href="/workspaces">
                             <Button
                                 variant="default"
                                 size="default"

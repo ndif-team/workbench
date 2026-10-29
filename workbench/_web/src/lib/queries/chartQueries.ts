@@ -9,7 +9,14 @@ import { JLensConfigData } from "@/types/jlens";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { PatchLensChartData } from "@/types/patchLens";
 import { and, eq, asc, desc, inArray, sql } from "drizzle-orm";
-import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceDb";
+import {
+    touchWorkspace,
+    getNextWorkspaceItemPosition,
+    getOrCreateDefaultWorkspace,
+} from "@/lib/queries/workspaceDb";
+import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
+import { requireUserId } from "@/lib/auth/user";
+import { planChartLaunch, type ChartLaunchRequest } from "@/lib/chartLaunch";
 // From workshopDb (not workshopQueries) — workshopQueries imports the chart
 // pair creators below, so importing it back here would be circular.
 import { getWorkshopForWorkspace } from "@/lib/queries/workshopDb";
@@ -105,6 +112,32 @@ export const createActivationPatchingChartPair = async (
     workspaceId: string,
     defaultConfig: ActivationPatchingConfigData,
 ) => createChartConfigPair(workspaceId, { type: "activation-patching", data: defaultConfig });
+
+/**
+ * Creates the chart a `/new` launch asks for, in the signed-in user's default
+ * workspace or in `request.workspaceId` when it is one of theirs, and returns
+ * where to open it.
+ */
+export async function createChartFromLaunch(
+    request: ChartLaunchRequest,
+): Promise<{ chartId: string; toolType: ToolType; workspaceId: string }> {
+    const userId = await requireUserId();
+    let workspaceId: string;
+    if (request.workspaceId) {
+        const workspace = await getWorkspaceById(request.workspaceId);
+        if (!workspace || workspace.userId !== userId) {
+            throw new Error("Workspace not found or access denied");
+        }
+        workspaceId = workspace.id;
+    } else {
+        workspaceId = (await getOrCreateDefaultWorkspace(userId)).id;
+    }
+
+    const plan = planChartLaunch(request);
+    const chartData = plan.type === "patch-lens" ? plan.chartData : undefined;
+    const { chart } = await createChartConfigPair(workspaceId, plan, chartData);
+    return { chartId: chart.id, toolType: plan.type, workspaceId };
+}
 
 export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetadata[]> => {
     // Whether the chart has a saved result, derived cheaply from the column

@@ -52,3 +52,13 @@ export function workspacePath(workspaceId: string): string {
 export function openWorkspacePath(workspaceId: string): string {
     return `/workbench/${workspaceId}`;
 }
+
+/**
+ * Creates a chart from launch parameters (`tool`, `model`, `prompt`, …; see
+ * lib/chartLaunch.ts) in the default workspace, or in `workspaceId` when given,
+ * then opens it.
+ */
+export function newChartPath(params: ConstructorParameters<typeof URLSearchParams>[0]): string {
+    const query = new URLSearchParams(params).toString();
+    return query ? `/new?${query}` : "/new";
+}
