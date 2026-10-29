@@ -113,7 +113,9 @@ type LibraryChartRow = {
     name: string | null;
     chartType: string | null;
     configType: string | null;
-    configData: { model?: string } | null;
+    configData: { model?: string; prompt?: string; srcPrompt?: string } | null;
+    /** Patch Lens keeps its prompts on the chart row, not the config. */
+    chartPrompt: string | null;
     hasData: boolean | number;
     position: number;
     createdAt: Date;
@@ -128,6 +130,12 @@ type LibraryReportRow = {
     createdAt: Date;
     updatedAt: Date;
 };
+
+/** A top-level string field of a JSON column, as text (jsonb in Postgres, JSON text in SQLite). */
+const jsonTextField = (column: typeof charts.data, key: string) =>
+    process.env.NEXT_PUBLIC_LOCAL_DB === "true"
+        ? sql<string | null>`json_extract(${column}, ${`$.${key}`})`
+        : sql<string | null>`${column}->>${key}`;
 
 const byPosition = (a: LibraryItem, b: LibraryItem) =>
     a.position - b.position || a.createdAt.getTime() - b.createdAt.getTime();
@@ -163,6 +171,7 @@ export const getWorkspaceLibrary = async (userId: string): Promise<WorkspaceLibr
                 chartType: charts.type,
                 configType: configs.type,
                 configData: configs.data,
+                chartPrompt: jsonTextField(charts.data, "sourcePrompt"),
                 hasData: sql<boolean>`${charts.data} is not null`,
                 position: charts.position,
                 createdAt: charts.createdAt,
@@ -212,6 +221,8 @@ export const getWorkspaceLibrary = async (userId: string): Promise<WorkspaceLibr
             name: c.name ?? "",
             toolType: normalizeToolType(c.configType ?? c.chartType),
             model: c.configData?.model || null,
+            prompt:
+                (c.configData?.prompt || c.configData?.srcPrompt || c.chartPrompt)?.trim() || null,
             hasData: !!c.hasData,
             position: c.position,
             createdAt: c.createdAt,

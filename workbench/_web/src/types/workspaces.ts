@@ -20,6 +20,8 @@ export type LibraryChartItem = {
     toolType: string | null;
     /** The model saved on the chart's config. */
     model: string | null;
+    /** The chart's prompt (the source prompt of two-prompt tools), if any; labels unnamed charts. */
+    prompt: string | null;
     /** Whether the chart has a saved result. */
     hasData: boolean;
     position: number;

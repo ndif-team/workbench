@@ -6,7 +6,7 @@
  * "use server" wrappers in workspaceQueries.ts only resolve the signed-in user
  * before calling these). Covers idempotent default creation, adoption of the
  * old flow's "Default Workspace", the one-default-per-user index, library
- * grouping and ordering, chart and report moves (config and lens runs follow
+ * grouping, ordering and chart prompts, chart and report moves (config and lens runs follow
  * the chart), refused moves, and the default workspace staying out of folder
  * lists and out of reach of rename/delete.
  */
@@ -239,6 +239,25 @@ describe("workspace library", () => {
 
         const fresh = library.defaultItems.find((i) => i.id === newer);
         expect(fresh).toMatchObject({ kind: "chart", hasData: false });
+    });
+
+    it("carries each chart's prompt: the config's, or Patch Lens's source prompt", async () => {
+        const def = await getOrCreateDefaultWorkspace(USER);
+        const lens = await createChart(def.id, "Untitled Chart");
+        const { chart: patch } = await createPatchLensChartPair(def.id, {
+            sourcePrompt: "The capital of France is",
+            targetPrompt: "The capital of Italy is",
+        });
+        const { chart: blank } = await createLogitLensChartPair(def.id, lensConfig(""));
+
+        const library = await getWorkspaceLibrary(USER);
+        const promptOf = (id: string) =>
+            library.defaultItems.find((i) => i.id === id && i.kind === "chart") as
+                | Extract<LibraryItem, { kind: "chart" }>
+                | undefined;
+        expect(promptOf(lens)?.prompt).toBe("The Eiffel Tower is in");
+        expect(promptOf(patch.id)?.prompt).toBe("The capital of France is");
+        expect(promptOf(blank.id)?.prompt).toBeNull();
     });
 
     it("creates the default workspace on first read", async () => {
