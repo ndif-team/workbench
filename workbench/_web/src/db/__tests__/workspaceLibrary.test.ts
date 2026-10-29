@@ -96,6 +96,41 @@ const workshopInput = () => ({
 
 const ids = (items: LibraryItem[]) => items.map((i) => i.id);
 
+/**
+ * Stands in for the next `db.update(…)` chain: awaiting it runs `meanwhile`
+ * (a racing request's write) and then settles with `outcome`, to reach the
+ * branches only a real race would.
+ */
+const interceptNextUpdate = (
+    meanwhile: () => Promise<unknown>,
+    outcome: { rows: unknown[] } | { error: Error },
+) => {
+    const realUpdate = db.update;
+    const chain: object = new Proxy(
+        {},
+        {
+            get: (_, prop) =>
+                prop === "then"
+                    ? (resolve: (rows: unknown[]) => void, reject: (err: unknown) => void) =>
+                          meanwhile().then(
+                              () =>
+                                  "error" in outcome
+                                      ? reject(outcome.error)
+                                      : resolve(outcome.rows),
+                              reject,
+                          )
+                    : () => chain,
+        },
+    );
+    db.update = () => {
+        db.update = realUpdate;
+        return chain;
+    };
+    return () => {
+        db.update = realUpdate;
+    };
+};
+
 describe("default workspace", () => {
     beforeEach(async () => {
         await clearDatabase();
@@ -156,6 +191,68 @@ describe("default workspace", () => {
         const library = await getWorkspaceLibrary(USER);
         expect(library.defaultWorkspaceId).toBe(legacy.id);
         expect(ids(library.defaultItems)).toEqual([chartId]);
+    });
+
+    it("adopts the same legacy workspace whatever order equal timestamps come back in", async () => {
+        const created = new Date(Date.now() - 60_000);
+        const first = await createWorkspace(USER, "Default Workspace");
+        const second = await createWorkspace(USER, "Default Workspace");
+        await db.update(workspaces).set({ createdAt: created }).where(eq(workspaces.userId, USER));
+        const lowerId = [first.id, second.id].sort()[0];
+
+        expect((await getOrCreateDefaultWorkspace(USER)).id).toBe(lowerId);
+        const others = await getWorkspaces(USER);
+        expect(others.map((w: { id: string; name: string }) => [w.id, w.name])).toEqual([
+            [[first.id, second.id].find((id) => id !== lowerId), "Default Workspace"],
+        ]);
+    });
+
+    it("inserts a default when the legacy workspace vanishes before it is adopted", async () => {
+        const legacy = await createWorkspace(USER, "Default Workspace");
+        const restore = interceptNextUpdate(
+            () => db.delete(workspaces).where(eq(workspaces.id, legacy.id)),
+            { rows: [] },
+        );
+        try {
+            const def = await getOrCreateDefaultWorkspace(USER);
+            expect(def.id).not.toBe(legacy.id);
+            expect(def.name).toBe(DEFAULT_WORKSPACE_NAME);
+            expect(def.isDefault).toBe(true);
+        } finally {
+            restore();
+        }
+    });
+
+    it("returns the racing request's default when its own write hits the unique index", async () => {
+        const legacy = await createWorkspace(USER, "Default Workspace");
+        let winnerId = "";
+        const restore = interceptNextUpdate(
+            async () => {
+                winnerId = (await createWorkspace(USER, "Winner")).id;
+                await db
+                    .update(workspaces)
+                    .set({ isDefault: true })
+                    .where(eq(workspaces.id, winnerId));
+            },
+            { error: new Error("UNIQUE constraint failed: workspaces.user_id") },
+        );
+        try {
+            const def = await getOrCreateDefaultWorkspace(USER);
+            expect(def.id).toBe(winnerId);
+            expect((await getWorkspaceById(legacy.id))!.isDefault).toBe(false);
+        } finally {
+            restore();
+        }
+    });
+
+    it("rethrows a write error that isn't a lost race", async () => {
+        await createWorkspace(USER, "Default Workspace");
+        const restore = interceptNextUpdate(async () => {}, { error: new Error("disk I/O error") });
+        try {
+            await expect(getOrCreateDefaultWorkspace(USER)).rejects.toThrow("disk I/O error");
+        } finally {
+            restore();
+        }
     });
 
     it("is left out of folder lists and can't be renamed or deleted", async () => {

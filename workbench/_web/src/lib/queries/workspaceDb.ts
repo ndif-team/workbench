@@ -233,7 +233,8 @@ const getDefaultWorkspace = async (userId: string): Promise<Workspace | null> =>
  * The user's default workspace, created on first use. A user who already has
  * a non-workshop workspace named "Default Workspace" (what the old first-visit
  * flow created) gets their oldest such workspace adopted instead, so earlier
- * unfiled charts stay unfiled.
+ * unfiled charts stay unfiled; any others of that name stay folders. When the
+ * one picked vanishes before it is adopted, a new default is inserted.
  *
  * Check-then-act, made safe by the one-default-per-user unique index: a racing
  * insert or adoption loses the conflict, and the final re-select returns
@@ -253,16 +254,18 @@ export const getOrCreateDefaultWorkspace = async (userId: string): Promise<Works
                 isNull(workspaces.workshopId),
             ),
         )
-        .orderBy(asc(workspaces.createdAt))
+        .orderBy(asc(workspaces.createdAt), asc(workspaces.id))
         .limit(1);
 
     try {
-        if (legacy) {
-            await db
-                .update(workspaces)
-                .set({ isDefault: true, updatedAt: sql`${workspaces.updatedAt}` })
-                .where(eq(workspaces.id, legacy.id));
-        } else {
+        const adopted = legacy
+            ? await db
+                  .update(workspaces)
+                  .set({ isDefault: true, updatedAt: sql`${workspaces.updatedAt}` })
+                  .where(eq(workspaces.id, legacy.id))
+                  .returning({ id: workspaces.id })
+            : [];
+        if (adopted.length === 0) {
             await db
                 .insert(workspaces)
                 .values({ userId, name: DEFAULT_WORKSPACE_NAME, isDefault: true })
