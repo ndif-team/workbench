@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
     Copy,
@@ -31,9 +32,11 @@ import { useCopyChart, useDeleteChart } from "@/lib/api/chartApi";
 import { useDeleteDocument } from "@/lib/api/documentApi";
 import { useMoveChart, useMoveReport } from "@/lib/api/workspaceApi";
 import { chartPath, workspacePath } from "@/lib/chartRoutes";
+import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
-import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
-import { itemLabel } from "./itemLabel";
+import type { LibraryItem, LibraryWorkspace, WorkspaceLibrary } from "@/types/workspaces";
+import { itemLabel, itemPath } from "./itemLabel";
+import { neighborInList } from "./workspaceContents";
 
 interface ItemActionsMenuProps {
     item: LibraryItem;
@@ -47,46 +50,26 @@ interface ItemActionsMenuProps {
     onRename?: () => void;
     /** "row" is the faint sidebar/list trigger; "header" sits in a page header. */
     variant?: "row" | "header";
+    /** Where the menu and the delete confirmation open; beside a sidebar row, below anything else. */
+    side?: "right" | "bottom";
     align?: "start" | "end";
 }
 
 /**
- * The actions of a chart or report: Rename, Copy, Move to workspace (an
- * existing folder or a new one), Remove from workspace, Delete. Delete asks
- * for confirmation in a popover beside the trigger. Shared by the sidebar
- * rows, the item page header and the workspace page.
- *
- * Rename, Delete… and New workspace… move focus elsewhere, so they run once
- * the menu has closed (`afterCloseRef`), in place of its return of focus to
- * the trigger.
+ * Moves a chart or report to a folder (null: back to the default workspace)
+ * and says where it went. Shared by the actions menu and dropping a chart on
+ * a sidebar folder.
  */
-export function ItemActionsMenu({
-    item,
-    workspaces,
-    folder,
-    active,
-    onRename,
-    variant = "row",
-    align = "start",
-}: ItemActionsMenuProps) {
-    const router = useRouter();
-    const [confirmingDelete, setConfirmingDelete] = useState(false);
-    const [creatingWorkspace, setCreatingWorkspace] = useState(false);
-    const afterCloseRef = useRef<(() => void) | null>(null);
-
+export function useMoveItem() {
     const moveChart = useMoveChart();
     const moveReport = useMoveReport();
-    const copyChart = useCopyChart();
-    const deleteChart = useDeleteChart();
-    const deleteReport = useDeleteDocument();
-
-    const noun = item.kind;
-    const label = itemLabel(item).text;
-    const moveTargets = workspaces.filter((w) => !w.isWorkshop && w.id !== item.workspaceId);
-
-    const move = (target: { id: string; name: string } | null) => {
+    return (
+        item: LibraryItem,
+        target: { id: string; name: string } | null,
+        from: { name: string } | null,
+    ) => {
         const onSuccess = () =>
-            toast.success(target ? `Moved to ${target.name}` : `Removed from ${folder?.name}`);
+            toast.success(target ? `Moved to ${target.name}` : `Removed from ${from?.name}`);
         if (item.kind === "chart") {
             moveChart.mutate(
                 { chartId: item.id, targetWorkspaceId: target?.id ?? null },
@@ -99,6 +82,47 @@ export function ItemActionsMenu({
             );
         }
     };
+}
+
+/**
+ * The actions of a chart or report: Rename, Copy, Move to workspace (an
+ * existing folder or a new one), Remove from workspace, Delete. Delete asks
+ * for confirmation in a popover beside the trigger, and the trigger keeps
+ * `data-state="open"` meanwhile so its row stays highlighted. Deleting the
+ * item on screen opens the next one in its list (`neighborInList`), else its
+ * folder's page, else the workspaces page. Shared by the sidebar rows, the
+ * item page header and the workspace page.
+ *
+ * Rename, Delete… and New workspace… move focus elsewhere, so they run once
+ * the menu has closed (`afterCloseRef`), in place of its return of focus to
+ * the trigger.
+ */
+export function ItemActionsMenu({
+    item,
+    workspaces,
+    folder,
+    active,
+    onRename,
+    variant = "row",
+    side = variant === "row" ? "right" : "bottom",
+    align = "start",
+}: ItemActionsMenuProps) {
+    const router = useRouter();
+    const queryClient = useQueryClient();
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+    const afterCloseRef = useRef<(() => void) | null>(null);
+
+    const moveItem = useMoveItem();
+    const copyChart = useCopyChart();
+    const deleteChart = useDeleteChart();
+    const deleteReport = useDeleteDocument();
+
+    const noun = item.kind;
+    const label = itemLabel(item).text;
+    const moveTargets = workspaces.filter((w) => !w.isWorkshop && w.id !== item.workspaceId);
+
+    const move = (target: { id: string; name: string } | null) => moveItem(item, target, folder);
 
     const copy = () => {
         if (item.kind !== "chart") return;
@@ -112,9 +136,14 @@ export function ItemActionsMenu({
     };
 
     const remove = () => {
+        const library = queryClient.getQueryData<WorkspaceLibrary>(queryKeys.workspaces.library);
+        const next = active && library ? neighborInList(library, item) : null;
         const onSuccess = () => {
             setConfirmingDelete(false);
-            if (active) router.push(folder ? workspacePath(folder.id) : "/workbench");
+            if (!active) return;
+            router.replace(
+                next ? itemPath(next) : folder ? workspacePath(folder.id) : "/workspaces",
+            );
         };
         const onError = () => toast.error(`Couldn't delete the ${noun}`);
         if (item.kind === "chart") {
@@ -141,7 +170,10 @@ export function ItemActionsMenu({
             <Popover open={confirmingDelete} onOpenChange={setConfirmingDelete}>
                 <DropdownMenu modal={false}>
                     <PopoverAnchor asChild>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger
+                            asChild
+                            {...(confirmingDelete ? { "data-state": "open" } : {})}
+                        >
                             <Button
                                 type="button"
                                 variant="ghost"
@@ -160,7 +192,7 @@ export function ItemActionsMenu({
                         </DropdownMenuTrigger>
                     </PopoverAnchor>
                     <DropdownMenuContent
-                        side={variant === "row" ? "right" : "bottom"}
+                        side={side}
                         align={align}
                         className="w-52"
                         onCloseAutoFocus={(e) => {
@@ -224,7 +256,7 @@ export function ItemActionsMenu({
                 </DropdownMenu>
                 <PopoverContent
                     align={align}
-                    side={variant === "row" ? "right" : "bottom"}
+                    side={side}
                     className="w-64 p-3"
                     onClick={(e) => e.stopPropagation()}
                 >

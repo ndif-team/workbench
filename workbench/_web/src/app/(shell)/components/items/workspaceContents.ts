@@ -1,4 +1,4 @@
-import type { LibraryWorkspace } from "@/types/workspaces";
+import type { LibraryItem, LibraryWorkspace, WorkspaceLibrary } from "@/types/workspaces";
 
 /** What an empty workspace says, wherever it is shown (sidebar folder, card, workspace page). */
 export const EMPTY_WORKSPACE_TEXT =
@@ -14,4 +14,17 @@ export function describeContents(workspace: LibraryWorkspace): string {
     ]
         .filter(Boolean)
         .join(" and ");
+}
+
+/**
+ * Where to go after deleting `item` while it is on screen: the next item in
+ * the list it was shown in (its folder in saved order, or the unfiled charts
+ * newest first), else the one before it; null when it was the only one.
+ */
+export function neighborInList(library: WorkspaceLibrary, item: LibraryItem): LibraryItem | null {
+    const list =
+        library.workspaces.find((w) => w.id === item.workspaceId)?.items ?? library.defaultItems;
+    const index = list.findIndex((i) => i.kind === item.kind && i.id === item.id);
+    if (index === -1) return null;
+    return list[index + 1] ?? list[index - 1] ?? null;
 }

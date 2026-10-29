@@ -1,8 +1,9 @@
 import { describe, expect, it } from "bun:test";
 
-import type { LibraryItem } from "@/types/workspaces";
+import type { LibraryItem, WorkspaceLibrary } from "@/types/workspaces";
 import { formatUpdated, recencyGroup } from "../formatUpdated";
 import { chartLabel, chartName, itemLabel } from "../itemLabel";
+import { describeContents, neighborInList } from "../workspaceContents";
 
 const chart = (name: string, prompt: string | null): LibraryItem => ({
     kind: "chart",
@@ -74,5 +75,41 @@ describe("dates", () => {
         expect(recencyGroup(new Date(2026, 9, 24), now)).toBe("Previous 7 days");
         expect(recencyGroup(new Date(2026, 9, 5), now)).toBe("Previous 30 days");
         expect(recencyGroup(new Date(2026, 7, 1), now)).toBe("Older");
+    });
+});
+
+describe("workspace contents", () => {
+    const item = (id: string, workspaceId: string, kind: "chart" | "report" = "chart") =>
+        ({ ...chart("", null), id, workspaceId, kind }) as LibraryItem;
+    const folder = (id: string, items: LibraryItem[]) => ({
+        id,
+        name: id,
+        isWorkshop: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        items,
+    });
+    const library: WorkspaceLibrary = {
+        defaultWorkspaceId: "default",
+        defaultItems: [item("a", "default"), item("b", "default"), item("c", "default")],
+        workspaces: [folder("f1", [item("x", "f1"), item("y", "f1", "report")]), folder("f2", [])],
+    };
+
+    it("reads a workspace's contents in words", () => {
+        expect(describeContents(library.workspaces[0])).toBe("1 chart and 1 report");
+        expect(describeContents(folder("f", [item("p", "f"), item("q", "f")]))).toBe("2 charts");
+        expect(describeContents(library.workspaces[1])).toBe("");
+    });
+
+    it("finds where to go after deleting the item on screen", () => {
+        expect(neighborInList(library, item("a", "default"))?.id).toBe("b");
+        expect(neighborInList(library, item("c", "default"))?.id).toBe("b");
+        expect(neighborInList(library, item("x", "f1"))?.id).toBe("y");
+        expect(neighborInList(library, item("y", "f1", "report"))?.id).toBe("x");
+        const lone: WorkspaceLibrary = {
+            ...library,
+            workspaces: [folder("f1", [item("x", "f1")])],
+        };
+        expect(neighborInList(lone, item("x", "f1"))).toBeNull();
     });
 });

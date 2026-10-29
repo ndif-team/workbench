@@ -47,7 +47,7 @@ export function FolderItemRow({
     const deployState = isChart ? deployStateOf(item) : null;
 
     return (
-        <div className="group/row relative flex h-10 items-center gap-3 rounded-md pl-7 pr-1 transition-colors hover:bg-accent dark:hover:bg-accent/50">
+        <div className="group/row relative flex h-10 items-center gap-3 rounded-md pl-7 pr-1 transition-colors hover:bg-accent has-[[data-state=open]]:bg-accent dark:hover:bg-accent/50 dark:has-[[data-state=open]]:bg-accent/50">
             <Icon className="size-4 shrink-0 text-muted-foreground" />
             {renaming && isChart ? (
                 <InlineNameInput
@@ -106,6 +106,7 @@ export function FolderItemRow({
                         folder={folder}
                         active={false}
                         onRename={isChart ? onRenameStart : undefined}
+                        side="bottom"
                         align="end"
                     />
                 )}
