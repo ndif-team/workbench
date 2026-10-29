@@ -76,9 +76,12 @@ const BADGE_CLASSES = cn(
 
 interface ModelControlProps {
     className?: string;
+    /** Below `md`, shrink the pill to its status dot so a page header's title has room. */
+    compact?: boolean;
 }
 
-export function ModelControl({ className }: ModelControlProps) {
+export function ModelControl({ className, compact = false }: ModelControlProps) {
+    const hideCompact = compact && "max-md:hidden";
     const { selectedModelIdx, setSelectedModelIdx, jobStatus } = useWorkspace();
     const workspaceId = useWorkspaceScope()?.workspaceId;
 
@@ -151,7 +154,7 @@ export function ModelControl({ className }: ModelControlProps) {
                 )}
             >
                 <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" aria-hidden />
-                <span>Fetching models…</span>
+                <span className={cn(hideCompact)}>Fetching models…</span>
             </div>
         );
     }
@@ -173,8 +176,10 @@ export function ModelControl({ className }: ModelControlProps) {
                             className,
                         )}
                     >
-                        <HeatBadge heat="unavailable" />
-                        <span className="text-xs px-1 text-muted-foreground">no model</span>
+                        <HeatBadge heat="unavailable" compact={compact} />
+                        <span className={cn("text-xs px-1 text-muted-foreground", hideCompact)}>
+                            no model
+                        </span>
                     </div>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">{reason}</TooltipContent>
@@ -199,9 +204,12 @@ export function ModelControl({ className }: ModelControlProps) {
                         aria-label="Model is set by the workshop"
                         className={cn(TRIGGER_CLASSES, "max-w-[28rem] cursor-default", className)}
                     >
-                        <HeatBadge heat={heat} />
+                        <HeatBadge heat={heat} compact={compact} />
                         <span
-                            className="font-mono text-xs px-0.5 truncate min-w-0 text-foreground"
+                            className={cn(
+                                "font-mono text-xs px-0.5 truncate min-w-0 text-foreground",
+                                hideCompact,
+                            )}
                             title={selectedModel.name}
                         >
                             {display.label}
@@ -233,9 +241,12 @@ export function ModelControl({ className }: ModelControlProps) {
                     disabled={isJobActive}
                     className={cn(TRIGGER_CLASSES, "max-w-[28rem]", className)}
                 >
-                    <HeatBadge heat={heat} />
+                    <HeatBadge heat={heat} compact={compact} />
                     <span
-                        className="font-mono text-xs px-0.5 truncate min-w-0 text-foreground"
+                        className={cn(
+                            "font-mono text-xs px-0.5 truncate min-w-0 text-foreground",
+                            hideCompact,
+                        )}
                         title={selectedModel.name}
                     >
                         {display.label}
@@ -279,13 +290,13 @@ export function ModelControl({ className }: ModelControlProps) {
 
 // ----- badges ---------------------------------------------------------------------
 
-function HeatBadge({ heat }: { heat: ModelStatus }) {
+function HeatBadge({ heat, compact = false }: { heat: ModelStatus; compact?: boolean }) {
     const m = MODEL_STATUS[heat];
     return (
         <Tooltip>
             <TooltipTrigger asChild>
                 <span
-                    className={BADGE_CLASSES}
+                    className={cn(BADGE_CLASSES, compact && "max-md:px-1.5")}
                     style={{
                         backgroundColor: `color-mix(in oklab, ${m.color} 12%, transparent)`,
                         color: m.color,
@@ -295,7 +306,7 @@ function HeatBadge({ heat }: { heat: ModelStatus }) {
                         className="w-1.5 h-1.5 rounded-full shrink-0"
                         style={{ backgroundColor: m.color }}
                     />
-                    {m.label}
+                    <span className={cn(compact && "max-md:sr-only")}>{m.label}</span>
                 </span>
             </TooltipTrigger>
             <TooltipContent side="bottom">{m.detail}</TooltipContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import type { SerializedEditorState } from "lexical";
@@ -40,10 +40,11 @@ export function ItemPage({ item, children }: { item: ItemRef; children: ReactNod
 }
 
 /**
- * The item's header. The breadcrumb leads with the item's workspace (nothing
- * for the default workspace); a chart's name is renamed in place by clicking
- * it or from the actions menu. Workshop items get no actions menu: they can't
- * be moved, and the workshop sidebar already covers the rest.
+ * The item's header. A chart's leads with the model picker (a report has no
+ * model). The breadcrumb leads with the item's workspace (nothing for the
+ * default workspace); a chart's name is renamed in place by clicking it or
+ * from the actions menu. Workshop items get no actions menu: they can't be
+ * moved, and the workshop sidebar already covers the rest.
  */
 function ItemPageHeader({ item }: { item: ItemRef }) {
     const scope = useWorkspaceScope();
@@ -66,7 +67,7 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
 
     return (
         <PageHeader
-            start={<ModelControl />}
+            start={item.kind === "chart" ? <ModelControl compact /> : null}
             center={
                 <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-sm">
                     {folderId && (
@@ -139,6 +140,7 @@ function ChartTitle({
         queryFn: () => getChartById(chartId),
     });
     const { mutate: renameChart } = useUpdateChartName();
+    const hintId = useId();
     const savedName = chartName(chart?.name);
     const [pendingName, setPendingName] = useState<string | null>(null);
     const name = pendingName ?? savedName;
@@ -164,21 +166,26 @@ function ChartTitle({
 
     const shown = name || fallback;
     return (
-        <h1 className="flex min-w-0">
-            <button
-                type="button"
-                onClick={() => onEditingChange(true)}
-                title={shown ? `${shown} (click to rename)` : "Click to name this chart"}
-                className={cn(
-                    titleClass,
-                    "cursor-text transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                    !shown && "text-muted-foreground",
-                )}
-            >
-                {chart ? shown || "Untitled chart" : "\u00a0"}
-                <span className="sr-only">, rename</span>
-            </button>
-        </h1>
+        <>
+            <h1 className="flex min-w-0">
+                <button
+                    type="button"
+                    onClick={() => onEditingChange(true)}
+                    title={shown ? `${shown} (click to rename)` : "Click to name this chart"}
+                    aria-describedby={hintId}
+                    className={cn(
+                        titleClass,
+                        "cursor-text transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                        !shown && "text-muted-foreground",
+                    )}
+                >
+                    {chart ? shown || "Untitled chart" : "\u00a0"}
+                </button>
+            </h1>
+            <span id={hintId} className="sr-only">
+                Click to rename
+            </span>
+        </>
     );
 }
 

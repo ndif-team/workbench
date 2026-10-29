@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -54,6 +54,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
     const folder = library?.workspaces.find((w) => w.id === workspaceId);
     const { data: workshop } = useWorkspaceWorkshop(folder?.isWorkshop ? workspaceId : undefined);
     const [renamingTitle, setRenamingTitle] = useState(false);
+    const renameHintId = useId();
     const [renamingItemId, setRenamingItemId] = useState<string | null>(null);
     const { mutate: renameWorkspace } = useRenameWorkspace();
     const { mutate: renameChart } = useUpdateChartName();
@@ -123,18 +124,25 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                                 {folder.name}
                             </h1>
                         ) : (
-                            <h1 className="flex min-w-0">
-                                <button
-                                    type="button"
-                                    onClick={() => setRenamingTitle(true)}
-                                    disabled={!folder}
-                                    title={folder ? `${folder.name} (click to rename)` : undefined}
-                                    className="min-w-0 cursor-text truncate rounded-md px-1 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                >
-                                    {folder?.name ?? "\u00a0"}
-                                    <span className="sr-only">, rename</span>
-                                </button>
-                            </h1>
+                            <>
+                                <h1 className="flex min-w-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => setRenamingTitle(true)}
+                                        disabled={!folder}
+                                        title={
+                                            folder ? `${folder.name} (click to rename)` : undefined
+                                        }
+                                        aria-describedby={renameHintId}
+                                        className="min-w-0 cursor-text truncate rounded-md px-1 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                    >
+                                        {folder?.name ?? "\u00a0"}
+                                    </button>
+                                </h1>
+                                <span id={renameHintId} className="sr-only">
+                                    Click to rename
+                                </span>
+                            </>
                         )}
                     </Breadcrumb>
                 }
