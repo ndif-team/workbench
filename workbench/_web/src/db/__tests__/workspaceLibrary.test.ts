@@ -18,6 +18,7 @@ import { db, clearDatabase } from "../client";
 import { charts, configs, documents, lensRuns, workspaces } from "../schema";
 import {
     DEFAULT_WORKSPACE_NAME,
+    MAX_WORKSPACE_NAME_LENGTH,
     createWorkspace,
     deleteWorkspace,
     getChartWorkspaceScope,
@@ -169,6 +170,35 @@ describe("default workspace", () => {
         );
         await deleteWorkspace(USER, def.id);
         expect(await getWorkspaceById(def.id)).not.toBeNull();
+    });
+});
+
+describe("workspace names", () => {
+    beforeEach(async () => {
+        await clearDatabase();
+    });
+
+    it("are trimmed on create and rename", async () => {
+        const ws = await createWorkspace(USER, "  IOI circuit ");
+        expect(ws.name).toBe("IOI circuit");
+        expect((await renameWorkspace(USER, ws.id, "\tInduction heads  ")).name).toBe(
+            "Induction heads",
+        );
+    });
+
+    it("must be 1 to 256 characters", async () => {
+        const ws = await createWorkspace(USER, "Folder");
+        const longest = "w".repeat(MAX_WORKSPACE_NAME_LENGTH);
+        const tooLong = `${longest}w`;
+
+        await expect(createWorkspace(USER, "   ")).rejects.toThrow("between 1 and 256");
+        await expect(createWorkspace(USER, tooLong)).rejects.toThrow("between 1 and 256");
+        await expect(renameWorkspace(USER, ws.id, "")).rejects.toThrow("between 1 and 256");
+        await expect(renameWorkspace(USER, ws.id, tooLong)).rejects.toThrow("between 1 and 256");
+        expect((await getWorkspaceById(ws.id))!.name).toBe("Folder");
+
+        expect((await renameWorkspace(USER, ws.id, longest)).name).toBe(longest);
+        expect((await getWorkspaces(USER)).map((w: { id: string }) => w.id)).toEqual([ws.id]);
     });
 });
 

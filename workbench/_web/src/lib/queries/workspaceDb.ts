@@ -29,6 +29,21 @@ export const DEFAULT_WORKSPACE_NAME = "Default workspace";
 /** The name the old first-visit flow gave the workspace it auto-created. */
 const LEGACY_DEFAULT_WORKSPACE_NAME = "Default Workspace";
 
+/** Longest workspace name, in characters: the Postgres column is varchar(256). */
+export const MAX_WORKSPACE_NAME_LENGTH = 256;
+
+/** `name` trimmed; throws when that leaves it empty or longer than the column allows. */
+const validWorkspaceName = (name: string): string => {
+    const trimmed = name.trim();
+    const length = [...trimmed].length;
+    if (length === 0 || length > MAX_WORKSPACE_NAME_LENGTH) {
+        throw new Error(
+            `A workspace name must be between 1 and ${MAX_WORKSPACE_NAME_LENGTH} characters`,
+        );
+    }
+    return trimmed;
+};
+
 export const getWorkspaceById = async (workspaceId: string): Promise<Workspace | null> => {
     const [workspace] = await db
         .select()
@@ -40,7 +55,8 @@ export const getWorkspaceById = async (workspaceId: string): Promise<Workspace |
 
 /**
  * Creates a workspace for a user: a folder, or, with `workshopId`, a workshop
- * participant's workspace (the join action).
+ * participant's workspace (the join action). The name is trimmed and must be
+ * 1 to 256 characters.
  */
 export const createWorkspace = async (
     userId: string,
@@ -52,7 +68,7 @@ export const createWorkspace = async (
         .insert(workspaces)
         .values({
             userId,
-            name,
+            name: validWorkspaceName(name),
             workshopId: workshopId ?? null,
             prolific: prolific ?? null,
         })
@@ -109,7 +125,10 @@ const isUserFolder = (userId: string, workspaceId: string) =>
         isNull(workspaces.workshopId),
     );
 
-/** Renames one of the user's folders; never their default or a workshop workspace. */
+/**
+ * Renames one of the user's folders; never their default or a workshop
+ * workspace. The name is trimmed and must be 1 to 256 characters.
+ */
 export const renameWorkspace = async (
     userId: string,
     workspaceId: string,
@@ -117,7 +136,7 @@ export const renameWorkspace = async (
 ): Promise<Workspace> => {
     const [renamed] = await db
         .update(workspaces)
-        .set({ name })
+        .set({ name: validWorkspaceName(name) })
         .where(isUserFolder(userId, workspaceId))
         .returning();
     if (!renamed) throw new Error("Workspace not found or access denied");
