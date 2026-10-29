@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
-import { Lens2Data, Lens2ConfigData } from "@/types/lens2";
+import { LogitLensConfigData } from "@/types/logitLens";
 import { useTheme } from "next-themes";
 import { Loader2 } from "lucide-react";
 import { LogitLensWidget } from "nnsightful";
@@ -17,25 +17,25 @@ import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
 
-interface Lens2Chart {
+interface LogitLensChart {
     id: string;
-    data: Lens2Data | null;
+    data: LogitLensData | null;
     type: string;
     name?: string;
 }
 
-interface Lens2Config {
+interface LogitLensConfig {
     id: string;
-    data: Lens2ConfigData;
+    data: LogitLensConfigData;
     type: string;
 }
 
-export function Lens2Display() {
+export function LogitLensDisplay() {
     const { chartId, workspaceId } = useParams<{ chartId: string; workspaceId: string }>();
     const { resolvedTheme } = useTheme();
     const isDarkMode = resolvedTheme === "dark";
 
-    const isLens2Running = useIsMutating({ mutationKey: ["lens2"] }) > 0;
+    const isLogitLensRunning = useIsMutating({ mutationKey: ["logit-lens"] }) > 0;
 
     const [localTitle, setLocalTitle] = useState<string | null>(null); // null → use chart name
     const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -63,24 +63,24 @@ export function Lens2Display() {
     const { mutate: updateChartName } = useUpdateChartName();
     const { mutate: updateChartConfig } = useUpdateChartConfig();
 
-    const lens2Chart = chart as Lens2Chart | undefined;
-    const lens2Config = config as Lens2Config | undefined;
-    const hasData = lens2Chart?.data && "meta" in lens2Chart.data;
+    const logitLensChart = chart as LogitLensChart | undefined;
+    const logitLensConfig = config as LogitLensConfig | undefined;
+    const hasData = logitLensChart?.data && "meta" in logitLensChart.data;
 
     // ── Persist heatmap UI state (pins, selection, layer window, appearance)
     // into the chart config, mirroring ActivationPatchingDisplay. Debounced
     // because the widget emits on every interaction; restored on mount via
     // the `uiState` prop below.
-    const savedUiState = lens2Config?.data?.uiState as LogitLensUIState | undefined;
-    const lens2ConfigRef = useRef(lens2Config);
-    lens2ConfigRef.current = lens2Config;
+    const savedUiState = logitLensConfig?.data?.uiState as LogitLensUIState | undefined;
+    const logitLensConfigRef = useRef(logitLensConfig);
+    logitLensConfigRef.current = logitLensConfig;
     const saveUiStateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleStateChange = useCallback(
         (uiState: LogitLensUIState) => {
             if (saveUiStateTimeoutRef.current) clearTimeout(saveUiStateTimeoutRef.current);
             saveUiStateTimeoutRef.current = setTimeout(() => {
-                const cfg = lens2ConfigRef.current;
+                const cfg = logitLensConfigRef.current;
                 if (!cfg?.id) return;
                 updateChartConfig({
                     configId: cfg.id,
@@ -88,7 +88,7 @@ export function Lens2Display() {
                     config: {
                         data: { ...cfg.data, uiState },
                         workspaceId,
-                        type: "lens2",
+                        type: "logit-lens",
                     },
                 });
             }, 500);
@@ -102,12 +102,12 @@ export function Lens2Display() {
         };
     }, []);
 
-    const chartModel = chartModelFromConfig(lens2Config, lens2Chart);
+    const chartModel = chartModelFromConfig(logitLensConfig, logitLensChart);
     const stale = isChartStale(chartModel, selectedModel, modelsAvailable);
 
     // Chart title — mirrors ActivationPatchingDisplay. "Untitled Chart" is the
     // stored default and treated as empty for display purposes.
-    const rawChartName = lens2Chart?.name || "";
+    const rawChartName = logitLensChart?.name || "";
     const chartName = rawChartName === "Untitled Chart" ? "" : rawChartName;
     const displayTitle = localTitle !== null ? localTitle : chartName;
     const hasTitle = displayTitle.trim().length > 0 && displayTitle.trim() !== "Untitled Chart";
@@ -159,7 +159,7 @@ export function Lens2Display() {
         );
     }
 
-    if (isLens2Running) {
+    if (isLogitLensRunning) {
         return (
             <div className="flex size-full items-center justify-center flex-col gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -218,7 +218,7 @@ export function Lens2Display() {
                 {stale && chartModel && <ChartModelPill modelName={chartModel} />}
             </div>
             <LogitLensWidget
-                data={lens2Chart.data! as LogitLensData}
+                data={logitLensChart.data! as LogitLensData}
                 darkMode={isDarkMode}
                 uiState={savedUiState}
                 onStateChange={handleStateChange}

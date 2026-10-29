@@ -3,8 +3,8 @@
 import { useParams } from "next/navigation";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import ChartCardsSidebar from "../../components/ChartCardsSidebar";
-import Lens2Area from "./components/Lens2Area";
-import { Lens2Display } from "./components/Lens2Display";
+import LogitLensArea from "./components/LogitLensArea";
+import { LogitLensDisplay } from "./components/LogitLensDisplay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MobileSidebarDrawer } from "../../components/MobileSidebarDrawer";
 import { MobileCollapsibleControls } from "../../components/MobileCollapsibleControls";
@@ -13,9 +13,9 @@ import { useChartModelReady } from "@/hooks/useChartModelReady";
 import { Layers } from "lucide-react";
 import { useIsMutating } from "@tanstack/react-query";
 
-export default function Lens2ChartPage() {
+export default function LogitLensChartPage() {
     const isMobile = useIsMobile();
-    const isRunning = useIsMutating({ mutationKey: ["lens2"] }) > 0;
+    const isRunning = useIsMutating({ mutationKey: ["logit-lens"] }) > 0;
     const { chartId } = useParams<{ chartId: string }>();
     const readiness = useChartModelReady(chartId);
 
@@ -44,10 +44,10 @@ export default function Lens2ChartPage() {
                             icon={Layers}
                             isRunning={isRunning}
                         >
-                            <Lens2Area />
+                            <LogitLensArea />
                         </MobileCollapsibleControls>
                         <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
-                            <Lens2Display />
+                            <LogitLensDisplay />
                         </div>
                     </>
                 )}
@@ -73,11 +73,11 @@ export default function Lens2ChartPage() {
                         className="flex size-full rounded dark:bg-secondary/50 bg-secondary/80 border"
                     >
                         <ResizablePanel className="h-full" defaultSize={25} minSize={20}>
-                            <Lens2Area />
+                            <LogitLensArea />
                         </ResizablePanel>
                         <ResizableHandle className="w-[0.8px]" />
                         <ResizablePanel defaultSize={75} minSize={40}>
-                            <Lens2Display />
+                            <LogitLensDisplay />
                         </ResizablePanel>
                     </ResizablePanelGroup>
                 )}

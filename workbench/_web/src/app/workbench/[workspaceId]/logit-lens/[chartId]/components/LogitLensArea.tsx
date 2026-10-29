@@ -1,23 +1,24 @@
 "use client";
 
 import { useToolArea } from "@/hooks/useToolArea";
-import { Lens2Controls } from "./Lens2Controls";
-import { Lens2ConfigData, Lens2Data } from "@/types/lens2";
+import { LogitLensControls } from "./LogitLensControls";
+import type { LogitLensData } from "nnsightful";
+import { LogitLensConfigData } from "@/types/logitLens";
 import { finalPrediction } from "@/lib/lens-last-row";
 
-interface Lens2Config {
+interface LogitLensConfig {
     id: string;
-    data: Lens2ConfigData;
+    data: LogitLensConfigData;
     type: string;
 }
 
-interface Lens2Chart {
+interface LogitLensChart {
     id: string;
-    data: Lens2Data | null;
+    data: LogitLensData | null;
     type: string;
 }
 
-export default function Lens2Area() {
+export default function LogitLensArea() {
     const {
         config,
         chart,
@@ -27,7 +28,7 @@ export default function Lens2Area() {
         effectiveModel,
         hasExistingData,
         modelRunnable,
-    } = useToolArea<Lens2Config, Lens2Chart>();
+    } = useToolArea<LogitLensConfig, LogitLensChart>();
 
     if (!config || isChartLoading) {
         return (
@@ -42,7 +43,7 @@ export default function Lens2Area() {
 
     return (
         <div className="h-full flex flex-col md:min-w-64">
-            <Lens2Controls
+            <LogitLensControls
                 key={config.id}
                 initialConfig={config}
                 selectedModel={effectiveModel}

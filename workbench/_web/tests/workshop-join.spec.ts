@@ -35,11 +35,11 @@ test.describe("workshop join flow (seeded)", () => {
         await page.goto(`/w/${ACTIVE_SLUG}`);
 
         // The join action creates the workspace and redirects into the seeded
-        // lens2 chart (the workshop's only allowed tool).
-        await page.waitForURL(/\/workbench\/[^/]+\/lens2\/[^/]+/, { timeout: 30_000 });
+        // logit lens chart (the workshop's only allowed tool).
+        await page.waitForURL(/\/workbench\/[^/]+\/logit-lens\/[^/]+/, { timeout: 30_000 });
 
         // Starter prompt is seeded into the chart config. The seeded prompt has
-        // no existing data, so lens2 auto-runs on open and collapses the editable
+        // no existing data, so the logit lens auto-runs on open and collapses the editable
         // textarea into the tokenized chip view — reveal the editor (click the
         // chip container when the textarea isn't showing) before asserting value.
         const promptBox = page.getByPlaceholder(/Enter your prompt here/);
@@ -77,7 +77,7 @@ test.describe("workshop join flow (seeded)", () => {
         // Fresh cookieless context → the join action signs the visitor in
         // anonymously and stamps app_metadata.workshop_slug via the service role.
         await page.goto(`/w/${ACTIVE_SLUG}`);
-        await page.waitForURL(/\/workbench\/[^/]+\/lens2\/[^/]+/, { timeout: 30_000 });
+        await page.waitForURL(/\/workbench\/[^/]+\/logit-lens\/[^/]+/, { timeout: 30_000 });
 
         // The anonymous participant now exists in GoTrue carrying the claim.
         const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
@@ -104,7 +104,7 @@ test.describe("workshop join flow (seeded)", () => {
             `/w/${ACTIVE_SLUG}?PROLIFIC_PID=${prolific.prolificPid}` +
                 `&STUDY_ID=${prolific.studyId}&SESSION_ID=${prolific.sessionId}`,
         );
-        await page.waitForURL(/\/workbench\/[^/]+\/lens2\/[^/]+/, { timeout: 30_000 });
+        await page.waitForURL(/\/workbench\/[^/]+\/logit-lens\/[^/]+/, { timeout: 30_000 });
 
         // The minted workspace row carries the identifiers for later analysis.
         const workspaceId = page.url().match(/\/workbench\/([^/]+)\//)?.[1];
@@ -138,11 +138,11 @@ test.describe("workshop join flow (seeded)", () => {
 
     test("re-clicking the join link reuses the existing workspace", async ({ page }) => {
         await page.goto(`/w/${ACTIVE_SLUG}`);
-        await page.waitForURL(/\/workbench\/[^/]+\/lens2\/[^/]+/, { timeout: 30_000 });
+        await page.waitForURL(/\/workbench\/[^/]+\/logit-lens\/[^/]+/, { timeout: 30_000 });
         const firstUrl = page.url();
 
         await page.goto(`/w/${ACTIVE_SLUG}`);
-        await page.waitForURL(/\/workbench\/[^/]+\/lens2\/[^/]+/, { timeout: 30_000 });
+        await page.waitForURL(/\/workbench\/[^/]+\/logit-lens\/[^/]+/, { timeout: 30_000 });
         expect(page.url()).toBe(firstUrl);
     });
 

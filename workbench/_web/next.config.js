@@ -45,6 +45,16 @@ const nextConfig = {
             "./node_modules/nnsightful/src/nnsightful/viz/charts.js",
         ],
     },
+    async redirects() {
+        return [
+            // The logit lens chart route was renamed from `lens2`; keep old links working.
+            {
+                source: "/workbench/:workspaceId/lens2/:chartId",
+                destination: "/workbench/:workspaceId/logit-lens/:chartId",
+                permanent: true,
+            },
+        ];
+    },
     webpack: (config) => {
         // Fallbacks for @huggingface/transformers package
         config.resolve.fallback = {

@@ -15,7 +15,7 @@ import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
 import type { TutorialContent } from "@/types/tutorial-content";
 
-export const workshopTools = ["lens2", "activation-patching", "patch-lens"] as const;
+export const workshopTools = ["logit-lens", "activation-patching", "patch-lens"] as const;
 export type WorkshopTool = (typeof workshopTools)[number];
 
 // Tutorial = the guided-activity content a workshop runs (the 7-unit Prolific
@@ -94,7 +94,7 @@ export const workspaces = pgTable(
     (table) => [uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId)],
 );
 
-export const chartTypes = ["lens2", "jlens", "activation-patching", "patch-lens"] as const;
+export const chartTypes = ["logit-lens", "jlens", "activation-patching", "patch-lens"] as const;
 
 export const charts = pgTable("charts", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -114,7 +114,7 @@ export const charts = pgTable("charts", {
         .$onUpdate(() => new Date()),
 });
 
-export const configTypes = ["lens2", "jlens", "activation-patching", "patch-lens"] as const;
+export const configTypes = ["logit-lens", "jlens", "activation-patching", "patch-lens"] as const;
 
 export const configs = pgTable("configs", {
     id: uuid("id").primaryKey().defaultRandom(),

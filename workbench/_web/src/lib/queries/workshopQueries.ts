@@ -4,12 +4,12 @@ import { requireAdmin } from "@/lib/auth/admin";
 import * as workshopDb from "@/lib/queries/workshopDb";
 import type { WorkshopInput, WorkshopWithCount } from "@/lib/queries/workshopDb";
 import {
-    createLens2ChartPair,
+    createLogitLensChartPair,
     createActivationPatchingChartPair,
     createPatchLensChartPair,
 } from "@/lib/queries/chartQueries";
 import type { Workshop, Workspace, WorkshopTool, Chart } from "@/db/schema";
-import type { Lens2ConfigData } from "@/types/lens2";
+import type { LogitLensConfigData } from "@/types/logitLens";
 import type { ActivationPatchingConfigData } from "@/types/activationPatching";
 
 // ---- Public reads (capability = knowing the slug / being in the workspace) ----
@@ -66,7 +66,7 @@ export async function seedWorkshopChart(
     workspaceId: string,
     workshop: Workshop,
 ): Promise<{ chart: Chart; tool: WorkshopTool }> {
-    const tool = workshop.allowedTools[0] ?? "lens2";
+    const tool = workshop.allowedTools[0] ?? "logit-lens";
 
     if (tool === "activation-patching") {
         const config: ActivationPatchingConfigData = {
@@ -92,12 +92,12 @@ export async function seedWorkshopChart(
         return { chart, tool };
     }
 
-    const config: Lens2ConfigData = {
+    const config: LogitLensConfigData = {
         model: workshop.model,
         prompt: workshop.starterPrompt,
         topk: 5,
         includeEntropy: true,
     };
-    const { chart } = await createLens2ChartPair(workspaceId, config);
+    const { chart } = await createLogitLensChartPair(workspaceId, config);
     return { chart, tool };
 }

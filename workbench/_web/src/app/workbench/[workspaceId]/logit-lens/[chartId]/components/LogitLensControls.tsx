@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, Play } from "lucide-react";
-import { useLens2 } from "@/lib/api/lensApi";
+import { useLogitLens } from "@/lib/api/logitLensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
-import { Lens2ConfigData } from "@/types/lens2";
+import { LogitLensConfigData } from "@/types/logitLens";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { encodeText } from "@/actions/tok";
@@ -16,21 +16,21 @@ import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { lens2ConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
+import { logitLensConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
 import { useDraftModel } from "@/hooks/useDraftModel";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/workbench/[workspaceId]/components/ToolPanelHeader";
 import { useCapture } from "@/lib/analytics";
 
-interface Lens2Config {
+interface LogitLensConfig {
     id: string;
-    data: Lens2ConfigData;
+    data: LogitLensConfigData;
     type: string;
 }
 
-interface Lens2ControlsProps {
-    initialConfig: Lens2Config;
+interface LogitLensControlsProps {
+    initialConfig: LogitLensConfig;
     selectedModel: string;
     modelsAvailable: boolean;
     /** True while the models query is in flight. Used to suppress the
@@ -103,14 +103,14 @@ function TokenDisplay({
     );
 }
 
-export function Lens2Controls({
+export function LogitLensControls({
     initialConfig,
     selectedModel,
     modelsAvailable,
     modelsLoading = false,
     hasExistingData = false,
     nextToken = null,
-}: Lens2ControlsProps) {
+}: LogitLensControlsProps) {
     const { workspaceId, chartId } = useParams<{ workspaceId: string; chartId: string }>();
     const capture = useCapture();
 
@@ -118,7 +118,7 @@ export function Lens2Controls({
     useEffect(() => {
         if (openedRef.current) return;
         openedRef.current = true;
-        capture("tool_opened", { tool: "lens2" });
+        capture("tool_opened", { tool: "logit-lens" });
     }, [capture]);
 
     const savedPrompt = initialConfig.data?.prompt || "";
@@ -159,7 +159,7 @@ export function Lens2Controls({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const tokenContainerRef = useRef<HTMLDivElement>(null);
 
-    const { mutateAsync: computeLens2, isPending: isComputing } = useLens2();
+    const { mutateAsync: computeLogitLens, isPending: isComputing } = useLogitLens();
     const { mutateAsync: updateConfig, isPending: isUpdatingConfig } = useUpdateChartConfig();
 
     const isExecuting = isComputing || isUpdatingConfig;
@@ -225,7 +225,7 @@ export function Lens2Controls({
 
     useEffect(() => {
         let isCancelled = false;
-        const autoRunLens2 = async () => {
+        const autoRunLogitLens = async () => {
             if (
                 !shouldAutoRunRef.current ||
                 hasAutoRunRef.current ||
@@ -251,39 +251,39 @@ export function Lens2Controls({
                 // button stay correct after auto-run.
                 setPrompt(trimmedPrompt);
                 lastTokenizedPromptRef.current = trimmedPrompt;
-                const config: Lens2ConfigData = {
+                const config: LogitLensConfigData = {
                     model: selectedModel,
                     prompt: trimmedPrompt,
                     topk: savedTopk,
                     includeEntropy: savedIncludeEntropy,
                 };
                 capture("run_submitted", {
-                    tool: "lens2",
+                    tool: "logit-lens",
                     model: selectedModel,
                     prompt_length: trimmedPrompt.length,
                     topk: savedTopk,
                     include_entropy: savedIncludeEntropy,
                     auto: true,
                 });
-                await computeLens2({
+                await computeLogitLens({
                     lensRequest: { completion: config, chartId },
                     configId: initialConfig.id,
                 });
                 if (isCancelled) return;
-                capture("run_completed", { tool: "lens2", model: selectedModel });
+                capture("run_completed", { tool: "logit-lens", model: selectedModel });
                 await updateConfig({
                     configId: initialConfig.id,
                     chartId,
-                    config: { data: config, workspaceId, type: "lens2" },
+                    config: { data: config, workspaceId, type: "logit-lens" },
                 });
                 if (isCancelled) return;
                 lastSyncedPromptRef.current = trimmedPrompt;
             } catch (err) {
                 /* one-shot auto-run; swallow, but record the failure */
-                if (!isCancelled) capture("run_failed", { tool: "lens2", error: String(err) });
+                if (!isCancelled) capture("run_failed", { tool: "logit-lens", error: String(err) });
             }
         };
-        const timer = setTimeout(autoRunLens2, 800);
+        const timer = setTimeout(autoRunLogitLens, 800);
         return () => {
             isCancelled = true;
             clearTimeout(timer);
@@ -297,7 +297,7 @@ export function Lens2Controls({
         chartId,
         initialConfig.id,
         workspaceId,
-        computeLens2,
+        computeLogitLens,
         updateConfig,
         capture,
     ]);
@@ -387,7 +387,7 @@ export function Lens2Controls({
         setTokenizedModel(selectedModel);
         lastTokenizedPromptRef.current = trimmedPrompt;
 
-        const config: Lens2ConfigData = {
+        const config: LogitLensConfigData = {
             model: selectedModel,
             prompt: trimmedPrompt,
             topk,
@@ -395,7 +395,7 @@ export function Lens2Controls({
         };
 
         capture("run_submitted", {
-            tool: "lens2",
+            tool: "logit-lens",
             model: selectedModel,
             prompt_length: trimmedPrompt.length,
             topk,
@@ -403,19 +403,19 @@ export function Lens2Controls({
             auto: false,
         });
         try {
-            await computeLens2({
+            await computeLogitLens({
                 lensRequest: { completion: config, chartId },
                 configId: initialConfig.id,
             });
-            capture("run_completed", { tool: "lens2", model: selectedModel });
+            capture("run_completed", { tool: "logit-lens", model: selectedModel });
         } catch (err) {
-            capture("run_failed", { tool: "lens2", error: String(err) });
+            capture("run_failed", { tool: "logit-lens", error: String(err) });
             throw err;
         }
         await updateConfig({
             configId: initialConfig.id,
             chartId,
-            config: { data: config, workspaceId, type: "lens2" },
+            config: { data: config, workspaceId, type: "logit-lens" },
         });
         // Land draftModel on the model that just persisted so the banner
         // doesn't flash between the run completing and the refetch arriving.
@@ -430,7 +430,7 @@ export function Lens2Controls({
         chartId,
         initialConfig.id,
         workspaceId,
-        computeLens2,
+        computeLogitLens,
         updateConfig,
         capture,
     ]);
@@ -522,7 +522,7 @@ export function Lens2Controls({
 
     const draftMatchesSaved = useMemo(
         () =>
-            lens2ConfigEqualsExceptModel(initialConfig.data, {
+            logitLensConfigEqualsExceptModel(initialConfig.data, {
                 prompt,
                 topk,
                 includeEntropy,
@@ -640,7 +640,7 @@ export function Lens2Controls({
                         onValueChange={([value]) => {
                             setTopk(value);
                             capture("param_changed", {
-                                tool: "lens2",
+                                tool: "logit-lens",
                                 param: "topk",
                                 value,
                             });
@@ -657,7 +657,7 @@ export function Lens2Controls({
                         onCheckedChange={(checked) => {
                             setIncludeEntropy(checked === true);
                             capture("param_changed", {
-                                tool: "lens2",
+                                tool: "logit-lens",
                                 param: "include_entropy",
                                 value: checked === true,
                             });

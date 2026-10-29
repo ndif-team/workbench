@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
-import { getMostRecentChartForWorkspace, createLens2ChartPair } from "@/lib/queries/chartQueries";
+import {
+    getMostRecentChartForWorkspace,
+    createLogitLensChartPair,
+} from "@/lib/queries/chartQueries";
 import { getWorkshopForWorkspace, seedWorkshopChart } from "@/lib/queries/workshopQueries";
 import { toolChartPath } from "@/lib/chartRoutes";
-import { Lens2ConfigData } from "@/types/lens2";
+import { LogitLensConfigData } from "@/types/logitLens";
 
 export default async function Page({
     params,
@@ -28,15 +31,15 @@ export default async function Page({
             const { chart, tool } = await seedWorkshopChart(workspaceId, workshop);
             recent = { chart, toolType: tool };
         } else {
-            const defaultConfig: Lens2ConfigData = {
+            const defaultConfig: LogitLensConfigData = {
                 prompt: initialPrompt,
                 model: initialModel,
                 topk: 5,
                 includeEntropy: true,
             };
 
-            const { chart } = await createLens2ChartPair(workspaceId, defaultConfig);
-            recent = { chart, toolType: "lens2" };
+            const { chart } = await createLogitLensChartPair(workspaceId, defaultConfig);
+            recent = { chart, toolType: "logit-lens" };
         }
     }
 

@@ -284,7 +284,7 @@ export async function seedWorkshops(): Promise<void> {
     const inAWeek = new Date(now.getTime() + 7 * 24 * 3600 * 1000).toISOString();
     const anHourAgo = new Date(now.getTime() - 3600 * 1000).toISOString();
     const base = {
-        allowed_tools: ["lens2"],
+        allowed_tools: ["logit-lens"],
         model: MODEL,
         starter_prompt: WORKSHOP_STARTER_PROMPT,
         created_by: "e2e@seed.local",

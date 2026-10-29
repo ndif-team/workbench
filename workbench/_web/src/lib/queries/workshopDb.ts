@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { workshops, workspaces, workshopTools } from "@/db/schema";
 import type { Workshop, Workspace, WorkshopTool } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
+import { normalizeWorkshopTools } from "@/lib/workshop";
 
 /**
  * Unguarded workshop DB internals. The "use server" RPC surface lives in
@@ -36,15 +37,22 @@ export type WorkshopInput = {
 };
 
 const validateTools = (tools: WorkshopTool[]) => {
-    const unknown = tools.filter((t) => !(workshopTools as readonly string[]).includes(t));
+    const current = normalizeWorkshopTools(tools);
+    const unknown = current.filter((t) => !(workshopTools as readonly string[]).includes(t));
     if (unknown.length > 0) {
         throw new Error(`Unknown workshop tool(s): ${unknown.join(", ")}`);
     }
-    if (tools.length === 0) {
+    if (current.length === 0) {
         throw new Error("Workshop must allow at least one tool");
     }
-    return tools;
+    return current;
 };
+
+/** A workshop row with legacy tool names in `allowedTools` read under their current names. */
+const withCurrentTools = <W extends Workshop>(workshop: W): W => ({
+    ...workshop,
+    allowedTools: normalizeWorkshopTools(workshop.allowedTools),
+});
 
 // Both drivers' unique-violation messages: better-sqlite3/bun:sqlite say
 // "UNIQUE constraint failed", postgres-js says "duplicate key value violates
@@ -54,12 +62,12 @@ export const isUniqueViolation = (err: unknown): boolean =>
 
 export const getWorkshopBySlug = async (slug: string): Promise<Workshop | null> => {
     const [workshop] = await db.select().from(workshops).where(eq(workshops.slug, slug)).limit(1);
-    return (workshop ?? null) as Workshop | null;
+    return workshop ? withCurrentTools(workshop as Workshop) : null;
 };
 
 export const getWorkshopById = async (id: string): Promise<Workshop | null> => {
     const [workshop] = await db.select().from(workshops).where(eq(workshops.id, id)).limit(1);
-    return (workshop ?? null) as Workshop | null;
+    return workshop ? withCurrentTools(workshop as Workshop) : null;
 };
 
 /** The workshop a workspace was created through, or null for normal workspaces. */
@@ -70,7 +78,8 @@ export const getWorkshopForWorkspace = async (workspaceId: string): Promise<Work
         .innerJoin(workshops, eq(workspaces.workshopId, workshops.id))
         .where(eq(workspaces.id, workspaceId))
         .limit(1);
-    return (rows[0]?.workshop ?? null) as Workshop | null;
+    const workshop = rows[0]?.workshop as Workshop | undefined;
+    return workshop ? withCurrentTools(workshop) : null;
 };
 
 /** Existing workspace for a (participant, workshop) pair — makes re-clicking a join link idempotent. */
@@ -106,7 +115,7 @@ export const listWorkshops = async (): Promise<WorkshopWithCount[]> => {
     }>;
 
     return rows.map((r) => ({
-        ...r.workshop,
+        ...withCurrentTools(r.workshop),
         participantCount: Number(r.participantCount ?? 0),
     }));
 };
@@ -143,7 +152,7 @@ export const updateWorkshop = async (
     if (!workshop) {
         throw new Error("Workshop not found");
     }
-    return workshop as Workshop;
+    return withCurrentTools(workshop as Workshop);
 };
 
 export const deleteWorkshop = async (id: string): Promise<void> => {

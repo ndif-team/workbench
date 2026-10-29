@@ -1,24 +1,16 @@
 /**
- * Lens2 Types
+ * Logit Lens Types
  *
- * Data and UI state types are re-exported from nnsightful.
+ * Data and UI state types are nnsightful's own (`LogitLensData`, `LogitLensUIState`).
  * API-specific config types remain local.
  */
 
-import type { LogitLensData, LogitLensUIState } from "nnsightful";
-
-export type Lens2Data = LogitLensData;
-export type Lens2UIState = LogitLensUIState;
+import type { LogitLensUIState } from "nnsightful";
 
 /**
- * Lens2 metadata
+ * Logit lens configuration data
  */
-export type Lens2Meta = LogitLensData["meta"];
-
-/**
- * Lens2 configuration data (simpler than Lens1 - no separate line/grid)
- */
-export interface Lens2ConfigData {
+export interface LogitLensConfigData {
     model: string;
     prompt: string;
     topk?: number; // Number of top-k predictions per cell (default: 5)

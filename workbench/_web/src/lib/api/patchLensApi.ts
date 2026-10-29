@@ -84,7 +84,7 @@ const runLogitLens = async (
     headers: Record<string, string>,
 ): Promise<LogitLensIntroData> => {
     return await runAndStream<LogitLensIntroData>(
-        config.endpoints.runLens2,
+        config.endpoints.runLogitLens,
         {
             model,
             prompt,

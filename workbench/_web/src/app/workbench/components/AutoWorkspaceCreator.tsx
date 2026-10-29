@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { createWorkspace } from "@/lib/queries/workspaceQueries";
 import {
-    createLens2ChartPair,
+    createLogitLensChartPair,
     createJLensChartPair,
     createActivationPatchingChartPair,
 } from "@/lib/queries/chartQueries";
@@ -14,7 +14,7 @@ import { toolChartPath } from "@/lib/chartRoutes";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ToolType } from "@/types/charts";
-import type { Lens2ConfigData } from "@/types/lens2";
+import type { LogitLensConfigData } from "@/types/logitLens";
 import type { JLensConfigData } from "@/types/jlens";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 
@@ -82,7 +82,7 @@ export function AutoWorkspaceCreator({
 
                 // If user submitted a prompt from landing page, create a chart for it
                 let userChartId: string | null = null;
-                let chartType: ToolType = "lens2";
+                let chartType: ToolType = "logit-lens";
 
                 if (deploy) {
                     // Cold-model deploy: create an EMPTY chart of the chosen
@@ -118,13 +118,16 @@ export function AutoWorkspaceCreator({
                         userChartId = chart.id;
                         chartType = "jlens";
                     } else {
-                        const lensConfig: Lens2ConfigData = {
+                        const lensConfig: LogitLensConfigData = {
                             model,
                             prompt: "",
                             topk: 5,
                             includeEntropy: true,
                         };
-                        const { chart } = await createLens2ChartPair(targetWorkspaceId, lensConfig);
+                        const { chart } = await createLogitLensChartPair(
+                            targetWorkspaceId,
+                            lensConfig,
+                        );
                         userChartId = chart.id;
                     }
                 } else if (
@@ -178,20 +181,20 @@ export function AutoWorkspaceCreator({
                     chartType = "jlens";
                     console.log("Created user j-lens chart:", userChartId);
                 } else if (initialPrompt && initialPrompt.trim() && initialModel) {
-                    console.log("Creating lens2 chart for user prompt:", initialPrompt);
-                    const userChartConfig: Lens2ConfigData = {
+                    console.log("Creating logit lens chart for user prompt:", initialPrompt);
+                    const userChartConfig: LogitLensConfigData = {
                         prompt: initialPrompt,
                         model: initialModel,
                         topk: 5,
                         includeEntropy: true,
                     };
 
-                    const { chart } = await createLens2ChartPair(
+                    const { chart } = await createLogitLensChartPair(
                         targetWorkspaceId,
                         userChartConfig,
                     );
                     userChartId = chart.id;
-                    console.log("Created user lens2 chart:", userChartId);
+                    console.log("Created user logit lens chart:", userChartId);
                 }
 
                 // The chart was created via the server action directly (not the

@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
+import { eq } from "drizzle-orm";
 import { db, clearDatabase } from "../client";
 import { charts, configs, chartConfigLinks } from "../schema";
 
@@ -23,7 +24,7 @@ import {
 } from "@/lib/queries/workspaceQueries";
 
 import {
-    createLens2ChartPair,
+    createLogitLensChartPair,
     createActivationPatchingChartPair,
     getChartById,
     updateChartName,
@@ -46,13 +47,14 @@ import {
     deleteDocument,
 } from "@/lib/queries/documentQueries";
 
-import type { Lens2ConfigData } from "@/types/lens2";
+import type { ChartData, ChartType } from "@/types/charts";
+import type { LogitLensConfigData } from "@/types/logitLens";
 
 // Test user ID (simulating the mock user from disabled auth)
 const TEST_USER_ID = "test-user-123";
 
-// Helper to create a valid Lens2ConfigData for tests
-const createTestLensConfig = (prompt: string = "test"): Lens2ConfigData => ({
+// Helper to create a valid LogitLensConfigData for tests
+const createTestLensConfig = (prompt: string = "test"): LogitLensConfigData => ({
     prompt,
     model: "gpt2",
     topk: 5,
@@ -68,6 +70,33 @@ const insertRetiredToolChart = async (workspaceId: string, updatedAt: Date) => {
         .returning();
     await db.insert(chartConfigLinks).values({ chartId: chart.id, configId: config.id });
     return chart;
+};
+
+// Seeds a logit lens chart under the legacy "lens2" type, as rows written
+// before the rename still hold it.
+const insertLegacyLogitLensChart = async (workspaceId: string) => {
+    const [chart] = await db.insert(charts).values({ workspaceId, type: "lens2" }).returning();
+    const [config] = await db
+        .insert(configs)
+        .values({ workspaceId, type: "lens2", data: createTestLensConfig() })
+        .returning();
+    await db.insert(chartConfigLinks).values({ chartId: chart.id, configId: config.id });
+    return chart;
+};
+
+// The stored type columns, read past the query layer's legacy-name normalization.
+const storedChartType = async (chartId: string) => {
+    const [row] = await db.select({ type: charts.type }).from(charts).where(eq(charts.id, chartId));
+    return row.type;
+};
+
+const storedConfigType = async (chartId: string) => {
+    const [row] = await db
+        .select({ type: configs.type })
+        .from(configs)
+        .innerJoin(chartConfigLinks, eq(configs.id, chartConfigLinks.configId))
+        .where(eq(chartConfigLinks.chartId, chartId));
+    return row.type;
 };
 
 // Schema is created by drizzle-kit push in setup.ts
@@ -115,8 +144,8 @@ describe("Workspace Queries", () => {
         const ws2 = await createWorkspace(TEST_USER_ID, "Workspace 2");
 
         // Add charts to workspace 1
-        await createLens2ChartPair(ws1.id, createTestLensConfig());
-        await createLens2ChartPair(ws1.id, createTestLensConfig("test2"));
+        await createLogitLensChartPair(ws1.id, createTestLensConfig());
+        await createLogitLensChartPair(ws1.id, createTestLensConfig("test2"));
 
         // Add document to workspace 2
         await createDocument(ws2.id);
@@ -181,22 +210,22 @@ describe("Chart Queries", () => {
         workspaceId = workspace.id;
     });
 
-    it("should create a lens2 chart pair", async () => {
+    it("should create a logit lens chart pair", async () => {
         const lensConfig = createTestLensConfig("The capital of France is");
 
-        const { chart, config } = await createLens2ChartPair(workspaceId, lensConfig);
+        const { chart, config } = await createLogitLensChartPair(workspaceId, lensConfig);
 
         expect(chart).toBeDefined();
         expect(chart.id).toBeDefined();
         expect(chart.workspaceId).toBe(workspaceId);
 
         expect(config).toBeDefined();
-        expect(config.type).toBe("lens2");
+        expect(config.type).toBe("logit-lens");
         expect(config.data).toEqual(lensConfig);
     });
 
     it("should get chart by ID", async () => {
-        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
 
         const found = await getChartById(chart.id);
 
@@ -205,7 +234,7 @@ describe("Chart Queries", () => {
     });
 
     it("should update chart name", async () => {
-        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
 
         await updateChartName(chart.id, "My Custom Chart");
         const updated = await getChartById(chart.id);
@@ -214,38 +243,46 @@ describe("Chart Queries", () => {
     });
 
     it("should set chart data with JSON", async () => {
-        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
 
         const chartData = {
             series: [{ name: "test", data: [1, 2, 3] }],
             labels: ["a", "b", "c"],
         };
 
-        await setChartData(chart.id, chartData as any, "lens2");
+        await setChartData(chart.id, chartData as any, "logit-lens");
         const updated = await getChartById(chart.id);
 
         expect(updated!.data).toEqual(chartData);
-        expect(updated!.type).toBe("lens2");
+        expect(updated!.type).toBe("logit-lens");
+    });
+
+    it("should store the current type when setting chart data with legacy lens2", async () => {
+        const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
+
+        await setChartData(chart.id, {} as ChartData, "lens2" as ChartType);
+
+        expect(await storedChartType(chart.id)).toBe("logit-lens");
     });
 
     it("should get config for chart via link", async () => {
         const lensConfig = createTestLensConfig("linked config");
-        const { chart } = await createLens2ChartPair(workspaceId, lensConfig);
+        const { chart } = await createLogitLensChartPair(workspaceId, lensConfig);
 
         const config = await getConfigForChart(chart.id);
 
         expect(config).not.toBeNull();
-        expect(config!.type).toBe("lens2");
+        expect(config!.type).toBe("logit-lens");
         expect(config!.data).toEqual(lensConfig);
     });
 
     it("should get most recent chart for workspace", async () => {
-        const { chart: chart1 } = await createLens2ChartPair(
+        const { chart: chart1 } = await createLogitLensChartPair(
             workspaceId,
             createTestLensConfig("first"),
         );
 
-        const { chart: chart2 } = await createLens2ChartPair(
+        const { chart: chart2 } = await createLogitLensChartPair(
             workspaceId,
             createTestLensConfig("second"),
         );
@@ -256,18 +293,18 @@ describe("Chart Queries", () => {
         expect(mostRecent).not.toBeNull();
         expect([chart1.id, chart2.id]).toContain(mostRecent!.chart.id);
         expect(mostRecent!.chart.workspaceId).toBe(workspaceId);
-        expect(mostRecent!.toolType).toBe("lens2");
+        expect(mostRecent!.toolType).toBe("logit-lens");
     });
 
     it("should skip charts of retired tools when picking the most recent chart", async () => {
-        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
         await insertRetiredToolChart(workspaceId, new Date(Date.now() + 60_000));
 
         const mostRecent = await getMostRecentChartForWorkspace(workspaceId);
 
         expect(mostRecent).not.toBeNull();
         expect(mostRecent!.chart.id).toBe(chart.id);
-        expect(mostRecent!.toolType).toBe("lens2");
+        expect(mostRecent!.toolType).toBe("logit-lens");
     });
 
     it("should find no most recent chart when only retired-tool charts exist", async () => {
@@ -277,7 +314,7 @@ describe("Chart Queries", () => {
     });
 
     it("should route a chart without a config by its own type", async () => {
-        await createLens2ChartPair(workspaceId, createTestLensConfig());
+        await createLogitLensChartPair(workspaceId, createTestLensConfig());
         const [chart] = await db
             .insert(charts)
             .values({ workspaceId, type: "patch-lens", updatedAt: new Date(Date.now() + 60_000) })
@@ -290,31 +327,61 @@ describe("Chart Queries", () => {
         expect(mostRecent!.toolType).toBe("patch-lens");
     });
 
+    it("should read a legacy lens2 chart as the most recent logit lens chart", async () => {
+        const legacy = await insertLegacyLogitLensChart(workspaceId);
+
+        const mostRecent = await getMostRecentChartForWorkspace(workspaceId);
+
+        expect(mostRecent).not.toBeNull();
+        expect(mostRecent!.chart.id).toBe(legacy.id);
+        expect(mostRecent!.toolType).toBe("logit-lens");
+    });
+
+    it("should read legacy lens2 chart and config types as logit-lens", async () => {
+        const legacy = await insertLegacyLogitLensChart(workspaceId);
+
+        const [metadata] = await getChartsMetadata(workspaceId);
+        expect(metadata.toolType).toBe("logit-lens");
+        expect(metadata.chartType).toBe("logit-lens");
+        expect((await getChartById(legacy.id))!.type).toBe("logit-lens");
+        expect((await getConfigForChart(legacy.id))!.type).toBe("logit-lens");
+        expect((await getConfigs(legacy.id))[0].type).toBe("logit-lens");
+    });
+
+    it("should write the current type when copying a legacy lens2 chart", async () => {
+        const legacy = await insertLegacyLogitLensChart(workspaceId);
+
+        const copy = await copyChart(legacy.id);
+
+        expect(await storedChartType(copy.id)).toBe("logit-lens");
+        expect(await storedConfigType(copy.id)).toBe("logit-lens");
+    });
+
     it("should get charts metadata", async () => {
-        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
         await updateChartName(chart.id, "Named Chart");
 
         const metadata = await getChartsMetadata(workspaceId);
 
         expect(metadata).toHaveLength(1);
         expect(metadata[0].name).toBe("Named Chart");
-        expect(metadata[0].toolType).toBe("lens2");
+        expect(metadata[0].toolType).toBe("logit-lens");
     });
 
     it("should copy a chart", async () => {
-        const { chart: original } = await createLens2ChartPair(
+        const { chart: original } = await createLogitLensChartPair(
             workspaceId,
             createTestLensConfig("original"),
         );
         await updateChartName(original.id, "Original Chart");
-        await setChartData(original.id, { test: "data" } as any, "lens2");
+        await setChartData(original.id, { test: "data" } as any, "logit-lens");
 
         const copy = await copyChart(original.id);
 
         expect(copy.id).not.toBe(original.id);
         expect(copy.name).toBe("Copy of Original Chart");
         expect(copy.data).toEqual({ test: "data" });
-        expect(copy.type).toBe("lens2");
+        expect(copy.type).toBe("logit-lens");
 
         // Verify copy has its own config
         const copyConfig = await getConfigForChart(copy.id);
@@ -322,7 +389,7 @@ describe("Chart Queries", () => {
     });
 
     it("should delete a chart", async () => {
-        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
 
         await deleteChart(chart.id);
         const found = await getChartById(chart.id);
@@ -339,7 +406,7 @@ describe("Config Queries", () => {
         await clearDatabase();
         const workspace = await createWorkspace(TEST_USER_ID, "Config Test Workspace");
         workspaceId = workspace.id;
-        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
         chartId = chart.id;
     });
 
@@ -347,14 +414,14 @@ describe("Config Queries", () => {
         const configs = await getConfigs(chartId);
 
         expect(configs).toHaveLength(1);
-        expect(configs[0].type).toBe("lens2");
+        expect(configs[0].type).toBe("logit-lens");
     });
 
     it("should update config data", async () => {
         const configs = await getConfigs(chartId);
         const configId = configs[0].id;
 
-        const updatedData: Lens2ConfigData = {
+        const updatedData: LogitLensConfigData = {
             prompt: "updated prompt",
             model: "gpt2-large",
             topk: 10,
@@ -363,12 +430,24 @@ describe("Config Queries", () => {
 
         await setConfig(configId, {
             workspaceId,
-            type: "lens2",
+            type: "logit-lens",
             data: updatedData,
         });
 
         const updatedConfigs = await getConfigs(chartId);
         expect(updatedConfigs[0].data).toEqual(updatedData);
+    });
+
+    it("should store the current type when setting a config with legacy lens2", async () => {
+        const [config] = await getConfigs(chartId);
+
+        await setConfig(config.id, {
+            workspaceId,
+            type: "lens2",
+            data: createTestLensConfig("legacy"),
+        });
+
+        expect(await storedConfigType(chartId)).toBe("logit-lens");
     });
 
     it("should delete a config", async () => {
@@ -468,7 +547,7 @@ describe("JSON Storage in SQLite", () => {
     });
 
     it("should handle complex nested JSON in chart data", async () => {
-        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
 
         const complexData = {
             metadata: {
@@ -484,28 +563,28 @@ describe("JSON Storage in SQLite", () => {
             booleanFalse: false,
         };
 
-        await setChartData(chart.id, complexData as any, "lens2");
+        await setChartData(chart.id, complexData as any, "logit-lens");
         const retrieved = await getChartById(chart.id);
 
         expect(retrieved!.data).toEqual(complexData);
     });
 
     it("should handle special characters in JSON strings", async () => {
-        const { chart } = await createLens2ChartPair(workspaceId, createTestLensConfig());
+        const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
 
         const specialData = {
             text: "Special chars: \"quotes\", 'apostrophes', \n newlines",
             unicode: "Unicode: 日本語, émojis 🎉",
         };
 
-        await setChartData(chart.id, specialData as any, "lens2");
+        await setChartData(chart.id, specialData as any, "logit-lens");
         const retrieved = await getChartById(chart.id);
 
         expect(retrieved!.data).toEqual(specialData);
     });
 
     it("should handle arrays and nested objects in config data", async () => {
-        const complexConfig: Lens2ConfigData & { settings?: unknown } = {
+        const complexConfig: LogitLensConfigData & { settings?: unknown } = {
             prompt: "test",
             model: "gpt2",
             topk: 5,
@@ -516,7 +595,7 @@ describe("JSON Storage in SQLite", () => {
             },
         };
 
-        const { config } = await createLens2ChartPair(workspaceId, complexConfig);
+        const { config } = await createLogitLensChartPair(workspaceId, complexConfig);
 
         expect(config.data).toEqual(complexConfig);
     });
@@ -527,7 +606,7 @@ describe("Cross-Table Relationships", () => {
         const workspace = await createWorkspace(TEST_USER_ID, "Relationship Test");
 
         // Create multiple charts with configs
-        const { chart: chart1 } = await createLens2ChartPair(
+        const { chart: chart1 } = await createLogitLensChartPair(
             workspace.id,
             createTestLensConfig("chart1"),
         );
@@ -547,7 +626,7 @@ describe("Cross-Table Relationships", () => {
         // Verify configs are linked to charts
         const config1 = await getConfigForChart(chart1.id);
         const config2 = await getConfigForChart(chart2.id);
-        expect(config1!.type).toBe("lens2");
+        expect(config1!.type).toBe("logit-lens");
         expect(config2!.type).toBe("activation-patching");
 
         // Verify workspace count includes charts

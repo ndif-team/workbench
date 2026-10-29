@@ -13,7 +13,7 @@ const generateUUID = () => {
     });
 };
 
-export const workshopTools = ["lens2", "activation-patching", "patch-lens"] as const;
+export const workshopTools = ["logit-lens", "activation-patching", "patch-lens"] as const;
 export type WorkshopTool = (typeof workshopTools)[number];
 
 // Tutorial content (guided-activity units). Mirrors the pg table; see schema.pg.ts.
@@ -89,7 +89,7 @@ export const workspaces = sqliteTable(
     (table) => [uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId)],
 );
 
-export const chartTypes = ["lens2", "jlens", "activation-patching", "patch-lens"] as const;
+export const chartTypes = ["logit-lens", "jlens", "activation-patching", "patch-lens"] as const;
 
 export const charts = sqliteTable("charts", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
@@ -109,7 +109,7 @@ export const charts = sqliteTable("charts", {
         .$onUpdate(() => new Date()),
 });
 
-export const configTypes = ["lens2", "jlens", "activation-patching", "patch-lens"] as const;
+export const configTypes = ["logit-lens", "jlens", "activation-patching", "patch-lens"] as const;
 
 export const configs = sqliteTable("configs", {
     id: text("id").primaryKey().$defaultFn(generateUUID),

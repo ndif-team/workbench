@@ -1,5 +1,5 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-export default function Lens2ChartLayout({ children }: { children: React.ReactNode }) {
+export default function LogitLensChartLayout({ children }: { children: React.ReactNode }) {
     return <TooltipProvider>{children}</TooltipProvider>;
 }

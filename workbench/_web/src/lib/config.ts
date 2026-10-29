@@ -7,7 +7,7 @@ const config = {
             ? "http://localhost:8001"
             : "https://api.ndif.us",
     endpoints: {
-        runLens2: "/logit_lens/run",
+        runLogitLens: "/logit_lens/run",
 
         runJLens: "/j_lens/run",
 
