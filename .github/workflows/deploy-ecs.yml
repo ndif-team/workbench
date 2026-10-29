@@ -1,0 +1,105 @@
+name: Deploy to ECS
+
+# Redeploys the ECS service that runs the image built by main.yml. The
+# service's task definition references the `latest` tag, which ECS resolves
+# to a digest at the start of each deployment, so forcing a new deployment
+# picks up the most recent push.
+#
+# Requires repo variables ECS_CLUSTER and ECS_SERVICE, and an AWS_IAM_ROLE
+# allowed ecs:UpdateService and ecs:DescribeServices on that service.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ecs
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+
+env:
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate config
+        run: |
+          if [ -z "${ECS_CLUSTER}" ] || [ -z "${ECS_SERVICE}" ]; then
+            echo "::error::repo variables ECS_CLUSTER and ECS_SERVICE are required"
+            exit 1
+          fi
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v5.1.0
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          aws-region: us-east-1
+
+      - name: Force new deployment
+        id: deploy
+        run: |
+          set -euo pipefail
+          deployment_id=$(aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --force-new-deployment \
+            --query "service.deployments[?status=='PRIMARY'].id | [0]" \
+            --output text)
+          echo "deployment_id=${deployment_id}" | tee -a "$GITHUB_OUTPUT"
+
+      # Tracks this deployment's rolloutState rather than using
+      # `aws ecs wait services-stable`, which also succeeds once a
+      # circuit-breaker rollback settles on the previous image.
+      - name: Wait for deployment to complete
+        timeout-minutes: 20
+        env:
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
+        run: |
+          set -euo pipefail
+          while true; do
+            rollout=$(aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$ECS_SERVICE" \
+              --query "services[0].deployments[?id=='${DEPLOYMENT_ID}'] | [0].[rolloutState, rolloutStateReason]" \
+              --output text)
+            read -r state reason <<<"$rollout"
+            case "$state" in
+              COMPLETED)
+                echo "Deployment ${DEPLOYMENT_ID} completed."
+                exit 0
+                ;;
+              FAILED)
+                echo "::error::Deployment ${DEPLOYMENT_ID} failed: ${reason}"
+                exit 1
+                ;;
+              None)
+                echo "::error::Deployment ${DEPLOYMENT_ID} is no longer listed on the service (rolled back or superseded)"
+                exit 1
+                ;;
+            esac
+            echo "rolloutState=${state}: ${reason}"
+            sleep 15
+          done
+
+      - name: Write job summary
+        if: always() && steps.deploy.outputs.deployment_id != ''
+        env:
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
+        run: |
+          task_definition=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --query "services[0].deployments[?id=='${DEPLOYMENT_ID}'] | [0].taskDefinition" \
+            --output text)
+          {
+            echo "### ECS deployment"
+            echo ""
+            echo "- Cluster: \`${ECS_CLUSTER}\`"
+            echo "- Service: \`${ECS_SERVICE}\`"
+            echo "- Deployment: \`${DEPLOYMENT_ID}\`"
+            echo "- Task definition: \`${task_definition}\`"
+            echo "- Result: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"
