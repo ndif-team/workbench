@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 import { AppSidebar } from "./AppSidebar";
 import { writeSidebarCollapsed } from "./sidebarCookie";
@@ -64,11 +65,13 @@ export function AppShell({
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
 
-    // Navigating from inside the drawer closes it.
+    // Navigating from inside the drawer closes it, as does widening past mobile.
+    const isMobile = useIsMobile();
     if (drawerPath !== pathname) {
         setDrawerPath(pathname);
         setDrawerOpen(false);
     }
+    if (drawerOpen && isMobile === false) setDrawerOpen(false);
 
     const workshopWorkspaceId = scope?.workshopId ? scope.workspaceId : null;
     const effectiveCollapsed = workshopWorkspaceId
@@ -117,7 +120,7 @@ export function AppShell({
                     </div>
                 </aside>
                 <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-                    <SheetContent className="md:hidden">
+                    <SheetContent>
                         <SheetTitle className="sr-only">Sidebar</SheetTitle>
                         <SheetDescription className="sr-only">
                             Your charts, reports and workspaces
