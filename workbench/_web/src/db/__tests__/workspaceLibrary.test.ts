@@ -36,6 +36,8 @@ import {
 import { getConfigForChart } from "@/lib/queries/chartQueries";
 import { createLogitLensChartPair, createPatchLensChartPair } from "@/lib/queries/chartDb";
 import { createDocument, updateDocument } from "@/lib/queries/documentDb";
+import { setConfig } from "@/lib/queries/configQueries";
+import { createLensRun } from "@/lib/queries/lensRunQueries";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import type { LensRunHeatmaps, LensRunSummary } from "@/types/lensRun";
 import type { LibraryItem } from "@/types/workspaces";
@@ -538,6 +540,32 @@ describe("moves", () => {
             workshopId: null,
             isDefault: true,
         });
+    });
+
+    it("files a run or config saved from a page that predates the move under the chart's workspace", async () => {
+        const def = await getOrCreateDefaultWorkspace(USER);
+        const folder = await createWorkspace(USER, "Folder");
+        const chartId = await createChart(def.id, "Mover");
+        const config = (await getConfigForChart(chartId))!;
+        await moveChart(USER, chartId, folder.id);
+
+        const run = await createLensRun({
+            workspaceId: def.id,
+            chartId,
+            model: "gpt2",
+            summary: {} as LensRunSummary,
+            heatmaps: {} as LensRunHeatmaps,
+        });
+        await setConfig(config.id, {
+            workspaceId: def.id,
+            type: "logit-lens",
+            data: lensConfig("Edited after the move"),
+        });
+
+        expect(run.workspaceId).toBe(folder.id);
+        const saved = (await getConfigForChart(chartId))!;
+        expect(saved.workspaceId).toBe(folder.id);
+        expect(saved.data).toMatchObject({ prompt: "Edited after the move" });
     });
 
     it("leaves other charts' configs and runs alone", async () => {

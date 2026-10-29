@@ -5,10 +5,15 @@ import { eq } from "drizzle-orm";
 import { configs, NewConfig, Config, chartConfigLinks } from "@/db/schema";
 import { normalizeToolType } from "@/types/charts";
 
+/**
+ * Saves a config's payload and type. Its workspace isn't written: it follows
+ * the chart (`moveChart` moves it), so a `workspaceId` sent from a page whose
+ * scope predates a move is ignored.
+ */
 export const setConfig = async (configId: string, config: NewConfig): Promise<void> => {
     await db
         .update(configs)
-        .set({ ...config, type: normalizeToolType(config.type) })
+        .set({ data: config.data, type: normalizeToolType(config.type) })
         .where(eq(configs.id, configId));
 };
 

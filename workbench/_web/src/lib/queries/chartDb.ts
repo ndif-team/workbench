@@ -270,7 +270,7 @@ export const copyChart = async (userId: string, chartId: string): Promise<Chart>
     const [newConfig] = await db
         .insert(configs)
         .values({
-            workspaceId: originalConfig.workspaceId,
+            workspaceId: originalChart.workspaceId,
             type: normalizeToolType(originalConfig.type),
             data: originalConfig.data,
         })

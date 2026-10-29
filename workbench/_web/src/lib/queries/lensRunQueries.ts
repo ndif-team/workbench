@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db/client";
-import { lensRuns, LensRun } from "@/db/schema";
+import { charts, lensRuns, LensRun } from "@/db/schema";
 import type { LensRunSummary, LensRunHeatmaps, LensRunPromptSummary } from "@/types/lensRun";
 import type { PatchLensInterventionSpec } from "@/types/patchLens";
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
@@ -31,11 +31,23 @@ interface CreateLensRunInput {
     heatmaps: LensRunHeatmaps;
 }
 
+/**
+ * Records a run in the history of its chart. The run is filed under the
+ * chart's current workspace, not the one the client sent: a page whose
+ * workspace scope predates a move would otherwise file it under the old one
+ * (and lose it when that workspace is deleted). `input.workspaceId` is used
+ * only when the chart row can't be found.
+ */
 export const createLensRun = async (input: CreateLensRunInput): Promise<LensRunListItem> => {
+    const [chart] = await db
+        .select({ workspaceId: charts.workspaceId })
+        .from(charts)
+        .where(eq(charts.id, input.chartId))
+        .limit(1);
     const [row] = await db
         .insert(lensRuns)
         .values({
-            workspaceId: input.workspaceId,
+            workspaceId: chart?.workspaceId ?? input.workspaceId,
             chartId: input.chartId,
             model: input.model,
             summary: input.summary,
