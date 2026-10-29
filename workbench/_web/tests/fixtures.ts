@@ -83,15 +83,15 @@ export async function waitForModelsLoaded(page: Page) {
     await expect(trigger).toContainText(E2E_MODEL_RE);
 }
 
-/** Navigate to a fresh workspace with a lens chart. */
-export async function gotoFreshLensWorkspace(page: Page) {
-    await page.goto("/workbench?createNew=true");
-    await page.waitForURL(/\/workbench\/[^/]+\/[^/]+/, { timeout: 30_000 });
+/** Navigate to a fresh logit lens chart (created in the user's default workspace). */
+export async function gotoFreshLensChart(page: Page) {
+    await page.goto("/new?tool=Logit%20Lens");
+    await page.waitForURL(/\/logit-lens\/[^/?]+$/, { timeout: 30_000 });
     await waitForModelsLoaded(page);
 }
 
-/** Navigate to a fresh workspace with an activation patching chart. */
-export async function gotoFreshAPWorkspace(
+/** Navigate to a fresh activation patching chart (created in the user's default workspace). */
+export async function gotoFreshAPChart(
     page: Page,
     opts?: {
         srcPrompt?: string;
@@ -101,7 +101,6 @@ export async function gotoFreshAPWorkspace(
     },
 ) {
     const params = new URLSearchParams({
-        createNew: "true",
         tool: "Activation Patching",
         srcPrompt: opts?.srcPrompt ?? "",
         tgtPrompt: opts?.tgtPrompt ?? "",
@@ -110,7 +109,7 @@ export async function gotoFreshAPWorkspace(
         tgtFreeze: JSON.stringify([]),
         model: E2E_MODEL,
     });
-    await page.goto(`/workbench?${params.toString()}`);
+    await page.goto(`/new?${params.toString()}`);
     await page.waitForURL(/\/activation-patching\//, { timeout: 30_000 });
     await waitForModelsLoaded(page);
 }

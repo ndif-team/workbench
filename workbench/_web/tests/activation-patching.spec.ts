@@ -2,8 +2,8 @@ import {
     test,
     expect,
     argosScreenshot,
-    gotoFreshLensWorkspace,
-    gotoFreshAPWorkspace,
+    gotoFreshLensChart,
+    gotoFreshAPChart,
     REAL_NDIF_TIMEOUT_MS,
 } from "./fixtures";
 import { createTestUser, loginAsUser, type TestingUser } from "./TestingUtils";
@@ -26,7 +26,7 @@ test.describe("Activation Patching (real NDIF)", () => {
     test("create chart via sidebar and configure source / target prompts", async ({
         workbenchPage: page,
     }) => {
-        await gotoFreshLensWorkspace(page);
+        await gotoFreshLensChart(page);
 
         // The sidebar exposes an "Activation Patching" button — clicking it
         // creates an AP chart in the current workspace.
@@ -61,7 +61,7 @@ test.describe("Activation Patching (real NDIF)", () => {
         // Source position 4 = "Eiffel"-ish; target position 4 = "Colosseum"-ish.
         // The exact alignment doesn't matter for the test — we just need a
         // valid configuration so the auto-run kicks off a real NDIF job.
-        await gotoFreshAPWorkspace(page, {
+        await gotoFreshAPChart(page, {
             srcPrompt: SRC_PROMPT,
             tgtPrompt: TGT_PROMPT,
             srcPos: [4],

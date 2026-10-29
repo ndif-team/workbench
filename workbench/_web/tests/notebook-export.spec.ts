@@ -1,10 +1,4 @@
-import {
-    test,
-    expect,
-    argosScreenshot,
-    gotoFreshAPWorkspace,
-    REAL_NDIF_TIMEOUT_MS,
-} from "./fixtures";
+import { test, expect, argosScreenshot, gotoFreshAPChart, REAL_NDIF_TIMEOUT_MS } from "./fixtures";
 import { createTestUser, loginAsUser, type TestingUser } from "./TestingUtils";
 
 const SRC_PROMPT = "The Eiffel Tower is in the city of";
@@ -23,7 +17,7 @@ test.describe("Notebook export (real NDIF)", () => {
     test.setTimeout(REAL_NDIF_TIMEOUT_MS * 5);
 
     test("export an activation patching chart to .ipynb", async ({ workbenchPage: page }) => {
-        await gotoFreshAPWorkspace(page, {
+        await gotoFreshAPChart(page, {
             srcPrompt: SRC_PROMPT,
             tgtPrompt: TGT_PROMPT,
             srcPos: [4],

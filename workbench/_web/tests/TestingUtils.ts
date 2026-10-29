@@ -180,11 +180,14 @@ export async function loginAsUser(page: Page, user: TestingUser, retries = 4): P
             } else {
                 await page.goto(`/auth/magic-link?token_hash=${encodeURIComponent(tokenHash)}`);
                 await page.getByRole("button", { name: /sign in with magic link/i }).click();
-                // Success = the verifyOtp server action redirected us into the
-                // workbench. On failure it bounces back to /auth/magic-link with
-                // an ?error, so record that (or the current URL) and retry.
+                // Success = the verifyOtp server action redirected us out of
+                // /auth (to /workbench, which opens a chart). On failure it
+                // bounces back to /auth/magic-link with an ?error, so record
+                // that (or the current URL) and retry.
                 try {
-                    await page.waitForURL(/\/workbench(\/|$|\?)/, { timeout: 15_000 });
+                    await page.waitForURL((url) => !url.pathname.startsWith("/auth/"), {
+                        timeout: 15_000,
+                    });
                     return;
                 } catch {
                     const errText = await page

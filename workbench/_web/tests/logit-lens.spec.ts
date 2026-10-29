@@ -2,7 +2,7 @@ import {
     test,
     expect,
     argosScreenshot,
-    gotoFreshLensWorkspace,
+    gotoFreshLensChart,
     REAL_NDIF_TIMEOUT_MS,
 } from "./fixtures";
 import { createTestUser, loginAsUser, type TestingUser } from "./TestingUtils";
@@ -21,7 +21,7 @@ test.beforeEach(async ({ page }) => {
 
 /**
  * Logit Lens UI primer (what these tests anchor on — see
- * src/app/workbench/[workspaceId]/logit-lens/[chartId]/components/LogitLens*.tsx):
+ * src/app/(shell)/logit-lens/[chartId]/components/LogitLens*.tsx):
  *
  *   Controls panel:
  *     - <textarea placeholder="Enter your prompt here...">
@@ -71,7 +71,7 @@ test.describe("Logit Lens (real NDIF)", () => {
     test.setTimeout(REAL_NDIF_TIMEOUT_MS * 4);
 
     test("enter prompt and run, widget renders", async ({ workbenchPage: page }) => {
-        await gotoFreshLensWorkspace(page);
+        await gotoFreshLensChart(page);
 
         const textarea = page.getByPlaceholder(/Enter your prompt here/);
         await expect(textarea).toBeVisible({ timeout: 15_000 });
@@ -83,7 +83,7 @@ test.describe("Logit Lens (real NDIF)", () => {
     });
 
     test("run with higher Top-K", async ({ workbenchPage: page }) => {
-        await gotoFreshLensWorkspace(page);
+        await gotoFreshLensChart(page);
 
         const textarea = page.getByPlaceholder(/Enter your prompt here/);
         await expect(textarea).toBeVisible({ timeout: 15_000 });
@@ -103,7 +103,7 @@ test.describe("Logit Lens (real NDIF)", () => {
     });
 
     test("run with Include Entropy enabled", async ({ workbenchPage: page }) => {
-        await gotoFreshLensWorkspace(page);
+        await gotoFreshLensChart(page);
 
         const textarea = page.getByPlaceholder(/Enter your prompt here/);
         await expect(textarea).toBeVisible({ timeout: 15_000 });

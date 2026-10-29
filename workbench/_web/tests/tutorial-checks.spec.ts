@@ -87,7 +87,7 @@ test.beforeAll(async ({}, workerInfo) => {
         checksSlot(workerInfo.workerIndex),
     );
     checksWorkspaceId = seeded.workspaceId;
-    checksUrl = `/workbench/${seeded.workspaceId}/patch-lens/${seeded.chartId}`;
+    checksUrl = `/patch-lens/${seeded.chartId}`;
 });
 
 // ---------------------------------------------------------------------------
@@ -685,7 +685,7 @@ test.describe("guided tutorial notes", () => {
             TUTORIAL_CHECK_CONTENT,
             notesSlot(testInfo.workerIndex),
         );
-        const url = `/workbench/${seeded.workspaceId}/patch-lens/${seeded.chartId}`;
+        const url = `/patch-lens/${seeded.chartId}`;
         const nonce = Math.random().toString(36).slice(2, 8);
         const firstIdx = unitIndex("u0-top1");
         const secondIdx = unitIndex("u1-layer");
@@ -831,7 +831,7 @@ test.describe("guided tutorial notes", () => {
             TUTORIAL_CHECK_CONTENT,
             notesSlot(testInfo.workerIndex),
         );
-        const url = `/workbench/${seeded.workspaceId}/patch-lens/${seeded.chartId}`;
+        const url = `/patch-lens/${seeded.chartId}`;
         const nonce = Math.random().toString(36).slice(2, 8);
         const firstIdx = unitIndex("u0-top1");
         const secondIdx = unitIndex("u1-layer");
