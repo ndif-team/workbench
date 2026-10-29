@@ -8,14 +8,16 @@ import { Button } from "@/components/ui/button";
 import { useCreateChartFromLaunch } from "@/lib/api/chartApi";
 import { toolChartPath } from "@/lib/chartRoutes";
 import { getPendingRequest, pendingRequestPath } from "@/lib/pendingRequest";
-import type { ChartLaunchRequest } from "@/lib/chartLaunch";
+import { isBlankPlan, planChartLaunch, type ChartLaunchRequest } from "@/lib/chartLaunch";
+import { usePromptFocus } from "@/stores/usePromptFocus";
 import { PageHeader } from "../../components/shell/PageHeader";
 
 /**
  * Creates the chart a `/new` URL describes, then replaces the URL with the
- * chart's page. A launch still waiting on sign-in takes precedence over the
- * URL's own request (see `PendingRequestHandler`). Remount it (via `key`) for
- * a different request.
+ * chart's page; a blank chart (New chart) opens with its prompt focused
+ * (`usePromptFocus`). A launch still waiting on sign-in takes precedence over
+ * the URL's own request (see `PendingRequestHandler`). Remount it (via `key`)
+ * for a different request.
  *
  * It follows the mutation's promise rather than per-call `mutate` callbacks:
  * those are dropped when the observer unsubscribes, which strict mode's
@@ -41,7 +43,12 @@ export function NewChartCreator({ request }: { request: ChartLaunchRequest }) {
 
         setFailed(false);
         createChart(request).then(
-            ({ chartId, toolType }) => router.replace(toolChartPath(chartId, toolType)),
+            ({ chartId, toolType }) => {
+                if (isBlankPlan(planChartLaunch(request))) {
+                    usePromptFocus.getState().request(chartId);
+                }
+                router.replace(toolChartPath(chartId, toolType));
+            },
             (err) => {
                 console.error("Failed to create chart:", err);
                 setFailed(true);

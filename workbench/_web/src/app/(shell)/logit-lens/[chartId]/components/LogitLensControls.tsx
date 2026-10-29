@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { logitLensConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
 import { useDraftModel } from "@/hooks/useDraftModel";
+import { useFocusNewChartPrompt } from "@/hooks/useFocusNewChartPrompt";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/(shell)/components/ToolPanelHeader";
@@ -166,6 +167,7 @@ export function LogitLensControls({
 
     const isExecuting = isComputing || isUpdatingConfig;
     const interactive = modelsAvailable && !isExecuting;
+    useFocusNewChartPrompt(chartId, textareaRef, editingText && interactive && !prompt);
 
     useEffect(() => {
         const configPrompt = initialConfig.data?.prompt || "";

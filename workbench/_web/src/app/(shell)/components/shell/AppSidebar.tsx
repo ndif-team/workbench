@@ -175,16 +175,24 @@ function LibraryRail({ pending }: { pending: boolean }) {
     const { data: library } = useWorkspaceLibrary({ enabled: !pending });
     return (
         <div className="flex flex-1 flex-col items-center gap-1">
-            <NewItemMenu reportWorkspaceId={library?.defaultWorkspaceId ?? undefined} side="right">
-                <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label="New chart"
-                    className="text-muted-foreground hover:text-foreground"
+            <Tooltip>
+                <NewItemMenu
+                    reportWorkspaceId={library?.defaultWorkspaceId ?? undefined}
+                    side="right"
                 >
-                    <Plus />
-                </Button>
-            </NewItemMenu>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            aria-label="New chart"
+                            className="text-muted-foreground hover:text-foreground"
+                        >
+                            <Plus />
+                        </Button>
+                    </TooltipTrigger>
+                </NewItemMenu>
+                <TooltipContent side="right">New chart</TooltipContent>
+            </Tooltip>
             <Separator className="my-1.5 w-6" />
             <RailButton href="/models" label="Models" active={pathname === "/models"}>
                 <Boxes />

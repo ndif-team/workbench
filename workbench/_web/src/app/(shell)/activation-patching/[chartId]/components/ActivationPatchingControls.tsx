@@ -30,6 +30,7 @@ import {
 } from "@/components/activation-patching/toolkit";
 import { apConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
 import { useDraftModel } from "@/hooks/useDraftModel";
+import { useFocusNewChartPrompt } from "@/hooks/useFocusNewChartPrompt";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/(shell)/components/ToolPanelHeader";
@@ -318,6 +319,7 @@ export function ActivationPatchingControls({
     // Config updates (like saving line selection) should not affect the Run button
     const isExecuting = isComputing;
     const interactive = modelsAvailable && !isExecuting;
+    useFocusNewChartPrompt(chartId, srcTextareaRef, srcEditing && interactive && !srcPrompt);
 
     // Background tokenizations of the saved prompts under (saved, selected)
     // models. Used only by the banner-comparison logic; never written to the

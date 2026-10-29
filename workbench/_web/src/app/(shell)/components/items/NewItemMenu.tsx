@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FileText } from "lucide-react";
@@ -34,9 +34,10 @@ interface NewItemMenuProps {
 }
 
 /**
- * "New chart": the four tools, plus Report when `reportWorkspaceId` is set.
- * A chart is created by `/new` (which files it and opens it); a report is
- * created here and opened.
+ * "New chart": the four tools, plus New report when `reportWorkspaceId` is
+ * set. A chart is created by `/new` (which files it and opens it, its prompt
+ * focused); a report is created here and opened. Picking either keeps focus
+ * from returning to the trigger, so it can land on the page being opened.
  */
 export function NewItemMenu({
     children,
@@ -50,14 +51,17 @@ export function NewItemMenu({
     const router = useRouter();
     const capture = useCapture();
     const createReport = useCreateDocument();
+    const pickedRef = useRef(false);
 
     const newChart = (tool: ToolType) => {
+        pickedRef.current = true;
         capture("chart_created", { tool });
         router.push(newChartPath(workspaceId ? { tool, workspaceId } : { tool }));
     };
 
     const newReport = () => {
         if (!reportWorkspaceId) return;
+        pickedRef.current = true;
         createReport.mutate(reportWorkspaceId, {
             onSuccess: (report) => {
                 router.push(reportPath(report.id));
@@ -69,7 +73,16 @@ export function NewItemMenu({
     return (
         <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-            <DropdownMenuContent side={side} align={align} className={cn("w-56", contentClassName)}>
+            <DropdownMenuContent
+                side={side}
+                align={align}
+                className={cn("w-56", contentClassName)}
+                onCloseAutoFocus={(e) => {
+                    if (!pickedRef.current) return;
+                    pickedRef.current = false;
+                    e.preventDefault();
+                }}
+            >
                 {tools.map((tool) => {
                     const meta = toolMeta(tool);
                     if (!meta) return null;
@@ -85,7 +98,7 @@ export function NewItemMenu({
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={newReport} disabled={createReport.isPending}>
                             <FileText className="text-muted-foreground" />
-                            Report
+                            New report
                         </DropdownMenuItem>
                     </>
                 )}
