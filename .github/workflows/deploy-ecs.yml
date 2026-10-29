@@ -10,8 +10,10 @@ name: Deploy to ECS
 on:
   workflow_dispatch:
 
+# Shares main.yml's concurrency group for main, so a deploy waits for an
+# image build in progress (and a build waits for a running deploy).
 concurrency:
-  group: deploy-ecs
+  group: build-images-refs/heads/main
   cancel-in-progress: false
 
 permissions:
