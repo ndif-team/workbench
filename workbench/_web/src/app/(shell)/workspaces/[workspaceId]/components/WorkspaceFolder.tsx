@@ -188,11 +188,6 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                 <section className="rounded border bg-secondary/80 dark:bg-secondary/50">
                     <div className="flex items-center justify-between border-b p-3">
                         <h2 className="pl-2 text-sm font-medium">Charts and reports</h2>
-                        {folder && folder.items.length > 1 && !folder.isWorkshop && (
-                            <span className="hidden text-xs text-muted-foreground sm:inline">
-                                Drag a row by its handle to reorder
-                            </span>
-                        )}
                     </div>
                     {isLoading || !folder ? (
                         <div aria-hidden>

@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
 
@@ -13,6 +14,10 @@ export type SidebarEntry =
 
 export const entryKey = (entry: SidebarEntry) => `${entry.type}-${entry.item.id}`;
 
+/**
+ * A row reordered by dragging its handle (or, focused on the handle, Space
+ * then the arrow keys); the handle's tooltip says so.
+ */
 export function SortableEntry({ id, children }: { id: string; children: ReactNode }) {
     const {
         attributes,
@@ -33,17 +38,22 @@ export function SortableEntry({ id, children }: { id: string; children: ReactNod
 
     return (
         <div ref={setNodeRef} style={style} className="relative group/sortable">
-            <button
-                ref={setActivatorNodeRef}
-                {...attributes}
-                {...listeners}
-                type="button"
-                aria-label="Drag to reorder"
-                className="absolute left-1 top-1/2 -translate-y-1/2 z-20 flex h-8 w-5 items-center justify-center rounded bg-background/70 text-muted-foreground/60 opacity-60 group-hover/sortable:opacity-100 hover:bg-background/90 hover:text-foreground cursor-grab active:cursor-grabbing transition-opacity"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <GripVertical className="h-4 w-4" />
-            </button>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <button
+                        ref={setActivatorNodeRef}
+                        {...attributes}
+                        {...listeners}
+                        type="button"
+                        aria-label="Drag to reorder"
+                        className="absolute left-1 top-1/2 -translate-y-1/2 z-20 flex h-8 w-5 items-center justify-center rounded bg-background/70 text-muted-foreground/60 opacity-60 group-hover/sortable:opacity-100 hover:bg-background/90 hover:text-foreground cursor-grab active:cursor-grabbing transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <GripVertical className="h-4 w-4" />
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">Drag to reorder</TooltipContent>
+            </Tooltip>
             {children}
         </div>
     );
