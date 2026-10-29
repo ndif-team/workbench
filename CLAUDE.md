@@ -11,10 +11,10 @@ If you're proposing visual UI changes, also follow `.claude/skills/product-nativ
 **Workbench** is an interactive web UI for AI interpretability research. Researchers open a workspace, load an open-source LLM, and run interpretability "tools" (logit lens, j-lens, activation patching, Patch Lens) against it. Results are visualized as charts and saved per-workspace.
 
 **Top-level concepts**
-- **Workspace** — the unit of saved work. Owned by one user. Holds charts and documents (research notes).
+- **Workspace** — a folder of saved work. Owned by one user. Holds charts and documents (research notes). Each user also has one **default workspace** (`workspaces.is_default`, created lazily by `getOrCreateDefaultWorkspace` in `src/lib/queries/workspaceDb.ts`) that holds the charts and reports not filed in a folder; it is never listed as a folder, renamed or deleted. Charts and reports move between workspaces with `moveChart` / `moveReport` (a chart's config and lens runs move with it).
 - **Model** — an open-source LLM that the active backend can host (e.g. `meta-llama/Llama-3.2-1B`). Selected per-workspace via `useWorkspace.selectedModelIdx`.
 - **Chart** — a single experiment + its visualization (currently: logit-lens / jlens / activation-patching / patch-lens). One chart row = one config row = one display. Patch Lens shows source/target logit-lens heatmaps plus a single-cell patch (causal mediation), with its run history in `lens_runs`.
-  - `"lens2"` is a legacy alias of the `"logit-lens"` tool type, still accepted when reading `configs.type`, `charts.type`, `workshops.allowed_tools` and saved chart embeds until the stored rows are migrated (`normalizeToolType` in `src/types/charts.ts`, and `normalizeWorkshopTools` in `src/lib/workshop.ts` for workshop allowed tools). Writes always use `"logit-lens"`; old `/workbench/<ws>/lens2/<chartId>` links redirect (`next.config.js`).
+  - `"lens2"` is a legacy alias of the `"logit-lens"` tool type, still accepted when reading `configs.type`, `charts.type`, `workshops.allowed_tools` and saved chart embeds until the stored rows are migrated (`normalizeToolType` in `src/types/charts.ts`, and `normalizeWorkshopTools` in `src/lib/workshop.ts` for workshop allowed tools). Writes always use `"logit-lens"`; old `/workbench/<ws>/lens2/<chartId>` links redirect to `/logit-lens/<chartId>` (`next.config.js`).
 - **Config** — the parameters that produced the chart (prompt, topk, etc.). Stored as `jsonb` in the `configs` table.
 - **Document** — a Lexical-based research note inside a workspace.
 - **Workshop / tutorial** — a workshop is a join link (`/w/[slug]`) that signs participants in anonymously (optionally carrying Prolific IDs) and gives each a workspace limited to the workshop's tools and (unless the workshop allows changing it) its model. It runs a DB-backed guided Patch Lens tutorial (`tutorials` table); participant progress goes to `tutorial_events`. Both are managed under `/admin` (`ADMIN_EMAILS` allowlist).
@@ -109,23 +109,25 @@ workbench/                          # repo root
         │   ├── auth/callback/, auth/magic-link/
         │   ├── admin/              # workshops + tutorials admin, workshop analytics (ADMIN_EMAILS)
         │   ├── w/[slug]/           # workshop join link → anonymous participant workspace
-        │   └── workbench/
-        │       ├── page.tsx        # workspace list + models grid
-        │       ├── components/     # WorkspaceList, AutoWorkspaceCreator, PendingRequestHandler, ModelsSectionStateController
-        │       └── [workspaceId]/
-        │           ├── layout.tsx  # workspace header (back, ModelControl pill, name, links, theme, user menu)
-        │           ├── page.tsx    # opens the most recent chart of a live tool, or creates one
-        │           ├── components/                  # workspace-scoped UI
-        │           │   ├── ChartCardsSidebar.tsx, ChartCard.tsx
-        │           │   ├── MobileSidebarDrawer.tsx, MobileCollapsibleControls.tsx
-        │           │   ├── ToolPanelHeader.tsx      # title row shared by the tool Controls
-        │           │   └── ModelDeployingPanel.tsx, DeployCard.tsx  # cold-model deploy states
-        │           ├── logit-lens/[chartId]/        # logit-lens chart (nnsightful widget)
-        │           ├── j-lens/[chartId]/            # j-lens chart (nnsightful LogitLensWidget)
-        │           ├── activation-patching/[chartId]/
-        │           ├── patch-lens/[chartId]/        # Patch Lens (edulogitlens), run history rail, guided tutorial
-        │           ├── overview/[overviewId]/       # Lexical editor
-        │           └── [chartId]/page.tsx           # redirect only, so old chart links land on the workspace
+        │   ├── workbench/
+        │   │   ├── page.tsx        # post-login entry: launch params → /new, else the most recent chart
+        │   │   └── [workspaceId]/page.tsx   # "open workspace": its most recent chart, or a new one
+        │   └── (shell)/            # route group; layout.tsx is the app shell (persists across pages)
+        │       ├── components/     # UI shared by the routes below
+        │       │   ├── WorkspaceScopes.tsx      # server wrappers that look up an item's workspace scope
+        │       │   ├── ChartCardsSidebar.tsx, ChartCard.tsx, ReportCard.tsx  # workspace-scoped sidebar
+        │       │   ├── MobileSidebarDrawer.tsx, MobileCollapsibleControls.tsx
+        │       │   ├── ToolPanelHeader.tsx      # title row shared by the tool Controls
+        │       │   ├── ModelDeployingPanel.tsx, DeployCard.tsx  # cold-model deploy states
+        │       │   └── PendingRequestHandler.tsx  # resumes a launch that waited on sign-in
+        │       ├── logit-lens/[chartId]/        # logit-lens chart (nnsightful widget)
+        │       ├── j-lens/[chartId]/            # j-lens chart (nnsightful LogitLensWidget)
+        │       ├── activation-patching/[chartId]/
+        │       ├── patch-lens/[chartId]/        # Patch Lens (edulogitlens), run history rail, guided tutorial
+        │       ├── reports/[reportId]/          # Lexical report editor
+        │       ├── new/            # /new?tool=…&model=…&prompt=…: creates a chart, then opens it
+        │       ├── models/         # models grid
+        │       └── workspaces/     # workspace (folder) list
         │
         ├── components/             # app-wide composed components
         │   ├── ui/                 # shadcn primitives (Button, Card, Popover, PillPopover, ...)
@@ -194,8 +196,8 @@ workbench/                          # repo root
 ### Container vs presenter
 
 Every non-trivial feature has **one container** (knows about URL params, stores, calls server actions/APIs) and **N presentational children** (props in, JSX out). Examples to follow:
-- `app/workbench/[workspaceId]/patch-lens/[chartId]/components/LensHistoryRail.tsx` is the container (route params + run-history queries); `LensHistoryStrip.tsx` is presentational (`run`, `isActive`, `onSelect` props).
-- `app/workbench/[workspaceId]/logit-lens/[chartId]/components/LogitLensArea.tsx` loads chart, config and model state through `useToolArea` (shared with the j-lens and activation-patching `*Area`) and passes them to `LogitLensControls.tsx` as props.
+- `app/(shell)/patch-lens/[chartId]/components/LensHistoryRail.tsx` is the container (route params + run-history queries); `LensHistoryStrip.tsx` is presentational (`run`, `isActive`, `onSelect` props).
+- `app/(shell)/logit-lens/[chartId]/components/LogitLensArea.tsx` loads chart, config and model state through `useToolArea` (shared with the j-lens and activation-patching `*Area`) and passes them to `LogitLensControls.tsx` as props.
 
 ### Where to put new files
 
@@ -251,13 +253,15 @@ Pick the lightest location that does the job:
 | Use | Where | Examples |
 |---|---|---|
 | UI-only, ephemeral | `useState` | composer focus, draft text, hover |
-| Survives reload, shareable | URL search params | initial prompt/model from landing page (`/workbench/[id]?prompt=…&model=…`) |
+| Survives reload, shareable | URL search params | chart launch from the landing page (`/new?tool=…&model=…&prompt=…`) |
 | Server data | React Query | charts, configs, documents, models list, lens runs |
 | Cross-page UI | zustand | `useWorkspace` (selected model; job status, shown as the job badge in the header's model pill), `useModelDeployment` (cold-model warmups in flight) |
 | Survives reload, no server | localStorage via zustand `persist` | `workbench:models-section` (`useModelsSection`), `workbench:prolific-tutorial` (`useProlificTutorial`); a lone flag like `workbench_sidebar_collapsed` uses `localStorage` directly |
-| Many descendants need read | React Context | `TutorialEventProvider` (`components/providers/TutorialEventProvider.tsx`) — rare |
+| Many descendants need read | React Context | `TutorialEventProvider` (`components/providers/TutorialEventProvider.tsx`), the workspace scope (below) — rare |
 
 **zustand is for ephemeral UI state, not durable history.** Long-term history belongs in the DB: Patch Lens run history is `lens_runs` rows, and `useProlificTutorial` persists to localStorage only as resume UX while `tutorial_events` rows are the source of truth.
+
+**The workspace is not in the URL.** Chart (`/<tool>/<chartId>`) and report (`/reports/<reportId>`) routes look up the item's workspace in their server `layout.tsx` and provide it through `WorkspaceScopeProvider` (`components/providers/WorkspaceScopeProvider.tsx`). Read it with `useScopedWorkspaceId()` inside those routes, or `useWorkspaceScope()` where it may be absent (it also reaches the shell layout through `WorkspaceScopeHost`). After moving the item on screen, `router.refresh()` so the scope is re-read (`useMoveChart` / `useMoveReport` do). Build links with `src/lib/chartRoutes.ts`.
 
 **Bucket persisted state by its natural key.** `useProlificTutorial` is bucketed by `workspaceId` and resets on a workspace change. If you add similar features, follow the pattern.
 
@@ -359,6 +363,7 @@ Centralized in `src/lib/queryKeys.ts`. Add new entries there:
 queryKeys.charts.chart(chartId)
 queryKeys.charts.sidebar(workspaceId)
 queryKeys.documents.byWorkspace(workspaceId)
+queryKeys.workspaces.library   // every workspace with its items (sidebar); invalidate on any item change
 ```
 
 ### React Query defaults
@@ -375,7 +380,7 @@ Set in `src/components/providers/QueryProvider.tsx`: `staleTime: 5min`, `retry: 
 
 ### Layout patterns the app uses
 
-- **Workspace shell** = `ChartCardsSidebar` (left, `w-[20vw]`, collapsible via `workbench_sidebar_collapsed` localStorage key) + a `ResizablePanelGroup` of feature panels. Examples: `logit-lens/[chartId]/page.tsx`, `activation-patching/[chartId]/page.tsx`.
+- **Chart pages** = rendered inside the `(shell)` layout: `ChartCardsSidebar` (left, `w-[20vw]`, collapsible via `workbench_sidebar_collapsed` localStorage key) + a `ResizablePanelGroup` of feature panels. Examples: `logit-lens/[chartId]/page.tsx`, `activation-patching/[chartId]/page.tsx`.
 - **Feature panel** = bordered, rounded card (`rounded dark:bg-secondary/50 bg-secondary/80 border`) with the standard panel header pattern (see §4).
 - **Mobile** = `MobileSidebarDrawer` (FAB bottom-left), `MobileCollapsibleControls` (collapsible top section). Mirror these when adding mobile paths.
 - **Charts** = each tool's `*Display` component (`LogitLensDisplay`, `JLensDisplay`, `ActivationPatchingDisplay`) renders its nnsightful widget straight from `chart.data`; `PatchLensDisplay` renders `edulogitlens`'s `CausalMediationExplorer`.
@@ -562,9 +567,9 @@ The contract between workbench and nnsightful is: **workbench wires tools to UI;
 - `routes/j_lens.py` and `routes/activation_patching.py` mirror the same pattern. `routes/models.py` also calls `j_lens.get_available_lenses()` to flag each model's `has_jacobian` (j-lens support).
 
 **Frontend** (`workbench/_web/src/`):
-- `app/workbench/[workspaceId]/logit-lens/[chartId]/components/LogitLensDisplay.tsx` — `import { LogitLensWidget } from "nnsightful"; import type { LogitLensData } from "nnsightful";` and renders the widget directly with `chart.data`.
-- `app/workbench/[workspaceId]/j-lens/[chartId]/components/JLensDisplay.tsx` — same `LogitLensWidget`, fed j-lens data.
-- `app/workbench/[workspaceId]/activation-patching/[chartId]/components/ActivationPatchingDisplay.tsx` — same with `ActivationPatchingWidget`, `ActivationPatchingMode`.
+- `app/(shell)/logit-lens/[chartId]/components/LogitLensDisplay.tsx` — `import { LogitLensWidget } from "nnsightful"; import type { LogitLensData } from "nnsightful";` and renders the widget directly with `chart.data`.
+- `app/(shell)/j-lens/[chartId]/components/JLensDisplay.tsx` — same `LogitLensWidget`, fed j-lens data.
+- `app/(shell)/activation-patching/[chartId]/components/ActivationPatchingDisplay.tsx` — same with `ActivationPatchingWidget`, `ActivationPatchingMode`.
 - `types/logitLens.ts` holds the workbench-side `LogitLensConfigData`; logit-lens data and UI state use nnsightful's own `LogitLensData` / `LogitLensUIState`, imported from `nnsightful` directly.
 - `actions/notebook.ts` reads `node_modules/nnsightful/src/nnsightful/viz/charts.js` and inlines it into exported `.ipynb` files; the HTML embedding mirrors `nnsightful.viz._widget_html()` defaults (`DEFAULT_WIDTH = "90%"`, per-tool aspect ratios).
 - `notebook-templates/activation-patching.ipynb` instructs users to `pip install git+https://github.com/AdamBelfki3/nnsightful.git` and `from nnsightful import activation_patching`.
@@ -597,7 +602,7 @@ Manual recipe summary (skill has the full version):
 - **nnsight** (PyPI, Python only): `uv lock --upgrade-package nnsight && uv sync`
 - **nnsightful** (git, both langs): `uv lock --upgrade-package nnsightful` and (inside `workbench/_web`) `bun update nnsightful`, then `uv sync` from the repo root. Both manifests pin a commit (`@<sha>` / `#<sha>`), so move the pin first.
 - Verify with `bunx tsc --noEmit` in `workbench/_web/`. Do **not** run `next build` while the dev server is up.
-- Most likely break sites after a nnsightful bump: `_api/routes/{logit_lens,j_lens,activation_patching}.py` and `_web/src/app/workbench/[workspaceId]/{logit-lens,j-lens,activation-patching}/[chartId]/components/*.tsx`.
+- Most likely break sites after a nnsightful bump: `_api/routes/{logit_lens,j_lens,activation_patching}.py` and `_web/src/app/(shell)/{logit-lens,j-lens,activation-patching}/[chartId]/components/*.tsx`.
 
 ---
 
