@@ -13,7 +13,7 @@ import {
 import { queryKeys } from "@/lib/queryKeys";
 import type { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
-import type { WorkspaceItemKind, WorkspaceLibrary } from "@/types/workspaces";
+import type { LibraryItem, WorkspaceItemKind, WorkspaceLibrary } from "@/types/workspaces";
 
 /**
  * The signed-in user's workspaces with their charts and reports (global
@@ -26,6 +26,16 @@ export const useWorkspaceLibrary = ({ enabled = true }: { enabled?: boolean } = 
         queryFn: () => getWorkspaceLibrary(),
         enabled,
     });
+
+/** The library's entry for a chart or report, wherever it is filed. */
+export const findLibraryItem = (
+    library: WorkspaceLibrary,
+    kind: WorkspaceItemKind,
+    id: string,
+): LibraryItem | undefined =>
+    [library.defaultItems, ...library.workspaces.map((w) => w.items)]
+        .flat()
+        .find((item) => item.kind === kind && item.id === id);
 
 /** Refetches every list an item can appear in after it changes workspace. */
 const invalidateItemLists = (queryClient: QueryClient) => {

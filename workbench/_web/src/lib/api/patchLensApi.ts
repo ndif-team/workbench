@@ -194,6 +194,8 @@ export const usePatchLensLogitLens = () => {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.lensRuns.byChart(variables.chartId),
                 }),
+                // The run saved the chart's prompts and result, which the sidebar labels it by.
+                queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library }),
             ]);
             // Seed the heatmap cache for the just-created run so restoring this
             // entry (or revisiting after the chart-row invalidation) is a cache
@@ -308,6 +310,7 @@ export const usePatchLensIntervention = () => {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.lensRuns.byChart(variables.chartId),
                 }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library }),
             ]);
         },
     });
