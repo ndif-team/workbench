@@ -120,8 +120,8 @@ export function AppShell({
             <a
                 href="#main"
                 className={cn(
-                    buttonVariants({ variant: "outline", size: "sm" }),
-                    "sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-2 focus:z-50 focus:h-8 focus:px-3",
+                    buttonVariants({ variant: "secondary", size: "sm" }),
+                    "sr-only border focus:not-sr-only focus:fixed focus:left-3 focus:top-2 focus:z-50 focus:h-8 focus:px-3",
                 )}
             >
                 Skip to page
