@@ -335,6 +335,40 @@ describe("workspace library", () => {
         expect(ids(library.workspaces[0].items)).toEqual([report.id, second, first]);
     });
 
+    it("reorders only the user's own workspace, and only the items in it", async () => {
+        const mine = await createWorkspace(USER, "Mine");
+        const theirs = await createWorkspace(OTHER, "Theirs");
+        const myFirst = await createChart(mine.id, "First");
+        const mySecond = await createChart(mine.id, "Second");
+        const theirFirst = await createChart(theirs.id, "Their first");
+        const theirSecond = await createChart(theirs.id, "Their second");
+        const positions = async (workspaceId: string) =>
+            (
+                await db
+                    .select({ id: charts.id, position: charts.position })
+                    .from(charts)
+                    .where(eq(charts.workspaceId, workspaceId))
+            )
+                .sort((a: { position: number }, b: { position: number }) => a.position - b.position)
+                .map((c: { id: string }) => c.id);
+
+        await expect(
+            reorderWorkspaceItems(USER, theirs.id, [
+                { kind: "chart", id: theirSecond },
+                { kind: "chart", id: theirFirst },
+            ]),
+        ).rejects.toThrow("access denied");
+        expect(await positions(theirs.id)).toEqual([theirFirst, theirSecond]);
+
+        await reorderWorkspaceItems(USER, mine.id, [
+            { kind: "chart", id: theirSecond },
+            { kind: "chart", id: mySecond },
+            { kind: "chart", id: myFirst },
+        ]);
+        expect(await positions(mine.id)).toEqual([mySecond, myFirst]);
+        expect(await positions(theirs.id)).toEqual([theirFirst, theirSecond]);
+    });
+
     it("creates the default workspace on first read", async () => {
         const library = await getWorkspaceLibrary(USER);
         expect(library.defaultItems).toEqual([]);

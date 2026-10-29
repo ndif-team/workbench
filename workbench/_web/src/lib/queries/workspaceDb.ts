@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql, type AnyColumn } from "drizzle-orm";
 import type { SerializedEditorState } from "lexical";
 
 import { db } from "@/db/client";
@@ -153,9 +153,10 @@ export const deleteWorkspace = async (userId: string, workspaceId: string): Prom
 
 /**
  * Saves the order of one of the user's workspaces: each item's position is
- * its index. Sequential rather than a transaction, since drizzle's sqlite
- * drivers reject async transaction callbacks; every write is idempotent, so a
- * retry after a partial failure converges.
+ * its index. One `UPDATE … SET position = CASE id … END` per table, so each
+ * table's order lands atomically on both dialects with no transaction (which
+ * drizzle's sqlite drivers can't run async). Ids outside the workspace are
+ * left alone.
  */
 export const reorderWorkspaceItems = async (
     userId: string,
@@ -166,19 +167,33 @@ export const reorderWorkspaceItems = async (
     if (!workspace || workspace.userId !== userId) {
         throw new Error("Workspace not found or access denied");
     }
-    for (let i = 0; i < items.length; i++) {
-        const { kind, id } = items[i];
-        if (kind === "chart") {
-            await db
-                .update(charts)
-                .set({ position: i, updatedAt: sql`${charts.updatedAt}` })
-                .where(and(eq(charts.id, id), eq(charts.workspaceId, workspaceId)));
-        } else {
-            await db
-                .update(documents)
-                .set({ position: i, updatedAt: sql`${documents.updatedAt}` })
-                .where(and(eq(documents.id, id), eq(documents.workspaceId, workspaceId)));
-        }
+    const ranked = items.map((item, position) => ({ ...item, position }));
+    const orderOf = (kind: WorkspaceItemKind, column: AnyColumn) => {
+        const rows = ranked.filter((item) => item.kind === kind);
+        const cases = rows.map(
+            ({ id, position }) => sql`when ${id} then ${sql.raw(`${position}`)}`,
+        );
+        return {
+            ids: rows.map((r) => r.id),
+            position: sql`case ${column} ${sql.join(cases, sql` `)} end`,
+        };
+    };
+
+    const chartOrder = orderOf("chart", charts.id);
+    if (chartOrder.ids.length > 0) {
+        await db
+            .update(charts)
+            .set({ position: chartOrder.position, updatedAt: sql`${charts.updatedAt}` })
+            .where(and(inArray(charts.id, chartOrder.ids), eq(charts.workspaceId, workspaceId)));
+    }
+    const reportOrder = orderOf("report", documents.id);
+    if (reportOrder.ids.length > 0) {
+        await db
+            .update(documents)
+            .set({ position: reportOrder.position, updatedAt: sql`${documents.updatedAt}` })
+            .where(
+                and(inArray(documents.id, reportOrder.ids), eq(documents.workspaceId, workspaceId)),
+            );
     }
 };
 
