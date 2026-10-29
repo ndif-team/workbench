@@ -152,8 +152,8 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
                         </DialogDescription>
                     ) : (
                         <DialogDescription>
-                            Create a chart with this model. Pick a tool and a workspace to open it
-                            in.
+                            Create a chart with this model. Pick a tool, and a workspace if you want
+                            it filed in one.
                         </DialogDescription>
                     )}
                 </DialogHeader>
