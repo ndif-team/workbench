@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useParams, usePathname } from "next/navigation";
 import { Boxes, ChevronDown, FolderClosed, Plus } from "lucide-react";
 
@@ -25,9 +25,11 @@ import {
     SidebarItemRow,
     SidebarNavLink,
     SidebarRowsSkeleton,
+    SidebarSectionAction,
     SidebarSectionHeader,
+    SidebarShowMore,
 } from "./SidebarRows";
-import { inFolderOrder } from "./folderOrder";
+import { inFolderOrder, visibleFolders } from "./folderOrder";
 
 /** Splits a newest-first list into runs that share a recency group. */
 const groupByRecency = (items: LibraryItem[]) => {
@@ -48,6 +50,10 @@ const groupByRecency = (items: LibraryItem[]) => {
  * and the charts and reports that aren't in a folder, newest first. While
  * `pending` (the page's workspace isn't known yet) it doesn't read the
  * library and shows the list's skeleton.
+ *
+ * Both sections fold under their headers. Workspaces lists the most recently
+ * updated folders (`visibleFolders`, always including the one holding the
+ * item on screen) until "Show N more" lists them all.
  */
 export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const pathname = usePathname();
@@ -59,12 +65,20 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const toggleFolder = useSidebarFolders((s) => s.toggle);
     const expandFolder = useSidebarFolders((s) => s.expand);
     const pruneFolders = useSidebarFolders((s) => s.prune);
+    const collapsedSections = useSidebarFolders((s) => s.collapsedSections);
+    const toggleSection = useSidebarFolders((s) => s.toggleSection);
+    const showAllFolders = useSidebarFolders((s) => s.showAllFolders);
+    const setShowAllFolders = useSidebarFolders((s) => s.setShowAllFolders);
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [creatingWorkspace, setCreatingWorkspace] = useState(false);
     const { mutate: renameChart } = useUpdateChartName();
     const deployStateOf = useDeployStateOf();
+    const workspacesListId = useId();
+    const chartsListId = useId();
 
     const folders = useMemo(() => inFolderOrder(library?.workspaces ?? []), [library?.workspaces]);
+    const workspacesOpen = !collapsedSections.includes("workspaces");
+    const chartsOpen = !collapsedSections.includes("charts");
 
     // Open the folder holding the item on screen, so the active row is visible.
     const activeFolderId = useMemo(() => {
@@ -78,6 +92,10 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     useEffect(() => {
         if (library) pruneFolders(library.workspaces.map((w) => w.id));
     }, [library, pruneFolders]);
+
+    const cappedFolders = visibleFolders(folders, activeFolderId);
+    const shownFolders = showAllFolders ? folders : cappedFolders;
+    const hiddenFolderCount = folders.length - cappedFolders.length;
 
     const renderItem = (item: LibraryItem, folder: LibraryWorkspace | null) => {
         const label = itemLabel(item);
@@ -139,7 +157,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                     href="/workspaces"
                     label="Workspaces"
                     Icon={FolderClosed}
-                    active={pathname === "/workspaces"}
+                    active={pathname.startsWith("/workspaces")}
                 />
             </div>
 
@@ -167,73 +185,111 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                         <section aria-label="Workspaces">
                             <SidebarSectionHeader
                                 title="Workspaces"
+                                expanded={workspacesOpen}
+                                onToggle={() => toggleSection("workspaces")}
+                                controls={workspacesListId}
                                 action={
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
+                                    <SidebarSectionAction
+                                        label="New workspace"
                                         onClick={() => setCreatingWorkspace(true)}
-                                        aria-label="New workspace"
-                                        title="New workspace"
-                                        className="size-6 text-muted-foreground hover:text-foreground"
                                     >
                                         <Plus className="size-3.5" />
-                                    </Button>
+                                    </SidebarSectionAction>
                                 }
                             />
-                            {folders.length === 0 ? (
-                                <SidebarEmpty>
-                                    Group related charts and reports into a workspace.
-                                </SidebarEmpty>
-                            ) : (
-                                <ul className="flex flex-col">
-                                    {folders.map((folder) => {
-                                        const isOpen = expanded.includes(folder.id);
-                                        return (
-                                            <li key={folder.id}>
-                                                <SidebarFolderRow
-                                                    name={folder.name}
-                                                    href={workspacePath(folder.id)}
-                                                    count={folder.items.length}
-                                                    expanded={isOpen}
-                                                    active={params.workspaceId === folder.id}
-                                                    isWorkshop={folder.isWorkshop}
-                                                    onToggle={() => toggleFolder(folder.id)}
+                            {workspacesOpen && (
+                                <div id={workspacesListId}>
+                                    {folders.length === 0 ? (
+                                        <SidebarEmpty>
+                                            Group related charts and reports into a workspace.
+                                        </SidebarEmpty>
+                                    ) : (
+                                        <>
+                                            <ul className="flex flex-col">
+                                                {shownFolders.map((folder) => {
+                                                    const isOpen = expanded.includes(folder.id);
+                                                    return (
+                                                        <li key={folder.id}>
+                                                            <SidebarFolderRow
+                                                                name={folder.name}
+                                                                href={workspacePath(folder.id)}
+                                                                count={folder.items.length}
+                                                                expanded={isOpen}
+                                                                active={
+                                                                    params.workspaceId === folder.id
+                                                                }
+                                                                isWorkshop={folder.isWorkshop}
+                                                                onToggle={() =>
+                                                                    toggleFolder(folder.id)
+                                                                }
+                                                            />
+                                                            {isOpen && (
+                                                                <SidebarFolderItems>
+                                                                    {folder.items.length === 0 ? (
+                                                                        <p className="py-1.5 pl-3.5 pr-2 text-xs text-muted-foreground">
+                                                                            {EMPTY_WORKSPACE_TEXT}
+                                                                        </p>
+                                                                    ) : (
+                                                                        folder.items.map((item) =>
+                                                                            renderItem(
+                                                                                item,
+                                                                                folder,
+                                                                            ),
+                                                                        )
+                                                                    )}
+                                                                </SidebarFolderItems>
+                                                            )}
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                            {hiddenFolderCount > 0 && (
+                                                <SidebarShowMore
+                                                    hiddenCount={hiddenFolderCount}
+                                                    showingAll={showAllFolders}
+                                                    onToggle={() =>
+                                                        setShowAllFolders(!showAllFolders)
+                                                    }
                                                 />
-                                                {isOpen && (
-                                                    <SidebarFolderItems>
-                                                        {folder.items.length === 0 ? (
-                                                            <p className="py-1.5 pl-3.5 pr-2 text-xs text-muted-foreground">
-                                                                {EMPTY_WORKSPACE_TEXT}
-                                                            </p>
-                                                        ) : (
-                                                            folder.items.map((item) =>
-                                                                renderItem(item, folder),
-                                                            )
-                                                        )}
-                                                    </SidebarFolderItems>
-                                                )}
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
                             )}
                         </section>
 
                         <section aria-label="Charts">
-                            <SidebarSectionHeader title="Charts" />
-                            {library.defaultItems.length === 0 ? (
-                                <SidebarEmpty>Charts you create land here.</SidebarEmpty>
-                            ) : (
-                                <div className="flex flex-col">
-                                    {groupByRecency(library.defaultItems).map((group, i, all) => (
-                                        <div key={group.label} className="flex flex-col">
-                                            {all.length > 1 && (
-                                                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                            <SidebarSectionHeader
+                                title="Charts"
+                                expanded={chartsOpen}
+                                onToggle={() => toggleSection("charts")}
+                                controls={chartsListId}
+                            />
+                            {chartsOpen && (
+                                <div id={chartsListId}>
+                                    {library.defaultItems.length === 0 ? (
+                                        <SidebarEmpty>Charts you create land here.</SidebarEmpty>
+                                    ) : (
+                                        <div className="flex flex-col">
+                                            {groupByRecency(library.defaultItems).map(
+                                                (group, i, all) => (
+                                                    <div
+                                                        key={group.label}
+                                                        className="flex flex-col"
+                                                    >
+                                                        {all.length > 1 && (
+                                                            <SidebarGroupLabel>
+                                                                {group.label}
+                                                            </SidebarGroupLabel>
+                                                        )}
+                                                        {group.items.map((item) =>
+                                                            renderItem(item, null),
+                                                        )}
+                                                    </div>
+                                                ),
                                             )}
-                                            {group.items.map((item) => renderItem(item, null))}
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             )}
                         </section>

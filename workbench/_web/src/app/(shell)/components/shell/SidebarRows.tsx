@@ -21,14 +21,16 @@ type IconType = ComponentType<{ className?: string }>;
 /**
  * One look for every sidebar row: a full-width link with the ghost Button's
  * hover and focus ring. The hover lives on the row (`group/row`) so it stays
- * lit while the pointer is on the row's actions button.
+ * lit while the pointer is on the row's actions button. In dark mode, where
+ * the active tint is faint, the active row also gets a primary bar at its
+ * left edge.
  */
 const rowLink = (active: boolean, className?: string) =>
     cn(
-        "flex h-7 w-full min-w-0 items-center gap-2 rounded-md px-2 text-sm whitespace-nowrap outline-none transition-colors group-data-[variant=drawer]/sidebar:h-9",
+        "relative flex h-7 w-full min-w-0 items-center gap-2 rounded-md px-2 text-sm whitespace-nowrap outline-none transition-colors group-data-[variant=drawer]/sidebar:h-9",
         "focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         active
-            ? "bg-primary/10 font-medium"
+            ? "bg-primary/10 font-medium dark:before:absolute dark:before:inset-y-1.5 dark:before:left-0 dark:before:w-0.5 dark:before:rounded-full dark:before:bg-primary"
             : "group-hover/row:bg-accent group-has-[[data-state=open]]/row:bg-accent dark:group-hover/row:bg-accent/50 dark:group-has-[[data-state=open]]/row:bg-accent/50",
         className,
     );
@@ -59,24 +61,122 @@ export function SidebarNavLink({
     );
 }
 
-/** A section title with an optional action at its right. */
-export function SidebarSectionHeader({ title, action }: { title: string; action?: ReactNode }) {
+/**
+ * A section title with an optional action at its right. With `onToggle` the
+ * title is a disclosure button that folds the section (`controls` names the
+ * region it shows and hides).
+ */
+export function SidebarSectionHeader({
+    title,
+    action,
+    expanded = true,
+    onToggle,
+    controls,
+}: {
+    title: string;
+    action?: ReactNode;
+    expanded?: boolean;
+    onToggle?: () => void;
+    controls?: string;
+}) {
     return (
-        <div className="flex h-7 items-center justify-between pl-2 pr-0.5">
-            <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
+        <div className="flex h-7 items-center justify-between pr-0.5 group-data-[variant=drawer]/sidebar:h-9">
+            <h2 className="text-xs font-medium text-foreground">
+                {onToggle ? (
+                    <button
+                        type="button"
+                        onClick={onToggle}
+                        aria-expanded={expanded}
+                        aria-controls={controls}
+                        className="flex h-7 items-center gap-1 rounded-md px-2 outline-none transition-colors hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:hover:bg-accent/50 group-data-[variant=drawer]/sidebar:h-9"
+                    >
+                        {title}
+                        <ChevronRight
+                            aria-hidden
+                            className={cn(
+                                "size-3 text-muted-foreground transition-transform",
+                                expanded && "rotate-90",
+                            )}
+                        />
+                    </button>
+                ) : (
+                    <span className="px-2">{title}</span>
+                )}
+            </h2>
             {action}
         </div>
     );
 }
 
-/** A sub-heading inside a section, e.g. a recency group of the Charts list. */
+/** A section's icon action (e.g. New workspace); a full touch target in the drawer. */
+export function SidebarSectionAction({
+    label,
+    onClick,
+    children,
+}: {
+    label: string;
+    onClick: () => void;
+    children: ReactNode;
+}) {
+    return (
+        <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onClick}
+            aria-label={label}
+            title={label}
+            className="size-6 text-muted-foreground hover:text-foreground group-data-[variant=drawer]/sidebar:size-8"
+        >
+            {children}
+        </Button>
+    );
+}
+
+/**
+ * A sub-heading inside a section, e.g. a recency group of the Charts list.
+ * Render each group in its own wrapper so the first one sits tight under the
+ * section header.
+ */
 export function SidebarGroupLabel({ children }: { children: ReactNode }) {
-    return <h3 className="px-2 pb-0.5 pt-2 text-xs text-muted-foreground">{children}</h3>;
+    return (
+        <h3 className="px-2 pb-0.5 pt-2 text-xs text-muted-foreground [:first-child>&]:pt-0.5">
+            {children}
+        </h3>
+    );
 }
 
 /** A folder's items, hung from a guide line under its chevron. */
 export function SidebarFolderItems({ children }: { children: ReactNode }) {
-    return <div className="ml-3.5 flex flex-col border-l">{children}</div>;
+    return (
+        <div className="ml-3.5 flex flex-col border-l group-data-[variant=drawer]/sidebar:ml-4">
+            {children}
+        </div>
+    );
+}
+
+/** "Show N more" / "Show less" under a capped list, aligned with its rows' labels. */
+export function SidebarShowMore({
+    hiddenCount,
+    showingAll,
+    onToggle,
+}: {
+    hiddenCount: number;
+    showingAll: boolean;
+    onToggle: () => void;
+}) {
+    return (
+        <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onToggle}
+            className="h-7 w-full justify-start gap-2 pl-7 pr-2 text-xs font-normal text-muted-foreground hover:text-foreground group-data-[variant=drawer]/sidebar:h-9 group-data-[variant=drawer]/sidebar:pl-9"
+        >
+            <span aria-hidden className="size-4 shrink-0" />
+            {showingAll ? "Show less" : `Show ${hiddenCount} more`}
+        </Button>
+    );
 }
 
 /** Quiet explanatory text where a section has nothing to list. */
@@ -132,7 +232,7 @@ export function SidebarFolderRow({
                 onClick={onToggle}
                 aria-expanded={expanded}
                 aria-label={`${expanded ? "Collapse" : "Expand"} ${name}`}
-                className="absolute left-0.5 top-1/2 size-6 -translate-y-1/2 text-muted-foreground hover:bg-transparent hover:text-foreground dark:hover:bg-transparent"
+                className="absolute left-0.5 top-1/2 z-10 size-6 -translate-y-1/2 text-muted-foreground hover:bg-transparent hover:text-foreground dark:hover:bg-transparent group-data-[variant=drawer]/sidebar:left-0 group-data-[variant=drawer]/sidebar:size-8"
             >
                 <ChevronRight
                     className={cn("size-3.5 transition-transform", expanded && "rotate-90")}
@@ -142,7 +242,7 @@ export function SidebarFolderRow({
                 href={href}
                 aria-current={active ? "page" : undefined}
                 title={name}
-                className={rowLink(active, "pl-7")}
+                className={rowLink(active, "pl-7 group-data-[variant=drawer]/sidebar:pl-9")}
             >
                 <FolderIcon className={cn("text-muted-foreground", active && "text-primary")} />
                 <span className="min-w-0 flex-1 truncate text-left">{name}</span>
