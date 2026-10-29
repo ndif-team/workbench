@@ -12,7 +12,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import {
     chartFigure,
     chartFigureGapText,
-    chartTitle,
+    chartPrompt,
     REPORT_MAX_ROWS,
     rowWindowLabel,
 } from "@/lib/report/chartFigure";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/report/reportPdf";
 import { downloadPdf } from "@/lib/report/pdfmake";
 import { toolMeta } from "@/app/(shell)/components/toolMeta";
+import { chartLabel } from "@/app/(shell)/components/items/itemLabel";
 
 // Layout size of a chart snapshot, CSS px. The PDF draws it at the page's
 // content width (~484 pt), so this sets how small its text comes out.
@@ -61,8 +62,9 @@ async function pdfChart(
     }
     const tool = toolMeta(config?.type ?? chart?.type);
     const model = (config?.data as { model?: string } | undefined)?.model;
-    // As in the embed, a chart still under its default name has no title.
-    const title = chartTitle(chart?.name) ?? undefined;
+    // As in the embed: labelled as in the sidebar, else no title.
+    const label = chartLabel({ name: chart?.name, prompt: chartPrompt(chart, config) });
+    const title = label.placeholder ? undefined : label.text;
     const subtitle = [tool?.label, model].filter(Boolean).join(" · ") || undefined;
 
     const figure = chartFigure(chart, lock ? withView(config, lock.view) : config);

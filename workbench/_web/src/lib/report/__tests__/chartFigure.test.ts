@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { chartFigure, chartFigureGapText, chartTitle, rowWindowLabel } from "../chartFigure";
+import { chartFigure, chartFigureGapText, chartPrompt, rowWindowLabel } from "../chartFigure";
 
 const LENS_DATA = { meta: { version: 2 }, layers: [0, 1], input: ["a"], tracked: [], topk: [] };
 const AP_DATA = {
@@ -82,13 +82,22 @@ describe("chartFigureGapText", () => {
     });
 });
 
-describe("chartTitle", () => {
-    it("is the chart's name, or null while it has none", () => {
-        expect(chartTitle("Eiffel Tower lens")).toBe("Eiffel Tower lens");
-        expect(chartTitle("  Paris  ")).toBe("Paris");
-        for (const unnamed of ["Untitled Chart", " Untitled Chart ", "", "   ", null, undefined]) {
-            expect(chartTitle(unnamed)).toBeNull();
-        }
+describe("chartPrompt", () => {
+    it("reads each tool's prompt from where it keeps it", () => {
+        expect(chartPrompt({ data: {} }, { data: { prompt: "The Eiffel Tower is in" } })).toBe(
+            "The Eiffel Tower is in",
+        );
+        expect(chartPrompt({ data: {} }, { data: { srcPrompt: "Paris is in" } })).toBe(
+            "Paris is in",
+        );
+        expect(chartPrompt({ data: { sourcePrompt: "Rome is in" } }, { data: {} })).toBe(
+            "Rome is in",
+        );
+    });
+
+    it("is undefined for a chart with no prompt", () => {
+        expect(chartPrompt({ data: {} }, { data: { prompt: "" } })).toBeUndefined();
+        expect(chartPrompt(null, null)).toBeUndefined();
     });
 });
 

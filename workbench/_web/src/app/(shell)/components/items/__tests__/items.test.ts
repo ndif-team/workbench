@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import type { LibraryItem } from "@/types/workspaces";
 import { formatUpdated, recencyGroup } from "../formatUpdated";
-import { chartName, itemLabel } from "../itemLabel";
+import { chartLabel, chartName, itemLabel } from "../itemLabel";
 
 const chart = (name: string, prompt: string | null): LibraryItem => ({
     kind: "chart",
@@ -38,6 +38,14 @@ describe("itemLabel", () => {
             text: "Untitled chart",
             placeholder: true,
         });
+    });
+
+    it("labels a chart the same way outside the library (report embeds)", () => {
+        expect(chartLabel({ name: undefined, prompt: "  The Eiffel Tower is in\nParis" })).toEqual({
+            text: "The Eiffel Tower is in",
+            placeholder: false,
+        });
+        expect(chartLabel({ name: null, prompt: undefined }).placeholder).toBe(true);
     });
 
     it("treats the stored default name as no name", () => {

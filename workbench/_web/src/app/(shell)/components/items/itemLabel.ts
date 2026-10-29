@@ -19,21 +19,32 @@ export type ItemLabel = {
 };
 
 /**
- * How an item reads in lists. A chart shows its name, else the first line of
- * its prompt (most charts are never renamed), else "Untitled chart". A report
- * shows the title derived from its first line.
+ * How a chart reads wherever it is listed or embedded: its name, else the
+ * first line of its prompt (most charts are never renamed), else "Untitled
+ * chart".
  */
+export function chartLabel({
+    name,
+    prompt,
+}: {
+    name: string | null | undefined;
+    prompt: string | null | undefined;
+}): ItemLabel {
+    const own = chartName(name);
+    if (own) return { text: own, placeholder: false };
+    const firstLine = prompt?.split("\n")[0].trim();
+    if (firstLine) return { text: firstLine, placeholder: false };
+    return { text: "Untitled chart", placeholder: true };
+}
+
+/** How an item reads in lists: a chart by `chartLabel`, a report by the title derived from its first line. */
 export function itemLabel(item: LibraryItem): ItemLabel {
     if (item.kind === "report") {
         return item.title
             ? { text: item.title, placeholder: false }
             : { text: "Untitled report", placeholder: true };
     }
-    const name = chartName(item.name);
-    if (name) return { text: name, placeholder: false };
-    const prompt = item.prompt?.split("\n")[0].trim();
-    if (prompt) return { text: prompt, placeholder: false };
-    return { text: "Untitled chart", placeholder: true };
+    return chartLabel(item);
 }
 
 /** The item's tool icon (a report icon for reports). */

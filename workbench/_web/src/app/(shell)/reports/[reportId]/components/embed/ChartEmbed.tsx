@@ -21,7 +21,7 @@ import type { LogitLensRowWindow } from "nnsightful";
 import {
     chartFigure,
     chartFigureGapText,
-    chartTitle,
+    chartPrompt,
     rowWindowLabel,
 } from "@/lib/report/chartFigure";
 import { lockChart, rerunSinceLock, withView, type ChartLock } from "@/lib/report/chartLock";
@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toolMeta } from "@/app/(shell)/components/toolMeta";
+import { chartLabel } from "@/app/(shell)/components/items/itemLabel";
 import type { ChartEmbedNode } from "../nodes/ChartEmbedNode";
 import { EmbeddedChart } from "./EmbeddedChart";
 
@@ -91,8 +92,9 @@ export function ChartEmbed({
     const toolType = config?.type ?? chart?.type ?? chartType;
     const tool = toolMeta(toolType);
     const model = (config?.data as { model?: string } | undefined)?.model;
-    // Null while the chart has no name of its own (still "Untitled Chart").
-    const title = chartTitle(chart?.name);
+    // Labelled as in the sidebar; with neither a name nor a prompt, no title.
+    const label = chartLabel({ name: chart?.name, prompt: chartPrompt(chart, config) });
+    const title = label.placeholder ? null : label.text;
     const loading = chartQuery.isLoading || configQuery.isLoading;
     const failed = chartQuery.isError || configQuery.isError;
     const figure =

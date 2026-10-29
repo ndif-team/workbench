@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import {
     useScopedWorkspaceId,
@@ -15,7 +15,6 @@ import type { ActivationPatchingMode } from "nnsightful";
 import { Loader2 } from "lucide-react";
 import { ActivationPatchingWidget } from "nnsightful";
 import { useTheme } from "next-themes";
-import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { NotebookExporter } from "@/components/NotebookExporter";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
@@ -47,10 +46,6 @@ export function ActivationPatchingDisplay() {
     const capture = useCapture();
     const { resolvedTheme } = useTheme();
     const isDarkMode = resolvedTheme === "dark";
-    const [localTitle, setLocalTitle] = useState<string | null>(null); // null means use chart name
-    const [isEditingTitle, setIsEditingTitle] = useState(false);
-    const titleInputRef = useRef<HTMLInputElement>(null);
-    const saveTitleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const isPatchingRunning = useIsMutating({ mutationKey: ["activationPatching"] }) > 0;
 
@@ -72,68 +67,12 @@ export function ActivationPatchingDisplay() {
     const selectedModel = models?.[selectedModelIdx]?.name ?? models?.[0]?.name ?? null;
     const modelsAvailable = !!models && models.length > 0;
 
-    const { mutate: updateChartName } = useUpdateChartName();
     const { mutateAsync: updateConfig } = useUpdateChartConfig();
 
     const patchingChart = chart as ActivationPatchingChart | undefined;
     const patchingConfig = config as ActivationPatchingConfig | undefined;
     const hasData =
         patchingChart?.data && "lines" in patchingChart.data && patchingChart.data.lines.length > 0;
-
-    // Get the chart's saved name (treat "Untitled Chart" default as empty)
-    const rawChartName = patchingChart?.name || "";
-    const chartName = rawChartName === "Untitled Chart" ? "" : rawChartName;
-
-    // The display title: use localTitle while editing, otherwise use chart name
-    const displayTitle = localTitle !== null ? localTitle : chartName;
-    const hasTitle = displayTitle.trim().length > 0 && displayTitle.trim() !== "Untitled Chart";
-
-    // Reset local title when chart changes
-    useEffect(() => {
-        setLocalTitle(null);
-        setIsEditingTitle(false);
-    }, [chartId]);
-
-    // Save title to chart (debounced) - don't reset localTitle here to avoid flickering
-    const saveTitle = useCallback(
-        (newTitle: string) => {
-            if (!chartId) return;
-
-            if (saveTitleTimeoutRef.current) {
-                clearTimeout(saveTitleTimeoutRef.current);
-            }
-
-            saveTitleTimeoutRef.current = setTimeout(() => {
-                updateChartName({ chartId, name: newTitle });
-            }, 500);
-        },
-        [chartId, updateChartName],
-    );
-
-    // Handle title change
-    const handleTitleChange = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement>) => {
-            const newTitle = e.target.value;
-            setLocalTitle(newTitle);
-            saveTitle(newTitle);
-        },
-        [saveTitle],
-    );
-
-    // Handle title blur - keep local title to avoid flicker, it will sync on chart change
-    const handleTitleBlur = useCallback(() => {
-        setIsEditingTitle(false);
-    }, []);
-
-    // Handle title click to edit
-    const handleTitleClick = useCallback(() => {
-        setLocalTitle(displayTitle); // Start editing with current displayed title
-        setIsEditingTitle(true);
-        setTimeout(() => {
-            titleInputRef.current?.focus();
-            titleInputRef.current?.select();
-        }, 0);
-    }, [displayTitle]);
 
     // Debounced save of token selection to config
     const saveTokenTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -196,7 +135,6 @@ export function ActivationPatchingDisplay() {
     useEffect(() => {
         return () => {
             if (saveTokenTimeoutRef.current) clearTimeout(saveTokenTimeoutRef.current);
-            if (saveTitleTimeoutRef.current) clearTimeout(saveTitleTimeoutRef.current);
             if (saveModeTimeoutRef.current) clearTimeout(saveModeTimeoutRef.current);
         };
     }, []);
@@ -241,43 +179,8 @@ export function ActivationPatchingDisplay() {
 
     return (
         <div className="size-full overflow-auto flex flex-col">
-            {/* Title + export */}
-            <div className="px-4 pt-4 pb-2 flex items-center gap-2">
-                <div className="flex-1 min-w-0 flex items-center gap-2">
-                    <div className="min-w-0 flex-1">
-                        {isEditingTitle ? (
-                            <input
-                                ref={titleInputRef}
-                                type="text"
-                                value={displayTitle}
-                                onChange={handleTitleChange}
-                                onBlur={handleTitleBlur}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                        e.currentTarget.blur();
-                                    }
-                                }}
-                                placeholder="Untitled Chart"
-                                className="w-full text-lg font-semibold bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground/50"
-                            />
-                        ) : hasTitle ? (
-                            <h2
-                                onClick={handleTitleClick}
-                                className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-semibold truncate"
-                            >
-                                {displayTitle}
-                            </h2>
-                        ) : (
-                            <h2
-                                onClick={handleTitleClick}
-                                className="cursor-text hover:bg-accent/30 rounded px-1 -mx-1 py-0.5 transition-colors text-lg font-medium text-gray-400"
-                            >
-                                Untitled Chart
-                            </h2>
-                        )}
-                    </div>
-                    {stale && chartModel && <ChartModelPill modelName={chartModel} />}
-                </div>
+            <div className="flex items-center justify-end gap-2 px-4 pt-4 pb-2">
+                {stale && chartModel && <ChartModelPill modelName={chartModel} />}
                 <NotebookExporter
                     configType="activation-patching"
                     configData={(patchingConfig?.data ?? {}) as Record<string, unknown>}

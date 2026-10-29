@@ -85,14 +85,13 @@ export function rowWindowLabel(w: { start: number; end: number; total: number })
     return `rows ${w.start + 1}–${w.end + 1} of ${w.total}`;
 }
 
-/** The name charts get until they're renamed. */
-const DEFAULT_CHART_NAME = "Untitled Chart";
-
-/** A chart's name to show, or null while it has none (empty, or still the
- *  default "Untitled Chart"), the rule the chart pages use for their titles. */
-export function chartTitle(name: string | null | undefined): string | null {
-    const trimmed = name?.trim() ?? "";
-    return trimmed && trimmed !== DEFAULT_CHART_NAME ? trimmed : null;
+/** The prompt a chart was run on, which labels it until it's named: its
+ *  config's `prompt` (`srcPrompt` for activation patching), else the
+ *  `sourcePrompt` a Patch Lens chart keeps in its data. */
+export function chartPrompt(chart: Row, config: Row): string | undefined {
+    const settings = (config?.data ?? {}) as { prompt?: string; srcPrompt?: string };
+    const data = (chart?.data ?? {}) as { sourcePrompt?: string };
+    return settings.prompt || settings.srcPrompt || data.sourcePrompt || undefined;
 }
 
 /** One line on why a chart isn't drawn; `toolLabel` names its tool. */
