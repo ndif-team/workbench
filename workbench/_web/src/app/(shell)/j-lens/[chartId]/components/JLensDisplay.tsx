@@ -124,23 +124,26 @@ export function JLensDisplay() {
 
     if (!hasData) {
         return (
-            <div className="flex size-full items-center justify-center border mx-3 mt-3 border-dashed rounded pb-6">
-                <div className="text-muted-foreground text-center">
-                    {modelSupported ? (
-                        <>
-                            <p>No visualization data</p>
-                            <p className="text-sm mt-2">
-                                Enter a prompt and click &quot;Run J-Lens&quot; to visualize
-                            </p>
-                        </>
-                    ) : (
-                        <>
-                            <p>J-Lens isn&apos;t available for this model</p>
-                            <p className="text-sm mt-2">
-                                Select a model with a Jacobian lens from the header to run J-Lens.
-                            </p>
-                        </>
-                    )}
+            <div className="size-full px-3 pt-3">
+                <div className="flex size-full items-center justify-center rounded border border-dashed px-4 pb-6">
+                    <div className="text-muted-foreground text-center">
+                        {modelSupported ? (
+                            <>
+                                <p>No visualization data</p>
+                                <p className="text-sm mt-2">
+                                    Enter a prompt and click &quot;Run J-Lens&quot; to visualize
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <p>J-Lens isn&apos;t available for this model</p>
+                                <p className="text-sm mt-2">
+                                    Select a model with a Jacobian lens from the header to run
+                                    J-Lens.
+                                </p>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
         );

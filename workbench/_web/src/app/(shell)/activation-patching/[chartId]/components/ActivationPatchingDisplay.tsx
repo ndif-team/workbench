@@ -161,14 +161,16 @@ export function ActivationPatchingDisplay() {
     // Empty state
     if (!hasData) {
         return (
-            <div className="flex size-full items-center justify-center border mx-3 mt-3 border-dashed rounded pb-6">
-                <div className="text-muted-foreground text-center max-w-md">
-                    <p className="text-lg font-medium mb-2">No visualization data</p>
-                    <p className="text-sm">
-                        Enter source and target prompts, select token positions in each, then click
-                        &quot;Run Activation Patching&quot; to visualize how activations transfer
-                        between prompts across model layers.
-                    </p>
+            <div className="size-full px-3 pt-3">
+                <div className="flex size-full items-center justify-center rounded border border-dashed px-4 pb-6">
+                    <div className="text-muted-foreground text-center max-w-md">
+                        <p className="text-lg font-medium mb-2">No visualization data</p>
+                        <p className="text-sm">
+                            Enter source and target prompts, select token positions in each, then
+                            click &quot;Run Activation Patching&quot; to visualize how activations
+                            transfer between prompts across model layers.
+                        </p>
+                    </div>
                 </div>
             </div>
         );
