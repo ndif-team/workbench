@@ -16,7 +16,6 @@ import { NewItemMenu } from "../items/NewItemMenu";
 import { useShellSidebar } from "./AppShell";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { SidebarFooter } from "./SidebarFooter";
-import { SidebarRowsSkeleton } from "./SidebarRows";
 
 type SidebarVariant = "expanded" | "rail" | "drawer";
 
@@ -26,8 +25,10 @@ type SidebarVariant = "expanded" | "rail" | "drawer";
  * workshop sidebar (`ChartCardsSidebar`) instead of the global one, so
  * participants keep the workshop's tools and never get the global New chart.
  * A chart or report page's scope only reaches the shell once the page has
- * mounted, so until then the body stays a neutral placeholder rather than
- * guessing.
+ * mounted, so until then the global sidebar is `pending`: it shows its
+ * skeleton and doesn't read the library (reading it creates a default
+ * workspace, which a workshop participant should never get). `AppShell`
+ * hides it on a workshop page's first paint.
  */
 export function AppSidebar({ variant }: { variant: SidebarVariant }) {
     const scope = useWorkspaceScope();
@@ -49,14 +50,10 @@ export function AppSidebar({ variant }: { variant: SidebarVariant }) {
                 <div className="flex min-h-0 flex-1 flex-col">
                     <ChartCardsSidebar collapsed={variant === "rail"} />
                 </div>
-            ) : mode === "pending" ? (
-                <div className="flex-1 px-2">
-                    {variant !== "rail" && <SidebarRowsSkeleton rows={8} />}
-                </div>
             ) : variant === "rail" ? (
-                <LibraryRail />
+                <LibraryRail pending={mode === "pending"} />
             ) : (
-                <LibrarySidebar />
+                <LibrarySidebar pending={mode === "pending"} />
             )}
             <SidebarFooter orientation={variant === "rail" ? "column" : "row"} />
         </div>
@@ -163,9 +160,9 @@ function RailButton({
 }
 
 /** The global sidebar collapsed to a rail: New chart and the two pages. */
-function LibraryRail() {
+function LibraryRail({ pending }: { pending: boolean }) {
     const pathname = usePathname();
-    const { data: library } = useWorkspaceLibrary();
+    const { data: library } = useWorkspaceLibrary({ enabled: !pending });
     return (
         <div className="flex flex-1 flex-col items-center gap-1">
             <NewItemMenu reportWorkspaceId={library?.defaultWorkspaceId} side="right">

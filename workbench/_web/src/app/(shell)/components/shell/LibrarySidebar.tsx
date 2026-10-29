@@ -29,14 +29,16 @@ import { inFolderOrder } from "./folderOrder";
 /**
  * The global sidebar's body (expanded and in the mobile drawer): New chart,
  * the Models and Workspaces pages, the workspace folders with their items,
- * and the charts and reports that aren't in a folder, newest first.
+ * and the charts and reports that aren't in a folder, newest first. While
+ * `pending` (the page's workspace isn't known yet) it doesn't read the
+ * library and shows the list's skeleton.
  */
-export function LibrarySidebar() {
+export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const pathname = usePathname();
     const params = useParams<{ chartId?: string; reportId?: string; workspaceId?: string }>();
     const activeItemId = params.chartId ?? params.reportId ?? null;
 
-    const { data: library, isLoading, isError } = useWorkspaceLibrary();
+    const { data: library, isLoading, isError } = useWorkspaceLibrary({ enabled: !pending });
     const expanded = useSidebarFolders((s) => s.expanded);
     const toggleFolder = useSidebarFolders((s) => s.toggle);
     const expandFolder = useSidebarFolders((s) => s.expand);
@@ -126,7 +128,7 @@ export function LibrarySidebar() {
                 aria-label="Charts and workspaces"
                 className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto border-t px-2 pb-3 pt-3"
             >
-                {isLoading ? (
+                {isLoading || pending ? (
                     <>
                         <section>
                             <SidebarSectionHeader title="Workspaces" />

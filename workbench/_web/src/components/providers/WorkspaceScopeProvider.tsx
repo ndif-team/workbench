@@ -46,7 +46,12 @@ export function WorkspaceScopeHost({ children }: { children: ReactNode }) {
     return <HostContext.Provider value={value}>{children}</HostContext.Provider>;
 }
 
-/** Provides an item route's workspace scope; rendered by the route's server layout. */
+/**
+ * Provides an item route's workspace scope; rendered by the route's server
+ * layout. A workshop scope also renders a `data-workshop-scope` marker, so
+ * the shell can style its first, server-rendered paint for a workshop page
+ * (with CSS `:has()`) before this scope reaches it.
+ */
 export function WorkspaceScopeProvider({
     scope,
     children,
@@ -66,7 +71,12 @@ export function WorkspaceScopeProvider({
         return () => setHostScope?.(null);
     }, [setHostScope, value]);
 
-    return <ScopeContext.Provider value={value}>{children}</ScopeContext.Provider>;
+    return (
+        <ScopeContext.Provider value={value}>
+            {workshopId && <span hidden data-workshop-scope="" />}
+            {children}
+        </ScopeContext.Provider>
+    );
 }
 
 /**

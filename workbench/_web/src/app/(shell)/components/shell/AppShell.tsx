@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+    type ReactNode,
+} from "react";
 import { usePathname } from "next/navigation";
 
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
@@ -34,6 +42,11 @@ export function useShellSidebar(): ShellSidebarState {
  * (`sidebarCookie.ts`).
  * A workshop workspace gets its focused sidebar instead, which starts as the
  * rail every time a workshop is entered and doesn't touch the preference.
+ *
+ * The page's scope reaches the shell only once the page has mounted, so the
+ * server-rendered paint of a workshop page can't know it yet; there, CSS
+ * keys off the scope provider's `data-workshop-scope` marker to start at the
+ * rail's width with the sidebar blank, instead of flashing the global one.
  */
 export function AppShell({
     defaultCollapsed,
@@ -48,6 +61,8 @@ export function AppShell({
     const [workshopExpandedIn, setWorkshopExpandedIn] = useState<string | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [drawerPath, setDrawerPath] = useState(pathname);
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
 
     // Navigating from inside the drawer closes it.
     if (drawerPath !== pathname) {
@@ -83,15 +98,23 @@ export function AppShell({
 
     return (
         <ShellSidebarContext.Provider value={value}>
-            <div className="flex h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
+            <div className="group/shell flex h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
                 <aside
                     aria-label="Sidebar"
                     className={cn(
                         "hidden shrink-0 md:flex md:flex-col",
                         effectiveCollapsed ? "w-12" : "w-64",
+                        !mounted && "group-has-[[data-workshop-scope]]/shell:w-12",
                     )}
                 >
-                    <AppSidebar variant={effectiveCollapsed ? "rail" : "expanded"} />
+                    <div
+                        className={cn(
+                            "flex h-full min-h-0 flex-col",
+                            !mounted && "group-has-[[data-workshop-scope]]/shell:invisible",
+                        )}
+                    >
+                        <AppSidebar variant={effectiveCollapsed ? "rail" : "expanded"} />
+                    </div>
                 </aside>
                 <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
                     <SheetContent className="md:hidden">
