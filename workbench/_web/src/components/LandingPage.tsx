@@ -202,7 +202,7 @@ function ModelTriggerPopover({
                     footer={
                         moreCount > 0 ? (
                             <Link
-                                href={loggedIn ? "/models?models=open" : "/login"}
+                                href={loggedIn ? "/models" : "/login"}
                                 className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors group"
                             >
                                 <span>

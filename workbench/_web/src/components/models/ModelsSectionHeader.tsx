@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
-import { AlertTriangle, ChevronDown, Loader2, Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,21 +14,12 @@ import {
     type ModelHeat,
     type ModelGroup,
 } from "@/components/model-selector/status";
-import type { ModelCardModel } from "./ModelCard";
 
 const GROUPS: ReadonlyArray<ModelGroup> = ["base", "chat"];
 
-interface GroupPreview {
-    total: number;
-    preview: ModelCardModel[];
-}
-
 interface ModelsSectionHeaderProps {
-    collapsed: boolean;
-    onToggle: () => void;
     total: number;
     filteredTotal: number;
-    groupPreviews: { base: GroupPreview; chat: GroupPreview };
     hasError: boolean;
     isLoading: boolean;
 
@@ -47,11 +38,8 @@ interface ModelsSectionHeaderProps {
 }
 
 export function ModelsSectionHeader({
-    collapsed,
-    onToggle,
     total,
     filteredTotal,
-    groupPreviews,
     hasError,
     isLoading,
     query,
@@ -68,7 +56,6 @@ export function ModelsSectionHeader({
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (collapsed) return;
             const target = e.target as HTMLElement | null;
             const inField =
                 target?.tagName === "INPUT" ||
@@ -84,155 +71,89 @@ export function ModelsSectionHeader({
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [collapsed, onQuery]);
+    }, [onQuery]);
 
     return (
-        <div className={cn("flex flex-col", collapsed ? "gap-6" : "gap-4")}>
-            <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-baseline gap-3 mr-auto">
-                    <h2 className="text-lg">Models</h2>
-                    {!hasError && !isLoading && (
-                        <span className="text-sm text-muted-foreground tabular-nums">
-                            {filtered ? `${filteredTotal} of ${total}` : total}
-                        </span>
-                    )}
-                    <a
-                        href="https://ndif.us"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        title="Models are served through NDIF — visit ndif.us"
-                        className="group inline-flex items-center gap-1.5 self-center text-xs text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                        <span>served by</span>
-                        <img
-                            src="/images/NDIF.png"
-                            alt="NDIF"
-                            className="h-6 w-auto opacity-80 transition-opacity group-hover:opacity-100"
-                        />
-                    </a>
-                </div>
-
-                {collapsed && isLoading && (
-                    <span
-                        role="status"
-                        aria-label="Loading models"
-                        className={cn(
-                            "inline-flex items-center gap-1.5 shrink-0",
-                            "h-6 px-2 rounded-sm",
-                            "text-xs font-semibold uppercase tracking-wide",
-                            "text-primary",
-                            "bg-primary/[0.10] dark:bg-primary/[0.18]",
-                            "ring-1 ring-inset ring-primary/30",
-                        )}
-                    >
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        loading
+        <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-baseline gap-3 mr-auto">
+                {!hasError && !isLoading && (
+                    <span className="text-sm text-muted-foreground tabular-nums">
+                        {filtered ? `${filteredTotal} of ${total} models` : `${total} models`}
                     </span>
                 )}
-
-                {collapsed && hasError && (
-                    <span
-                        role="status"
-                        aria-label="Models unavailable"
-                        className={cn(
-                            "inline-flex items-center gap-1.5 shrink-0",
-                            "h-6 px-2 rounded-sm",
-                            "text-xs font-semibold uppercase tracking-wide",
-                            "text-red-700 dark:text-red-400",
-                            "bg-red-500/[0.12] dark:bg-red-500/[0.18]",
-                            "ring-1 ring-inset ring-red-500/30",
-                        )}
-                    >
-                        <AlertTriangle className="w-3 h-3" />
-                        unavailable
-                    </span>
-                )}
-
-                {!collapsed && (
-                    <>
-                        {/* Desktop: filters inline. */}
-                        <div className="hidden gap-3 md:flex md:flex-wrap md:items-center">
-                            <FilterControls
-                                searchRef={searchRef}
-                                query={query}
-                                onQuery={onQuery}
-                                groupFilters={groupFilters}
-                                onToggleGroup={onToggleGroup}
-                                statusFilters={statusFilters}
-                                onToggleStatus={onToggleStatus}
-                            />
-                        </div>
-
-                        {/* Mobile: collapse filters behind a button + popover so
-                            they don't consume rows of vertical space. */}
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    className={cn(
-                                        "relative h-7 w-7 md:hidden",
-                                        activeFilterCount > 0 && "border-primary/40 text-primary",
-                                    )}
-                                    aria-label={
-                                        activeFilterCount > 0
-                                            ? `Filters (${activeFilterCount} active)`
-                                            : "Filters"
-                                    }
-                                >
-                                    <SlidersHorizontal className="h-3.5 w-3.5" />
-                                    {activeFilterCount > 0 && (
-                                        <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold leading-none text-primary-foreground tabular-nums">
-                                            {activeFilterCount}
-                                        </span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                                align="end"
-                                className="flex w-auto max-w-[calc(100vw-2rem)] flex-col gap-3 p-3"
-                            >
-                                <FilterControls
-                                    query={query}
-                                    onQuery={onQuery}
-                                    groupFilters={groupFilters}
-                                    onToggleGroup={onToggleGroup}
-                                    statusFilters={statusFilters}
-                                    onToggleStatus={onToggleStatus}
-                                />
-                            </PopoverContent>
-                        </Popover>
-
-                        {/* Desktop only — on mobile the carousel is scrolled by
-                            touch, so the paging controls are redundant. */}
-                        <div className="hidden md:flex">{scrollControls}</div>
-                    </>
-                )}
-
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onToggle();
-                    }}
-                    aria-expanded={!collapsed}
-                    aria-label={collapsed ? "Expand models" : "Collapse models"}
+                <a
+                    href="https://ndif.us"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Models are served through NDIF — visit ndif.us"
+                    className="group inline-flex items-center gap-1.5 self-center text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
-                    <ChevronDown
-                        className={cn(
-                            "h-4 w-4 transition-transform duration-200",
-                            !collapsed && "rotate-180",
-                        )}
+                    <span>served by</span>
+                    <img
+                        src="/images/NDIF.png"
+                        alt="NDIF"
+                        className="h-6 w-auto opacity-80 transition-opacity group-hover:opacity-100"
                     />
-                </Button>
+                </a>
             </div>
 
-            {collapsed && total > 0 && <CollapsedGroupTiles groupPreviews={groupPreviews} />}
+            {/* Desktop: filters inline. */}
+            <div className="hidden gap-3 md:flex md:flex-wrap md:items-center">
+                <FilterControls
+                    searchRef={searchRef}
+                    query={query}
+                    onQuery={onQuery}
+                    groupFilters={groupFilters}
+                    onToggleGroup={onToggleGroup}
+                    statusFilters={statusFilters}
+                    onToggleStatus={onToggleStatus}
+                />
+            </div>
+
+            {/* Mobile: collapse filters behind a button + popover so they don't
+                consume rows of vertical space. */}
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className={cn(
+                            "relative h-7 w-7 md:hidden",
+                            activeFilterCount > 0 && "border-primary/40 text-primary",
+                        )}
+                        aria-label={
+                            activeFilterCount > 0
+                                ? `Filters (${activeFilterCount} active)`
+                                : "Filters"
+                        }
+                    >
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        {activeFilterCount > 0 && (
+                            <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold leading-none text-primary-foreground tabular-nums">
+                                {activeFilterCount}
+                            </span>
+                        )}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                    align="end"
+                    className="flex w-auto max-w-[calc(100vw-2rem)] flex-col gap-3 p-3"
+                >
+                    <FilterControls
+                        query={query}
+                        onQuery={onQuery}
+                        groupFilters={groupFilters}
+                        onToggleGroup={onToggleGroup}
+                        statusFilters={statusFilters}
+                        onToggleStatus={onToggleStatus}
+                    />
+                </PopoverContent>
+            </Popover>
+
+            {/* Desktop only — on mobile the carousel is scrolled by touch, so
+                the paging controls are redundant. */}
+            <div className="hidden md:flex">{scrollControls}</div>
         </div>
     );
 }
@@ -314,83 +235,6 @@ function FilterControls({
                 </SegmentedGroup>
             </div>
         </>
-    );
-}
-
-function CollapsedGroupTiles({
-    groupPreviews,
-}: {
-    groupPreviews: { base: GroupPreview; chat: GroupPreview };
-}) {
-    const visibleGroups = GROUPS.filter((g) => groupPreviews[g].total > 0);
-    const isDark = useIsDark();
-    if (visibleGroups.length === 0) return null;
-
-    return (
-        <div
-            className={cn(
-                "grid gap-3",
-                visibleGroups.length === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1",
-            )}
-        >
-            {visibleGroups.map((g) => {
-                const { total, preview } = groupPreviews[g];
-                const groupColor = GROUP_COLOR[g];
-                const remaining = total - preview.length;
-                const pillStyle = isDark
-                    ? {
-                          color: `color-mix(in oklab, ${groupColor} 75%, white)`,
-                          background: `color-mix(in oklab, ${groupColor} 22%, transparent)`,
-                      }
-                    : {
-                          color: groupColor,
-                          background: `color-mix(in oklab, ${groupColor} 14%, transparent)`,
-                      };
-                return (
-                    <div
-                        key={g}
-                        className="flex flex-col gap-2.5 p-3 rounded-lg border bg-card/40"
-                        style={{
-                            borderColor: `color-mix(in oklab, ${groupColor} 30%, transparent)`,
-                        }}
-                    >
-                        <div className="flex items-center gap-2.5">
-                            <span
-                                className="inline-flex items-center h-7 px-3 rounded-md text-sm font-medium"
-                                style={pillStyle}
-                            >
-                                {g}
-                            </span>
-                            <span className="text-sm text-muted-foreground tabular-nums">
-                                {total} model{total === 1 ? "" : "s"}
-                            </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                            {preview.map((m) => (
-                                <span
-                                    key={`${m.org}/${m.name}`}
-                                    title={`${m.org}/${m.name} — ${m.heat}`}
-                                    className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md border bg-card/70 font-mono text-xs"
-                                >
-                                    <span
-                                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                                        style={{
-                                            background: MODEL_STATUS[m.heat].color,
-                                        }}
-                                    />
-                                    <span className="truncate max-w-[180px]">{m.name}</span>
-                                </span>
-                            ))}
-                            {remaining > 0 && (
-                                <span className="inline-flex items-center h-6 px-1 text-xs text-muted-foreground">
-                                    +{remaining} more →
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
     );
 }
 

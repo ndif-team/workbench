@@ -17,7 +17,7 @@ export default async function WorkbenchPage({
     searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
     const params = await searchParams;
-    if (params.models === "open") redirect("/models?models=open");
+    if (params.models === "open") redirect("/models");
 
     const launch = chartLaunchFromSearchParams(params);
     if (Object.keys(launch).length > 0 || params.createNew !== undefined) {

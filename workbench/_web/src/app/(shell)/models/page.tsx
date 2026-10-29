@@ -1,12 +1,11 @@
-import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { ModelsSection } from "@/components/models/ModelsSection";
 import { hasWorkshopClaim } from "@/lib/workshop";
-import { ModelsSectionStateController } from "./components/ModelsSectionStateController";
+import { ModelsPageHeader } from "./components/ModelsPageHeader";
 
 export const dynamic = "force-dynamic";
 
-/** Models page. Temporary: the models grid as it was on the old workspace list. */
+/** The models the backend serves, with filters; a card opens a chart with that model. */
 export default async function ModelsPage() {
     const supabase = await createClient();
     const {
@@ -22,11 +21,11 @@ export default async function ModelsPage() {
         hasWorkshopClaim(user);
 
     return (
-        <div className="size-full overflow-auto px-3 md:px-6 pb-6">
-            <Suspense fallback={null}>
-                <ModelsSectionStateController />
-            </Suspense>
-            <ModelsSection isSignedIn={isSignedIn} />
+        <div className="flex size-full min-h-0 flex-col">
+            <ModelsPageHeader />
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-6">
+                <ModelsSection isSignedIn={isSignedIn} />
+            </div>
         </div>
     );
 }
