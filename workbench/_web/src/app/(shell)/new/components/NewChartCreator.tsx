@@ -16,10 +16,14 @@ import { PageHeader } from "../../components/shell/PageHeader";
  * chart's page. A launch still waiting on sign-in takes precedence over the
  * URL's own request (see `PendingRequestHandler`). Remount it (via `key`) for
  * a different request.
+ *
+ * It follows the mutation's promise rather than per-call `mutate` callbacks:
+ * those are dropped when the observer unsubscribes, which strict mode's
+ * mount-unmount-mount does right after the effect has started the request.
  */
 export function NewChartCreator({ request }: { request: ChartLaunchRequest }) {
     const router = useRouter();
-    const { mutate: createChart } = useCreateChartFromLaunch();
+    const { mutateAsync: createChart } = useCreateChartFromLaunch();
     const [failed, setFailed] = useState(false);
     const [attempt, setAttempt] = useState(0);
     // Guards against the effect re-running for the same attempt (strict mode).
@@ -36,13 +40,13 @@ export function NewChartCreator({ request }: { request: ChartLaunchRequest }) {
         }
 
         setFailed(false);
-        createChart(request, {
-            onSuccess: ({ chartId, toolType }) => router.replace(toolChartPath(chartId, toolType)),
-            onError: (err) => {
+        createChart(request).then(
+            ({ chartId, toolType }) => router.replace(toolChartPath(chartId, toolType)),
+            (err) => {
                 console.error("Failed to create chart:", err);
                 setFailed(true);
             },
-        });
+        );
     }, [attempt, request, router, createChart]);
 
     return (
