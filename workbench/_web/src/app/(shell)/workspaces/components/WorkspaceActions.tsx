@@ -50,8 +50,9 @@ export function WorkspaceActionsMenu({
     variant?: "row" | "header";
 }) {
     const [confirming, setConfirming] = useState(false);
-    // Rename and Delete… move focus elsewhere; don't pull it back to the trigger.
-    const keepFocusRef = useRef(false);
+    // Rename and Delete… move focus elsewhere, so they run once the menu has
+    // closed, in place of its return to the trigger.
+    const afterCloseRef = useRef<(() => void) | null>(null);
 
     return (
         <>
@@ -75,14 +76,16 @@ export function WorkspaceActionsMenu({
                     align="end"
                     className="w-44"
                     onCloseAutoFocus={(e) => {
-                        if (keepFocusRef.current) e.preventDefault();
-                        keepFocusRef.current = false;
+                        const action = afterCloseRef.current;
+                        if (!action) return;
+                        afterCloseRef.current = null;
+                        e.preventDefault();
+                        action();
                     }}
                 >
                     <DropdownMenuItem
                         onSelect={() => {
-                            keepFocusRef.current = true;
-                            onRename();
+                            afterCloseRef.current = onRename;
                         }}
                     >
                         <Pencil />
@@ -91,8 +94,7 @@ export function WorkspaceActionsMenu({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                         onSelect={() => {
-                            keepFocusRef.current = true;
-                            setConfirming(true);
+                            afterCloseRef.current = () => setConfirming(true);
                         }}
                         className="text-destructive focus:text-destructive [&>svg]:text-destructive"
                     >

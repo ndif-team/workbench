@@ -68,9 +68,9 @@ export function ItemActionsMenu({
     const router = useRouter();
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [creatingWorkspace, setCreatingWorkspace] = useState(false);
-    // Rename, Delete… and New workspace… move focus elsewhere; the menu must
-    // not pull it back to its trigger as it closes.
-    const keepFocusRef = useRef(false);
+    // Rename, Delete… and New workspace… move focus elsewhere, so they run
+    // once the menu has closed, in place of its return to the trigger.
+    const afterCloseRef = useRef<(() => void) | null>(null);
 
     const moveChart = useMoveChart();
     const moveReport = useMoveReport();
@@ -130,9 +130,8 @@ export function ItemActionsMenu({
 
     const isDeleting = deleteChart.isPending || deleteReport.isPending;
 
-    const withFocusHandoff = (action: () => void) => () => {
-        keepFocusRef.current = true;
-        action();
+    const afterClose = (action: () => void) => () => {
+        afterCloseRef.current = action;
     };
 
     return (
@@ -148,7 +147,7 @@ export function ItemActionsMenu({
                                 aria-label={`${noun === "chart" ? "Chart" : "Report"} actions`}
                                 className={cn(
                                     variant === "row"
-                                        ? "size-6 rounded-sm text-muted-foreground/40 hover:text-foreground focus-visible:text-foreground data-[state=open]:text-foreground"
+                                        ? "size-6 text-muted-foreground/40 group-data-[variant=drawer]/sidebar:size-8 hover:text-foreground focus-visible:text-foreground data-[state=open]:text-foreground"
                                         : "text-muted-foreground hover:text-foreground data-[state=open]:bg-accent",
                                 )}
                             >
@@ -163,12 +162,15 @@ export function ItemActionsMenu({
                         align={align}
                         className="w-52"
                         onCloseAutoFocus={(e) => {
-                            if (keepFocusRef.current) e.preventDefault();
-                            keepFocusRef.current = false;
+                            const action = afterCloseRef.current;
+                            if (!action) return;
+                            afterCloseRef.current = null;
+                            e.preventDefault();
+                            action();
                         }}
                     >
                         {item.kind === "chart" && onRename && (
-                            <DropdownMenuItem onSelect={withFocusHandoff(onRename)}>
+                            <DropdownMenuItem onSelect={afterClose(onRename)}>
                                 <Pencil />
                                 Rename
                             </DropdownMenuItem>
@@ -195,7 +197,7 @@ export function ItemActionsMenu({
                                 ))}
                                 {moveTargets.length > 0 && <DropdownMenuSeparator />}
                                 <DropdownMenuItem
-                                    onSelect={withFocusHandoff(() => setCreatingWorkspace(true))}
+                                    onSelect={afterClose(() => setCreatingWorkspace(true))}
                                 >
                                     <FolderPlus />
                                     New workspace…
@@ -210,7 +212,7 @@ export function ItemActionsMenu({
                         )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                            onSelect={withFocusHandoff(() => setConfirmingDelete(true))}
+                            onSelect={afterClose(() => setConfirmingDelete(true))}
                             className="text-destructive focus:text-destructive [&>svg]:text-destructive"
                         >
                             <Trash2 />
