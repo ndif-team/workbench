@@ -28,7 +28,7 @@ import { useTutorialDock } from "./tutorial/TutorialDock";
 import { getModels } from "@/lib/api/modelsApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { useWorkspaceTutorial } from "@/lib/api/tutorialContentApi";
-import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
+import { getUserWorkspace } from "@/lib/queries/workspaceQueries";
 import { withProlificPid } from "@/lib/prolific";
 import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
@@ -247,7 +247,7 @@ export default function PatchLensArea({
     // this is usually a hit rather than a fresh fetch.
     const { data: workspace } = useQuery({
         queryKey: queryKeys.workspaces.workspace(workspaceId as string),
-        queryFn: () => getWorkspaceById(workspaceId as string),
+        queryFn: () => getUserWorkspace(workspaceId as string),
         enabled: !!workspaceId,
     });
     const surveyUrl = withProlificPid(workshop?.surveyUrl, workspace?.prolific?.prolificPid);

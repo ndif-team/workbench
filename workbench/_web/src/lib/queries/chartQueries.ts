@@ -13,8 +13,8 @@ import {
     touchWorkspace,
     getNextWorkspaceItemPosition,
     getOrCreateDefaultWorkspace,
+    getWorkspaceById,
 } from "@/lib/queries/workspaceDb";
-import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { requireUserId } from "@/lib/auth/user";
 import { planChartLaunch, type ChartLaunchRequest } from "@/lib/chartLaunch";
 // From workshopDb (not workshopQueries) — workshopQueries imports the chart

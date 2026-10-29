@@ -2,10 +2,12 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
+import {
+    useScopedWorkspaceId,
+    useWorkspaceScope,
+} from "@/components/providers/WorkspaceScopeProvider";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
-import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { useCapture } from "@/lib/analytics";
 import { ActivationPatchingData, ActivationPatchingConfigData } from "@/types/activationPatching";
@@ -41,6 +43,7 @@ interface ActivationPatchingConfig {
 export function ActivationPatchingDisplay() {
     const { chartId } = useParams<{ chartId: string }>();
     const workspaceId = useScopedWorkspaceId();
+    const workspaceName = useWorkspaceScope()?.name;
     const capture = useCapture();
     const { resolvedTheme } = useTheme();
     const isDarkMode = resolvedTheme === "dark";
@@ -61,12 +64,6 @@ export function ActivationPatchingDisplay() {
         queryKey: queryKeys.charts.configByChart(chartId),
         queryFn: () => getConfigForChart(chartId),
         enabled: !!chartId,
-    });
-
-    const { data: workspace } = useQuery({
-        queryKey: queryKeys.workspaces.workspace(workspaceId),
-        queryFn: () => getWorkspaceById(workspaceId),
-        enabled: !!workspaceId,
     });
 
     const { data: models } = useModelsQuery();
@@ -286,7 +283,7 @@ export function ActivationPatchingDisplay() {
                     configData={(patchingConfig?.data ?? {}) as Record<string, unknown>}
                     chartData={(patchingChart?.data ?? null) as Record<string, unknown> | null}
                     chartName={patchingChart?.name ?? undefined}
-                    workspaceName={workspace?.name ?? undefined}
+                    workspaceName={workspaceName}
                     darkMode={isDarkMode}
                 />
             </div>

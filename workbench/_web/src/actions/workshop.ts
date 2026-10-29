@@ -7,7 +7,7 @@ import {
     getWorkshopWorkspaceForUser,
     seedWorkshopChart,
 } from "@/lib/queries/workshopQueries";
-import { createWorkspace, setWorkspaceProlificIfEmpty } from "@/lib/queries/workspaceQueries";
+import { createWorkspace, setWorkspaceProlificIfEmpty } from "@/lib/queries/workspaceDb";
 import { isUniqueViolation } from "@/lib/queries/workshopDb";
 import { isWorkshopExpired } from "@/lib/workshop";
 import { openWorkspacePath, toolChartPath } from "@/lib/chartRoutes";

@@ -22,7 +22,7 @@ import {
 } from "@/lib/queries/tutorialEventsDb";
 import { getTutorialNotesForWorkspace } from "@/lib/queries/tutorialEventsQueries";
 import { createWorkshop } from "@/lib/queries/workshopDb";
-import { createWorkspace } from "@/lib/queries/workspaceQueries";
+import { createWorkspace } from "@/lib/queries/workspaceDb";
 import type { WorkshopTool } from "@/db/schema";
 
 const workshopInput = (overrides = {}) => ({

@@ -13,7 +13,7 @@ import {
     createWorkspace,
     getWorkspaceById,
     setWorkspaceProlificIfEmpty,
-} from "@/lib/queries/workspaceQueries";
+} from "@/lib/queries/workspaceDb";
 
 const USER = "anon-user-1";
 

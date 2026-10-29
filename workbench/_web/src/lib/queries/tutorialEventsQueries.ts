@@ -40,8 +40,7 @@ export async function recordTutorialEvent(input: RecordTutorialEventInput): Prom
  * owning the workspace, and the client already holds that workspace id via the
  * route. Participants are anonymous workspace owners rather than admins, and in
  * workshop mode there is no session to check the id against. Precedent for
- * unguarded reads keyed exactly this way: resolveTutorialForWorkspace and
- * getWorkspaceById.
+ * unguarded reads keyed exactly this way: resolveTutorialForWorkspace.
  *
  * Residual exposure, stated plainly: anyone holding a workspace's uuid can read
  * that participant's free text. Accepted because the id is unguessable and

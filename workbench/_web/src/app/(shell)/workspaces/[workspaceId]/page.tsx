@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { requireUserId } from "@/lib/auth/user";
-import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
+import { getWorkspaceById } from "@/lib/queries/workspaceDb";
 import { WorkspaceFolder } from "./components/WorkspaceFolder";
 
 /**

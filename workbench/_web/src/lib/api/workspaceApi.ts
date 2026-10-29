@@ -9,12 +9,11 @@ import {
     moveReport,
     renameUserWorkspace,
     reorderWorkspaceItems,
-    type WorkspaceItemKind,
 } from "@/lib/queries/workspaceQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
-import type { WorkspaceLibrary } from "@/types/workspaces";
+import type { WorkspaceItemKind, WorkspaceLibrary } from "@/types/workspaces";
 
 /**
  * The signed-in user's workspaces with their charts and reports (global

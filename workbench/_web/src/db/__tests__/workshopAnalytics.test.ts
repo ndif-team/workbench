@@ -17,7 +17,7 @@ import {
 } from "@/lib/queries/workshopAnalyticsDb";
 import { tutorialCompletionPct } from "@/lib/workshopCompletion";
 import { createWorkshop } from "@/lib/queries/workshopDb";
-import { createWorkspace } from "@/lib/queries/workspaceQueries";
+import { createWorkspace } from "@/lib/queries/workspaceDb";
 import { createLensRun } from "@/lib/queries/lensRunQueries";
 import { insertTutorialEvent } from "@/lib/queries/tutorialEventsDb";
 import type { WorkshopTool } from "@/db/schema";

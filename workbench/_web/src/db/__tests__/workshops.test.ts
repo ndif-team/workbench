@@ -23,7 +23,7 @@ import {
     updateWorkshop,
     deleteWorkshop,
 } from "@/lib/queries/workshopDb";
-import { createWorkspace, getWorkspaceById } from "@/lib/queries/workspaceQueries";
+import { createWorkspace, getWorkspaceById } from "@/lib/queries/workspaceDb";
 import { createLogitLensChartPair, createPatchLensChartPair } from "@/lib/queries/chartQueries";
 import type { WorkshopTool } from "@/db/schema";
 

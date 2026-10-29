@@ -19,9 +19,9 @@ import {
     createWorkspace,
     getWorkspaces,
     getWorkspaceById,
-    updateWorkspace,
+    renameWorkspace,
     deleteWorkspace,
-} from "@/lib/queries/workspaceQueries";
+} from "@/lib/queries/workspaceDb";
 
 import {
     createLogitLensChartPair,
@@ -163,25 +163,20 @@ describe("Workspace Queries", () => {
         expect(foundWs2?.documentCount).toBe(1);
     });
 
-    it("should update a workspace", async () => {
+    it("should rename a workspace", async () => {
         const workspace = await createWorkspace(TEST_USER_ID, "Original Name");
 
-        const updated = await updateWorkspace(
-            workspace.id,
-            { name: "Updated Name", public: true },
-            TEST_USER_ID,
-        );
+        const updated = await renameWorkspace(TEST_USER_ID, workspace.id, "Updated Name");
 
         expect(updated.name).toBe("Updated Name");
-        expect(updated.public).toBe(true);
     });
 
-    it("should not update workspace for wrong user", async () => {
+    it("should not rename workspace for wrong user", async () => {
         const workspace = await createWorkspace(TEST_USER_ID, "My Workspace");
 
-        await expect(
-            updateWorkspace(workspace.id, { name: "Hacked" }, "wrong-user"),
-        ).rejects.toThrow("Workspace not found or access denied");
+        await expect(renameWorkspace("wrong-user", workspace.id, "Hacked")).rejects.toThrow(
+            "Workspace not found or access denied",
+        );
     });
 
     it("should delete a workspace", async () => {

@@ -4,7 +4,7 @@ import { Layers } from "lucide-react";
 
 import { PillPopover, type PillPopoverOption } from "@/components/ui/pill-popover";
 import { cn } from "@/lib/utils";
-import type { getWorkspaces } from "@/lib/queries/workspaceQueries";
+import type { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
 
 /**
  * Tool + workspace pickers used to launch a chart. Shared between the landing
@@ -14,7 +14,7 @@ import type { getWorkspaces } from "@/lib/queries/workspaceQueries";
  * route.
  */
 
-type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number];
+type WorkspaceListItem = Awaited<ReturnType<typeof getUserWorkspaces>>[number];
 
 /** "New" badge marking a recently added tool in the picker. */
 const NewBadge = () => (

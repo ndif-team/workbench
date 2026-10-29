@@ -14,7 +14,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useModelsQuery } from "@/lib/api/modelsApi";
-import { getWorkspaces } from "@/lib/queries/workspaceQueries";
+import { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
 import { newChartPath } from "@/lib/chartRoutes";
 import { Select, SelectTrigger } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -269,7 +269,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
 
     const { data: workspacesList } = useQuery({
         queryKey: ["workspaces", currentUser?.id],
-        queryFn: () => getWorkspaces(currentUser!.id),
+        queryFn: () => getUserWorkspaces(),
         enabled: !!isSignedInUser,
     });
 

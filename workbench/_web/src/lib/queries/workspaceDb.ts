@@ -4,12 +4,14 @@ import type { SerializedEditorState } from "lexical";
 import { db } from "@/db/client";
 import { chartConfigLinks, charts, configs, documents, lensRuns, workspaces } from "@/db/schema";
 import type { Workspace } from "@/db/schema";
+import type { ProlificParams } from "@/lib/prolific";
 import { isUniqueViolation } from "@/lib/queries/workshopDb";
 import { deriveReportTitle } from "@/lib/reportTitle";
 import { LEGACY_TOOL_ALIASES, normalizeToolType, toolTypes, type ToolType } from "@/types/charts";
 import type {
     LibraryItem,
     LibraryWorkspace,
+    WorkspaceItemKind,
     WorkspaceLibrary,
     WorkspaceScope,
 } from "@/types/workspaces";
@@ -26,6 +28,139 @@ export const DEFAULT_WORKSPACE_NAME = "Default workspace";
 
 /** The name the old first-visit flow gave the workspace it auto-created. */
 const LEGACY_DEFAULT_WORKSPACE_NAME = "Default Workspace";
+
+export const getWorkspaceById = async (workspaceId: string): Promise<Workspace | null> => {
+    const [workspace] = await db
+        .select()
+        .from(workspaces)
+        .where(eq(workspaces.id, workspaceId))
+        .limit(1);
+    return (workspace ?? null) as Workspace | null;
+};
+
+/**
+ * Creates a workspace for a user: a folder, or, with `workshopId`, a workshop
+ * participant's workspace (the join action).
+ */
+export const createWorkspace = async (
+    userId: string,
+    name: string,
+    workshopId?: string,
+    prolific?: ProlificParams | null,
+): Promise<Workspace> => {
+    const [workspace] = await db
+        .insert(workspaces)
+        .values({
+            userId,
+            name,
+            workshopId: workshopId ?? null,
+            prolific: prolific ?? null,
+        })
+        .returning();
+    return workspace as Workspace;
+};
+
+/**
+ * Backfills Prolific identifiers onto an existing workspace, but only if none
+ * were captured before: first-touch wins, so a re-join carrying a fresh
+ * Prolific session doesn't clobber the original attribution.
+ */
+export const setWorkspaceProlificIfEmpty = async (
+    workspaceId: string,
+    prolific: ProlificParams,
+) => {
+    await db
+        .update(workspaces)
+        .set({ prolific })
+        .where(and(eq(workspaces.id, workspaceId), isNull(workspaces.prolific)));
+};
+
+/** The user's workspaces (folders) with item counts. Excludes the default workspace. */
+export const getWorkspaces = async (userId: string) => {
+    const workspaceList = await db
+        .select({
+            id: workspaces.id,
+            userId: workspaces.userId,
+            name: workspaces.name,
+            public: workspaces.public,
+            updatedAt: workspaces.updatedAt,
+            chartCount: sql<number>`cast(count(distinct ${charts.id}) as integer)`,
+            documentCount: sql<number>`cast(count(distinct ${documents.id}) as integer)`,
+        })
+        .from(workspaces)
+        .leftJoin(charts, eq(workspaces.id, charts.workspaceId))
+        .leftJoin(documents, eq(workspaces.id, documents.workspaceId))
+        .where(and(eq(workspaces.userId, userId), eq(workspaces.isDefault, false)))
+        .groupBy(workspaces.id)
+        .orderBy(desc(workspaces.updatedAt));
+
+    return workspaceList;
+};
+
+/** Renames one of the user's workspaces. The default workspace is never renamed. */
+export const renameWorkspace = async (
+    userId: string,
+    workspaceId: string,
+    name: string,
+): Promise<Workspace> => {
+    const [renamed] = await db
+        .update(workspaces)
+        .set({ name })
+        .where(
+            and(
+                eq(workspaces.id, workspaceId),
+                eq(workspaces.userId, userId),
+                eq(workspaces.isDefault, false),
+            ),
+        )
+        .returning();
+    if (!renamed) throw new Error("Workspace not found or access denied");
+    return renamed as Workspace;
+};
+
+/** Deletes one of the user's workspaces and, by cascade, its contents. The default workspace is never deleted. */
+export const deleteWorkspace = async (userId: string, workspaceId: string): Promise<void> => {
+    await db
+        .delete(workspaces)
+        .where(
+            and(
+                eq(workspaces.id, workspaceId),
+                eq(workspaces.userId, userId),
+                eq(workspaces.isDefault, false),
+            ),
+        );
+};
+
+/**
+ * Saves the order of one of the user's workspaces: each item's position is
+ * its index. Sequential rather than a transaction, since drizzle's sqlite
+ * drivers reject async transaction callbacks; every write is idempotent, so a
+ * retry after a partial failure converges.
+ */
+export const reorderWorkspaceItems = async (
+    userId: string,
+    workspaceId: string,
+    items: { kind: WorkspaceItemKind; id: string }[],
+): Promise<void> => {
+    const workspace = await getWorkspaceById(workspaceId);
+    if (!workspace || workspace.userId !== userId) {
+        throw new Error("Workspace not found or access denied");
+    }
+    for (let i = 0; i < items.length; i++) {
+        const { kind, id } = items[i];
+        if (kind === "chart") {
+            await db
+                .update(charts)
+                .set({ position: i, updatedAt: sql`${charts.updatedAt}` })
+                .where(and(eq(charts.id, id), eq(charts.workspaceId, workspaceId)));
+        } else {
+            await db
+                .update(documents)
+                .set({ position: i, updatedAt: sql`${documents.updatedAt}` })
+                .where(and(eq(documents.id, id), eq(documents.workspaceId, workspaceId)));
+        }
+    }
+};
 
 export const touchWorkspace = async (workspaceId: string) => {
     await db
@@ -362,12 +497,19 @@ export const moveReport = async (
 
 const scopeColumns = {
     workspaceId: workspaces.id,
+    name: workspaces.name,
     workshopId: workspaces.workshopId,
     isDefault: workspaces.isDefault,
 };
 
-const toScope = (row: { workspaceId: string; workshopId: string | null; isDefault: boolean }) => ({
+const toScope = (row: {
+    workspaceId: string;
+    name: string;
+    workshopId: string | null;
+    isDefault: boolean;
+}) => ({
     workspaceId: row.workspaceId,
+    name: row.name,
     workshopId: row.workshopId ?? null,
     isDefault: !!row.isDefault,
 });

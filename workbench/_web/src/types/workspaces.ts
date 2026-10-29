@@ -4,11 +4,16 @@
  */
 export type WorkspaceScope = {
     workspaceId: string;
+    /** The workspace's name as of the page load (prefer the library's for anything renameable). */
+    name: string;
     /** Set when the workspace belongs to a workshop (tool/model restrictions, guided tutorial). */
     workshopId: string | null;
     /** The user's default workspace: never shown as a folder, renamed or deleted. */
     isDefault: boolean;
 };
+
+/** What a workspace holds: charts and reports. */
+export type WorkspaceItemKind = "chart" | "report";
 
 export type LibraryChartItem = {
     kind: "chart";

@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { getWorkspaces } from "@/lib/queries/workspaceQueries";
+import { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
 import { hasWorkshopClaim } from "@/lib/workshop";
 import { newChartPath } from "@/lib/chartRoutes";
 import { useModelDeployment } from "@/stores/useModelDeployment";
@@ -97,7 +97,7 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
 
     const { data: workspaces } = useQuery({
         queryKey: ["workspaces", user?.id],
-        queryFn: () => getWorkspaces(user!.id),
+        queryFn: () => getUserWorkspaces(),
         enabled: open && isSignedIn && !!user?.id,
     });
 

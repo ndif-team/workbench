@@ -2,9 +2,9 @@
  * Integration tests for the default workspace, the sidebar library and moves
  * on SQLite.
  *
- * Exercises the unguarded internals in lib/queries/workspaceDb.ts (the
- * "use server" wrappers in workspaceQueries.ts only resolve the signed-in user
- * before calling these). Covers idempotent default creation, adoption of the
+ * Exercises the internals in lib/queries/workspaceDb.ts (the "use server"
+ * wrappers in workspaceQueries.ts only resolve the signed-in user before
+ * calling these). Covers idempotent default creation, adoption of the
  * old flow's "Default Workspace", the one-default-per-user index, library
  * grouping, ordering and chart prompts, chart and report moves (config and lens runs follow
  * the chart), refused moves, and the default workspace staying out of folder
@@ -18,22 +18,20 @@ import { db, clearDatabase } from "../client";
 import { charts, configs, documents, lensRuns, workspaces } from "../schema";
 import {
     DEFAULT_WORKSPACE_NAME,
+    createWorkspace,
+    deleteWorkspace,
     getChartWorkspaceScope,
     getMostRecentUserChart,
     getOrCreateDefaultWorkspace,
     getReportWorkspaceScope,
+    getWorkspaceById,
     getWorkspaceLibrary,
+    getWorkspaces,
     moveChart,
     moveReport,
-} from "@/lib/queries/workspaceDb";
-import {
-    createWorkspace,
-    deleteWorkspace,
-    getWorkspaceById,
-    getWorkspaces,
+    renameWorkspace,
     reorderWorkspaceItems,
-    updateWorkspace,
-} from "@/lib/queries/workspaceQueries";
+} from "@/lib/queries/workspaceDb";
 import {
     createLogitLensChartPair,
     createPatchLensChartPair,
@@ -166,7 +164,7 @@ describe("default workspace", () => {
         const listed = await getWorkspaces(USER);
         expect(listed.map((w: { id: string }) => w.id)).toEqual([folder.id]);
 
-        await expect(updateWorkspace(def.id, { name: "Renamed" }, USER)).rejects.toThrow(
+        await expect(renameWorkspace(USER, def.id, "Renamed")).rejects.toThrow(
             "not found or access denied",
         );
         await deleteWorkspace(USER, def.id);
@@ -267,7 +265,7 @@ describe("workspace library", () => {
         const second = await createChart(folder.id, "Second");
         const report = await createDocument(folder.id);
 
-        await reorderWorkspaceItems(folder.id, [
+        await reorderWorkspaceItems(USER, folder.id, [
             { kind: "report", id: report.id },
             { kind: "chart", id: second },
             { kind: "chart", id: first },
@@ -326,6 +324,7 @@ describe("moves", () => {
         expect((await getConfigForChart(chartId))!.workspaceId).toBe(def.id);
         expect((await getChartWorkspaceScope(chartId))!).toEqual({
             workspaceId: def.id,
+            name: DEFAULT_WORKSPACE_NAME,
             workshopId: null,
             isDefault: true,
         });

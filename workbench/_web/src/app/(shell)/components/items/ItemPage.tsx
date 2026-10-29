@@ -12,7 +12,6 @@ import { useGetDocument } from "@/lib/api/documentApi";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useWorkspaceLibrary } from "@/lib/api/workspaceApi";
 import { getChartById } from "@/lib/queries/chartQueries";
-import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { workspacePath } from "@/lib/chartRoutes";
 import { deriveReportTitle } from "@/lib/reportTitle";
@@ -51,11 +50,8 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
     const [renaming, setRenaming] = useState(false);
 
     const { data: library } = useWorkspaceLibrary({ enabled: !!scope && !isWorkshop });
-    const { data: folder } = useQuery({
-        queryKey: queryKeys.workspaces.workspace(folderId ?? ""),
-        queryFn: () => getWorkspaceById(folderId as string),
-        enabled: !!folderId,
-    });
+    const folderName =
+        library?.workspaces.find((w) => w.id === folderId)?.name ?? scope?.name ?? "";
 
     const libraryItem =
         library &&
@@ -72,10 +68,10 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
                         <>
                             <Link
                                 href={workspacePath(folderId)}
-                                title={folder?.name}
+                                title={folderName}
                                 className="hidden min-w-0 max-w-[12rem] truncate rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:block"
                             >
-                                {folder?.name ?? "Workspace"}
+                                {folderName || "Workspace"}
                             </Link>
                             <ChevronRight
                                 aria-hidden
@@ -104,7 +100,7 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
                     <ItemActionsMenu
                         item={libraryItem}
                         workspaces={library.workspaces}
-                        folder={folderId ? { id: folderId, name: folder?.name ?? "" } : null}
+                        folder={folderId ? { id: folderId, name: folderName } : null}
                         active
                         onRename={() => setRenaming(true)}
                         variant="header"
