@@ -6,12 +6,12 @@ import { Boxes, ChevronDown, FolderClosed, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
-import { useWorkspaceLibrary } from "@/lib/api/workspaceApi";
+import { findLibraryItem, useWorkspaceLibrary } from "@/lib/api/workspaceApi";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { workspacePath } from "@/lib/chartRoutes";
 import { useSidebarFolders } from "@/stores/useSidebarFolders";
 import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
-import { ItemActionsMenu } from "../items/ItemActionsMenu";
+import { ItemActionsMenu, useMoveItem } from "../items/ItemActionsMenu";
 import { NewItemMenu } from "../items/NewItemMenu";
 import { chartName, itemIcon, itemLabel, itemPath } from "../items/itemLabel";
 import { recencyGroup } from "../items/formatUpdated";
@@ -53,7 +53,8 @@ const groupByRecency = (items: LibraryItem[]) => {
  *
  * Both sections fold under their headers. Workspaces lists the most recently
  * updated folders (`visibleFolders`, always including the one holding the
- * item on screen) until "Show N more" lists them all.
+ * item on screen) until "Show N more" lists them all. A chart row dropped on
+ * another folder moves the chart there.
  */
 export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const pathname = usePathname();
@@ -71,7 +72,9 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const setShowAllFolders = useSidebarFolders((s) => s.setShowAllFolders);
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+    const [draggedChartId, setDraggedChartId] = useState<string | null>(null);
     const { mutate: renameChart } = useUpdateChartName();
+    const moveItem = useMoveItem();
     const deployStateOf = useDeployStateOf();
     const workspacesListId = useId();
     const chartsListId = useId();
@@ -79,6 +82,19 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const folders = useMemo(() => inFolderOrder(library?.workspaces ?? []), [library?.workspaces]);
     const workspacesOpen = !collapsedSections.includes("workspaces");
     const chartsOpen = !collapsedSections.includes("charts");
+    const draggedChart =
+        library && draggedChartId ? findLibraryItem(library, "chart", draggedChartId) : undefined;
+
+    /** Moves the chart being dragged into `folder`, or null when it can't go there. */
+    const dropInto = (folder: LibraryWorkspace) =>
+        draggedChart && !folder.isWorkshop && draggedChart.workspaceId !== folder.id
+            ? () => {
+                  const from = folders.find((w) => w.id === draggedChart.workspaceId) ?? null;
+                  moveItem(draggedChart, folder, from);
+                  expandFolder(folder.id);
+                  setDraggedChartId(null);
+              }
+            : undefined;
 
     // Open the folder holding the item on screen, so the active row is visible.
     const activeFolderId = useMemo(() => {
@@ -115,6 +131,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                         ? JSON.stringify({ chartId: item.id, chartType: item.toolType })
                         : undefined
                 }
+                onDragChange={(dragging) => setDraggedChartId(dragging ? item.id : null)}
                 renaming={renamingId === item.id}
                 renameValue={isChart ? chartName(item.name) : ""}
                 onRename={(name) => renameChart({ chartId: item.id, name })}
@@ -222,6 +239,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                                                                 onToggle={() =>
                                                                     toggleFolder(folder.id)
                                                                 }
+                                                                onDropChart={dropInto(folder)}
                                                             />
                                                             {isOpen && (
                                                                 <SidebarFolderItems>

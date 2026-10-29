@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType, DragEvent, ReactNode } from "react";
+import { useState, type ComponentType, type DragEvent, type ReactNode } from "react";
 import Link from "next/link";
 import {
     AlertTriangle,
@@ -17,6 +17,9 @@ import type { DeployCardState } from "../DeployCard";
 import { InlineNameInput } from "../items/InlineNameInput";
 
 type IconType = ComponentType<{ className?: string }>;
+
+/** The chart payload sidebar rows drag into a report editor or onto a folder. */
+const CHART_DRAG_TYPE = "application/x-chart";
 
 /**
  * One look for every sidebar row: a full-width link with the ghost Button's
@@ -204,7 +207,11 @@ export function SidebarRowsSkeleton({ rows = 6 }: { rows?: number }) {
     );
 }
 
-/** A workspace (folder): its chevron expands it in place, its name opens its page. */
+/**
+ * A workspace (folder): its chevron expands it in place, its name opens its
+ * page. With `onDropChart` it takes a chart dragged from another sidebar row
+ * (`CHART_DRAG_TYPE`), lighting up while one is held over it.
+ */
 export function SidebarFolderRow({
     name,
     href,
@@ -213,6 +220,7 @@ export function SidebarFolderRow({
     active,
     isWorkshop,
     onToggle,
+    onDropChart,
 }: {
     name: string;
     href: string;
@@ -221,10 +229,31 @@ export function SidebarFolderRow({
     active: boolean;
     isWorkshop: boolean;
     onToggle: () => void;
+    onDropChart?: () => void;
 }) {
+    const [dropping, setDropping] = useState(false);
     const FolderIcon = isWorkshop ? GraduationCap : expanded ? FolderOpen : Folder;
+    const accepts = (e: DragEvent) =>
+        !!onDropChart && e.dataTransfer.types.includes(CHART_DRAG_TYPE);
     return (
-        <div className="group/row relative">
+        <div
+            className="group/row relative"
+            onDragOver={(e) => {
+                if (!accepts(e)) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDropping(true);
+            }}
+            onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropping(false);
+            }}
+            onDrop={(e) => {
+                setDropping(false);
+                if (!accepts(e)) return;
+                e.preventDefault();
+                onDropChart?.();
+            }}
+        >
             <Button
                 type="button"
                 variant="ghost"
@@ -242,7 +271,13 @@ export function SidebarFolderRow({
                 href={href}
                 aria-current={active ? "page" : undefined}
                 title={name}
-                className={rowLink(active, "pl-7 group-data-[variant=drawer]/sidebar:pl-9")}
+                className={rowLink(
+                    active,
+                    cn(
+                        "pl-7 group-data-[variant=drawer]/sidebar:pl-9",
+                        dropping && "bg-primary/10 ring-1 ring-inset ring-primary/60",
+                    ),
+                )}
             >
                 <FolderIcon className={cn("text-muted-foreground", active && "text-primary")} />
                 <span className="min-w-0 flex-1 truncate text-left">{name}</span>
@@ -286,6 +321,7 @@ export function SidebarItemRow({
     nested,
     deployState,
     dragPayload,
+    onDragChange,
     actions,
     renaming,
     renameValue,
@@ -300,6 +336,8 @@ export function SidebarItemRow({
     nested: boolean;
     deployState: DeployCardState | null;
     dragPayload?: string;
+    /** Told when a drag of this row starts (true) and ends (false). */
+    onDragChange?: (dragging: boolean) => void;
     actions: ReactNode;
     renaming: boolean;
     renameValue: string;
@@ -326,8 +364,9 @@ export function SidebarItemRow({
 
     const onDragStart = dragPayload
         ? (e: DragEvent<HTMLAnchorElement>) => {
-              e.dataTransfer.setData("application/x-chart", dragPayload);
-              e.dataTransfer.effectAllowed = "copy";
+              e.dataTransfer.setData(CHART_DRAG_TYPE, dragPayload);
+              e.dataTransfer.effectAllowed = "copyMove";
+              onDragChange?.(true);
           }
         : undefined;
 
@@ -339,6 +378,7 @@ export function SidebarItemRow({
                 title={label}
                 draggable={!!dragPayload}
                 onDragStart={onDragStart}
+                onDragEnd={dragPayload ? () => onDragChange?.(false) : undefined}
                 className={rowLink(active, cn("pr-8", nested && "pl-3.5"))}
             >
                 <Icon
