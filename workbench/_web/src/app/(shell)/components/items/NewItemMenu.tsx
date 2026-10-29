@@ -16,6 +16,7 @@ import { useCreateDocument } from "@/lib/api/documentApi";
 import { useCapture } from "@/lib/analytics";
 import { newChartPath, reportPath } from "@/lib/chartRoutes";
 import { toolTypes, type ToolType } from "@/types/charts";
+import { cn } from "@/lib/utils";
 import { toolMeta } from "../toolMeta";
 
 interface NewItemMenuProps {
@@ -29,7 +30,7 @@ interface NewItemMenuProps {
     tools?: readonly ToolType[];
     side?: "bottom" | "right";
     align?: "start" | "end";
-    onCreate?: () => void;
+    contentClassName?: string;
 }
 
 /**
@@ -44,7 +45,7 @@ export function NewItemMenu({
     tools = toolTypes,
     side = "bottom",
     align = "start",
-    onCreate,
+    contentClassName,
 }: NewItemMenuProps) {
     const router = useRouter();
     const capture = useCapture();
@@ -52,7 +53,6 @@ export function NewItemMenu({
 
     const newChart = (tool: ToolType) => {
         capture("chart_created", { tool });
-        onCreate?.();
         router.push(newChartPath(workspaceId ? { tool, workspaceId } : { tool }));
     };
 
@@ -60,7 +60,6 @@ export function NewItemMenu({
         if (!reportWorkspaceId) return;
         createReport.mutate(reportWorkspaceId, {
             onSuccess: (report) => {
-                onCreate?.();
                 router.push(reportPath(report.id));
             },
             onError: () => toast.error("Couldn't create the report"),
@@ -70,7 +69,7 @@ export function NewItemMenu({
     return (
         <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-            <DropdownMenuContent side={side} align={align} className="w-56">
+            <DropdownMenuContent side={side} align={align} className={cn("w-56", contentClassName)}>
                 {tools.map((tool) => {
                     const meta = toolMeta(tool);
                     if (!meta) return null;

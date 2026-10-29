@@ -110,7 +110,7 @@ function WorkspaceCard({ workspace }: { workspace: LibraryWorkspace }) {
                     <Link
                         href={workspacePath(workspace.id)}
                         title={workspace.name}
-                        className="min-w-0 flex-1 truncate rounded-sm text-sm font-medium outline-none after:absolute after:inset-0 after:rounded focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
+                        className="min-w-0 flex-1 truncate text-sm font-medium outline-none after:absolute after:inset-0 after:rounded focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
                     >
                         {workspace.name}
                     </Link>
@@ -126,7 +126,7 @@ function WorkspaceCard({ workspace }: { workspace: LibraryWorkspace }) {
             <ul className="flex min-h-[4.5rem] flex-1 flex-col gap-1 border-t px-4 py-3">
                 {preview.length === 0 ? (
                     <li className="text-xs text-muted-foreground">
-                        Empty. Move charts here with Move to workspace.
+                        No charts yet. File one here with Move to workspace.
                     </li>
                 ) : (
                     preview.map((item) => {

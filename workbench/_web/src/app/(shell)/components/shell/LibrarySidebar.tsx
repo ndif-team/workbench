@@ -14,17 +14,32 @@ import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
 import { ItemActionsMenu } from "../items/ItemActionsMenu";
 import { NewItemMenu } from "../items/NewItemMenu";
 import { chartName, itemIcon, itemLabel, itemPath } from "../items/itemLabel";
+import { recencyGroup } from "../items/formatUpdated";
 import { useDeployStateOf } from "../useDeployStateOf";
 import {
     SidebarEmpty,
     SidebarFolderItems,
     SidebarFolderRow,
+    SidebarGroupLabel,
     SidebarItemRow,
     SidebarNavLink,
     SidebarRowsSkeleton,
     SidebarSectionHeader,
 } from "./SidebarRows";
 import { inFolderOrder } from "./folderOrder";
+
+/** Splits a newest-first list into runs that share a recency group. */
+const groupByRecency = (items: LibraryItem[]) => {
+    const now = new Date();
+    const groups: { label: string; items: LibraryItem[] }[] = [];
+    for (const item of items) {
+        const label = recencyGroup(item.updatedAt, now);
+        const last = groups[groups.length - 1];
+        if (last?.label === label) last.items.push(item);
+        else groups.push({ label, items: [item] });
+    }
+    return groups;
+};
 
 /**
  * The global sidebar's body (expanded and in the mobile drawer): New chart,
@@ -103,7 +118,10 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex flex-col gap-0.5 px-2 pb-2">
-                <NewItemMenu reportWorkspaceId={library?.defaultWorkspaceId}>
+                <NewItemMenu
+                    reportWorkspaceId={library?.defaultWorkspaceId}
+                    contentClassName="w-[var(--radix-dropdown-menu-trigger-width)]"
+                >
                     <Button variant="outline" className="mb-1.5 w-full justify-start gap-2 px-2">
                         <Plus className="text-muted-foreground" />
                         New chart
@@ -156,7 +174,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                                         onClick={() => setCreatingWorkspace(true)}
                                         aria-label="New workspace"
                                         title="New workspace"
-                                        className="size-6 rounded-sm text-muted-foreground hover:text-foreground"
+                                        className="size-6 text-muted-foreground hover:text-foreground"
                                     >
                                         <Plus className="size-3.5" />
                                     </Button>
@@ -185,7 +203,8 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                                                     <SidebarFolderItems>
                                                         {folder.items.length === 0 ? (
                                                             <p className="py-1.5 pl-3.5 pr-2 text-xs text-muted-foreground">
-                                                                Move charts here from their menu.
+                                                                No charts yet. File one here with
+                                                                Move to workspace.
                                                             </p>
                                                         ) : (
                                                             folder.items.map((item) =>
@@ -207,7 +226,14 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                                 <SidebarEmpty>Charts you create land here.</SidebarEmpty>
                             ) : (
                                 <div className="flex flex-col">
-                                    {library.defaultItems.map((item) => renderItem(item, null))}
+                                    {groupByRecency(library.defaultItems).map((group, i, all) => (
+                                        <div key={group.label} className="flex flex-col">
+                                            {all.length > 1 && (
+                                                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                                            )}
+                                            {group.items.map((item) => renderItem(item, null))}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </section>

@@ -31,6 +31,7 @@ import {
     useWorkspaceLibrary,
 } from "@/lib/api/workspaceApi";
 import { reportPath } from "@/lib/chartRoutes";
+import { cn } from "@/lib/utils";
 import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
 import { PageHeader } from "../../../components/shell/PageHeader";
 import { InlineNameInput } from "../../../components/items/InlineNameInput";
@@ -117,15 +118,18 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                                 }}
                             />
                         ) : (
-                            <button
-                                type="button"
-                                onClick={() => setRenamingTitle(true)}
-                                disabled={!folder}
-                                title={folder ? `${folder.name} (click to rename)` : undefined}
-                                className="min-w-0 cursor-text truncate rounded-sm px-1 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                            >
-                                <h1 className="truncate">{folder?.name ?? " "}</h1>
-                            </button>
+                            <h1 className="flex min-w-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setRenamingTitle(true)}
+                                    disabled={!folder}
+                                    title={folder ? `${folder.name} (click to rename)` : undefined}
+                                    className="min-w-0 cursor-text truncate rounded-md px-1 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                >
+                                    {folder?.name ?? "\u00a0"}
+                                    <span className="sr-only">, rename</span>
+                                </button>
+                            </h1>
                         )}
                     </Breadcrumb>
                 }
@@ -165,7 +169,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                     <div className="flex items-center justify-between border-b p-3">
                         <h2 className="pl-2 text-sm font-medium">Charts and reports</h2>
                         {folder && folder.items.length > 1 && !folder.isWorkshop && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="hidden text-xs text-muted-foreground sm:inline">
                                 Drag a row by its handle to reorder
                             </span>
                         )}
@@ -226,16 +230,22 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
 /** "Workspaces ›" leading to the folder's own title. */
 function Breadcrumb({ children }: { children?: React.ReactNode }) {
     return (
-        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-sm">
+        <nav aria-label="Breadcrumb" className="-ml-1 flex min-w-0 items-center gap-1 text-sm">
             <Link
                 href="/workspaces"
-                className="shrink-0 rounded-sm px-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className={cn(
+                    "shrink-0 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                    children && "hidden sm:block",
+                )}
             >
                 Workspaces
             </Link>
             {children && (
                 <>
-                    <ChevronRight aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+                    <ChevronRight
+                        aria-hidden
+                        className="hidden size-3.5 shrink-0 text-muted-foreground sm:block"
+                    />
                     {children}
                 </>
             )}
@@ -252,8 +262,8 @@ function EmptyFolder({ folder }: { folder: LibraryWorkspace }) {
             <div className="flex max-w-sm flex-col gap-1">
                 <p className="text-sm font-medium">{folder.name} is empty</p>
                 <p className="text-sm text-muted-foreground">
-                    Start a chart or report here with the buttons above, or file an existing chart
-                    with Move to workspace from its menu in the sidebar.
+                    Start a chart or report here with the buttons above, or file an existing one
+                    with Move to workspace in its menu.
                 </p>
             </div>
         </div>

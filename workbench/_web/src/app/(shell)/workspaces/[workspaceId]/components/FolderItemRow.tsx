@@ -64,7 +64,7 @@ export function FolderItemRow({
                     href={itemPath(item)}
                     title={label.text}
                     className={cn(
-                        "min-w-0 flex-1 truncate rounded-sm text-sm outline-none after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50",
+                        "min-w-0 flex-1 truncate text-sm outline-none after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50",
                         label.placeholder && "text-muted-foreground",
                     )}
                 >

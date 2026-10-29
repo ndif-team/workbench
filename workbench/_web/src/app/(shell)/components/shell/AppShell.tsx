@@ -11,6 +11,7 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 
+import { buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -101,6 +102,15 @@ export function AppShell({
 
     return (
         <ShellSidebarContext.Provider value={value}>
+            <a
+                href="#main"
+                className={cn(
+                    buttonVariants({ variant: "outline", size: "sm" }),
+                    "sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-2 focus:z-50 focus:h-8 focus:px-3",
+                )}
+            >
+                Skip to page
+            </a>
             <div className="group/shell flex h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
                 <aside
                     aria-label="Sidebar"
@@ -128,7 +138,13 @@ export function AppShell({
                         <AppSidebar variant="drawer" />
                     </SheetContent>
                 </Sheet>
-                <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+                <main
+                    id="main"
+                    tabIndex={-1}
+                    className="flex min-w-0 flex-1 flex-col overflow-hidden outline-none"
+                >
+                    {children}
+                </main>
             </div>
         </ShellSidebarContext.Provider>
     );

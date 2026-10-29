@@ -27,3 +27,17 @@ export function formatUpdated(date: Date | string, now: Date = new Date()): stri
 export function formatTimestamp(date: Date | string): string {
     return new Date(date).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
+
+/**
+ * The bucket a newest-first list files a date under: "Today", "Yesterday",
+ * "Previous 7 days", "Previous 30 days" or "Older" (calendar days, local time).
+ */
+export function recencyGroup(date: Date | string, now: Date = new Date()): string {
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const days = Math.round((startOfDay(now) - startOfDay(new Date(date))) / DAY);
+    if (days <= 0) return "Today";
+    if (days === 1) return "Yesterday";
+    if (days < 7) return "Previous 7 days";
+    if (days < 30) return "Previous 30 days";
+    return "Older";
+}

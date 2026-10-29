@@ -405,7 +405,7 @@ export default function ChartCardsSidebar({ collapsed }: { collapsed: boolean })
     }
 
     return (
-        <div className="relative flex h-full w-full min-h-0 flex-col p-3 pt-0">
+        <div className="relative flex h-full w-full min-h-0 flex-col px-2 pb-2 pt-0">
             <div ref={listRef} className="flex-1 scrollbar-hide overflow-auto">
                 <div ref={cardsRef} className="flex flex-col gap-2">
                     {(isChartsLoading || isReportsLoading) && (

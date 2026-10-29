@@ -19,7 +19,7 @@ import { deriveReportTitle } from "@/lib/reportTitle";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "../shell/PageHeader";
 import { ItemActionsMenu } from "./ItemActionsMenu";
-import { chartName } from "./itemLabel";
+import { chartName, itemLabel } from "./itemLabel";
 import { InlineNameInput } from "./InlineNameInput";
 
 type ItemRef = { kind: "chart"; id: string } | { kind: "report"; id: string };
@@ -73,7 +73,7 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
                             <Link
                                 href={workspacePath(folderId)}
                                 title={folder?.name}
-                                className="hidden min-w-0 max-w-[12rem] truncate rounded-sm px-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:block"
+                                className="hidden min-w-0 max-w-[12rem] truncate rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:block"
                             >
                                 {folder?.name ?? "Workspace"}
                             </Link>
@@ -86,6 +86,11 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
                     {item.kind === "chart" ? (
                         <ChartTitle
                             chartId={item.id}
+                            fallback={
+                                libraryItem && !itemLabel(libraryItem).placeholder
+                                    ? itemLabel(libraryItem).text
+                                    : ""
+                            }
                             editing={renaming}
                             onEditingChange={setRenaming}
                         />
@@ -111,15 +116,20 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
     );
 }
 
-const titleClass = "min-w-0 truncate rounded-sm px-1 text-sm font-medium";
+const titleClass = "min-w-0 truncate rounded-md px-1 text-sm font-medium";
 
-/** The chart's name; click it (or pick Rename) to edit it in place. */
+/**
+ * The chart's name; click it (or pick Rename) to edit it in place. An unnamed
+ * chart reads as `fallback`, its prompt as the sidebar shows it.
+ */
 function ChartTitle({
     chartId,
+    fallback,
     editing,
     onEditingChange,
 }: {
     chartId: string;
+    fallback: string;
     editing: boolean;
     onEditingChange: (editing: boolean) => void;
 }) {
@@ -139,7 +149,7 @@ function ChartTitle({
             <InlineNameInput
                 initialValue={name}
                 ariaLabel="Chart name"
-                placeholder="Untitled chart"
+                placeholder={fallback || "Untitled chart"}
                 className="h-7 w-64 max-w-full px-2 font-medium"
                 onDone={(next) => {
                     onEditingChange(false);
@@ -151,19 +161,23 @@ function ChartTitle({
         );
     }
 
+    const shown = name || fallback;
     return (
-        <button
-            type="button"
-            onClick={() => onEditingChange(true)}
-            title={name ? `${name} (click to rename)` : "Click to name this chart"}
-            className={cn(
-                titleClass,
-                "cursor-text transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                !name && "text-muted-foreground",
-            )}
-        >
-            {chart ? name || "Untitled chart" : " "}
-        </button>
+        <h1 className="flex min-w-0">
+            <button
+                type="button"
+                onClick={() => onEditingChange(true)}
+                title={shown ? `${shown} (click to rename)` : "Click to name this chart"}
+                className={cn(
+                    titleClass,
+                    "cursor-text transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                    !shown && "text-muted-foreground",
+                )}
+            >
+                {chart ? shown || "Untitled chart" : "\u00a0"}
+                <span className="sr-only">, rename</span>
+            </button>
+        </h1>
     );
 }
 

@@ -25,7 +25,7 @@ type IconType = ComponentType<{ className?: string }>;
  */
 const rowLink = (active: boolean, className?: string) =>
     cn(
-        "flex h-7 w-full min-w-0 items-center gap-2 rounded-md px-2 text-sm whitespace-nowrap outline-none transition-colors",
+        "flex h-7 w-full min-w-0 items-center gap-2 rounded-md px-2 text-sm whitespace-nowrap outline-none transition-colors group-data-[variant=drawer]/sidebar:h-9",
         "focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         active
             ? "bg-primary/10 font-medium"
@@ -69,6 +69,11 @@ export function SidebarSectionHeader({ title, action }: { title: string; action?
     );
 }
 
+/** A sub-heading inside a section, e.g. a recency group of the Charts list. */
+export function SidebarGroupLabel({ children }: { children: ReactNode }) {
+    return <h3 className="px-2 pb-0.5 pt-2 text-xs text-muted-foreground">{children}</h3>;
+}
+
 /** A folder's items, hung from a guide line under its chevron. */
 export function SidebarFolderItems({ children }: { children: ReactNode }) {
     return <div className="ml-3.5 flex flex-col border-l">{children}</div>;
@@ -86,10 +91,10 @@ export function SidebarRowsSkeleton({ rows = 6 }: { rows?: number }) {
         <div aria-hidden className="flex flex-col">
             {Array.from({ length: rows }, (_, i) => (
                 <div key={i} className="flex h-7 items-center gap-2 px-2">
-                    <div className="size-4 shrink-0 rounded-sm bg-muted animate-pulse" />
+                    <div className="size-4 shrink-0 rounded-sm bg-border animate-pulse" />
                     <div
                         className={cn(
-                            "h-3 rounded-sm bg-muted animate-pulse",
+                            "h-3 rounded-sm bg-border animate-pulse",
                             widths[i % widths.length],
                         )}
                     />
@@ -127,7 +132,7 @@ export function SidebarFolderRow({
                 onClick={onToggle}
                 aria-expanded={expanded}
                 aria-label={`${expanded ? "Collapse" : "Expand"} ${name}`}
-                className="absolute left-1 top-1/2 size-5 -translate-y-1/2 rounded-sm text-muted-foreground hover:bg-transparent hover:text-foreground dark:hover:bg-transparent"
+                className="absolute left-0.5 top-1/2 size-6 -translate-y-1/2 text-muted-foreground hover:bg-transparent hover:text-foreground dark:hover:bg-transparent"
             >
                 <ChevronRight
                     className={cn("size-3.5 transition-transform", expanded && "rotate-90")}

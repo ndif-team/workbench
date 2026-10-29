@@ -44,7 +44,7 @@ export function AppSidebar({ variant }: { variant: SidebarVariant }) {
           : "global";
 
     return (
-        <div className="flex h-full min-h-0 flex-col">
+        <div data-variant={variant} className="group/sidebar flex h-full min-h-0 flex-col">
             <SidebarHeader variant={variant} />
             {mode === "workshop" ? (
                 <div className="flex min-h-0 flex-1 flex-col">
@@ -77,7 +77,7 @@ function SidebarHeader({ variant }: { variant: SidebarVariant }) {
         <div className="flex h-12 shrink-0 items-center justify-between pl-4 pr-2">
             <Link
                 href="/"
-                className="rounded-sm bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-lg font-bold text-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="rounded-md bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-lg font-bold text-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
                 Workbench
             </Link>
