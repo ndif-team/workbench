@@ -2,14 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { createChartFromLaunch } from "@/lib/queries/chartQueries";
+import { useCreateChartFromLaunch } from "@/lib/api/chartApi";
 import { toolChartPath } from "@/lib/chartRoutes";
 import { getPendingRequest, pendingRequestPath } from "@/lib/pendingRequest";
-import { queryKeys } from "@/lib/queryKeys";
 import type { ChartLaunchRequest } from "@/lib/chartLaunch";
 import { PageHeader } from "../../components/shell/PageHeader";
 
@@ -21,7 +19,7 @@ import { PageHeader } from "../../components/shell/PageHeader";
  */
 export function NewChartCreator({ request }: { request: ChartLaunchRequest }) {
     const router = useRouter();
-    const queryClient = useQueryClient();
+    const { mutate: createChart } = useCreateChartFromLaunch();
     const [failed, setFailed] = useState(false);
     const [attempt, setAttempt] = useState(0);
     // Guards against the effect re-running for the same attempt (strict mode).
@@ -38,18 +36,14 @@ export function NewChartCreator({ request }: { request: ChartLaunchRequest }) {
         }
 
         setFailed(false);
-        createChartFromLaunch(request)
-            .then(({ chartId, toolType, workspaceId }) => {
-                queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
-                queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
-                queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
-                router.replace(toolChartPath(chartId, toolType));
-            })
-            .catch((err) => {
+        createChart(request, {
+            onSuccess: ({ chartId, toolType }) => router.replace(toolChartPath(chartId, toolType)),
+            onError: (err) => {
                 console.error("Failed to create chart:", err);
                 setFailed(true);
-            });
-    }, [attempt, request, router, queryClient]);
+            },
+        });
+    }, [attempt, request, router, createChart]);
 
     return (
         <div className="flex size-full min-h-0 flex-col">

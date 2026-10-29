@@ -8,7 +8,9 @@ import {
     createActivationPatchingChartPair,
     updateChartName,
     copyChart,
+    createChartFromLaunch,
 } from "@/lib/queries/chartQueries";
+import type { ChartLaunchRequest } from "@/lib/chartLaunch";
 import { LogitLensConfigData } from "@/types/logitLens";
 import { JLensConfigData } from "@/types/jlens";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
@@ -136,6 +138,23 @@ export const useCreatePatchLensChartPair = () => {
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
+        },
+    });
+};
+
+/**
+ * Creates the chart a `/new` launch describes (see `createChartFromLaunch`)
+ * and refreshes the lists it lands in.
+ */
+export const useCreateChartFromLaunch = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (request: ChartLaunchRequest) => createChartFromLaunch(request),
+        onSuccess: ({ workspaceId }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
         },
     });
 };
