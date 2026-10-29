@@ -1,9 +1,14 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, notExists, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { chartConfigLinks, charts, configs, workspaces } from "@/db/schema";
+import { chartConfigLinks, charts, configs, lensRuns, workspaces } from "@/db/schema";
 import type { Chart, Config, Workshop, WorkshopTool } from "@/db/schema";
-import { planChartLaunch, type ChartLaunchRequest } from "@/lib/chartLaunch";
+import {
+    isBlankPlan,
+    planChartLaunch,
+    type ChartLaunchPlan,
+    type ChartLaunchRequest,
+} from "@/lib/chartLaunch";
 import { getWorkshopForWorkspace } from "@/lib/queries/workshopDb";
 import {
     getNextWorkspaceItemPosition,
@@ -126,11 +131,60 @@ export const assertChartWorkspace = async (
     return workspace.id;
 };
 
+/** `value` as JSON with object keys sorted, so stored configs compare whatever order the DB keeps keys in. */
+const canonicalJson = (value: unknown): string =>
+    JSON.stringify(value, (_, v: unknown) =>
+        v && typeof v === "object" && !Array.isArray(v)
+            ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)))
+            : v,
+    );
+
+/**
+ * The newest chart in `workspaceId` that launching `plan` again would only
+ * duplicate: still unnamed, never run (no result and no lens runs), and with
+ * exactly the config the launch would create. Null when there is none.
+ */
+const findUntouchedChart = async (
+    workspaceId: string,
+    plan: ChartLaunchPlan,
+): Promise<string | null> => {
+    const rows = await db
+        .select({ id: charts.id, configData: configs.data })
+        .from(charts)
+        .innerJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
+        .innerJoin(configs, eq(chartConfigLinks.configId, configs.id))
+        .where(
+            and(
+                eq(charts.workspaceId, workspaceId),
+                eq(configs.type, plan.type),
+                eq(charts.name, DEFAULT_CHART_NAME),
+                isNull(charts.data),
+                notExists(
+                    db
+                        .select({ id: lensRuns.id })
+                        .from(lensRuns)
+                        .where(eq(lensRuns.chartId, charts.id)),
+                ),
+            ),
+        )
+        .orderBy(desc(charts.updatedAt));
+    const wanted = canonicalJson(plan.data);
+    return (
+        (rows as { id: string; configData: unknown }[]).find(
+            (row) => canonicalJson(row.configData) === wanted,
+        )?.id ?? null
+    );
+};
+
 /**
  * Creates the chart a `/new` launch asks for: in `request.workspaceId` when
  * that workspace is the user's, else in their default workspace (created on
  * first use). A workshop participant must name their workshop workspace and
  * one of its tools. Returns where to open it.
+ *
+ * A blank launch into the default workspace (New chart: a tool, no prompt)
+ * reopens the newest untouched chart it would duplicate (`findUntouchedChart`)
+ * instead of adding another, and moves it to the top of the recent charts.
  */
 export const createChartFromLaunch = async (
     userId: string,
@@ -143,6 +197,15 @@ export const createChartFromLaunch = async (
         : (await getOrCreateDefaultWorkspace(userId)).id;
 
     const plan = planChartLaunch(request);
+    if (!request.workspaceId && isBlankPlan(plan)) {
+        const untouched = await findUntouchedChart(workspaceId, plan);
+        if (untouched) {
+            await db.update(charts).set({ updatedAt: new Date() }).where(eq(charts.id, untouched));
+            await touchWorkspace(workspaceId);
+            return { chartId: untouched, toolType: plan.type, workspaceId };
+        }
+    }
+
     const chartData = plan.type === "patch-lens" ? plan.chartData : undefined;
     const { chart } = await createChartConfigPair(workspaceId, plan, chartData);
     return { chartId: chart.id, toolType: plan.type, workspaceId };

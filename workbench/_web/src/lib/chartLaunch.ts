@@ -112,3 +112,25 @@ export function planChartLaunch(request: ChartLaunchRequest): ChartLaunchPlan {
     };
     return { type: tool, data };
 }
+
+/**
+ * Whether a plan asks for nothing but a tool (and maybe a model): no prompt,
+ * token positions or patch-lens prompts. Such a launch reuses an untouched
+ * chart rather than adding another (`createChartFromLaunch`).
+ */
+export function isBlankPlan(plan: ChartLaunchPlan): boolean {
+    switch (plan.type) {
+        case "activation-patching":
+            return (
+                !plan.data.srcPrompt &&
+                !plan.data.tgtPrompt &&
+                plan.data.srcPos.length === 0 &&
+                plan.data.tgtPos.length === 0 &&
+                plan.data.tgtFreeze.length === 0
+            );
+        case "patch-lens":
+            return !plan.chartData;
+        default:
+            return !plan.data.prompt;
+    }
+}
