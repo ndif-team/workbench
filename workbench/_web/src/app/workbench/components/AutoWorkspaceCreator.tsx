@@ -211,7 +211,7 @@ export function AutoWorkspaceCreator({
                 // Small delay to ensure the workspace is fully created
                 setTimeout(() => {
                     if (userChartId) {
-                        router.push(toolChartPath(targetWorkspaceId, userChartId, chartType));
+                        router.push(toolChartPath(userChartId, chartType));
                     } else {
                         router.push(`/workbench/${targetWorkspaceId}`);
                     }

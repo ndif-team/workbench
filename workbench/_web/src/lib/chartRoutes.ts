@@ -1,6 +1,6 @@
 import { normalizeToolType, toolTypes, type ToolType } from "@/types/charts";
 
-/** Route segment of each tool's chart page under `/workbench/[workspaceId]/`. */
+/** Route segment of each tool's chart page, `/<segment>/[chartId]`. */
 const TOOL_ROUTE_SEGMENT: Record<ToolType, string> = {
     "logit-lens": "logit-lens",
     jlens: "j-lens",
@@ -19,22 +19,36 @@ export function toolForRouteSegment(segment: string): ToolType | undefined {
 }
 
 /** Chart page of a live tool. */
-export function toolChartPath(workspaceId: string, chartId: string, tool: ToolType): string {
-    return `/workbench/${workspaceId}/${TOOL_ROUTE_SEGMENT[normalizeToolType(tool)]}/${chartId}`;
+export function toolChartPath(chartId: string, tool: ToolType): string {
+    return `/${TOOL_ROUTE_SEGMENT[normalizeToolType(tool)]}/${chartId}`;
 }
 
 /**
  * Page that opens a chart of any stored type. Charts of retired tools have no
- * page, so they open the workspace root, which redirects to its most recent
- * live chart.
+ * page, so they open their workspace when the caller knows it (which
+ * redirects to its most recent live chart), else the workbench entry.
  */
 export function chartPath(
-    workspaceId: string,
     chartId: string,
     toolType: string | null | undefined,
+    workspaceId?: string | null,
 ): string {
     const tool = normalizeToolType(toolType);
-    return isToolType(tool)
-        ? toolChartPath(workspaceId, chartId, tool)
-        : `/workbench/${workspaceId}`;
+    if (isToolType(tool)) return toolChartPath(chartId, tool);
+    return workspaceId ? openWorkspacePath(workspaceId) : "/workbench";
+}
+
+/** Report editor. */
+export function reportPath(reportId: string): string {
+    return `/reports/${reportId}`;
+}
+
+/** A workspace's (folder's) page. */
+export function workspacePath(workspaceId: string): string {
+    return `/workspaces/${workspaceId}`;
+}
+
+/** Opens a workspace on its most recent live chart, creating one when it has none. */
+export function openWorkspacePath(workspaceId: string): string {
+    return `/workbench/${workspaceId}`;
 }

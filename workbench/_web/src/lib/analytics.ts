@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { useParams } from "next/navigation";
 import { usePostHog } from "posthog-js/react";
+import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 
 /**
  * Product analytics for the workshop tools. The single place event names live.
@@ -42,15 +43,16 @@ type AnalyticsEvent =
 type EventProperties = Record<string, unknown>;
 
 /**
- * Returns a `capture(event, props)` function that merges the current route's
- * `workspace_id`/`chart_id` into every event, so call sites only pass the
- * event-specific properties. No-op until PostHog is initialized (e.g. when
+ * Returns a `capture(event, props)` function that merges the current
+ * `workspace_id` (from the workspace scope, absent outside chart and report
+ * pages) and the route's `chart_id` into every event, so call sites only pass
+ * the event-specific properties. No-op until PostHog is initialized (e.g. when
  * `NEXT_PUBLIC_POSTHOG_KEY` is unset locally).
  */
 export function useCapture() {
     const posthog = usePostHog();
     const params = useParams();
-    const workspaceId = typeof params?.workspaceId === "string" ? params.workspaceId : undefined;
+    const workspaceId = useWorkspaceScope()?.workspaceId;
     const chartId = typeof params?.chartId === "string" ? params.chartId : undefined;
 
     return useCallback(

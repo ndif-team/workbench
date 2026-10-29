@@ -1,11 +1,11 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
-import { useParams } from "next/navigation";
 import { useTour } from "@reactour/tour";
 
 import { useTutorialManager, type TutorialEventData } from "@/hooks/useTutorialManager";
 import { recordTutorialEvent } from "@/lib/queries/tutorialEventsQueries";
+import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 import type { ExtendedStepType } from "@/types/tutorial";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
 
@@ -38,7 +38,7 @@ const TutorialEventContext = createContext<TutorialEventContextValue | null>(nul
 export function TutorialEventProvider({ children }: { children: ReactNode }) {
     const manager = useTutorialManager();
     const { steps } = useTour();
-    const { workspaceId } = useParams<{ workspaceId: string }>();
+    const workspaceId = useWorkspaceScope()?.workspaceId;
 
     // Fire-and-forget telemetry write; the tour never blocks on it.
     const record = useMemo(

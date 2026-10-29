@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
 import { useUpdateWorkspaceName } from "@/lib/api/workspaceApi";
 import { queryKeys } from "@/lib/queryKeys";
+import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
 
+/** Inline editor for the current workspace's name. Renders nothing for the default workspace. */
 export function WorkspaceNameEditor() {
-    const { workspaceId } = useParams<{ workspaceId: string }>();
+    const scope = useWorkspaceScope();
+    const workspaceId = scope && !scope.isDefault ? scope.workspaceId : "";
     const [localName, setLocalName] = useState<string | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);

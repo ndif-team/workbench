@@ -43,5 +43,5 @@ export default async function Page({
         }
     }
 
-    redirect(toolChartPath(workspaceId, recent.chart.id, recent.toolType));
+    redirect(toolChartPath(recent.chart.id, recent.toolType));
 }

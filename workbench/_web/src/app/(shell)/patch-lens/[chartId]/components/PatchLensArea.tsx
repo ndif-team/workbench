@@ -1,0 +1,997 @@
+"use client";
+
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useParams } from "next/navigation";
+import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
+import { useCapture } from "@/lib/analytics";
+import { useQuery } from "@tanstack/react-query";
+import { AlertCircle, Loader2, Play, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useTour } from "@reactour/tour";
+import { PatchLensTutorial } from "@/tutorials/patchLens";
+import { orientationTourSteps } from "@/tutorials/orientationTour";
+import { promptsForUnitEntry } from "@/tutorials/unitPrompts";
+import { usePatchLensTutorial, hydratePatchLensTutorial } from "@/stores/usePatchLensTutorial";
+import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
+import { useProlificTutorial } from "@/stores/useProlificTutorial";
+import { useSpotlight } from "edulogitlens";
+import { TutorialActivityPanel } from "./tutorial/TutorialActivityPanel";
+import { TutorialWelcomeDialog } from "./tutorial/TutorialWelcomeDialog";
+import { useTutorialDock } from "./tutorial/TutorialDock";
+import { getModels } from "@/lib/api/modelsApi";
+import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
+import { useWorkspaceTutorial } from "@/lib/api/tutorialContentApi";
+import { getWorkspaceById } from "@/lib/queries/workspaceQueries";
+import { withProlificPid } from "@/lib/prolific";
+import { queryKeys } from "@/lib/queryKeys";
+import { useWorkspace } from "@/stores/useWorkspace";
+import { encodeText } from "@/actions/tok";
+import { TokenizerLoadError } from "@/actions/errors";
+import { Token } from "@/types/models";
+import { PatchPromptSection } from "@/components/activation-patching/toolkit";
+import { toast } from "sonner";
+import { usePatchLensLogitLens, PatchLensResult } from "@/lib/api/patchLensApi";
+import { finalPrediction, finalTopKTokens } from "@/lib/lens-last-row";
+import { promptPhrasingWarning } from "@/lib/promptPhrasing";
+import type { NormalizedRun } from "@/lib/lensRun";
+import { LensHistoryRail } from "./LensHistoryRail";
+
+// Default model for the CM intro. 32 layers reads as a manageable heatmap;
+// index 0 in the model list is the 70B (80 layers), far too many for a primer.
+const DEFAULT_INTRO_MODEL = "meta-llama/Llama-3.1-8B";
+
+// A known-good source prompt for the tutorial / first-time users. On the
+// default intro model it produces a clear "Paris" prediction, so the lens
+// heatmap reads well. Source only — the "Reading the lens" chapter wants the
+// target left blank, and the patching chapter walks the user through adding it.
+const EXAMPLE_SOURCE = "The Eiffel Tower is in the city of";
+
+/** A patch step's preloaded prompts: the box to copy from, and the box to copy into. */
+interface PatchPromptPair {
+    source: string;
+    target: string;
+}
+
+interface PatchLensAreaProps {
+    sourcePrompt: string;
+    targetPrompt: string;
+    onSourcePromptChange: (value: string) => void;
+    onTargetPromptChange: (value: string) => void;
+    onLensResult?: (result: PatchLensResult, runSrc: string, runTgt: string) => void;
+    lensResult?: PatchLensResult | null;
+    lastRunSrcPrompt?: string | null;
+    lastRunTgtPrompt?: string | null;
+    // Bumped each time a history entry is restored. Tells the area to re-tokenize
+    // both prompts and show the chip view, since the prompt props change without
+    // the textarea blur that normally drives tokenization.
+    restoreNonce?: number;
+    /** True once the chart row's saved prompts have been absorbed. The guided
+     * tutorial waits for it before restoring a step's prompt, so hydration can't
+     * land on top of the restore. */
+    promptsHydrated?: boolean;
+    // Restore a history entry onto the tool. When provided, the prompt-history
+    // list renders at the bottom of this controls column.
+    onSelectRun?: (run: NormalizedRun) => void;
+}
+
+function useTutorialAutoStart({ disabled }: { disabled: boolean }) {
+    const { setSteps, setIsOpen, setCurrentStep, isOpen } = useTour();
+    const { completed, markCompleted } = usePatchLensTutorial();
+    // Auto-start fires at most once per mount; dismissing then resaving the
+    // localStorage flag prevents a popup loop (same pattern as lens-intro).
+    const autoStartedRef = useRef(false);
+    // Whether the walkthrough currently on screen is the one *this* hook opened.
+    // The guided tutorial's orientation walkthrough shares the same reactour
+    // provider, so the close below has to be able to tell them apart.
+    const openedHereRef = useRef(false);
+
+    useEffect(() => {
+        hydratePatchLensTutorial();
+    }, []);
+
+    useEffect(() => {
+        // In workshop mode we auto-launch the DB-configured guided tutorial
+        // instead of this hard-coded reactour walkthrough, so stay closed.
+        if (disabled || autoStartedRef.current || completed || isOpen) return;
+        if (!setSteps || !setIsOpen) return;
+        autoStartedRef.current = true;
+        const steps = PatchLensTutorial.chapters[0]?.steps ?? [];
+        setSteps(steps);
+        // reactour keeps currentStep at the provider level, so reset to the
+        // start explicitly rather than relying on the (already-0) default.
+        setCurrentStep(0);
+        const id = setTimeout(() => {
+            setIsOpen(true);
+            openedHereRef.current = true;
+            markCompleted();
+        }, 600);
+        return () => clearTimeout(id);
+    }, [disabled, completed, isOpen, setSteps, setIsOpen, setCurrentStep, markCompleted]);
+
+    // The guided tutorial has taken over — its slideshow is up, or its step column
+    // is. Put this walkthrough away instead of leaving two tutorials on screen at
+    // once, pointing at opposite sides of the app: the walkthrough anchors to the
+    // prompt column on the left while the lesson a participant is being told to
+    // follow is docked on the right. Only ever closes the popover opened above, so
+    // the guided tutorial's own orientation walkthrough and a manual start from the
+    // Tutorial menu are both left alone.
+    useEffect(() => {
+        if (!disabled || !openedHereRef.current || !isOpen || !setIsOpen) return;
+        openedHereRef.current = false;
+        setIsOpen(false);
+    }, [disabled, isOpen, setIsOpen]);
+
+    const startTutorial = (chapterIdx: number = 0) => {
+        if (!setSteps || !setIsOpen) return;
+        const steps = PatchLensTutorial.chapters[chapterIdx]?.steps ?? [];
+        setSteps(steps);
+        // Always restart from step 1. reactour retains the last step index across
+        // opens, so without this a reopen (e.g. after clicking Done on the last
+        // step) resumes at the end instead of the beginning.
+        setCurrentStep(0);
+        setIsOpen(true);
+    };
+
+    return { startTutorial };
+}
+
+/**
+ * Hand-off from the guided tutorial's welcome slideshow to the reactour
+ * walkthrough that points at the actual controls.
+ *
+ * The dialog has to be gone before the tour opens — two overlapping masks read as
+ * a broken screen, and reactour measures its target on open, so it would measure
+ * through the dialog's overlay. One frame's delay is enough for the dialog's exit
+ * to unmount and the tutorial column to be in the DOM for the closing step.
+ */
+function useOrientationTour() {
+    const { setSteps, setIsOpen, setCurrentStep } = useTour();
+    const { available: docked } = useTutorialDock();
+    const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(
+        () => () => {
+            if (pending.current) clearTimeout(pending.current);
+        },
+        [],
+    );
+
+    return useCallback(() => {
+        if (!setSteps || !setIsOpen) return;
+        setSteps(orientationTourSteps({ docked }));
+        // reactour keeps currentStep on the provider, so a previous walkthrough's
+        // index would otherwise drop the participant into the middle of this one.
+        setCurrentStep(0);
+        if (pending.current) clearTimeout(pending.current);
+        pending.current = setTimeout(() => setIsOpen(true), 250);
+    }, [setSteps, setIsOpen, setCurrentStep, docked]);
+}
+
+export default function PatchLensArea({
+    sourcePrompt,
+    targetPrompt,
+    onSourcePromptChange,
+    onTargetPromptChange,
+    onLensResult,
+    lensResult,
+    lastRunSrcPrompt,
+    lastRunTgtPrompt,
+    restoreNonce,
+    promptsHydrated = true,
+    onSelectRun,
+}: PatchLensAreaProps) {
+    const { chartId } = useParams<{ chartId: string }>();
+    const workspaceId = useScopedWorkspaceId();
+    const capture = useCapture();
+    const { emit: emitTutorialEvent } = useTutorialEmit();
+    const prolificTutorial = useProlificTutorial();
+    const { setTarget: setSpotlight } = useSpotlight();
+    const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
+    const startOrientationTour = useOrientationTour();
+
+    // Bind the guided-tutorial store to this workspace (resets on workspace change).
+    useEffect(() => {
+        if (workspaceId) prolificTutorial.setWorkspace(workspaceId);
+        // setWorkspace is stable-by-value; only re-bind when the workspace changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workspaceId]);
+
+    // Tutorial content is DB-backed (workshop's assigned tutorial, else the demo
+    // seed). Inject the resolved units into the store so the panel can render them.
+    const { data: tutorialContent, isError: tutorialContentError } = useWorkspaceTutorial(
+        workspaceId as string,
+    );
+    useEffect(() => {
+        if (tutorialContent) prolificTutorial.setUnits(tutorialContent.units);
+        // setUnits is stable-by-value; only re-inject when the content changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tutorialContent]);
+
+    // Top-1 / top-2 next tokens from the last run, captured atomically with a
+    // nonce so the guided-tutorial panel scores each run exactly once (§4.7).
+    // `unitIdx` records the guided-tutorial unit active when the run was
+    // *initiated*, so the panel scores each run against its originating unit even
+    // if the participant advances before the (async) run resolves.
+    const [runTokens, setRunTokens] = useState<{
+        nonce: number;
+        top: string | null;
+        second: string | null;
+        unitIdx: number | null;
+        // The lens_runs row this came from, so the frozen answer key can be
+        // validated against the run on screen after a reload (see pruneRunKeys).
+        runId: string | null;
+    }>({ nonce: 0, top: null, second: null, unitIdx: null, runId: null });
+
+    const { data: models } = useQuery({
+        queryKey: ["models"],
+        queryFn: getModels,
+        refetchInterval: 120000,
+    });
+
+    // Workshop workspaces pin the workshop's model; don't fight the pin with
+    // the intro default below.
+    const { data: workshop, isLoading: workshopLoading } = useWorkspaceWorkshop(
+        workspaceId as string,
+    );
+
+    // The workspace's captured Prolific identifiers (set on first arrival via the
+    // /w join link) — used to pass PROLIFIC_PID through to the post-survey so the
+    // response can be matched back to the study. Same cache key as elsewhere, so
+    // this is usually a hit rather than a fresh fetch.
+    const { data: workspace } = useQuery({
+        queryKey: queryKeys.workspaces.workspace(workspaceId as string),
+        queryFn: () => getWorkspaceById(workspaceId as string),
+        enabled: !!workspaceId,
+    });
+    const surveyUrl = withProlificPid(workshop?.surveyUrl, workspace?.prolific?.prolificPid);
+
+    // Default to Llama-3.1-8B once when models load, rather than leaving the
+    // workspace default at index 0 (the 70B, 80 layers). Guarded so a later
+    // manual model choice is not overridden. Waits for the workshop lookup so
+    // a workshop's pinned model wins the race over the intro default.
+    const didDefaultModel = useRef(false);
+    useEffect(() => {
+        if (didDefaultModel.current || !models || models.length === 0 || workshopLoading) return;
+        didDefaultModel.current = true;
+        const targetModel = workshop ? workshop.model : DEFAULT_INTRO_MODEL;
+        const idx = models.findIndex((m) => m.name === targetModel);
+        if (idx !== -1 && idx !== selectedModelIdx) {
+            setSelectedModelIdx(idx);
+        }
+    }, [models, selectedModelIdx, setSelectedModelIdx, workshop, workshopLoading]);
+
+    const selectedModel = useMemo(() => {
+        if (!models || models.length === 0) return undefined;
+        return models[selectedModelIdx]?.name || models[0].name;
+    }, [models, selectedModelIdx]);
+
+    // Workshop mode auto-launches the configured guided tutorial once its content
+    // has loaded — participants shouldn't have to hunt for the Tutorial menu.
+    // Fires once per mount; resumes rather than restarts a participant who
+    // already has progress (or exited deliberately), reading fresh store state to
+    // avoid a stale closure. `setUnits` (above) has already run for this content.
+    const guidedAutoStartedRef = useRef(false);
+    useEffect(() => {
+        if (guidedAutoStartedRef.current) return;
+        if (!workshop || !tutorialContent) return;
+        guidedAutoStartedRef.current = true;
+        const st = useProlificTutorial.getState();
+        if (!st.active && st.completedUnits.length === 0 && st.unitIdx === 0) {
+            st.start();
+        }
+    }, [workshop, tutorialContent]);
+
+    // Source prompt state
+    const [srcTokens, setSrcTokens] = useState<Token[]>([]);
+    const [srcEditing, setSrcEditing] = useState(true);
+    const [srcTokenizedModel, setSrcTokenizedModel] = useState<string | null>(null);
+    const srcTextareaRef = useRef<HTMLTextAreaElement>(null);
+    const srcTokenContainerRef = useRef<HTMLDivElement>(null);
+
+    // Target prompt state
+    const [tgtTokens, setTgtTokens] = useState<Token[]>([]);
+    const [tgtEditing, setTgtEditing] = useState(true);
+    const [tgtTokenizedModel, setTgtTokenizedModel] = useState<string | null>(null);
+    const tgtTextareaRef = useRef<HTMLTextAreaElement>(null);
+    const tgtTokenContainerRef = useRef<HTMLDivElement>(null);
+
+    // Auto-focus the source prompt textarea on first mount so new users
+    // can start typing immediately. Only if it's empty (don't steal focus
+    // when revisiting a chart that already has prompts).
+    const didFocusRef = useRef(false);
+    useEffect(() => {
+        if (didFocusRef.current) return;
+        if (!sourcePrompt) {
+            srcTextareaRef.current?.focus();
+            didFocusRef.current = true;
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const tokenize = useCallback(async (text: string, model: string): Promise<Token[] | null> => {
+        try {
+            // No BOS marker in the chips. `<|begin_of_text|>` is a tokenizer
+            // artefact, not part of what the participant typed, and it read as the
+            // tool having mangled their prompt. Safe here specifically: patch-lens
+            // renders the chips read-only (selectedPositions=[], no token click
+            // handlers) and, in mode="full", owns its own tokenization — so no
+            // index is derived from this array. Tools that DO index off token
+            // position (activation-patching) keep the BOS-inclusive default, and the
+            // lens data the backend returns is untouched, since interventions are
+            // addressed against BOS-inclusive positions.
+            return await encodeText(text, model, false);
+        } catch (error) {
+            if (error instanceof TokenizerLoadError) {
+                toast.error(
+                    `Could not load tokenizer for ${model}. The model may be gated and require authentication.`,
+                );
+            } else {
+                toast.error("Failed to tokenize prompt.");
+            }
+            return null;
+        }
+    }, []);
+
+    // Initial tokenize on mount when a model becomes available
+    useEffect(() => {
+        if (!selectedModel) return;
+        const run = async () => {
+            if (sourcePrompt) {
+                const tokens = await tokenize(sourcePrompt, selectedModel);
+                if (tokens && tokens.length > 0) {
+                    setSrcTokens(tokens);
+                    setSrcTokenizedModel(selectedModel);
+                    setSrcEditing(false);
+                }
+            }
+            if (targetPrompt) {
+                const tokens = await tokenize(targetPrompt, selectedModel);
+                if (tokens && tokens.length > 0) {
+                    setTgtTokens(tokens);
+                    setTgtTokenizedModel(selectedModel);
+                    setTgtEditing(false);
+                }
+            }
+        };
+        run();
+        // Only auto-tokenize when the model first becomes available
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedModel]);
+
+    // Restoring a history entry swaps the prompt props without a textarea blur,
+    // so re-tokenize both prompts and show the chip view. Keyed only on the
+    // restore nonce (not the prompt text) so typing doesn't force the chip view.
+    useEffect(() => {
+        if (!restoreNonce || !selectedModel) return;
+        let cancelled = false;
+        const run = async () => {
+            if (sourcePrompt) {
+                const tokens = await tokenize(sourcePrompt, selectedModel);
+                if (!cancelled && tokens && tokens.length > 0) {
+                    setSrcTokens(tokens);
+                    setSrcTokenizedModel(selectedModel);
+                    setSrcEditing(false);
+                }
+            } else {
+                setSrcTokens([]);
+                setSrcTokenizedModel(null);
+                setSrcEditing(true);
+            }
+            if (targetPrompt) {
+                const tokens = await tokenize(targetPrompt, selectedModel);
+                if (!cancelled && tokens && tokens.length > 0) {
+                    setTgtTokens(tokens);
+                    setTgtTokenizedModel(selectedModel);
+                    setTgtEditing(false);
+                }
+            } else {
+                setTgtTokens([]);
+                setTgtTokenizedModel(null);
+                setTgtEditing(true);
+            }
+        };
+        run();
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [restoreNonce]);
+
+    const handleSrcBlur = useCallback(() => {
+        setTimeout(async () => {
+            const activeElement = document.activeElement;
+            const withinTextarea = activeElement && srcTextareaRef.current?.contains(activeElement);
+            const withinToken =
+                activeElement && srcTokenContainerRef.current?.contains(activeElement);
+            if (withinTextarea || withinToken) return;
+
+            if (!sourcePrompt || !selectedModel) {
+                // Clear any stale tokens so the empty state actually reads as
+                // empty (otherwise the token display would show the previous
+                // tokenization after the user deletes the text).
+                setSrcTokens([]);
+                setSrcTokenizedModel(null);
+                setSrcEditing(true);
+                return;
+            }
+            const tokens = await tokenize(sourcePrompt, selectedModel);
+            if (tokens && tokens.length > 0) {
+                setSrcTokens(tokens);
+                setSrcTokenizedModel(selectedModel);
+                setSrcEditing(false);
+            }
+        }, 100);
+    }, [sourcePrompt, selectedModel, tokenize]);
+
+    const handleTgtBlur = useCallback(() => {
+        setTimeout(async () => {
+            const activeElement = document.activeElement;
+            const withinTextarea = activeElement && tgtTextareaRef.current?.contains(activeElement);
+            const withinToken =
+                activeElement && tgtTokenContainerRef.current?.contains(activeElement);
+            if (withinTextarea || withinToken) return;
+
+            if (!targetPrompt || !selectedModel) {
+                setTgtTokens([]);
+                setTgtTokenizedModel(null);
+                setTgtEditing(true);
+                return;
+            }
+            const tokens = await tokenize(targetPrompt, selectedModel);
+            if (tokens && tokens.length > 0) {
+                setTgtTokens(tokens);
+                setTgtTokenizedModel(selectedModel);
+                setTgtEditing(false);
+            }
+        }, 100);
+    }, [targetPrompt, selectedModel, tokenize]);
+
+    // Explicit clear handlers so the user has a one-click way to reset a
+    // prompt back to empty (deleting characters in the textarea works too,
+    // but a button is more discoverable).
+    const handleClearSrc = useCallback(() => {
+        onSourcePromptChange("");
+        setSrcTokens([]);
+        setSrcTokenizedModel(null);
+        setSrcEditing(true);
+        setTimeout(() => srcTextareaRef.current?.focus(), 0);
+    }, [onSourcePromptChange]);
+
+    const handleClearTgt = useCallback(() => {
+        onTargetPromptChange("");
+        setTgtTokens([]);
+        setTgtTokenizedModel(null);
+        setTgtEditing(true);
+        setTimeout(() => tgtTextareaRef.current?.focus(), 0);
+    }, [onTargetPromptChange]);
+
+    // Load a known-good example into the source prompt so first-time users (and
+    // the tutorial) have something that works to follow along with. Source only:
+    // the lens chapter wants the target blank. Focusing after the fill lets the
+    // blur-driven tokenization show the token chips.
+    const handleTryExample = useCallback(() => {
+        onSourcePromptChange(EXAMPLE_SOURCE);
+        setSrcEditing(true);
+        setTimeout(() => srcTextareaRef.current?.focus(), 0);
+    }, [onSourcePromptChange]);
+
+    // Flag stale tokenization for EITHER prompt: the source or the target may
+    // have been tokenized with a model that's no longer selected.
+    const configModelUnavailable =
+        [srcTokenizedModel, tgtTokenizedModel].find(
+            (m) => m && selectedModel && m !== selectedModel,
+        ) ?? null;
+
+    // Predicted next-token from the last lens run. Hidden when the prompt
+    // currently in the textarea no longer matches what the lens was run on.
+    const srcPrediction = useMemo(() => {
+        if (!lensResult?.source) return null;
+        if (lastRunSrcPrompt == null || sourcePrompt !== lastRunSrcPrompt) return null;
+        return finalPrediction(lensResult.source);
+    }, [lensResult, sourcePrompt, lastRunSrcPrompt]);
+
+    const tgtPrediction = useMemo(() => {
+        if (!lensResult?.target) return null;
+        if (lastRunTgtPrompt == null || targetPrompt !== lastRunTgtPrompt) return null;
+        return finalPrediction(lensResult.target);
+    }, [lensResult, targetPrompt, lastRunTgtPrompt]);
+
+    // Soft phrasing guardrail (spec §4.2): when the source prompt's top predicted
+    // token is punctuation/newline/EOS, the model thinks the text is complete —
+    // nudge the user to rephrase so the answer comes next. Non-blocking.
+    const phrasingWarning = useMemo(() => promptPhrasingWarning(srcPrediction), [srcPrediction]);
+
+    const { mutateAsync: runLogitLens, isPending: isRunning } = usePatchLensLogitLens();
+
+    // Target is optional: when blank, Patch Lens runs in single-prompt mode and
+    // only computes the source lens. The widget hides the target heatmap and
+    // disables drag-and-drop patching in that mode.
+    const canRun = !!selectedModel && !!sourcePrompt.trim() && !isRunning;
+
+    // Core run: computes the lens for explicit prompts. handleRun wraps it with
+    // the current editor state; the tutorial's "Try a prompt" path calls it with
+    // the inserted prompt directly (React state updates aren't visible in the
+    // same tick, so we can't rely on sourcePrompt having updated).
+    const executeRun = useCallback(
+        async (srcRaw: string, tgtRaw: string) => {
+            if (!selectedModel) {
+                toast.error("Please select a model.");
+                return;
+            }
+            if (!srcRaw.trim()) {
+                toast.error("Please enter a source prompt.");
+                return;
+            }
+            // Trim surrounding whitespace: a trailing space tokenizes as its own
+            // token and collapses the model's prediction onto whitespace/digits.
+            const src = srcRaw.trim();
+            const tgt = tgtRaw.trim();
+            // Pin this run to the guided-tutorial unit it starts on, so scoring
+            // lands on the right unit even if the participant advances mid-run.
+            const guided = useProlificTutorial.getState();
+            const runUnitIdx = guided.active ? guided.unitIdx : null;
+            // Reflect the trimmed text back into the editors so the textbox matches
+            // what was actually run (and the heatmap): otherwise the editor still
+            // holds the trailing space while lastRun snapshots the trimmed prompt,
+            // and the prompt-vs-heatmap mismatch hides the prediction hint.
+            if (src !== srcRaw) onSourcePromptChange(src);
+            if (tgt !== tgtRaw) onTargetPromptChange(tgt);
+
+            if (!chartId) {
+                toast.error("Missing chart id.");
+                return;
+            }
+
+            capture("run_submitted", {
+                tool: "patch-lens",
+                model: selectedModel,
+                source_prompt_length: src.length,
+                target_prompt_length: tgt.length,
+            });
+
+            // Advance any tutorial step gated on clicking Run (the click trigger was
+            // dead until the event bus was wired — see TutorialEventProvider).
+            emitTutorialEvent({ type: "click", target: "#patch-lens-run" });
+
+            try {
+                const result = await runLogitLens({
+                    sourcePrompt: src,
+                    targetPrompt: tgt, // empty/whitespace is fine — mutation skips the call
+                    model: selectedModel,
+                    chartId,
+                    workspaceId,
+                });
+                onLensResult?.(result, src, tgt);
+                // Advance runCompleted-gated steps; the predicate (if any) inspects
+                // this result (e.g. unit 3's "top prediction ≠ 10").
+                emitTutorialEvent({ type: "runCompleted", result });
+                // Capture the run's top tokens atomically for the guided-tutorial
+                // panel (success predicate + embedded check auto-scoring).
+                setRunTokens((prev) => ({
+                    nonce: prev.nonce + 1,
+                    top: finalPrediction(result.source),
+                    second: finalTopKTokens(result.source, 2)[1] ?? null,
+                    unitIdx: runUnitIdx,
+                    // Undefined when the history write failed; the key is then kept
+                    // for this session only rather than persisted unverifiably.
+                    runId: result.activeLensRunId ?? null,
+                }));
+                toast.success(
+                    tgt.trim() ? "Logit lens computed for both prompts." : "Logit lens computed.",
+                );
+            } catch (error) {
+                // Error toast handled by the mutation's onError.
+                capture("run_failed", { tool: "patch-lens", error: String(error) });
+            }
+        },
+        [
+            selectedModel,
+            onSourcePromptChange,
+            onTargetPromptChange,
+            runLogitLens,
+            onLensResult,
+            chartId,
+            workspaceId,
+            capture,
+            emitTutorialEvent,
+        ],
+    );
+
+    const handleRun = useCallback(
+        () => executeRun(sourcePrompt, targetPrompt),
+        [executeRun, sourcePrompt, targetPrompt],
+    );
+
+    // Latest prompts + model, readable after an await. Tokenizing is a round trip;
+    // by the time it returns the box may hold something else entirely (a later
+    // restore, the chart row hydrating, the participant typing) and the model may
+    // have settled onto a different one. Programmatic writes update this
+    // synchronously (below) as well as on commit, so a fast tokenize isn't judged
+    // against a value React hasn't rendered yet.
+    const live = useRef({ source: sourcePrompt, target: targetPrompt, model: selectedModel });
+    useEffect(() => {
+        live.current = { source: sourcePrompt, target: targetPrompt, model: selectedModel };
+    }, [sourcePrompt, targetPrompt, selectedModel]);
+
+    // Put text in a prompt box. Synchronous by design: a caller filling both boxes
+    // must not be able to lose the second write to an async race. Returns the text
+    // actually written, for the tokenize step below.
+    const setPromptText = useCallback(
+        (which: "source" | "target", text: string): string => {
+            const trimmed = text.trim();
+            live.current = { ...live.current, [which]: trimmed };
+            if (which === "source") {
+                onSourcePromptChange(trimmed);
+                if (!trimmed) {
+                    setSrcTokens([]);
+                    setSrcTokenizedModel(null);
+                    setSrcEditing(true);
+                }
+            } else {
+                onTargetPromptChange(trimmed);
+                if (!trimmed) {
+                    setTgtTokens([]);
+                    setTgtTokenizedModel(null);
+                    setTgtEditing(true);
+                }
+            }
+            return trimmed;
+        },
+        [onSourcePromptChange, onTargetPromptChange],
+    );
+
+    // Show the token chips for text already written to a box. Abandoned if the box
+    // or the model moved on while tokenizing — stale chips would otherwise claim
+    // the prompt was tokenized with a model that is no longer selected, which is
+    // what raises the "tokens last computed with …" warning.
+    const tokenizePromptText = useCallback(
+        async (which: "source" | "target", text: string) => {
+            if (!text || !selectedModel) return;
+            const tokens = await tokenize(text, selectedModel);
+            if (!tokens || tokens.length === 0) return;
+            if (live.current.model !== selectedModel) return;
+            if (live.current[which] !== text) return;
+            if (which === "source") {
+                setSrcTokens(tokens);
+                setSrcTokenizedModel(selectedModel);
+                setSrcEditing(false);
+            } else {
+                setTgtTokens(tokens);
+                setTgtTokenizedModel(selectedModel);
+                setTgtEditing(false);
+            }
+        },
+        [selectedModel, tokenize],
+    );
+
+    // Put text in a prompt box and show its chips, without stealing focus.
+    const fillPrompt = useCallback(
+        async (which: "source" | "target", text: string) => {
+            await tokenizePromptText(which, setPromptText(which, text));
+        },
+        [setPromptText, tokenizePromptText],
+    );
+
+    // Restore a guided-tutorial unit's own prompt when the participant arrives at
+    // it. Without this a revisited step describes one prompt while the boxes hold
+    // whatever ran last — the instructions and the tool disagree, and a re-run
+    // there answers the step's check against the wrong prompt. Participant-written
+    // text is left alone (see promptsForUnitEntry).
+    const restoredUnitIdx = useRef<number | null>(null);
+    useEffect(() => {
+        if (!prolificTutorial.active) return;
+        // Content arrives asynchronously, and so do the chart row's saved prompts —
+        // restoring first would be overwritten by that hydration a moment later.
+        if (prolificTutorial.units.length === 0 || !promptsHydrated) return;
+        const idx = prolificTutorial.unitIdx;
+        if (restoredUnitIdx.current === idx) return;
+        restoredUnitIdx.current = idx;
+        const restore = promptsForUnitEntry(prolificTutorial.units, idx, {
+            source: sourcePrompt,
+            target: targetPrompt,
+        });
+        if (!restore) return;
+        // Both boxes are written now, synchronously. Chips follow asynchronously and
+        // are allowed to be dropped (the model-change effect above recomputes them,
+        // as does a blur) — the prompts themselves never are.
+        const written = (["source", "target"] as const)
+            .filter((which) => restore[which] !== undefined)
+            .map((which) => ({ which, text: setPromptText(which, restore[which] as string) }));
+        void (async () => {
+            for (const { which, text } of written) await tokenizePromptText(which, text);
+        })();
+        // Prompts are read at arrival, deliberately: re-running on every keystroke
+        // would fight the participant's typing.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        prolificTutorial.active,
+        prolificTutorial.unitIdx,
+        prolificTutorial.units,
+        promptsHydrated,
+        setPromptText,
+        tokenizePromptText,
+    ]);
+
+    // Tutorial "Try a prompt": fill the source prompt, show its tokenized chips,
+    // then run — one click instead of insert-then-Run. Target is left as-is
+    // (empty in lens units → single-prompt mode).
+    const handleTryPrompt = useCallback(
+        async (text: string) => {
+            const trimmed = text.trim();
+            await fillPrompt("source", trimmed);
+            await executeRun(trimmed, targetPrompt);
+        },
+        [fillPrompt, targetPrompt, executeRun],
+    );
+
+    // Tutorial "Load both prompts and run": fill source + target and run, matching
+    // what a single-prompt "Try a prompt" click does. Loading the pair without
+    // running left the participant on a two-prompt step with no heatmaps and no
+    // obvious next move — the step says to compare two read-outs that aren't there,
+    // and the patch step's drag isn't even possible until a run exists.
+    const handleTryPatchPair = useCallback(
+        async ({ source, target }: PatchPromptPair) => {
+            const src = source.trim();
+            const tgt = target.trim();
+            // Both boxes are written synchronously by setPromptText inside
+            // fillPrompt, so the run below sees the pair even mid-tokenize.
+            await fillPrompt("source", src);
+            await fillPrompt("target", tgt);
+            await executeRun(src, tgt);
+        },
+        [fillPrompt, executeRun],
+    );
+
+    // Suppress the hard-coded reactour walkthrough in workshop mode (and while
+    // the workshop lookup is pending) — the guided tutorial auto-launches there.
+    // But if the guided-tutorial content query has definitively errored, keep the
+    // reactour walkthrough as a fallback so a workshop participant is never left
+    // with no onboarding at all.
+    //
+    // Workshop mode is not the only way the guided tutorial runs: it also starts
+    // from the Tutorial menu on an ordinary workspace, and there the walkthrough
+    // used to pop up beside it. So gate on the guided tutorial actually being on
+    // screen too — either its slideshow or its step column.
+    const { startTutorial } = useTutorialAutoStart({
+        disabled:
+            workshopLoading ||
+            (!!workshop && !tutorialContentError) ||
+            prolificTutorial.active ||
+            prolificTutorial.welcomeOpen,
+    });
+
+    return (
+        <div className="h-full flex flex-col md:min-w-64">
+            <div id="patch-lens-welcome" className="p-3 border-b flex items-center justify-between">
+                <h2 className="text-sm pl-2 font-medium">Patch Lens</h2>
+                <div className="flex items-center gap-2">
+                    {configModelUnavailable && (
+                        <Tooltip>
+                            <TooltipTrigger>
+                                <AlertCircle className="w-4 h-4 text-yellow-500" />
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs">
+                                <p>
+                                    Tokens last computed with &quot;{configModelUnavailable}&quot;.
+                                    Click a prompt and blur to retokenize.
+                                </p>
+                            </TooltipContent>
+                        </Tooltip>
+                    )}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-7 px-2 text-xs ${
+                                    prolificTutorial.active
+                                        ? "text-primary ring-2 ring-primary/50 ring-offset-1 ring-offset-background"
+                                        : "text-muted-foreground"
+                                }`}
+                            >
+                                Tutorial
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => prolificTutorial.start()}>
+                                Guided tutorial
+                                {tutorialContent ? ` (${tutorialContent.units.length} steps)` : ""}
+                            </DropdownMenuItem>
+                            {/* The orientation is shown once automatically; this is
+                                how a participant gets back to the vocabulary slides
+                                and the walkthrough afterwards. */}
+                            {tutorialContent?.welcome && (
+                                <DropdownMenuItem onSelect={() => prolificTutorial.openWelcome()}>
+                                    Welcome &amp; orientation
+                                </DropdownMenuItem>
+                            )}
+                            {PatchLensTutorial.chapters.map((chapter, idx) => (
+                                <DropdownMenuItem
+                                    key={chapter.title}
+                                    onSelect={() => startTutorial(idx)}
+                                >
+                                    {chapter.title}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </div>
+
+            {/* No standing explainer above the prompts: this column is where the
+                work happens, and a paragraph of grey text at the top of it pushed
+                the boxes down and got skipped. The framing now lives in the guided
+                tutorial's welcome slideshow and the walkthrough that follows it
+                (see TutorialWelcomeDialog / orientationTour), and in the Tutorial
+                menu's chapters for anyone not running the guided tutorial. */}
+            <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
+                <div id="patch-lens-source-prompt" className="flex flex-col gap-1.5 relative">
+                    {sourcePrompt ? (
+                        <button
+                            type="button"
+                            onClick={handleClearSrc}
+                            disabled={isRunning}
+                            className="absolute top-0 right-0 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 flex items-center gap-0.5 h-5 px-1"
+                            title="Clear source prompt"
+                        >
+                            <X className="h-3 w-3" />
+                            <span>Clear</span>
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={handleTryExample}
+                            disabled={isRunning}
+                            className="absolute top-0 right-0 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 h-5 px-1"
+                            title={`Load an example prompt: "${EXAMPLE_SOURCE}"`}
+                        >
+                            Try an example
+                        </button>
+                    )}
+                    <PatchPromptSection
+                        variant="source"
+                        mode="full"
+                        label="Source Prompt"
+                        prompt={sourcePrompt}
+                        setPrompt={onSourcePromptChange}
+                        tokens={srcTokens}
+                        selectedModel={selectedModel ?? ""}
+                        isEditing={srcEditing}
+                        setIsEditing={setSrcEditing}
+                        tokenizedModel={srcTokenizedModel}
+                        textareaRef={srcTextareaRef}
+                        tokenContainerRef={srcTokenContainerRef}
+                        onBlur={handleSrcBlur}
+                        selectedPositions={[]}
+                        pendingRangeStart={null}
+                        predictionToken={srcPrediction}
+                    />
+                    <p className="text-xs text-muted-foreground leading-snug">
+                        The prompt you <span className="font-medium">copy from</span>. End it right
+                        before the answer, like &quot;The opposite of hot is&quot;.
+                    </p>
+                </div>
+
+                <div id="patch-lens-target-prompt" className="flex flex-col gap-1.5 relative">
+                    {targetPrompt && (
+                        <button
+                            type="button"
+                            onClick={handleClearTgt}
+                            disabled={isRunning}
+                            className="absolute top-0 right-0 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 flex items-center gap-0.5 h-5 px-1"
+                            title="Clear target prompt"
+                        >
+                            <X className="h-3 w-3" />
+                            <span>Clear</span>
+                        </button>
+                    )}
+                    <PatchPromptSection
+                        variant="target"
+                        mode="full"
+                        label="Target Prompt"
+                        prompt={targetPrompt}
+                        setPrompt={onTargetPromptChange}
+                        tokens={tgtTokens}
+                        selectedModel={selectedModel ?? ""}
+                        isEditing={tgtEditing}
+                        setIsEditing={setTgtEditing}
+                        tokenizedModel={tgtTokenizedModel}
+                        textareaRef={tgtTextareaRef}
+                        tokenContainerRef={tgtTokenContainerRef}
+                        onBlur={handleTgtBlur}
+                        tgtSelectedPositions={[]}
+                        frozenPositions={[]}
+                        predictionToken={tgtPrediction}
+                    />
+                    <p className="text-xs text-muted-foreground leading-snug">
+                        Optional. The prompt you <span className="font-medium">copy into</span> —
+                        worded much the same way but with a different answer, like &quot;The
+                        opposite of tall is&quot;. With both filled in you get a heatmap each, and
+                        you can <span className="font-medium">drag a cell</span> from the first onto
+                        the second. Leave it blank for a single read-out.
+                    </p>
+                </div>
+
+                <Button
+                    id="patch-lens-run"
+                    onClick={handleRun}
+                    disabled={!canRun}
+                    className="w-full"
+                >
+                    {isRunning ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Computing...
+                        </>
+                    ) : (
+                        <>
+                            <Play className="mr-2 h-4 w-4" />
+                            Run Patch Lens
+                        </>
+                    )}
+                </Button>
+
+                {phrasingWarning && (
+                    <p
+                        role="status"
+                        className="flex items-start gap-1.5 text-xs text-yellow-600 dark:text-yellow-500 leading-snug"
+                    >
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                        <span>{phrasingWarning}</span>
+                    </p>
+                )}
+
+                {/* Orientation, before step 1 — and reopenable from the Tutorial
+                    menu. Finishing the slides hands off to the walkthrough. */}
+                {tutorialContent?.welcome && (
+                    <TutorialWelcomeDialog
+                        welcome={tutorialContent.welcome}
+                        open={prolificTutorial.welcomeOpen}
+                        onSkip={() => {
+                            prolificTutorial.closeWelcome();
+                            capture("tutorial_welcome_dismissed", { started_tour: false });
+                        }}
+                        onStartTour={() => {
+                            prolificTutorial.closeWelcome();
+                            capture("tutorial_welcome_dismissed", { started_tour: true });
+                            startOrientationTour();
+                        }}
+                        onSlideShown={(index, slideTitle) =>
+                            capture("tutorial_welcome_slide_shown", { index, slide: slideTitle })
+                        }
+                    />
+                )}
+
+                <TutorialActivityPanel
+                    runNonce={runTokens.nonce}
+                    topToken={runTokens.top}
+                    secondToken={runTokens.second}
+                    runUnitIdx={runTokens.unitIdx}
+                    runId={runTokens.runId}
+                    glossary={tutorialContent?.glossary}
+                    checkFeedback={tutorialContent?.checkFeedback}
+                    surveyUrl={surveyUrl}
+                    completionThanks={workshop?.completionText}
+                    workshopMode={!!workshop}
+                    onSpotlight={setSpotlight}
+                    onTryPrompt={handleTryPrompt}
+                    onInsertPrompt={(text) => {
+                        onSourcePromptChange(text);
+                        setSrcEditing(true);
+                        setTimeout(() => srcTextareaRef.current?.focus(), 0);
+                    }}
+                    onInsertPatchPair={handleTryPatchPair}
+                />
+
+                {onSelectRun && <LensHistoryRail onSelectRun={onSelectRun} />}
+            </div>
+        </div>
+    );
+}

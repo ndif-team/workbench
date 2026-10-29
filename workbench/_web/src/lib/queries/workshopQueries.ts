@@ -60,7 +60,7 @@ export async function deleteWorkshop(id: string): Promise<void> {
  * Creates the first chart for a workshop workspace: the workshop's first
  * allowed tool, pinned to its model, seeded with its starter prompt. Shared by
  * the join action and the workspace page's create-default-chart path. Tool
- * names double as route segments (/workbench/{ws}/{tool}/{chart}).
+ * names double as route segments (/{tool}/{chart}).
  */
 export async function seedWorkshopChart(
     workspaceId: string,

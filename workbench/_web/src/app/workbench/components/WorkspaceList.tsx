@@ -2,6 +2,7 @@
 
 import { getWorkspaces } from "@/lib/queries/workspaceQueries";
 import Link from "next/link";
+import { openWorkspacePath } from "@/lib/chartRoutes";
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
 import { useQuery } from "@tanstack/react-query";
 import { useDeleteWorkspace } from "@/lib/api/workspaceApi";
@@ -38,7 +39,7 @@ function WorkspaceCard({
 
     return (
         <Link
-            href={`/workbench/${workspace.id}`}
+            href={openWorkspacePath(workspace.id)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             className="group block"

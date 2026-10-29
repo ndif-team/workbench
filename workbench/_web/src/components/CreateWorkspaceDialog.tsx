@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateWorkspace } from "@/lib/api/workspaceApi";
 import { useRouter } from "next/navigation";
+import { openWorkspacePath } from "@/lib/chartRoutes";
 
 export function CreateWorkspaceDialog() {
     const [open, setOpen] = useState(false);
@@ -35,7 +36,7 @@ export function CreateWorkspaceDialog() {
             setOpen(false);
             setName("");
             // Navigate to workspace - chart will be created automatically
-            router.push(`/workbench/${newWorkspace.id}`);
+            router.push(openWorkspacePath(newWorkspace.id));
         } catch (error) {
             console.error("Failed to create workspace:", error);
             // You might want to show a toast notification here

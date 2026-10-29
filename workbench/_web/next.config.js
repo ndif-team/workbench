@@ -40,17 +40,29 @@ const nextConfig = {
         },
     },
     outputFileTracingIncludes: {
-        "/workbench/**": [
+        // Notebook export (actions/notebook.ts) runs from the chart pages.
+        "/(logit-lens|j-lens|activation-patching|patch-lens)/**": [
             "./src/notebook-templates/**/*.ipynb",
             "./node_modules/nnsightful/src/nnsightful/viz/charts.js",
         ],
     },
     async redirects() {
         return [
-            // The logit lens chart route was renamed from `lens2`; keep old links working.
+            // Chart and report pages moved out from under /workbench/<workspaceId>/;
+            // keep old links working. The logit lens route was also renamed from `lens2`.
             {
                 source: "/workbench/:workspaceId/lens2/:chartId",
-                destination: "/workbench/:workspaceId/logit-lens/:chartId",
+                destination: "/logit-lens/:chartId",
+                permanent: true,
+            },
+            {
+                source: "/workbench/:workspaceId/:tool(logit-lens|j-lens|activation-patching|patch-lens)/:chartId",
+                destination: "/:tool/:chartId",
+                permanent: true,
+            },
+            {
+                source: "/workbench/:workspaceId/overview/:reportId",
+                destination: "/reports/:reportId",
                 permanent: true,
             },
         ];

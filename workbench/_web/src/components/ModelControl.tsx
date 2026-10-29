@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -20,6 +20,7 @@ import {
     unsupportedReasonFor,
 } from "@/lib/toolSupport";
 import { toolForRouteSegment } from "@/lib/chartRoutes";
+import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 
 // ----- status vocabularies ----------------------------------------------------------
 
@@ -79,7 +80,7 @@ interface ModelControlProps {
 
 export function ModelControl({ className }: ModelControlProps) {
     const { selectedModelIdx, setSelectedModelIdx, jobStatus } = useWorkspace();
-    const { workspaceId } = useParams<{ workspaceId?: string }>();
+    const workspaceId = useWorkspaceScope()?.workspaceId;
 
     const { data: models, isLoading: modelsLoading, isError: modelsError } = useModelsQuery();
 
@@ -96,7 +97,7 @@ export function ModelControl({ className }: ModelControlProps) {
     // tools → no gating.
     const pathname = usePathname();
     const activeTool = React.useMemo<ToolType | null>(() => {
-        const segment = pathname.split("/").filter(Boolean)[2];
+        const segment = pathname.split("/").filter(Boolean)[0];
         const tool = segment ? toolForRouteSegment(segment) : undefined;
         return tool && isToolModelRestricted(tool) ? tool : null;
     }, [pathname]);
