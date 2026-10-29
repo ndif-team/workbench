@@ -67,11 +67,9 @@ export function AppShell({
             );
             return;
         }
-        setCollapsed((current) => {
-            writeSidebarCollapsed(!current);
-            return !current;
-        });
-    }, [workshopWorkspaceId]);
+        setCollapsed(!collapsed);
+        writeSidebarCollapsed(!collapsed);
+    }, [workshopWorkspaceId, collapsed]);
 
     const value = useMemo<ShellSidebarState>(
         () => ({

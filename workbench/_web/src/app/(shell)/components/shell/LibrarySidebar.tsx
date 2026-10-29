@@ -24,10 +24,7 @@ import {
     SidebarRowsSkeleton,
     SidebarSectionHeader,
 } from "./SidebarRows";
-
-/** Folders the user filed themselves come first; workshop workspaces after them. */
-const byFolderKind = (a: LibraryWorkspace, b: LibraryWorkspace) =>
-    Number(a.isWorkshop) - Number(b.isWorkshop);
+import { inFolderOrder } from "./folderOrder";
 
 /**
  * The global sidebar's body (expanded and in the mobile drawer): New chart,
@@ -49,10 +46,7 @@ export function LibrarySidebar() {
     const { mutate: renameChart } = useUpdateChartName();
     const deployStateOf = useDeployStateOf();
 
-    const folders = useMemo(
-        () => [...(library?.workspaces ?? [])].sort(byFolderKind),
-        [library?.workspaces],
-    );
+    const folders = useMemo(() => inFolderOrder(library?.workspaces ?? []), [library?.workspaces]);
 
     // Open the folder holding the item on screen, so the active row is visible.
     const activeFolderId = useMemo(() => {

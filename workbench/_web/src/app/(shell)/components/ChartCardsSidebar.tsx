@@ -397,7 +397,7 @@ export default function ChartCardsSidebar({ collapsed }: { collapsed: boolean })
 
                 <div className="flex-1 flex flex-col items-center justify-center gap-2 py-4">
                     <span className="text-xs text-muted-foreground [writing-mode:vertical-lr] rotate-180">
-                        {charts?.length || 0} charts
+                        {charts?.length ?? 0} {charts?.length === 1 ? "chart" : "charts"}
                     </span>
                 </div>
             </div>

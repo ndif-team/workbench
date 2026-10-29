@@ -11,6 +11,7 @@ import { toolChartPath } from "@/lib/chartRoutes";
 import { getPendingRequest, pendingRequestPath } from "@/lib/pendingRequest";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ChartLaunchRequest } from "@/lib/chartLaunch";
+import { PageHeader } from "../../components/shell/PageHeader";
 
 /**
  * Creates the chart a `/new` URL describes, then replaces the URL with the
@@ -50,30 +51,33 @@ export function NewChartCreator({ request }: { request: ChartLaunchRequest }) {
             });
     }, [attempt, request, router, queryClient]);
 
-    if (failed) {
-        return (
-            <div className="size-full flex items-center justify-center p-4" role="alert">
-                <div className="flex flex-col items-center gap-3 text-center">
-                    <p className="text-sm text-muted-foreground">Couldn&apos;t create the chart.</p>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setAttempt((n) => n + 1)}
-                    >
-                        Try again
-                    </Button>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="size-full flex items-center justify-center p-4" aria-live="polite">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Creating chart…
-            </div>
+        <div className="flex size-full min-h-0 flex-col">
+            <PageHeader />
+            {failed ? (
+                <div className="flex flex-1 items-center justify-center p-4" role="alert">
+                    <div className="flex flex-col items-center gap-3 text-center">
+                        <p className="text-sm text-muted-foreground">
+                            Couldn&apos;t create the chart.
+                        </p>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setAttempt((n) => n + 1)}
+                        >
+                            Try again
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex flex-1 items-center justify-center p-4" aria-live="polite">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creating chart…
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FileText, Folder, FolderPlus, GraduationCap, LineChart } from "lucide-react";
 
@@ -14,6 +14,7 @@ import { InlineNameInput } from "../../components/items/InlineNameInput";
 import { formatTimestamp, formatUpdated } from "../../components/items/formatUpdated";
 import { itemIcon, itemLabel } from "../../components/items/itemLabel";
 import { WorkspaceActionsMenu } from "./WorkspaceActions";
+import { inFolderOrder } from "../../components/shell/folderOrder";
 
 /** How many of a workspace's items its card previews. */
 const PREVIEW_ITEMS = 3;
@@ -25,7 +26,10 @@ const PREVIEW_ITEMS = 3;
 export function WorkspaceGrid() {
     const { data: library, isLoading } = useWorkspaceLibrary();
     const [creating, setCreating] = useState(false);
-    const workspaces = library?.workspaces ?? [];
+    const workspaces = useMemo(
+        () => inFolderOrder(library?.workspaces ?? []),
+        [library?.workspaces],
+    );
 
     return (
         <div className="flex size-full min-h-0 flex-col">
@@ -172,13 +176,13 @@ function WorkspaceCardSkeleton() {
     return (
         <div className={`${CARD} flex flex-col`}>
             <div className="flex h-12 items-center gap-2 px-4">
-                <div className="size-4 rounded-sm bg-muted animate-pulse" />
-                <div className="h-3 w-1/2 rounded-sm bg-muted animate-pulse" />
+                <div className="size-4 rounded-sm bg-border animate-pulse" />
+                <div className="h-3 w-1/2 rounded-sm bg-border animate-pulse" />
             </div>
             <div className="flex flex-col gap-2 border-t px-4 py-3.5">
-                <div className="h-2.5 w-3/4 rounded-sm bg-muted animate-pulse" />
-                <div className="h-2.5 w-2/3 rounded-sm bg-muted animate-pulse" />
-                <div className="h-2.5 w-1/2 rounded-sm bg-muted animate-pulse" />
+                <div className="h-2.5 w-3/4 rounded-sm bg-border animate-pulse" />
+                <div className="h-2.5 w-2/3 rounded-sm bg-border animate-pulse" />
+                <div className="h-2.5 w-1/2 rounded-sm bg-border animate-pulse" />
             </div>
             <div className="h-8 border-t" />
         </div>

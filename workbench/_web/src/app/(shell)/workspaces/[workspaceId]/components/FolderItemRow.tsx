@@ -118,9 +118,9 @@ export function FolderItemRow({
 export function FolderItemRowSkeleton() {
     return (
         <div className="flex h-10 items-center gap-3 pl-8 pr-3">
-            <div className="size-4 shrink-0 rounded-sm bg-muted animate-pulse" />
-            <div className="h-3 w-1/3 rounded-sm bg-muted animate-pulse" />
-            <div className="ml-auto hidden h-3 w-24 rounded-sm bg-muted animate-pulse md:block" />
+            <div className="size-4 shrink-0 rounded-sm bg-border animate-pulse" />
+            <div className="h-3 w-1/3 rounded-sm bg-border animate-pulse" />
+            <div className="ml-auto hidden h-3 w-24 rounded-sm bg-border animate-pulse md:block" />
         </div>
     );
 }
