@@ -46,6 +46,7 @@ const itemKey = (item: LibraryItem) => `${item.kind}-${item.id}`;
  * One workspace (folder): its name (renamed in place), New chart / New
  * report in it, Delete, and its charts and reports in their saved order,
  * reordered by dragging a row's handle (or with the keyboard on the handle).
+ * A workshop workspace can't be renamed or deleted.
  */
 export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
     const router = useRouter();
@@ -117,6 +118,10 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                                     }
                                 }}
                             />
+                        ) : folder?.isWorkshop ? (
+                            <h1 className="min-w-0 truncate px-1 text-sm font-medium">
+                                {folder.name}
+                            </h1>
                         ) : (
                             <h1 className="flex min-w-0">
                                 <button
@@ -153,12 +158,14 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                                 <FilePlus />
                                 <span className="hidden sm:inline">New report</span>
                             </Button>
-                            <WorkspaceActionsMenu
-                                workspace={folder}
-                                variant="header"
-                                onRename={() => setRenamingTitle(true)}
-                                onDeleted={() => router.push("/workspaces")}
-                            />
+                            {!folder.isWorkshop && (
+                                <WorkspaceActionsMenu
+                                    workspace={folder}
+                                    variant="header"
+                                    onRename={() => setRenamingTitle(true)}
+                                    onDeleted={() => router.push("/workspaces")}
+                                />
+                            )}
                         </>
                     )
                 }

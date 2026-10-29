@@ -36,7 +36,8 @@ export function describeContents(workspace: LibraryWorkspace): string {
 
 /**
  * A workspace's Rename and Delete. Delete confirms in a dialog that says what
- * goes with the workspace, since its charts and reports are deleted too.
+ * goes with the workspace, since its charts and reports are deleted too. Not
+ * for workshop workspaces, which can't be renamed or deleted.
  */
 export function WorkspaceActionsMenu({
     workspace,

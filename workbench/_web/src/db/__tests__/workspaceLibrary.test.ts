@@ -172,6 +172,36 @@ describe("default workspace", () => {
     });
 });
 
+describe("workshop workspaces", () => {
+    beforeEach(async () => {
+        await clearDatabase();
+    });
+
+    it("can't be renamed by their participant", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const ws = await createWorkspace(USER, "Pilot", workshop.id);
+
+        await expect(renameWorkspace(USER, ws.id, "Mine now")).rejects.toThrow(
+            "not found or access denied",
+        );
+        expect((await getWorkspaceById(ws.id))!.name).toBe("Pilot");
+    });
+
+    it("can't be deleted by their participant, so their study data stays", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const ws = await createWorkspace(USER, "Pilot", workshop.id);
+        const chartId = await createChart(ws.id, "Guided");
+        await insertLensRun(ws.id, chartId);
+
+        await deleteWorkspace(USER, ws.id);
+
+        expect(await getWorkspaceById(ws.id)).not.toBeNull();
+        expect((await getChartWorkspaceScope(chartId))!.workspaceId).toBe(ws.id);
+        const runs = await db.select().from(lensRuns).where(eq(lensRuns.chartId, chartId));
+        expect(runs.length).toBe(1);
+    });
+});
+
 describe("workspace library", () => {
     beforeEach(async () => {
         await clearDatabase();

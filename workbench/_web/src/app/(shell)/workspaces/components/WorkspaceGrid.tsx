@@ -115,12 +115,14 @@ function WorkspaceCard({ workspace }: { workspace: LibraryWorkspace }) {
                         {workspace.name}
                     </Link>
                 )}
-                <div className="relative z-10 shrink-0">
-                    <WorkspaceActionsMenu
-                        workspace={workspace}
-                        onRename={() => setRenaming(true)}
-                    />
-                </div>
+                {!workspace.isWorkshop && (
+                    <div className="relative z-10 shrink-0">
+                        <WorkspaceActionsMenu
+                            workspace={workspace}
+                            onRename={() => setRenaming(true)}
+                        />
+                    </div>
+                )}
             </div>
 
             <ul className="flex min-h-[4.5rem] flex-1 flex-col gap-1 border-t px-4 py-3">

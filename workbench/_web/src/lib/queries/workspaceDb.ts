@@ -97,7 +97,19 @@ export const getWorkspaces = async (userId: string) => {
     return workspaceList;
 };
 
-/** Renames one of the user's workspaces. The default workspace is never renamed. */
+/**
+ * The user's own folders: neither their default workspace nor a workshop
+ * workspace, whose name the workshop sets and whose contents are study data.
+ */
+const isUserFolder = (userId: string, workspaceId: string) =>
+    and(
+        eq(workspaces.id, workspaceId),
+        eq(workspaces.userId, userId),
+        eq(workspaces.isDefault, false),
+        isNull(workspaces.workshopId),
+    );
+
+/** Renames one of the user's folders; never their default or a workshop workspace. */
 export const renameWorkspace = async (
     userId: string,
     workspaceId: string,
@@ -106,29 +118,18 @@ export const renameWorkspace = async (
     const [renamed] = await db
         .update(workspaces)
         .set({ name })
-        .where(
-            and(
-                eq(workspaces.id, workspaceId),
-                eq(workspaces.userId, userId),
-                eq(workspaces.isDefault, false),
-            ),
-        )
+        .where(isUserFolder(userId, workspaceId))
         .returning();
     if (!renamed) throw new Error("Workspace not found or access denied");
     return renamed as Workspace;
 };
 
-/** Deletes one of the user's workspaces and, by cascade, its contents. The default workspace is never deleted. */
+/**
+ * Deletes one of the user's folders and, by cascade, its contents; never
+ * their default or a workshop workspace. Anything else is left alone.
+ */
 export const deleteWorkspace = async (userId: string, workspaceId: string): Promise<void> => {
-    await db
-        .delete(workspaces)
-        .where(
-            and(
-                eq(workspaces.id, workspaceId),
-                eq(workspaces.userId, userId),
-                eq(workspaces.isDefault, false),
-            ),
-        );
+    await db.delete(workspaces).where(isUserFolder(userId, workspaceId));
 };
 
 /**
