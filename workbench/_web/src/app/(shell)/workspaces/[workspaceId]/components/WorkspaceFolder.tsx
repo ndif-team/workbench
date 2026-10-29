@@ -29,6 +29,7 @@ import {
     useRenameWorkspace,
     useReorderWorkspaceItems,
     useWorkspaceLibrary,
+    workspaceNameError,
 } from "@/lib/api/workspaceApi";
 import { reportPath } from "@/lib/chartRoutes";
 import { cn } from "@/lib/utils";
@@ -116,6 +117,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                             <InlineNameInput
                                 initialValue={folder.name}
                                 ariaLabel="Workspace name"
+                                validate={(name) => workspaceNameError(library, name, workspaceId)}
                                 className="h-7 w-64 max-w-full px-2 text-sm font-medium"
                                 onDone={(name) => {
                                     setRenamingTitle(false);

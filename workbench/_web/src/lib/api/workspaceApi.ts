@@ -37,6 +37,24 @@ export const findLibraryItem = (
         .flat()
         .find((item) => item.kind === kind && item.id === id);
 
+/**
+ * Why `name` can't name a workspace: another of the user's workspaces
+ * (`exceptId` aside) already has it, ignoring case and surrounding space.
+ * Null when it is free, or while the library is loading (the server checks
+ * again).
+ */
+export const workspaceNameError = (
+    library: WorkspaceLibrary | undefined,
+    name: string,
+    exceptId?: string,
+): string | null => {
+    const wanted = name.trim().toLowerCase();
+    const taken = library?.workspaces.find(
+        (w) => w.id !== exceptId && w.name.trim().toLowerCase() === wanted,
+    );
+    return taken ? `A workspace named "${taken.name}" already exists.` : null;
+};
+
 /** Refetches every list an item can appear in after it changes workspace. */
 const invalidateItemLists = (queryClient: QueryClient) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });

@@ -6,7 +6,11 @@ import { Folder, FolderPlus, GraduationCap } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
-import { useRenameWorkspace, useWorkspaceLibrary } from "@/lib/api/workspaceApi";
+import {
+    useRenameWorkspace,
+    useWorkspaceLibrary,
+    workspaceNameError,
+} from "@/lib/api/workspaceApi";
 import { workspacePath } from "@/lib/chartRoutes";
 import type { LibraryWorkspace } from "@/types/workspaces";
 import { PageHeader, PageTitle } from "../../components/shell/PageHeader";
@@ -65,7 +69,12 @@ export function WorkspaceGrid() {
                     <ul className={GRID}>
                         {workspaces.map((workspace) => (
                             <li key={workspace.id}>
-                                <WorkspaceCard workspace={workspace} />
+                                <WorkspaceCard
+                                    workspace={workspace}
+                                    nameError={(name) =>
+                                        workspaceNameError(library, name, workspace.id)
+                                    }
+                                />
                             </li>
                         ))}
                     </ul>
@@ -80,7 +89,14 @@ const GRID = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols
 
 const CARD = "rounded border bg-secondary/80 dark:bg-secondary/50 transition-colors duration-100";
 
-function WorkspaceCard({ workspace }: { workspace: LibraryWorkspace }) {
+function WorkspaceCard({
+    workspace,
+    nameError,
+}: {
+    workspace: LibraryWorkspace;
+    /** Why a new name can't be used (another workspace has it), or null. */
+    nameError: (name: string) => string | null;
+}) {
     const [renaming, setRenaming] = useState(false);
     const { mutate: rename } = useRenameWorkspace();
     const contents = describeContents(workspace);
@@ -98,6 +114,7 @@ function WorkspaceCard({ workspace }: { workspace: LibraryWorkspace }) {
                     <InlineNameInput
                         initialValue={workspace.name}
                         ariaLabel="Workspace name"
+                        validate={nameError}
                         className="h-7 min-w-0 flex-1 px-2 text-sm font-medium"
                         onDone={(name) => {
                             setRenaming(false);

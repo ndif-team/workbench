@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -16,7 +16,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useCreateWorkspace } from "@/lib/api/workspaceApi";
+import {
+    useCreateWorkspace,
+    useWorkspaceLibrary,
+    workspaceNameError,
+} from "@/lib/api/workspaceApi";
 import { workspacePath } from "@/lib/chartRoutes";
 import type { Workspace } from "@/db/schema";
 
@@ -31,7 +35,11 @@ interface CreateWorkspaceDialogProps {
     submitLabel?: string;
 }
 
-/** Names and creates a workspace (folder). Used by the sidebar, the workspaces page and "Move to workspace". */
+/**
+ * Names and creates a workspace (folder). Used by the sidebar, the workspaces
+ * page and "Move to workspace". A name another workspace already has (ignoring
+ * case) is flagged under the field and can't be submitted.
+ */
 export function CreateWorkspaceDialog({
     trigger,
     open: controlledOpen,
@@ -44,6 +52,9 @@ export function CreateWorkspaceDialog({
     const [name, setName] = useState("");
     const router = useRouter();
     const createWorkspace = useCreateWorkspace();
+    const { data: library } = useWorkspaceLibrary();
+    const nameError = workspaceNameError(library, name);
+    const errorId = useId();
 
     const setOpen = (next: boolean) => {
         if (!next) setName("");
@@ -54,7 +65,7 @@ export function CreateWorkspaceDialog({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const trimmed = name.trim();
-        if (!trimmed) return;
+        if (!trimmed || nameError) return;
         try {
             const workspace = await createWorkspace.mutateAsync({ name: trimmed });
             setOpen(false);
@@ -86,7 +97,15 @@ export function CreateWorkspaceDialog({
                             autoComplete="off"
                             autoFocus
                             required
+                            aria-invalid={!!nameError}
+                            aria-describedby={nameError ? errorId : undefined}
+                            className="aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:ring-destructive"
                         />
+                        {nameError && (
+                            <p id={errorId} className="text-xs text-destructive">
+                                {nameError}
+                            </p>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button
@@ -97,7 +116,10 @@ export function CreateWorkspaceDialog({
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={!name.trim() || createWorkspace.isPending}>
+                        <Button
+                            type="submit"
+                            disabled={!name.trim() || !!nameError || createWorkspace.isPending}
+                        >
                             {createWorkspace.isPending ? "Creating…" : submitLabel}
                         </Button>
                     </DialogFooter>

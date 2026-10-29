@@ -166,11 +166,17 @@ describe("default workspace", () => {
         await expect(insertSecond()).rejects.toThrow(/unique/i);
     });
 
+    /** A workspace as the old first-visit flow made it, before names had to be unique. */
+    const legacyWorkspace = async (name = "Default Workspace") => {
+        const [row] = await db.insert(workspaces).values({ userId: USER, name }).returning();
+        return row as { id: string };
+    };
+
     it("adopts the oldest non-workshop 'Default Workspace' from the old first-visit flow", async () => {
         const workshop = await createWorkshop(workshopInput());
         const workshopDefault = await createWorkspace(USER, "Default Workspace", workshop.id);
-        const legacy = await createWorkspace(USER, "Default Workspace");
-        const newer = await createWorkspace(USER, "Default Workspace");
+        const legacy = await legacyWorkspace();
+        const newer = await legacyWorkspace();
         const ageBy = (workspaceId: string, seconds: number) =>
             db
                 .update(workspaces)
@@ -194,8 +200,8 @@ describe("default workspace", () => {
 
     it("adopts the same legacy workspace whatever order equal timestamps come back in", async () => {
         const created = new Date(Date.now() - 60_000);
-        const first = await createWorkspace(USER, "Default Workspace");
-        const second = await createWorkspace(USER, "Default Workspace");
+        const first = await legacyWorkspace();
+        const second = await legacyWorkspace();
         await db.update(workspaces).set({ createdAt: created }).where(eq(workspaces.userId, USER));
         const lowerId = [first.id, second.id].sort()[0];
 
@@ -295,6 +301,24 @@ describe("workspace names", () => {
 
         expect((await renameWorkspace(USER, ws.id, longest)).name).toBe(longest);
         expect((await getWorkspaces(USER)).map((w: { id: string }) => w.id)).toEqual([ws.id]);
+    });
+
+    it("must differ from the user's other workspaces, ignoring case", async () => {
+        const ioi = await createWorkspace(USER, "IOI circuit");
+        const other = await createWorkspace(USER, "Induction heads");
+
+        await expect(createWorkspace(USER, " ioi CIRCUIT ")).rejects.toThrow(
+            'A workspace named "IOI circuit" already exists',
+        );
+        await expect(renameWorkspace(USER, other.id, "IOI Circuit")).rejects.toThrow(
+            "already exists",
+        );
+        expect((await getWorkspaceById(other.id))!.name).toBe("Induction heads");
+
+        expect((await renameWorkspace(USER, ioi.id, "IOI Circuit")).name).toBe("IOI Circuit");
+        expect((await createWorkspace(OTHER, "IOI circuit")).name).toBe("IOI circuit");
+        const def = await getOrCreateDefaultWorkspace(USER);
+        expect((await createWorkspace(USER, def.name)).name).toBe(def.name);
     });
 });
 

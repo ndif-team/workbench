@@ -5,6 +5,7 @@ import {
     eq,
     inArray,
     isNull,
+    ne,
     sql,
     type AnyColumn,
     type SQLWrapper,
@@ -63,6 +64,27 @@ const validWorkspaceName = (name: string): string => {
     return trimmed;
 };
 
+/**
+ * Throws when another of the user's workspaces already has `name`, ignoring
+ * case: folder names must tell folders apart. The default workspace (never
+ * shown) doesn't count; `exceptId` is the workspace being renamed.
+ */
+const assertWorkspaceNameFree = async (userId: string, name: string, exceptId?: string) => {
+    const [taken] = await db
+        .select({ name: workspaces.name })
+        .from(workspaces)
+        .where(
+            and(
+                eq(workspaces.userId, userId),
+                eq(workspaces.isDefault, false),
+                sql`lower(${workspaces.name}) = lower(${name})`,
+                exceptId ? ne(workspaces.id, exceptId) : undefined,
+            ),
+        )
+        .limit(1);
+    if (taken) throw new Error(`A workspace named "${taken.name}" already exists`);
+};
+
 /** A workspace by id; null when there is none (or the id isn't a UUID, as from a mistyped URL). */
 export const getWorkspaceById = async (workspaceId: string): Promise<Workspace | null> => {
     if (!isUuid(workspaceId)) return null;
@@ -77,7 +99,8 @@ export const getWorkspaceById = async (workspaceId: string): Promise<Workspace |
 /**
  * Creates a workspace for a user: a folder, or, with `workshopId`, a workshop
  * participant's workspace (the join action). The name is trimmed and must be
- * 1 to 256 characters.
+ * 1 to 256 characters; a folder's must also differ from the user's other
+ * workspaces' (ignoring case).
  */
 export const createWorkspace = async (
     userId: string,
@@ -85,11 +108,13 @@ export const createWorkspace = async (
     workshopId?: string,
     prolific?: ProlificParams | null,
 ): Promise<Workspace> => {
+    const validName = validWorkspaceName(name);
+    if (!workshopId) await assertWorkspaceNameFree(userId, validName);
     const [workspace] = await db
         .insert(workspaces)
         .values({
             userId,
-            name: validWorkspaceName(name),
+            name: validName,
             workshopId: workshopId ?? null,
             prolific: prolific ?? null,
         })
@@ -148,16 +173,19 @@ const isUserFolder = (userId: string, workspaceId: string) =>
 
 /**
  * Renames one of the user's folders; never their default or a workshop
- * workspace. The name is trimmed and must be 1 to 256 characters.
+ * workspace. The name is trimmed, must be 1 to 256 characters, and must
+ * differ from the user's other workspaces' (ignoring case).
  */
 export const renameWorkspace = async (
     userId: string,
     workspaceId: string,
     name: string,
 ): Promise<Workspace> => {
+    const validName = validWorkspaceName(name);
+    await assertWorkspaceNameFree(userId, validName, workspaceId);
     const [renamed] = await db
         .update(workspaces)
-        .set({ name: validWorkspaceName(name) })
+        .set({ name: validName })
         .where(isUserFolder(userId, workspaceId))
         .returning();
     if (!renamed) throw new Error("Workspace not found or access denied");
