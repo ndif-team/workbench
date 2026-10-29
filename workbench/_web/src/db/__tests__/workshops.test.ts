@@ -24,7 +24,7 @@ import {
     deleteWorkshop,
 } from "@/lib/queries/workshopDb";
 import { createWorkspace, getWorkspaceById } from "@/lib/queries/workspaceDb";
-import { createLogitLensChartPair, createPatchLensChartPair } from "@/lib/queries/chartQueries";
+import { createLogitLensChartPair, createPatchLensChartPair } from "@/lib/queries/chartDb";
 import type { WorkshopTool } from "@/db/schema";
 
 const USER = "anon-user-1";

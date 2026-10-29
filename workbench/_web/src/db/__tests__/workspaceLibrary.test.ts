@@ -33,12 +33,9 @@ import {
     renameWorkspace,
     reorderWorkspaceItems,
 } from "@/lib/queries/workspaceDb";
-import {
-    createLogitLensChartPair,
-    createPatchLensChartPair,
-    getConfigForChart,
-} from "@/lib/queries/chartQueries";
-import { createDocument, updateDocument } from "@/lib/queries/documentQueries";
+import { getConfigForChart } from "@/lib/queries/chartQueries";
+import { createLogitLensChartPair, createPatchLensChartPair } from "@/lib/queries/chartDb";
+import { createDocument, updateDocument } from "@/lib/queries/documentDb";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import type { LensRunHeatmaps, LensRunSummary } from "@/types/lensRun";
 import type { LibraryItem } from "@/types/workspaces";
@@ -342,7 +339,7 @@ describe("workspace library", () => {
 
         const older = await createChart(def.id, "Older");
         const newer = await createChart(def.id, "Newer");
-        const defReport = await createDocument(def.id);
+        const defReport = await createDocument(USER, def.id);
         await setChartUpdatedAt(older, 300);
         await setChartUpdatedAt(newer, 60);
         await db
@@ -352,7 +349,8 @@ describe("workspace library", () => {
 
         const a1 = await createChart(folderA.id, "A1");
         const aReport = await updateDocument(
-            (await createDocument(folderA.id)).id,
+            USER,
+            (await createDocument(USER, folderA.id)).id,
             reportWithTitle("Findings"),
         );
         const a2 = await createPatchLensChartPair(folderA.id);
@@ -420,7 +418,7 @@ describe("workspace library", () => {
         const folder = await createWorkspace(USER, "Folder");
         const first = await createChart(folder.id, "First");
         const second = await createChart(folder.id, "Second");
-        const report = await createDocument(folder.id);
+        const report = await createDocument(USER, folder.id);
 
         await reorderWorkspaceItems(USER, folder.id, [
             { kind: "report", id: report.id },
@@ -490,7 +488,7 @@ describe("moves", () => {
         const def = await getOrCreateDefaultWorkspace(USER);
         const folder = await createWorkspace(USER, "Folder");
         await createChart(folder.id, "Already here");
-        await createDocument(folder.id);
+        await createDocument(USER, folder.id);
         const chartId = await createChart(def.id, "Mover");
         await insertLensRun(def.id, chartId);
         await insertLensRun(def.id, chartId);
@@ -544,7 +542,7 @@ describe("moves", () => {
         const def = await getOrCreateDefaultWorkspace(USER);
         const folder = await createWorkspace(USER, "Folder");
         await createChart(folder.id, "Already here");
-        const report = await createDocument(def.id);
+        const report = await createDocument(USER, def.id);
 
         await moveReport(USER, report.id, folder.id);
 
@@ -562,7 +560,7 @@ describe("moves", () => {
         const theirs = await createWorkspace(OTHER, "Theirs");
         const myChart = await createChart(mine.id, "Mine");
         const theirChart = await createChart(theirs.id, "Theirs");
-        const theirReport = await createDocument(theirs.id);
+        const theirReport = await createDocument(OTHER, theirs.id);
 
         await expect(moveChart(USER, myChart, theirs.id)).rejects.toThrow("access denied");
         await expect(moveChart(USER, theirChart, mine.id)).rejects.toThrow("access denied");
@@ -580,7 +578,7 @@ describe("moves", () => {
         const folder = await createWorkspace(USER, "Folder");
         const workshopChart = await createChart(workshopWs.id, "Guided");
         const folderChart = await createChart(folder.id, "Mine");
-        const folderReport = await createDocument(folder.id);
+        const folderReport = await createDocument(USER, folder.id);
 
         await expect(moveChart(USER, workshopChart, folder.id)).rejects.toThrow("workshop");
         await expect(moveChart(USER, workshopChart, null)).rejects.toThrow("workshop");
@@ -614,7 +612,7 @@ describe("lookups by an id from a URL", () => {
     it("find nothing for a malformed id", async () => {
         const ws = await createWorkspace(USER, "Folder");
         const chartId = await createChart(ws.id, "Chart");
-        const report = await createDocument(ws.id);
+        const report = await createDocument(USER, ws.id);
 
         expect(await getWorkspaceById(ws.id)).not.toBeNull();
         expect(await getChartWorkspaceScope(chartId)).not.toBeNull();

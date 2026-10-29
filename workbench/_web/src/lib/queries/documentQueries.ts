@@ -4,8 +4,16 @@ import { db } from "@/db/client";
 import { documents, Document } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { SerializedEditorState } from "lexical";
-import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceDb";
+import { requireUserId } from "@/lib/auth/user";
+import * as documentDb from "@/lib/queries/documentDb";
 import { deriveReportTitle } from "@/lib/reportTitle";
+
+/**
+ * The report (document) RPC surface. Every export is a public endpoint:
+ * writes resolve the signed-in user and act only on their reports (the
+ * unguarded internals live in documentDb.ts). The reads below are keyed by a
+ * report or workspace id and not owner-checked.
+ */
 
 export const getDocumentById = async (documentId: string): Promise<Document | null> => {
     const [document] = await db.select().from(documents).where(eq(documents.id, documentId));
@@ -20,20 +28,6 @@ export const getDocumentByWorkspaceId = async (workspaceId: string): Promise<Doc
         .where(eq(documents.workspaceId, workspaceId));
 
     return document ?? null;
-};
-
-// Update a specific document by id
-export const updateDocument = async (
-    documentId: string,
-    content: SerializedEditorState,
-): Promise<Document> => {
-    const [updated] = await db
-        .update(documents)
-        .set({ content })
-        .where(eq(documents.id, documentId))
-        .returning();
-    await touchWorkspace(updated.workspaceId);
-    return updated;
 };
 
 export type DocumentListItem = Pick<Document, "id" | "workspaceId" | "createdAt" | "updatedAt"> & {
@@ -60,62 +54,20 @@ export const getDocumentsForWorkspace = async (
     }));
 };
 
-// Default content: minimal valid document (one empty paragraph)
-const defaultInitialContent = {
-    root: {
-        type: "root",
-        version: 1,
-        format: "",
-        indent: 0,
-        direction: "ltr",
-        children: [
-            {
-                type: "heading",
-                tag: "h1",
-                version: 1,
-                format: "",
-                indent: 0,
-                direction: "ltr",
-                children: [
-                    {
-                        type: "text",
-                        version: 1,
-                        text: "Overview",
-                        detail: 0,
-                        format: 0,
-                        mode: "normal",
-                        style: "",
-                    },
-                ],
-            },
-            {
-                type: "paragraph",
-                version: 1,
-                format: "",
-                indent: 0,
-                direction: "ltr",
-            },
-        ],
-    },
-} as unknown as SerializedEditorState;
+/** Creates a report at the end of one of the signed-in user's workspaces. */
+export async function createDocument(workspaceId: string): Promise<Document> {
+    return documentDb.createDocument(await requireUserId(), workspaceId);
+}
 
-export const createDocument = async (workspaceId: string): Promise<Document> => {
-    const initialContent = defaultInitialContent;
-    const position = await getNextWorkspaceItemPosition(workspaceId);
+/** Saves the content of one of the signed-in user's reports. */
+export async function updateDocument(
+    documentId: string,
+    content: SerializedEditorState,
+): Promise<Document> {
+    return documentDb.updateDocument(await requireUserId(), documentId, content);
+}
 
-    const [document] = await db
-        .insert(documents)
-        .values({
-            workspaceId,
-            content: initialContent,
-            position,
-        })
-        .returning();
-
-    await touchWorkspace(workspaceId);
-    return document;
-};
-
-export const deleteDocument = async (documentId: string): Promise<void> => {
-    await db.delete(documents).where(eq(documents.id, documentId));
-};
+/** Deletes one of the signed-in user's reports. */
+export async function deleteDocument(documentId: string): Promise<void> {
+    return documentDb.deleteDocument(await requireUserId(), documentId);
+}

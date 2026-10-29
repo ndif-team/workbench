@@ -23,29 +23,25 @@ import {
     deleteWorkspace,
 } from "@/lib/queries/workspaceDb";
 
+import { getChartById, getConfigForChart, getChartsMetadata } from "@/lib/queries/chartQueries";
 import {
     createLogitLensChartPair,
     createActivationPatchingChartPair,
-    getChartById,
-    updateChartName,
+    renameChart,
     setChartData,
     deleteChart,
-    getConfigForChart,
     getMostRecentChartForWorkspace,
-    getChartsMetadata,
     copyChart,
-} from "@/lib/queries/chartQueries";
+} from "@/lib/queries/chartDb";
 
 import { getConfigs, setConfig, deleteConfig } from "@/lib/queries/configQueries";
 
 import {
-    createDocument,
     getDocumentById,
     getDocumentByWorkspaceId,
-    updateDocument,
     getDocumentsForWorkspace,
-    deleteDocument,
 } from "@/lib/queries/documentQueries";
+import { createDocument, updateDocument, deleteDocument } from "@/lib/queries/documentDb";
 
 import type { ChartData, ChartType } from "@/types/charts";
 import type { LogitLensConfigData } from "@/types/logitLens";
@@ -148,7 +144,7 @@ describe("Workspace Queries", () => {
         await createLogitLensChartPair(ws1.id, createTestLensConfig("test2"));
 
         // Add document to workspace 2
-        await createDocument(ws2.id);
+        await createDocument(TEST_USER_ID, ws2.id);
 
         const workspaces = await getWorkspaces(TEST_USER_ID);
 
@@ -231,7 +227,7 @@ describe("Chart Queries", () => {
     it("should update chart name", async () => {
         const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
 
-        await updateChartName(chart.id, "My Custom Chart");
+        await renameChart(TEST_USER_ID, chart.id, "My Custom Chart");
         const updated = await getChartById(chart.id);
 
         expect(updated!.name).toBe("My Custom Chart");
@@ -245,7 +241,7 @@ describe("Chart Queries", () => {
             labels: ["a", "b", "c"],
         };
 
-        await setChartData(chart.id, chartData as any, "logit-lens");
+        await setChartData(TEST_USER_ID, chart.id, chartData as any, "logit-lens");
         const updated = await getChartById(chart.id);
 
         expect(updated!.data).toEqual(chartData);
@@ -255,7 +251,7 @@ describe("Chart Queries", () => {
     it("should store the current type when setting chart data with legacy lens2", async () => {
         const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
 
-        await setChartData(chart.id, {} as ChartData, "lens2" as ChartType);
+        await setChartData(TEST_USER_ID, chart.id, {} as ChartData, "lens2" as ChartType);
 
         expect(await storedChartType(chart.id)).toBe("logit-lens");
     });
@@ -346,7 +342,7 @@ describe("Chart Queries", () => {
     it("should write the current type when copying a legacy lens2 chart", async () => {
         const legacy = await insertLegacyLogitLensChart(workspaceId);
 
-        const copy = await copyChart(legacy.id);
+        const copy = await copyChart(TEST_USER_ID, legacy.id);
 
         expect(await storedChartType(copy.id)).toBe("logit-lens");
         expect(await storedConfigType(copy.id)).toBe("logit-lens");
@@ -354,7 +350,7 @@ describe("Chart Queries", () => {
 
     it("should get charts metadata", async () => {
         const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
-        await updateChartName(chart.id, "Named Chart");
+        await renameChart(TEST_USER_ID, chart.id, "Named Chart");
 
         const metadata = await getChartsMetadata(workspaceId);
 
@@ -368,10 +364,10 @@ describe("Chart Queries", () => {
             workspaceId,
             createTestLensConfig("original"),
         );
-        await updateChartName(original.id, "Original Chart");
-        await setChartData(original.id, { test: "data" } as any, "logit-lens");
+        await renameChart(TEST_USER_ID, original.id, "Original Chart");
+        await setChartData(TEST_USER_ID, original.id, { test: "data" } as any, "logit-lens");
 
-        const copy = await copyChart(original.id);
+        const copy = await copyChart(TEST_USER_ID, original.id);
 
         expect(copy.id).not.toBe(original.id);
         expect(copy.name).toBe("Copy of Original Chart");
@@ -386,7 +382,7 @@ describe("Chart Queries", () => {
     it("should delete a chart", async () => {
         const { chart } = await createLogitLensChartPair(workspaceId, createTestLensConfig());
 
-        await deleteChart(chart.id);
+        await deleteChart(TEST_USER_ID, chart.id);
         const found = await getChartById(chart.id);
 
         expect(found).toBeNull();
@@ -467,7 +463,7 @@ describe("Document Queries", () => {
     });
 
     it("should create a document with default content", async () => {
-        const doc = await createDocument(workspaceId);
+        const doc = await createDocument(TEST_USER_ID, workspaceId);
 
         expect(doc).toBeDefined();
         expect(doc.workspaceId).toBe(workspaceId);
@@ -477,7 +473,7 @@ describe("Document Queries", () => {
     });
 
     it("should get document by ID", async () => {
-        const created = await createDocument(workspaceId);
+        const created = await createDocument(TEST_USER_ID, workspaceId);
         const found = await getDocumentById(created.id);
 
         expect(found).not.toBeNull();
@@ -485,7 +481,7 @@ describe("Document Queries", () => {
     });
 
     it("should get document by workspace ID", async () => {
-        await createDocument(workspaceId);
+        await createDocument(TEST_USER_ID, workspaceId);
         const found = await getDocumentByWorkspaceId(workspaceId);
 
         expect(found).not.toBeNull();
@@ -493,7 +489,7 @@ describe("Document Queries", () => {
     });
 
     it("should update document content", async () => {
-        const doc = await createDocument(workspaceId);
+        const doc = await createDocument(TEST_USER_ID, workspaceId);
 
         const newContent = {
             root: {
@@ -507,14 +503,14 @@ describe("Document Queries", () => {
             },
         };
 
-        const updated = await updateDocument(doc.id, newContent as any);
+        const updated = await updateDocument(TEST_USER_ID, doc.id, newContent as any);
 
         expect(updated.content).toEqual(newContent);
     });
 
     it("should get documents for workspace with derived titles", async () => {
-        await createDocument(workspaceId);
-        await createDocument(workspaceId);
+        await createDocument(TEST_USER_ID, workspaceId);
+        await createDocument(TEST_USER_ID, workspaceId);
 
         const docs = await getDocumentsForWorkspace(workspaceId);
 
@@ -524,8 +520,8 @@ describe("Document Queries", () => {
     });
 
     it("should delete a document", async () => {
-        const doc = await createDocument(workspaceId);
-        await deleteDocument(doc.id);
+        const doc = await createDocument(TEST_USER_ID, workspaceId);
+        await deleteDocument(TEST_USER_ID, doc.id);
 
         const found = await getDocumentById(doc.id);
         expect(found).toBeNull();
@@ -558,7 +554,7 @@ describe("JSON Storage in SQLite", () => {
             booleanFalse: false,
         };
 
-        await setChartData(chart.id, complexData as any, "logit-lens");
+        await setChartData(TEST_USER_ID, chart.id, complexData as any, "logit-lens");
         const retrieved = await getChartById(chart.id);
 
         expect(retrieved!.data).toEqual(complexData);
@@ -572,7 +568,7 @@ describe("JSON Storage in SQLite", () => {
             unicode: "Unicode: 日本語, émojis 🎉",
         };
 
-        await setChartData(chart.id, specialData as any, "logit-lens");
+        await setChartData(TEST_USER_ID, chart.id, specialData as any, "logit-lens");
         const retrieved = await getChartById(chart.id);
 
         expect(retrieved!.data).toEqual(specialData);
@@ -632,9 +628,9 @@ describe("Cross-Table Relationships", () => {
     it("should handle multiple documents per workspace", async () => {
         const workspace = await createWorkspace(TEST_USER_ID, "Multi-Doc Test");
 
-        await createDocument(workspace.id);
-        await createDocument(workspace.id);
-        await createDocument(workspace.id);
+        await createDocument(TEST_USER_ID, workspace.id);
+        await createDocument(TEST_USER_ID, workspace.id);
+        await createDocument(TEST_USER_ID, workspace.id);
 
         const docs = await getDocumentsForWorkspace(workspace.id);
         expect(docs).toHaveLength(3);

@@ -2,13 +2,13 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { seedWorkshopChart } from "@/lib/queries/chartDb";
 import {
     getWorkshopBySlug,
     getWorkshopWorkspaceForUser,
-    seedWorkshopChart,
-} from "@/lib/queries/workshopQueries";
+    isUniqueViolation,
+} from "@/lib/queries/workshopDb";
 import { createWorkspace, setWorkspaceProlificIfEmpty } from "@/lib/queries/workspaceDb";
-import { isUniqueViolation } from "@/lib/queries/workshopDb";
 import { isWorkshopExpired } from "@/lib/workshop";
 import { openWorkspacePath, toolChartPath } from "@/lib/chartRoutes";
 import { getPostHogServer } from "@/lib/posthog-server";

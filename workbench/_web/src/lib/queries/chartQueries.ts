@@ -1,50 +1,28 @@
 "use server";
 
-import { LEGACY_TOOL_ALIASES, normalizeToolType, toolTypes } from "@/types/charts";
-import type { ChartData, ChartMetadata, ChartType, ToolType } from "@/types/charts";
+import type { Chart, Config } from "@/db/schema";
 import { db } from "@/db/client";
-import { charts, configs, chartConfigLinks, Chart, Config } from "@/db/schema";
-import { LogitLensConfigData } from "@/types/logitLens";
-import { JLensConfigData } from "@/types/jlens";
-import { ActivationPatchingConfigData } from "@/types/activationPatching";
-import { PatchLensChartData } from "@/types/patchLens";
-import { and, eq, asc, desc, inArray, sql } from "drizzle-orm";
-import {
-    touchWorkspace,
-    getNextWorkspaceItemPosition,
-    getOrCreateDefaultWorkspace,
-    getWorkspaceById,
-} from "@/lib/queries/workspaceDb";
+import { charts, configs, chartConfigLinks } from "@/db/schema";
+import { asc, eq, sql } from "drizzle-orm";
 import { requireUserId } from "@/lib/auth/user";
-import { planChartLaunch, type ChartLaunchRequest } from "@/lib/chartLaunch";
-// From workshopDb (not workshopQueries) — workshopQueries imports the chart
-// pair creators below, so importing it back here would be circular.
-import { getWorkshopForWorkspace } from "@/lib/queries/workshopDb";
+import type { ChartLaunchRequest } from "@/lib/chartLaunch";
+import * as chartDb from "@/lib/queries/chartDb";
+import { normalizeToolType } from "@/types/charts";
+import type { ChartData, ChartMetadata, ChartType, ToolType } from "@/types/charts";
+import type { ActivationPatchingConfigData } from "@/types/activationPatching";
+import type { JLensConfigData } from "@/types/jlens";
+import type { LogitLensConfigData } from "@/types/logitLens";
 
-/** A chart or config row with a legacy tool type read under its current name. */
-const withCurrentToolType = <R extends { type: string | null }>(row: R): R =>
-    ({ ...row, type: normalizeToolType(row.type) }) as R;
-
-export const setChartData = async (chartId: string, chartData: ChartData, chartType: ChartType) => {
-    const [chart] = await db
-        .update(charts)
-        .set({ data: chartData, type: normalizeToolType(chartType) })
-        .where(eq(charts.id, chartId))
-        .returning();
-    if (chart) await touchWorkspace(chart.workspaceId);
-};
-
-export const updateChartName = async (chartId: string, name: string) => {
-    await db.update(charts).set({ name }).where(eq(charts.id, chartId));
-};
+/**
+ * The chart RPC surface. Every export is a public endpoint: writes resolve
+ * the signed-in user and act only on charts in their workspaces (the
+ * unguarded internals live in chartDb.ts). The reads below are keyed by a
+ * chart or workspace id and not owner-checked.
+ */
 
 export const getChartById = async (chartId: string): Promise<Chart | null> => {
     const [chart] = await db.select().from(charts).where(eq(charts.id, chartId));
-    return chart ? withCurrentToolType(chart as Chart) : null;
-};
-
-export const deleteChart = async (chartId: string): Promise<void> => {
-    await db.delete(charts).where(eq(charts.id, chartId));
+    return chart ? chartDb.withCurrentToolType(chart as Chart) : null;
 };
 
 export const getConfigForChart = async (chartId: string): Promise<Config | null> => {
@@ -55,89 +33,8 @@ export const getConfigForChart = async (chartId: string): Promise<Config | null>
         .where(eq(chartConfigLinks.chartId, chartId))
         .limit(1);
     if (rows.length === 0) return null;
-    return withCurrentToolType(rows[0].configs as Config);
+    return chartDb.withCurrentToolType(rows[0].configs as Config);
 };
-
-type ConfigPayload =
-    | { type: "logit-lens"; data: LogitLensConfigData }
-    | { type: "jlens"; data: JLensConfigData }
-    | { type: "activation-patching"; data: ActivationPatchingConfigData }
-    | { type: "patch-lens"; data: Record<string, never> };
-
-// Creates a chart, its config, and the link between them, with the chart
-// positioned at the bottom of the unified sidebar list.
-const createChartConfigPair = async (
-    workspaceId: string,
-    payload: ConfigPayload,
-    // Optional seed for the chart row's `data` column. patch-lens stores its
-    // prompts on the chart (not the config), so seeding a starter prompt for a
-    // patch-lens chart flows through here.
-    chartData?: ChartData,
-): Promise<{ chart: Chart; config: Config }> => {
-    // Workshop workspaces only allow their configured tools. The sidebar
-    // filters its buttons, but every create wrapper here is a public server
-    // action, so the allowlist is enforced at the single shared entry point.
-    const workshop = await getWorkshopForWorkspace(workspaceId);
-    if (workshop && !(workshop.allowedTools as string[]).includes(payload.type)) {
-        throw new Error(`This workshop does not allow the "${payload.type}" tool`);
-    }
-    const position = await getNextWorkspaceItemPosition(workspaceId);
-    const [newChart] = await db
-        .insert(charts)
-        .values({ workspaceId, position, ...(chartData !== undefined ? { data: chartData } : {}) })
-        .returning();
-    const [newConfig] = await db
-        .insert(configs)
-        .values({ workspaceId, type: payload.type, data: payload.data })
-        .returning();
-    await db.insert(chartConfigLinks).values({ chartId: newChart.id, configId: newConfig.id });
-    await touchWorkspace(workspaceId);
-    return { chart: newChart as Chart, config: newConfig as Config };
-};
-
-export const createLogitLensChartPair = async (
-    workspaceId: string,
-    defaultConfig: LogitLensConfigData,
-) => createChartConfigPair(workspaceId, { type: "logit-lens", data: defaultConfig });
-
-export const createJLensChartPair = async (workspaceId: string, defaultConfig: JLensConfigData) =>
-    createChartConfigPair(workspaceId, { type: "jlens", data: defaultConfig });
-
-export const createPatchLensChartPair = async (
-    workspaceId: string,
-    chartData?: PatchLensChartData,
-) => createChartConfigPair(workspaceId, { type: "patch-lens", data: {} }, chartData);
-
-export const createActivationPatchingChartPair = async (
-    workspaceId: string,
-    defaultConfig: ActivationPatchingConfigData,
-) => createChartConfigPair(workspaceId, { type: "activation-patching", data: defaultConfig });
-
-/**
- * Creates the chart a `/new` launch asks for, in the signed-in user's default
- * workspace or in `request.workspaceId` when it is one of theirs, and returns
- * where to open it.
- */
-export async function createChartFromLaunch(
-    request: ChartLaunchRequest,
-): Promise<{ chartId: string; toolType: ToolType; workspaceId: string }> {
-    const userId = await requireUserId();
-    let workspaceId: string;
-    if (request.workspaceId) {
-        const workspace = await getWorkspaceById(request.workspaceId);
-        if (!workspace || workspace.userId !== userId) {
-            throw new Error("Workspace not found or access denied");
-        }
-        workspaceId = workspace.id;
-    } else {
-        workspaceId = (await getOrCreateDefaultWorkspace(userId)).id;
-    }
-
-    const plan = planChartLaunch(request);
-    const chartData = plan.type === "patch-lens" ? plan.chartData : undefined;
-    const { chart } = await createChartConfigPair(workspaceId, plan, chartData);
-    return { chartId: chart.id, toolType: plan.type, workspaceId };
-}
 
 export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetadata[]> => {
     // Whether the chart has a saved result, derived cheaply from the column
@@ -204,92 +101,67 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
     );
 };
 
-/**
- * The workspace's most recently updated chart of a live tool, with that tool.
- * A chart's tool is its config's type, or the chart's own type when it has no
- * config. Charts of retired tools are skipped, so the workspace root never
- * redirects to a chart page that no longer exists.
- */
-export const getMostRecentChartForWorkspace = async (
+/** Saves a run's result on one of the signed-in user's charts. */
+export async function setChartData(
+    chartId: string,
+    chartData: ChartData,
+    chartType: ChartType,
+): Promise<void> {
+    return chartDb.setChartData(await requireUserId(), chartId, chartData, chartType);
+}
+
+/** Renames one of the signed-in user's charts. */
+export async function updateChartName(chartId: string, name: string): Promise<void> {
+    return chartDb.renameChart(await requireUserId(), chartId, name);
+}
+
+/** Deletes one of the signed-in user's charts. */
+export async function deleteChart(chartId: string): Promise<void> {
+    return chartDb.deleteChart(await requireUserId(), chartId);
+}
+
+/** Copies one of the signed-in user's charts, with its config, into the same workspace. */
+export async function copyChart(chartId: string): Promise<Chart> {
+    return chartDb.copyChart(await requireUserId(), chartId);
+}
+
+/** The signed-in user's workspace `workspaceId`, checked as a place for a new chart. */
+async function newChartWorkspace(workspaceId: string): Promise<string> {
+    return chartDb.assertChartWorkspace(await requireUserId(), workspaceId);
+}
+
+export async function createLogitLensChartPair(
     workspaceId: string,
-): Promise<{ chart: Chart; toolType: ToolType } | null> => {
-    const toolType = sql<string>`coalesce(${configs.type}, ${charts.type})`;
-    const [row] = await db
-        .select({ chart: charts, toolType })
-        .from(charts)
-        .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
-        .leftJoin(configs, eq(chartConfigLinks.configId, configs.id))
-        .where(
-            and(
-                eq(charts.workspaceId, workspaceId),
-                inArray(toolType, [...toolTypes, ...Object.keys(LEGACY_TOOL_ALIASES)]),
-            ),
-        )
-        .orderBy(desc(charts.updatedAt))
-        .limit(1);
+    defaultConfig: LogitLensConfigData,
+) {
+    return chartDb.createLogitLensChartPair(await newChartWorkspace(workspaceId), defaultConfig);
+}
 
-    return row
-        ? {
-              chart: withCurrentToolType(row.chart as Chart),
-              toolType: normalizeToolType(row.toolType) as ToolType,
-          }
-        : null;
-};
+export async function createJLensChartPair(workspaceId: string, defaultConfig: JLensConfigData) {
+    return chartDb.createJLensChartPair(await newChartWorkspace(workspaceId), defaultConfig);
+}
 
-export const copyChart = async (chartId: string): Promise<Chart> => {
-    // Get the original chart
-    const [originalChart] = await db.select().from(charts).where(eq(charts.id, chartId));
-    if (!originalChart) {
-        throw new Error("Chart not found");
-    }
+export async function createPatchLensChartPair(workspaceId: string) {
+    return chartDb.createPatchLensChartPair(await newChartWorkspace(workspaceId));
+}
 
-    // Get the config associated with the original chart
-    const [originalLink] = await db
-        .select()
-        .from(chartConfigLinks)
-        .where(eq(chartConfigLinks.chartId, chartId));
+export async function createActivationPatchingChartPair(
+    workspaceId: string,
+    defaultConfig: ActivationPatchingConfigData,
+) {
+    return chartDb.createActivationPatchingChartPair(
+        await newChartWorkspace(workspaceId),
+        defaultConfig,
+    );
+}
 
-    const [originalConfig] = await db
-        .select()
-        .from(configs)
-        .where(eq(configs.id, originalLink.configId));
-
-    // Create the new chart with copied data. For patch-lens, drop the pointer to
-    // the source chart's active lens run so the copy starts without history.
-    let copiedData = originalChart.data;
-    if (originalChart.type === "patch-lens" && copiedData && typeof copiedData === "object") {
-        const rest = { ...(copiedData as Record<string, unknown>) };
-        delete rest.activeLensRunId;
-        copiedData = rest as typeof originalChart.data;
-    }
-
-    const position = await getNextWorkspaceItemPosition(originalChart.workspaceId);
-    const [newChart] = await db
-        .insert(charts)
-        .values({
-            workspaceId: originalChart.workspaceId,
-            name: `Copy of ${originalChart.name}`,
-            data: copiedData,
-            type: normalizeToolType(originalChart.type),
-            position,
-        })
-        .returning();
-
-    // Copy the config and create a new link
-    const [newConfig] = await db
-        .insert(configs)
-        .values({
-            workspaceId: originalConfig.workspaceId,
-            type: normalizeToolType(originalConfig.type),
-            data: originalConfig.data,
-        })
-        .returning();
-
-    // Create the link between new chart and new config
-    await db.insert(chartConfigLinks).values({
-        chartId: newChart.id,
-        configId: newConfig.id,
-    });
-
-    return newChart as Chart;
-};
+/**
+ * Creates the chart a `/new` launch asks for, in the signed-in user's default
+ * workspace or in `request.workspaceId` when it is one of theirs, and returns
+ * where to open it.
+ */
+export async function createChartFromLaunch(
+    request: ChartLaunchRequest,
+): Promise<{ chartId: string; toolType: ToolType; workspaceId: string }> {
+    return chartDb.createChartFromLaunch(await requireUserId(), request);
+}

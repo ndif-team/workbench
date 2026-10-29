@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import {
-    getMostRecentChartForWorkspace,
     createLogitLensChartPair,
-} from "@/lib/queries/chartQueries";
-import { getWorkshopForWorkspace, seedWorkshopChart } from "@/lib/queries/workshopQueries";
+    getMostRecentChartForWorkspace,
+    seedWorkshopChart,
+} from "@/lib/queries/chartDb";
+import { getWorkshopForWorkspace } from "@/lib/queries/workshopDb";
 import { toolChartPath } from "@/lib/chartRoutes";
 import { LogitLensConfigData } from "@/types/logitLens";
 
