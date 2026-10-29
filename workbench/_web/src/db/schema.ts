@@ -34,6 +34,14 @@ export const workshops = isLocal ? sqliteWorkshops : pgWorkshops;
 export const tutorials = isLocal ? sqliteTutorials : pgTutorials;
 export const tutorialEvents = isLocal ? sqliteTutorialEvents : pgTutorialEvents;
 
+/**
+ * Whether `id` has the shape of a row id (a UUID, in both schemas). Postgres
+ * answers a malformed uuid with an error (22P02) rather than no row, so check
+ * an id taken from a URL before querying by it.
+ */
+export const isUuid = (id: string): boolean =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
 // Identical in both schema files; re-exported from one for a single import site.
 export { workshopTools } from "./schema.pg";
 export type { WorkshopTool } from "./schema.pg";

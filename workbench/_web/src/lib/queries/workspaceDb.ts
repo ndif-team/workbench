@@ -2,7 +2,15 @@ import { and, asc, desc, eq, inArray, isNull, sql, type AnyColumn } from "drizzl
 import type { SerializedEditorState } from "lexical";
 
 import { db } from "@/db/client";
-import { chartConfigLinks, charts, configs, documents, lensRuns, workspaces } from "@/db/schema";
+import {
+    chartConfigLinks,
+    charts,
+    configs,
+    documents,
+    isUuid,
+    lensRuns,
+    workspaces,
+} from "@/db/schema";
 import type { Workspace } from "@/db/schema";
 import type { ProlificParams } from "@/lib/prolific";
 import { isUniqueViolation } from "@/lib/queries/workshopDb";
@@ -44,7 +52,9 @@ const validWorkspaceName = (name: string): string => {
     return trimmed;
 };
 
+/** A workspace by id; null when there is none (or the id isn't a UUID, as from a mistyped URL). */
 export const getWorkspaceById = async (workspaceId: string): Promise<Workspace | null> => {
+    if (!isUuid(workspaceId)) return null;
     const [workspace] = await db
         .select()
         .from(workspaces)
@@ -552,8 +562,9 @@ const toScope = (row: {
     isDefault: !!row.isDefault,
 });
 
-/** The workspace a chart page renders in, or null when the chart doesn't exist. */
+/** The workspace a chart page renders in, or null when the chart doesn't exist (or the id isn't a UUID). */
 export const getChartWorkspaceScope = async (chartId: string): Promise<WorkspaceScope | null> => {
+    if (!isUuid(chartId)) return null;
     const [row] = await db
         .select(scopeColumns)
         .from(charts)
@@ -563,10 +574,11 @@ export const getChartWorkspaceScope = async (chartId: string): Promise<Workspace
     return row ? toScope(row) : null;
 };
 
-/** The workspace a report page renders in, or null when the report doesn't exist. */
+/** The workspace a report page renders in, or null when the report doesn't exist (or the id isn't a UUID). */
 export const getReportWorkspaceScope = async (
     documentId: string,
 ): Promise<WorkspaceScope | null> => {
+    if (!isUuid(documentId)) return null;
     const [row] = await db
         .select(scopeColumns)
         .from(documents)

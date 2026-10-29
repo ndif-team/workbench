@@ -15,7 +15,7 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import type { SerializedEditorState } from "lexical";
 import { db, clearDatabase } from "../client";
-import { charts, configs, documents, lensRuns, workspaces } from "../schema";
+import { charts, configs, documents, isUuid, lensRuns, workspaces } from "../schema";
 import {
     DEFAULT_WORKSPACE_NAME,
     MAX_WORKSPACE_NAME_LENGTH,
@@ -594,6 +594,36 @@ describe("moves", () => {
     it("throws for a missing chart or report", async () => {
         await expect(moveChart(USER, "missing", null)).rejects.toThrow("Chart not found");
         await expect(moveReport(USER, "missing", null)).rejects.toThrow("Report not found");
+    });
+});
+
+describe("lookups by an id from a URL", () => {
+    beforeEach(async () => {
+        await clearDatabase();
+    });
+
+    it("recognise row ids by their UUID shape", async () => {
+        const ws = await createWorkspace(USER, "Folder");
+        expect(isUuid(ws.id)).toBe(true);
+        expect(isUuid(ws.id.toUpperCase())).toBe(true);
+        for (const malformed of ["", "not-a-uuid", `${ws.id}x`, ws.id.slice(1), "1 or 1=1"]) {
+            expect(isUuid(malformed)).toBe(false);
+        }
+    });
+
+    it("find nothing for a malformed id", async () => {
+        const ws = await createWorkspace(USER, "Folder");
+        const chartId = await createChart(ws.id, "Chart");
+        const report = await createDocument(ws.id);
+
+        expect(await getWorkspaceById(ws.id)).not.toBeNull();
+        expect(await getChartWorkspaceScope(chartId)).not.toBeNull();
+        expect(await getReportWorkspaceScope(report.id)).not.toBeNull();
+        for (const malformed of ["not-a-uuid", `${chartId}'`, "%E2%80%A6"]) {
+            expect(await getWorkspaceById(malformed)).toBeNull();
+            expect(await getChartWorkspaceScope(malformed)).toBeNull();
+            expect(await getReportWorkspaceScope(malformed)).toBeNull();
+        }
     });
 });
 
