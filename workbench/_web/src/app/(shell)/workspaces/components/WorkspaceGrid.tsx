@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText, Folder, FolderPlus, GraduationCap, LineChart } from "lucide-react";
+import { Folder, FolderPlus, GraduationCap } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
@@ -13,6 +13,7 @@ import { PageHeader, PageTitle } from "../../components/shell/PageHeader";
 import { InlineNameInput } from "../../components/items/InlineNameInput";
 import { formatTimestamp, formatUpdated } from "../../components/items/formatUpdated";
 import { itemIcon, itemLabel } from "../../components/items/itemLabel";
+import { EMPTY_WORKSPACE_TEXT, describeContents } from "../../components/items/workspaceContents";
 import { WorkspaceActionsMenu } from "./WorkspaceActions";
 import { inFolderOrder } from "../../components/shell/folderOrder";
 
@@ -82,8 +83,7 @@ const CARD = "rounded border bg-secondary/80 dark:bg-secondary/50 transition-col
 function WorkspaceCard({ workspace }: { workspace: LibraryWorkspace }) {
     const [renaming, setRenaming] = useState(false);
     const { mutate: rename } = useRenameWorkspace();
-    const charts = workspace.items.filter((i) => i.kind === "chart").length;
-    const reports = workspace.items.length - charts;
+    const contents = describeContents(workspace);
     const preview = workspace.items.slice(0, PREVIEW_ITEMS);
     const more = workspace.items.length - preview.length;
     const FolderIcon = workspace.isWorkshop ? GraduationCap : Folder;
@@ -127,9 +127,7 @@ function WorkspaceCard({ workspace }: { workspace: LibraryWorkspace }) {
 
             <ul className="flex min-h-[4.5rem] flex-1 flex-col gap-1 border-t px-4 py-3">
                 {preview.length === 0 ? (
-                    <li className="text-xs text-muted-foreground">
-                        No charts yet. File one here with Move to workspace.
-                    </li>
+                    <li className="text-xs text-muted-foreground">{EMPTY_WORKSPACE_TEXT}</li>
                 ) : (
                     preview.map((item) => {
                         const Icon = itemIcon(item);
@@ -156,17 +154,11 @@ function WorkspaceCard({ workspace }: { workspace: LibraryWorkspace }) {
             </ul>
 
             <div className="flex items-center gap-3 border-t px-4 py-2 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1 tabular-nums" title="Charts">
-                    <LineChart className="size-3.5" aria-hidden />
-                    {charts}
-                    <span className="sr-only">charts</span>
-                </span>
-                <span className="flex items-center gap-1 tabular-nums" title="Reports">
-                    <FileText className="size-3.5" aria-hidden />
-                    {reports}
-                    <span className="sr-only">reports</span>
-                </span>
-                <span className="ml-auto" title={formatTimestamp(workspace.updatedAt)}>
+                {contents && <span className="min-w-0 truncate tabular-nums">{contents}</span>}
+                <span
+                    className="ml-auto shrink-0 whitespace-nowrap"
+                    title={formatTimestamp(workspace.updatedAt)}
+                >
                     Updated {formatUpdated(workspace.updatedAt)}
                 </span>
             </div>

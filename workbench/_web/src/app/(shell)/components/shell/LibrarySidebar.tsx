@@ -15,6 +15,7 @@ import { ItemActionsMenu } from "../items/ItemActionsMenu";
 import { NewItemMenu } from "../items/NewItemMenu";
 import { chartName, itemIcon, itemLabel, itemPath } from "../items/itemLabel";
 import { recencyGroup } from "../items/formatUpdated";
+import { EMPTY_WORKSPACE_TEXT } from "../items/workspaceContents";
 import { useDeployStateOf } from "../useDeployStateOf";
 import {
     SidebarEmpty,
@@ -203,8 +204,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                                                     <SidebarFolderItems>
                                                         {folder.items.length === 0 ? (
                                                             <p className="py-1.5 pl-3.5 pr-2 text-xs text-muted-foreground">
-                                                                No charts yet. File one here with
-                                                                Move to workspace.
+                                                                {EMPTY_WORKSPACE_TEXT}
                                                             </p>
                                                         ) : (
                                                             folder.items.map((item) =>

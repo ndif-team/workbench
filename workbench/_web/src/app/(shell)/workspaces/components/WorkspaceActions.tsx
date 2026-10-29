@@ -22,17 +22,7 @@ import {
 import { useDeleteWorkspace } from "@/lib/api/workspaceApi";
 import { cn } from "@/lib/utils";
 import type { LibraryWorkspace } from "@/types/workspaces";
-
-/** "6 charts and 1 report", "1 chart", "nothing". */
-export function describeContents(workspace: LibraryWorkspace): string {
-    const charts = workspace.items.filter((i) => i.kind === "chart").length;
-    const reports = workspace.items.length - charts;
-    const parts = [
-        charts > 0 && `${charts} chart${charts === 1 ? "" : "s"}`,
-        reports > 0 && `${reports} report${reports === 1 ? "" : "s"}`,
-    ].filter(Boolean);
-    return parts.length ? parts.join(" and ") : "nothing";
-}
+import { describeContents } from "../../components/items/workspaceContents";
 
 /**
  * A workspace's Rename and Delete. Delete confirms in a dialog that says what
@@ -134,7 +124,7 @@ function DeleteWorkspaceDialog({
                 <DialogHeader>
                     <DialogTitle className="break-words">Delete {workspace.name}?</DialogTitle>
                     <DialogDescription>
-                        {contents === "nothing"
+                        {!contents
                             ? "The workspace is empty. You can't undo this."
                             : `This also deletes the ${contents} in it. You can't undo this.`}
                     </DialogDescription>

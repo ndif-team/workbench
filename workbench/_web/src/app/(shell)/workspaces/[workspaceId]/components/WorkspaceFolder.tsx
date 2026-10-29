@@ -32,12 +32,17 @@ import {
 } from "@/lib/api/workspaceApi";
 import { reportPath } from "@/lib/chartRoutes";
 import { cn } from "@/lib/utils";
+import type { ToolType } from "@/types/charts";
 import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
 import { PageHeader } from "../../../components/shell/PageHeader";
 import { InlineNameInput } from "../../../components/items/InlineNameInput";
 import { NewItemMenu } from "../../../components/items/NewItemMenu";
 import { SortableEntry } from "../../../components/SortableEntry";
-import { WorkspaceActionsMenu, describeContents } from "../../components/WorkspaceActions";
+import { WorkspaceActionsMenu } from "../../components/WorkspaceActions";
+import {
+    EMPTY_WORKSPACE_TEXT,
+    describeContents,
+} from "../../../components/items/workspaceContents";
 import { FolderItemRow, FolderItemRowSkeleton } from "./FolderItemRow";
 
 const itemKey = (item: LibraryItem) => `${item.kind}-${item.id}`;
@@ -196,7 +201,12 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                             ))}
                         </div>
                     ) : folder.items.length === 0 ? (
-                        <EmptyFolder folder={folder} />
+                        <EmptyFolder
+                            folder={folder}
+                            tools={tools}
+                            onNewReport={newReport}
+                            creatingReport={createReport.isPending}
+                        />
                     ) : (
                         <DndContext
                             sensors={sensors}
@@ -268,18 +278,39 @@ function Breadcrumb({ children }: { children?: React.ReactNode }) {
     );
 }
 
-function EmptyFolder({ folder }: { folder: LibraryWorkspace }) {
+/** An empty workspace's panel body: what fills it, with New chart and New report right there. */
+function EmptyFolder({
+    folder,
+    tools,
+    onNewReport,
+    creatingReport,
+}: {
+    folder: LibraryWorkspace;
+    tools?: readonly ToolType[];
+    onNewReport: () => void;
+    creatingReport: boolean;
+}) {
     return (
-        <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+        <div className="flex flex-col items-center gap-4 px-6 py-14 text-center">
             <div className="flex size-10 items-center justify-center rounded border bg-background">
                 <Folder className="size-4 text-muted-foreground" />
             </div>
             <div className="flex max-w-sm flex-col gap-1">
-                <p className="text-sm font-medium">{folder.name} is empty</p>
-                <p className="text-sm text-muted-foreground">
-                    Start a chart or report here with the buttons above, or file an existing one
-                    with Move to workspace in its menu.
-                </p>
+                <p className="break-words text-sm font-medium">{folder.name} is empty</p>
+                <p className="text-sm text-muted-foreground">{EMPTY_WORKSPACE_TEXT}</p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+                <NewItemMenu workspaceId={folder.id} tools={tools}>
+                    <Button variant="outline" size="sm">
+                        <Plus />
+                        New chart
+                        <ChevronDown className="size-3.5 text-muted-foreground" />
+                    </Button>
+                </NewItemMenu>
+                <Button variant="outline" size="sm" onClick={onNewReport} disabled={creatingReport}>
+                    <FilePlus />
+                    New report
+                </Button>
             </div>
         </div>
     );
