@@ -503,7 +503,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                     className="flex items-center gap-3"
                 >
                     {loggedIn && (
-                        <Link href="/workspaces">
+                        <Link href="/workbench">
                             <Button
                                 variant="default"
                                 size="default"
@@ -522,7 +522,7 @@ export function LandingPage({ loggedIn }: { loggedIn: boolean }) {
                                 }}
                             >
                                 <Layers className="w-4 h-4" />
-                                workspaces
+                                open workbench
                             </Button>
                         </Link>
                     )}
