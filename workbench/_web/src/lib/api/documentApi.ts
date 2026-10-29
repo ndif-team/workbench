@@ -56,6 +56,7 @@ export const useSaveDocument = () => {
             queryClient.invalidateQueries({
                 queryKey: queryKeys.documents.byWorkspace(variables.workspaceId),
             });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
             if (variables.documentId) {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.documents.one(variables.documentId),
@@ -82,6 +83,7 @@ export const useCreateDocument = () => {
             queryClient.invalidateQueries({
                 queryKey: queryKeys.documents.byWorkspace(workspaceId),
             });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
         onError: (error) => {
             console.error("Error creating document:", error);
@@ -105,6 +107,7 @@ export const useDeleteDocument = () => {
             queryClient.invalidateQueries({
                 queryKey: queryKeys.documents.byWorkspace(variables.workspaceId),
             });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
             queryClient.invalidateQueries({
                 queryKey: queryKeys.documents.one(variables.documentId),
             });

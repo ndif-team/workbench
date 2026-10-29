@@ -1,0 +1,399 @@
+/**
+ * Integration tests for the default workspace, the sidebar library and moves
+ * on SQLite.
+ *
+ * Exercises the unguarded internals in lib/queries/workspaceDb.ts (the
+ * "use server" wrappers in workspaceQueries.ts only resolve the signed-in user
+ * before calling these). Covers idempotent default creation, adoption of the
+ * old flow's "Default Workspace", the one-default-per-user index, library
+ * grouping and ordering, chart and report moves (config and lens runs follow
+ * the chart), refused moves, and the default workspace staying out of folder
+ * lists and out of reach of rename/delete.
+ */
+
+import { describe, it, expect, beforeEach } from "bun:test";
+import { and, eq } from "drizzle-orm";
+import type { SerializedEditorState } from "lexical";
+import { db, clearDatabase } from "../client";
+import { charts, configs, documents, lensRuns, workspaces } from "../schema";
+import {
+    DEFAULT_WORKSPACE_NAME,
+    getChartWorkspaceScope,
+    getMostRecentUserChart,
+    getOrCreateDefaultWorkspace,
+    getReportWorkspaceScope,
+    getWorkspaceLibrary,
+    moveChart,
+    moveReport,
+} from "@/lib/queries/workspaceDb";
+import {
+    createWorkspace,
+    deleteWorkspace,
+    getWorkspaceById,
+    getWorkspaces,
+    updateWorkspace,
+} from "@/lib/queries/workspaceQueries";
+import {
+    createLogitLensChartPair,
+    createPatchLensChartPair,
+    getConfigForChart,
+} from "@/lib/queries/chartQueries";
+import { createDocument, updateDocument } from "@/lib/queries/documentQueries";
+import { createWorkshop } from "@/lib/queries/workshopDb";
+import type { LensRunHeatmaps, LensRunSummary } from "@/types/lensRun";
+import type { LibraryItem } from "@/types/workspaces";
+
+const USER = "user-a";
+const OTHER = "user-b";
+
+const lensConfig = (prompt = "The Eiffel Tower is in") => ({
+    prompt,
+    model: "gpt2",
+    topk: 5,
+    includeEntropy: true,
+});
+
+const createChart = async (workspaceId: string, name: string) => {
+    const { chart } = await createLogitLensChartPair(workspaceId, lensConfig());
+    await db.update(charts).set({ name }).where(eq(charts.id, chart.id));
+    return chart.id as string;
+};
+
+/** Stamps an explicit updatedAt (sqlite timestamps are second precision, so
+ * rows created in one test would otherwise tie). */
+const setChartUpdatedAt = (chartId: string, secondsAgo: number) =>
+    db
+        .update(charts)
+        .set({ updatedAt: new Date(Date.now() - secondsAgo * 1000) })
+        .where(eq(charts.id, chartId));
+
+const reportWithTitle = (title: string) =>
+    ({
+        root: {
+            type: "root",
+            children: [{ type: "heading", children: [{ type: "text", text: `# ${title}` }] }],
+        },
+    }) as unknown as SerializedEditorState;
+
+const insertLensRun = (workspaceId: string, chartId: string) =>
+    db.insert(lensRuns).values({
+        workspaceId,
+        chartId,
+        model: "gpt2",
+        summary: {} as LensRunSummary,
+        data: {} as LensRunHeatmaps,
+    });
+
+const workshopInput = () => ({
+    name: "Pilot",
+    allowedTools: ["logit-lens" as const],
+    model: "gpt2",
+    starterPrompt: "",
+    allowModelChange: false,
+    expiresAt: new Date(Date.now() + 24 * 3600 * 1000),
+    createdBy: "admin@example.edu",
+});
+
+const ids = (items: LibraryItem[]) => items.map((i) => i.id);
+
+describe("default workspace", () => {
+    beforeEach(async () => {
+        await clearDatabase();
+    });
+
+    it("creates one default workspace per user, idempotently", async () => {
+        const first = await getOrCreateDefaultWorkspace(USER);
+        const again = await getOrCreateDefaultWorkspace(USER);
+        const concurrent = await Promise.all([
+            getOrCreateDefaultWorkspace(USER),
+            getOrCreateDefaultWorkspace(USER),
+        ]);
+
+        expect(first.isDefault).toBe(true);
+        expect(first.name).toBe(DEFAULT_WORKSPACE_NAME);
+        expect(again.id).toBe(first.id);
+        expect(concurrent.map((w) => w.id)).toEqual([first.id, first.id]);
+
+        const rows = await db
+            .select()
+            .from(workspaces)
+            .where(and(eq(workspaces.userId, USER), eq(workspaces.isDefault, true)));
+        expect(rows.length).toBe(1);
+
+        const other = await getOrCreateDefaultWorkspace(OTHER);
+        expect(other.id).not.toBe(first.id);
+    });
+
+    it("rejects a second default for the same user at the index", async () => {
+        await getOrCreateDefaultWorkspace(USER);
+        const insertSecond = async () => {
+            await db.insert(workspaces).values({ userId: USER, name: "Another", isDefault: true });
+        };
+        await expect(insertSecond()).rejects.toThrow(/unique/i);
+    });
+
+    it("adopts the oldest non-workshop 'Default Workspace' from the old first-visit flow", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const workshopDefault = await createWorkspace(USER, "Default Workspace", workshop.id);
+        const legacy = await createWorkspace(USER, "Default Workspace");
+        const newer = await createWorkspace(USER, "Default Workspace");
+        const ageBy = (workspaceId: string, seconds: number) =>
+            db
+                .update(workspaces)
+                .set({ createdAt: new Date(Date.now() - seconds * 1000) })
+                .where(eq(workspaces.id, workspaceId));
+        await ageBy(workshopDefault.id, 120);
+        await ageBy(legacy.id, 60);
+        const chartId = await createChart(legacy.id, "Old chart");
+
+        const adopted = await getOrCreateDefaultWorkspace(USER);
+
+        expect(adopted.id).toBe(legacy.id);
+        expect(adopted.isDefault).toBe(true);
+        expect((await getWorkspaceById(newer.id))!.isDefault).toBe(false);
+        expect((await getWorkspaceById(workshopDefault.id))!.isDefault).toBe(false);
+
+        const library = await getWorkspaceLibrary(USER);
+        expect(library.defaultWorkspaceId).toBe(legacy.id);
+        expect(ids(library.defaultItems)).toEqual([chartId]);
+    });
+
+    it("is left out of folder lists and can't be renamed or deleted", async () => {
+        const folder = await createWorkspace(USER, "Folder");
+        const def = await getOrCreateDefaultWorkspace(USER);
+
+        const listed = await getWorkspaces(USER);
+        expect(listed.map((w: { id: string }) => w.id)).toEqual([folder.id]);
+
+        await expect(updateWorkspace(def.id, { name: "Renamed" }, USER)).rejects.toThrow(
+            "not found or access denied",
+        );
+        await deleteWorkspace(USER, def.id);
+        expect(await getWorkspaceById(def.id)).not.toBeNull();
+    });
+});
+
+describe("workspace library", () => {
+    beforeEach(async () => {
+        await clearDatabase();
+    });
+
+    it("groups charts and reports by workspace in their display order", async () => {
+        const def = await getOrCreateDefaultWorkspace(USER);
+        const folderA = await createWorkspace(USER, "Folder A");
+        const folderB = await createWorkspace(USER, "Folder B");
+        await createWorkspace(OTHER, "Not mine");
+
+        const older = await createChart(def.id, "Older");
+        const newer = await createChart(def.id, "Newer");
+        const defReport = await createDocument(def.id);
+        await setChartUpdatedAt(older, 300);
+        await setChartUpdatedAt(newer, 60);
+        await db
+            .update(documents)
+            .set({ updatedAt: new Date(Date.now() - 120_000) })
+            .where(eq(documents.id, defReport.id));
+
+        const a1 = await createChart(folderA.id, "A1");
+        const aReport = await updateDocument(
+            (await createDocument(folderA.id)).id,
+            reportWithTitle("Findings"),
+        );
+        const a2 = await createPatchLensChartPair(folderA.id);
+        await setChartUpdatedAt(a1, 10);
+        await db.update(charts).set({ data: {} }).where(eq(charts.id, a1));
+
+        await db
+            .update(workspaces)
+            .set({ updatedAt: new Date(Date.now() - 600_000) })
+            .where(eq(workspaces.id, folderA.id));
+
+        const library = await getWorkspaceLibrary(USER);
+
+        expect(library.defaultWorkspaceId).toBe(def.id);
+        expect(ids(library.defaultItems)).toEqual([newer, defReport.id, older]);
+
+        expect(library.workspaces.map((w) => w.id)).toEqual([folderB.id, folderA.id]);
+        const a = library.workspaces[1];
+        expect(a.name).toBe("Folder A");
+        expect(a.isWorkshop).toBe(false);
+        expect(ids(a.items)).toEqual([a1, aReport.id, a2.chart.id]);
+        expect(library.workspaces[0].items).toEqual([]);
+
+        const [chartItem, reportItem, patchItem] = a.items;
+        expect(chartItem).toMatchObject({
+            kind: "chart",
+            workspaceId: folderA.id,
+            name: "A1",
+            toolType: "logit-lens",
+            model: "gpt2",
+            hasData: true,
+        });
+        expect(reportItem).toMatchObject({ kind: "report", title: "Findings" });
+        expect(patchItem).toMatchObject({
+            kind: "chart",
+            toolType: "patch-lens",
+            model: null,
+            hasData: false,
+        });
+
+        const fresh = library.defaultItems.find((i) => i.id === newer);
+        expect(fresh).toMatchObject({ kind: "chart", hasData: false });
+    });
+
+    it("creates the default workspace on first read", async () => {
+        const library = await getWorkspaceLibrary(USER);
+        expect(library.defaultItems).toEqual([]);
+        expect(library.workspaces).toEqual([]);
+        expect((await getWorkspaceById(library.defaultWorkspaceId))!.isDefault).toBe(true);
+    });
+
+    it("flags workshop workspaces", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const ws = await createWorkspace(USER, "Pilot", workshop.id);
+        const library = await getWorkspaceLibrary(USER);
+        expect(library.workspaces).toMatchObject([{ id: ws.id, isWorkshop: true }]);
+    });
+});
+
+describe("moves", () => {
+    beforeEach(async () => {
+        await clearDatabase();
+    });
+
+    it("moves a chart with its config and lens runs to the end of the target", async () => {
+        const def = await getOrCreateDefaultWorkspace(USER);
+        const folder = await createWorkspace(USER, "Folder");
+        await createChart(folder.id, "Already here");
+        await createDocument(folder.id);
+        const chartId = await createChart(def.id, "Mover");
+        await insertLensRun(def.id, chartId);
+        await insertLensRun(def.id, chartId);
+        const [before] = await db.select().from(charts).where(eq(charts.id, chartId));
+
+        await moveChart(USER, chartId, folder.id);
+
+        const [moved] = await db.select().from(charts).where(eq(charts.id, chartId));
+        expect(moved.workspaceId).toBe(folder.id);
+        expect(moved.position).toBe(2);
+        expect(moved.updatedAt.getTime()).toBe(before.updatedAt.getTime());
+        expect((await getConfigForChart(chartId))!.workspaceId).toBe(folder.id);
+        const runs = await db.select().from(lensRuns).where(eq(lensRuns.chartId, chartId));
+        expect(runs.map((r: { workspaceId: string }) => r.workspaceId)).toEqual([
+            folder.id,
+            folder.id,
+        ]);
+        expect((await getChartWorkspaceScope(chartId))!.workspaceId).toBe(folder.id);
+
+        // A null target is the default workspace.
+        await moveChart(USER, chartId, null);
+        expect((await getConfigForChart(chartId))!.workspaceId).toBe(def.id);
+        expect((await getChartWorkspaceScope(chartId))!).toEqual({
+            workspaceId: def.id,
+            workshopId: null,
+            isDefault: true,
+        });
+    });
+
+    it("leaves other charts' configs and runs alone", async () => {
+        const def = await getOrCreateDefaultWorkspace(USER);
+        const folder = await createWorkspace(USER, "Folder");
+        const mover = await createChart(def.id, "Mover");
+        const stayer = await createChart(def.id, "Stayer");
+        await insertLensRun(def.id, stayer);
+
+        await moveChart(USER, mover, folder.id);
+
+        expect((await getConfigForChart(stayer))!.workspaceId).toBe(def.id);
+        const stayerConfigs = await db
+            .select()
+            .from(configs)
+            .where(eq(configs.workspaceId, def.id));
+        expect(stayerConfigs.length).toBe(1);
+        const runs = await db.select().from(lensRuns).where(eq(lensRuns.chartId, stayer));
+        expect(runs[0].workspaceId).toBe(def.id);
+    });
+
+    it("moves a report to the end of the target", async () => {
+        const def = await getOrCreateDefaultWorkspace(USER);
+        const folder = await createWorkspace(USER, "Folder");
+        await createChart(folder.id, "Already here");
+        const report = await createDocument(def.id);
+
+        await moveReport(USER, report.id, folder.id);
+
+        const [moved] = await db.select().from(documents).where(eq(documents.id, report.id));
+        expect(moved.workspaceId).toBe(folder.id);
+        expect(moved.position).toBe(1);
+        expect((await getReportWorkspaceScope(report.id))!.workspaceId).toBe(folder.id);
+
+        await moveReport(USER, report.id, null);
+        expect((await getReportWorkspaceScope(report.id))!.workspaceId).toBe(def.id);
+    });
+
+    it("refuses moves across users", async () => {
+        const mine = await createWorkspace(USER, "Mine");
+        const theirs = await createWorkspace(OTHER, "Theirs");
+        const myChart = await createChart(mine.id, "Mine");
+        const theirChart = await createChart(theirs.id, "Theirs");
+        const theirReport = await createDocument(theirs.id);
+
+        await expect(moveChart(USER, myChart, theirs.id)).rejects.toThrow("access denied");
+        await expect(moveChart(USER, theirChart, mine.id)).rejects.toThrow("access denied");
+        await expect(moveChart(USER, theirChart, null)).rejects.toThrow("access denied");
+        await expect(moveReport(USER, theirReport.id, mine.id)).rejects.toThrow("access denied");
+
+        expect((await getChartWorkspaceScope(myChart))!.workspaceId).toBe(mine.id);
+        expect((await getChartWorkspaceScope(theirChart))!.workspaceId).toBe(theirs.id);
+        expect((await getConfigForChart(theirChart))!.workspaceId).toBe(theirs.id);
+    });
+
+    it("refuses moves into or out of workshop workspaces", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const workshopWs = await createWorkspace(USER, "Pilot", workshop.id);
+        const folder = await createWorkspace(USER, "Folder");
+        const workshopChart = await createChart(workshopWs.id, "Guided");
+        const folderChart = await createChart(folder.id, "Mine");
+        const folderReport = await createDocument(folder.id);
+
+        await expect(moveChart(USER, workshopChart, folder.id)).rejects.toThrow("workshop");
+        await expect(moveChart(USER, workshopChart, null)).rejects.toThrow("workshop");
+        await expect(moveChart(USER, folderChart, workshopWs.id)).rejects.toThrow("workshop");
+        await expect(moveReport(USER, folderReport.id, workshopWs.id)).rejects.toThrow("workshop");
+
+        expect((await getChartWorkspaceScope(workshopChart))!.workspaceId).toBe(workshopWs.id);
+        expect((await getChartWorkspaceScope(folderChart))!.workspaceId).toBe(folder.id);
+    });
+
+    it("throws for a missing chart or report", async () => {
+        await expect(moveChart(USER, "missing", null)).rejects.toThrow("Chart not found");
+        await expect(moveReport(USER, "missing", null)).rejects.toThrow("Report not found");
+    });
+});
+
+describe("most recent chart", () => {
+    beforeEach(async () => {
+        await clearDatabase();
+    });
+
+    it("skips workshop workspaces and other users", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const workshopWs = await createWorkspace(USER, "Pilot", workshop.id);
+        const def = await getOrCreateDefaultWorkspace(USER);
+        const theirs = await createWorkspace(OTHER, "Theirs");
+
+        expect(await getMostRecentUserChart(USER)).toBeNull();
+
+        const mine = await createChart(def.id, "Mine");
+        const guided = await createChart(workshopWs.id, "Guided");
+        const other = await createChart(theirs.id, "Theirs");
+        await setChartUpdatedAt(mine, 60);
+        await setChartUpdatedAt(guided, 0);
+        await setChartUpdatedAt(other, 0);
+
+        expect(await getMostRecentUserChart(USER)).toEqual({
+            chartId: mine,
+            toolType: "logit-lens",
+        });
+    });
+});

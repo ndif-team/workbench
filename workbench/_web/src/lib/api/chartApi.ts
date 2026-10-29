@@ -23,6 +23,7 @@ export const useUpdateChartName = () => {
         onSuccess: (data, variables) => {
             const chartKey = queryKeys.charts.chart(variables.chartId);
             queryClient.invalidateQueries({ queryKey: chartKey });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
 
             // Also invalidate sidebar to update the chart name in the card
             const chart = queryClient.getQueryData(chartKey) as
@@ -44,6 +45,7 @@ export const useDeleteChart = () => {
         mutationFn: ({ chartId }: { chartId: string; workspaceId: string }) => deleteChart(chartId),
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
     });
 };
@@ -70,6 +72,7 @@ export const useCreateLogitLensChartPair = () => {
         },
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
     });
 };
@@ -96,6 +99,7 @@ export const useCreateJLensChartPair = () => {
         },
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
     });
 };
@@ -109,6 +113,7 @@ export const useCreatePatchLensChartPair = () => {
         },
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
     });
 };
@@ -122,6 +127,7 @@ export const useCopyChart = () => {
             queryClient.invalidateQueries({
                 queryKey: queryKeys.charts.sidebar(newChart.workspaceId),
             });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
     });
 };
@@ -149,6 +155,7 @@ export const useCreateActivationPatchingChartPair = () => {
         },
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
     });
 };

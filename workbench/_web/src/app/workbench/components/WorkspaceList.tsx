@@ -171,7 +171,7 @@ export function WorkspaceList({ userId }: WorkspaceListProps) {
         <>
             <div className="flex justify-between items-center mb-6 pl-5">
                 <h2 className="text-lg">Workspaces</h2>
-                <CreateWorkspaceDialog userId={userId} />
+                <CreateWorkspaceDialog />
             </div>
 
             {!workspaces || workspaces.length === 0 ? (

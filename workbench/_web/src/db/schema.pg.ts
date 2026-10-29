@@ -9,6 +9,7 @@ import {
     uniqueIndex,
     index,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { ConfigData, ChartData } from "@/types/charts";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
@@ -81,17 +82,26 @@ export const workspaces = pgTable(
         // first arrival, retained for matching runs back to the study. Null for
         // normal (non-workshop) workspaces and workshop joins without Prolific.
         prolific: jsonb("prolific").$type<ProlificParams>(),
+        // The user's home for charts and reports not filed in a workspace. Never
+        // shown as a folder; created lazily by getOrCreateDefaultWorkspace.
+        isDefault: boolean("is_default").notNull().default(false),
         createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
         updatedAt: timestamp("updated_at", { mode: "date" })
             .defaultNow()
             .notNull()
             .$onUpdate(() => new Date()),
     },
-    // One workspace per (participant, workshop): makes concurrent join-link
-    // clicks converge on a single workspace instead of racing check-then-act.
-    // NULL workshopId rows (normal workspaces) are unconstrained — both pg and
-    // sqlite treat NULLs as distinct in unique indexes.
-    (table) => [uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId)],
+    (table) => [
+        // One workspace per (participant, workshop): makes concurrent join-link
+        // clicks converge on a single workspace instead of racing check-then-act.
+        // NULL workshopId rows (normal workspaces) are unconstrained — both pg and
+        // sqlite treat NULLs as distinct in unique indexes.
+        uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId),
+        // One default workspace per user, so concurrent first creations converge.
+        uniqueIndex("workspaces_user_default_unique")
+            .on(table.userId)
+            .where(sql`${table.isDefault}`),
+    ],
 );
 
 export const chartTypes = ["logit-lens", "jlens", "activation-patching", "patch-lens"] as const;

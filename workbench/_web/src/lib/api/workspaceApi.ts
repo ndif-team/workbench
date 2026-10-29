@@ -1,7 +1,12 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
-    createWorkspace,
+    createUserWorkspace,
     deleteWorkspace,
+    getWorkspaceLibrary,
+    moveChart,
+    moveReport,
     updateWorkspace,
     reorderWorkspaceItems,
     type WorkspaceItemKind,
@@ -9,19 +14,80 @@ import {
 import { queryKeys } from "@/lib/queryKeys";
 import type { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
+import type { WorkspaceLibrary } from "@/types/workspaces";
 
+/** The signed-in user's workspaces with their charts and reports (global sidebar). */
+export const useWorkspaceLibrary = () =>
+    useQuery<WorkspaceLibrary>({
+        queryKey: queryKeys.workspaces.library,
+        queryFn: () => getWorkspaceLibrary(),
+    });
+
+/** Refetches every list an item can appear in after it changes workspace. */
+const invalidateItemLists = (queryClient: QueryClient) => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
+    queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebarAll });
+    queryClient.invalidateQueries({ queryKey: queryKeys.documents.byWorkspaceAll });
+};
+
+/**
+ * Moves a chart (with its config and lens runs) to a workspace; a null target
+ * is the default workspace. Refreshes the route so a page showing the chart
+ * picks up its new workspace scope.
+ */
+export const useMoveChart = () => {
+    const queryClient = useQueryClient();
+    const router = useRouter();
+
+    return useMutation({
+        mutationFn: ({
+            chartId,
+            targetWorkspaceId,
+        }: {
+            chartId: string;
+            targetWorkspaceId: string | null;
+        }) => moveChart(chartId, targetWorkspaceId),
+        onSuccess: (_, { chartId }) => {
+            invalidateItemLists(queryClient);
+            queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(chartId) });
+            router.refresh();
+        },
+        onError: () => toast.error("Couldn't move the chart"),
+    });
+};
+
+/** Moves a report to a workspace; a null target is the default workspace. */
+export const useMoveReport = () => {
+    const queryClient = useQueryClient();
+    const router = useRouter();
+
+    return useMutation({
+        mutationFn: ({
+            documentId,
+            targetWorkspaceId,
+        }: {
+            documentId: string;
+            targetWorkspaceId: string | null;
+        }) => moveReport(documentId, targetWorkspaceId),
+        onSuccess: (_, { documentId }) => {
+            invalidateItemLists(queryClient);
+            queryClient.invalidateQueries({ queryKey: queryKeys.documents.one(documentId) });
+            router.refresh();
+        },
+        onError: () => toast.error("Couldn't move the report"),
+    });
+};
+
+/** Creates a workspace (folder) for the signed-in user. */
 export const useCreateWorkspace = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ userId, name }: { userId: string; name: string }) => {
-            // This calls the server action which handles authentication
-            const newWorkspace = await createWorkspace(userId, name);
-            return newWorkspace;
-        },
+        mutationFn: ({ name }: { name: string }) => createUserWorkspace(name),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["workspaces"] });
-            console.log("Successfully created workspace");
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
         onError: (error) => {
             console.error("Error creating workspace:", error);
@@ -37,8 +103,8 @@ export const useDeleteWorkspace = () => {
             await deleteWorkspace(userId, workspaceId);
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["workspaces"] });
-            console.log("Successfully deleted workspace");
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
         onError: (error) => {
             console.error("Error deleting workspace:", error);
@@ -106,6 +172,7 @@ export const useReorderWorkspaceItems = () => {
             queryClient.invalidateQueries({
                 queryKey: queryKeys.documents.byWorkspace(workspaceId),
             });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
     });
 };
@@ -131,6 +198,7 @@ export const useUpdateWorkspaceName = () => {
             queryClient.invalidateQueries({
                 queryKey: queryKeys.workspaces.workspace(variables.workspaceId),
             });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
         onError: (error) => {
             console.error("Error updating workspace name:", error);

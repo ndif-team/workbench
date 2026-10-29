@@ -85,6 +85,7 @@ export const useJLens = () => {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
+                queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
             }
         },
     });

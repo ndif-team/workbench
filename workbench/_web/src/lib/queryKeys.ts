@@ -2,15 +2,23 @@ export const queryKeys = {
     workspaces: {
         all: ["workspaces"] as const,
         workspace: (workspaceId: string) => ["workspace", workspaceId] as const,
+        // The signed-in user's workspaces with their charts and reports (global
+        // sidebar). Invalidate it from every mutation that adds, removes, renames,
+        // reorders or moves a chart, report or workspace.
+        library: ["workspace-library"] as const,
     },
     charts: {
         chart: (chartId: string) => ["chart", chartId] as const,
         config: (configId: string) => ["config", configId] as const,
         configByChart: (chartId: string) => ["chartConfig", chartId] as const,
+        // Prefix of every workspace's sidebar list.
+        sidebarAll: ["chartsForSidebar"] as const,
         sidebar: (workspaceId: string) => ["chartsForSidebar", workspaceId] as const,
     },
     documents: {
         one: (documentId: string) => ["document", documentId] as const,
+        // Prefix of every workspace's report list.
+        byWorkspaceAll: ["documents"] as const,
         byWorkspace: (workspaceId: string) => ["documents", workspaceId] as const,
         workspaceDoc: (workspaceId: string) => ["document-workspace", workspaceId] as const,
     },

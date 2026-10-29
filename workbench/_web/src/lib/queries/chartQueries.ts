@@ -9,7 +9,7 @@ import { JLensConfigData } from "@/types/jlens";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { PatchLensChartData } from "@/types/patchLens";
 import { and, eq, asc, desc, inArray, sql } from "drizzle-orm";
-import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceQueries";
+import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/workspaceDb";
 // From workshopDb (not workshopQueries) — workshopQueries imports the chart
 // pair creators below, so importing it back here would be circular.
 import { getWorkshopForWorkspace } from "@/lib/queries/workshopDb";

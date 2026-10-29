@@ -2,8 +2,12 @@
 
 import { db } from "@/db/client";
 import { workspaces, charts, documents } from "@/db/schema";
+import type { Workspace } from "@/db/schema";
 import { eq, and, sql, desc, isNull } from "drizzle-orm";
 import type { ProlificParams } from "@/lib/prolific";
+import { requireUserId } from "@/lib/auth/user";
+import * as workspaceDb from "@/lib/queries/workspaceDb";
+import type { WorkspaceLibrary } from "@/types/workspaces";
 
 export async function getWorkspaceById(workspaceId: string) {
     const [workspace] = await db
@@ -23,7 +27,13 @@ export async function updateWorkspace(
     const [updatedWorkspace] = await db
         .update(workspaces)
         .set(updates)
-        .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
+        .where(
+            and(
+                eq(workspaces.id, workspaceId),
+                eq(workspaces.userId, userId),
+                eq(workspaces.isDefault, false),
+            ),
+        )
         .returning();
 
     if (!updatedWorkspace) {
@@ -33,6 +43,7 @@ export async function updateWorkspace(
     return updatedWorkspace;
 }
 
+/** The user's workspaces (folders) with item counts. Excludes the default workspace. */
 export const getWorkspaces = async (userId: string) => {
     const workspaceList = await db
         .select({
@@ -47,39 +58,24 @@ export const getWorkspaces = async (userId: string) => {
         .from(workspaces)
         .leftJoin(charts, eq(workspaces.id, charts.workspaceId))
         .leftJoin(documents, eq(workspaces.id, documents.workspaceId))
-        .where(eq(workspaces.userId, userId))
+        .where(and(eq(workspaces.userId, userId), eq(workspaces.isDefault, false)))
         .groupBy(workspaces.id)
         .orderBy(desc(workspaces.updatedAt));
 
     return workspaceList;
 };
 
+/** Deletes a workspace and, by cascade, its contents. The default workspace is never deleted. */
 export const deleteWorkspace = async (userId: string, workspaceId: string) => {
     await db
         .delete(workspaces)
-        .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)));
-};
-
-export const touchWorkspace = async (workspaceId: string) => {
-    await db
-        .update(workspaces)
-        .set({ updatedAt: new Date() })
-        .where(eq(workspaces.id, workspaceId));
-};
-
-export const getNextWorkspaceItemPosition = async (workspaceId: string): Promise<number> => {
-    const [chartRows, docRows] = await Promise.all([
-        db
-            .select({ max: sql<number | null>`max(${charts.position})` })
-            .from(charts)
-            .where(eq(charts.workspaceId, workspaceId)),
-        db
-            .select({ max: sql<number | null>`max(${documents.position})` })
-            .from(documents)
-            .where(eq(documents.workspaceId, workspaceId)),
-    ]);
-    const maxPos = Math.max(Number(chartRows[0]?.max ?? -1), Number(docRows[0]?.max ?? -1));
-    return maxPos + 1;
+        .where(
+            and(
+                eq(workspaces.id, workspaceId),
+                eq(workspaces.userId, userId),
+                eq(workspaces.isDefault, false),
+            ),
+        );
 };
 
 export type WorkspaceItemKind = "chart" | "report";
@@ -139,3 +135,28 @@ export const setWorkspaceProlificIfEmpty = async (
         .set({ prolific })
         .where(and(eq(workspaces.id, workspaceId), isNull(workspaces.prolific)));
 };
+
+// ---- Current-user actions (the user is resolved from the session, never passed in) ----
+
+/** The signed-in user's workspaces and their charts and reports, for the global sidebar. */
+export async function getWorkspaceLibrary(): Promise<WorkspaceLibrary> {
+    return workspaceDb.getWorkspaceLibrary(await requireUserId());
+}
+
+/** Creates a workspace (folder) for the signed-in user. */
+export async function createUserWorkspace(name: string): Promise<Workspace> {
+    return createWorkspace(await requireUserId(), name);
+}
+
+/** Moves a chart, with its config and lens runs, to a workspace (null: the default workspace). */
+export async function moveChart(chartId: string, targetWorkspaceId: string | null): Promise<void> {
+    return workspaceDb.moveChart(await requireUserId(), chartId, targetWorkspaceId);
+}
+
+/** Moves a report to a workspace (null: the default workspace). */
+export async function moveReport(
+    documentId: string,
+    targetWorkspaceId: string | null,
+): Promise<void> {
+    return workspaceDb.moveReport(await requireUserId(), documentId, targetWorkspaceId);
+}

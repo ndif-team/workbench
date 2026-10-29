@@ -1,0 +1,416 @@
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import type { SerializedEditorState } from "lexical";
+
+import { db } from "@/db/client";
+import { chartConfigLinks, charts, configs, documents, lensRuns, workspaces } from "@/db/schema";
+import type { Workspace } from "@/db/schema";
+import { isUniqueViolation } from "@/lib/queries/workshopDb";
+import { deriveReportTitle } from "@/lib/reportTitle";
+import { LEGACY_TOOL_ALIASES, normalizeToolType, toolTypes, type ToolType } from "@/types/charts";
+import type {
+    LibraryItem,
+    LibraryWorkspace,
+    WorkspaceLibrary,
+    WorkspaceScope,
+} from "@/types/workspaces";
+
+/**
+ * Unguarded workspace DB internals. The "use server" RPC surface lives in
+ * workspaceQueries.ts, which resolves the signed-in user before calling these;
+ * keeping them here makes them directly testable under bun:test (no Supabase
+ * session to fake) and keeps them off the public RPC surface.
+ */
+
+/** Stored name of a default workspace. Never displayed. */
+export const DEFAULT_WORKSPACE_NAME = "Default workspace";
+
+/** The name the old first-visit flow gave the workspace it auto-created. */
+const LEGACY_DEFAULT_WORKSPACE_NAME = "Default Workspace";
+
+export const touchWorkspace = async (workspaceId: string) => {
+    await db
+        .update(workspaces)
+        .set({ updatedAt: new Date() })
+        .where(eq(workspaces.id, workspaceId));
+};
+
+/** Position just past the last chart or report in a workspace. */
+export const getNextWorkspaceItemPosition = async (workspaceId: string): Promise<number> => {
+    const [chartRows, docRows] = await Promise.all([
+        db
+            .select({ max: sql<number | null>`max(${charts.position})` })
+            .from(charts)
+            .where(eq(charts.workspaceId, workspaceId)),
+        db
+            .select({ max: sql<number | null>`max(${documents.position})` })
+            .from(documents)
+            .where(eq(documents.workspaceId, workspaceId)),
+    ]);
+    const maxPos = Math.max(Number(chartRows[0]?.max ?? -1), Number(docRows[0]?.max ?? -1));
+    return maxPos + 1;
+};
+
+const getDefaultWorkspace = async (userId: string): Promise<Workspace | null> => {
+    const [workspace] = await db
+        .select()
+        .from(workspaces)
+        .where(and(eq(workspaces.userId, userId), eq(workspaces.isDefault, true)))
+        .limit(1);
+    return (workspace ?? null) as Workspace | null;
+};
+
+/**
+ * The user's default workspace, created on first use. A user who already has
+ * a non-workshop workspace named "Default Workspace" (what the old first-visit
+ * flow created) gets their oldest such workspace adopted instead, so earlier
+ * unfiled charts stay unfiled.
+ *
+ * Check-then-act, made safe by the one-default-per-user unique index: a racing
+ * insert or adoption loses the conflict, and the final re-select returns
+ * whichever default won.
+ */
+export const getOrCreateDefaultWorkspace = async (userId: string): Promise<Workspace> => {
+    const existing = await getDefaultWorkspace(userId);
+    if (existing) return existing;
+
+    const [legacy] = await db
+        .select({ id: workspaces.id })
+        .from(workspaces)
+        .where(
+            and(
+                eq(workspaces.userId, userId),
+                eq(workspaces.name, LEGACY_DEFAULT_WORKSPACE_NAME),
+                isNull(workspaces.workshopId),
+            ),
+        )
+        .orderBy(asc(workspaces.createdAt))
+        .limit(1);
+
+    try {
+        if (legacy) {
+            await db
+                .update(workspaces)
+                .set({ isDefault: true, updatedAt: sql`${workspaces.updatedAt}` })
+                .where(eq(workspaces.id, legacy.id));
+        } else {
+            await db
+                .insert(workspaces)
+                .values({ userId, name: DEFAULT_WORKSPACE_NAME, isDefault: true })
+                .onConflictDoNothing();
+        }
+    } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
+    }
+
+    const created = await getDefaultWorkspace(userId);
+    if (!created) throw new Error("Could not create the default workspace");
+    return created;
+};
+
+type LibraryChartRow = {
+    id: string;
+    workspaceId: string;
+    name: string | null;
+    chartType: string | null;
+    configType: string | null;
+    configData: { model?: string } | null;
+    hasData: boolean | number;
+    position: number;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+type LibraryReportRow = {
+    id: string;
+    workspaceId: string;
+    content: unknown;
+    position: number;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+const byPosition = (a: LibraryItem, b: LibraryItem) =>
+    a.position - b.position || a.createdAt.getTime() - b.createdAt.getTime();
+
+const byRecency = (a: LibraryItem, b: LibraryItem) => b.updatedAt.getTime() - a.updatedAt.getTime();
+
+/**
+ * Every workspace of the user with its charts and reports, for the global
+ * sidebar. Creates the default workspace on first read. Batched per user: one
+ * query each for workspaces, charts and reports, whatever the folder count.
+ */
+export const getWorkspaceLibrary = async (userId: string): Promise<WorkspaceLibrary> => {
+    const defaultWorkspace = await getOrCreateDefaultWorkspace(userId);
+
+    const [workspaceRows, chartRows, reportRows] = (await Promise.all([
+        db
+            .select({
+                id: workspaces.id,
+                name: workspaces.name,
+                isDefault: workspaces.isDefault,
+                workshopId: workspaces.workshopId,
+                createdAt: workspaces.createdAt,
+                updatedAt: workspaces.updatedAt,
+            })
+            .from(workspaces)
+            .where(eq(workspaces.userId, userId))
+            .orderBy(desc(workspaces.updatedAt)),
+        db
+            .select({
+                id: charts.id,
+                workspaceId: charts.workspaceId,
+                name: charts.name,
+                chartType: charts.type,
+                configType: configs.type,
+                configData: configs.data,
+                hasData: sql<boolean>`${charts.data} is not null`,
+                position: charts.position,
+                createdAt: charts.createdAt,
+                updatedAt: charts.updatedAt,
+            })
+            .from(charts)
+            .innerJoin(workspaces, eq(charts.workspaceId, workspaces.id))
+            .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
+            .leftJoin(configs, eq(chartConfigLinks.configId, configs.id))
+            .where(eq(workspaces.userId, userId)),
+        db
+            .select({
+                id: documents.id,
+                workspaceId: documents.workspaceId,
+                content: documents.content,
+                position: documents.position,
+                createdAt: documents.createdAt,
+                updatedAt: documents.updatedAt,
+            })
+            .from(documents)
+            .innerJoin(workspaces, eq(documents.workspaceId, workspaces.id))
+            .where(eq(workspaces.userId, userId)),
+    ])) as [
+        Array<{
+            id: string;
+            name: string;
+            isDefault: boolean;
+            workshopId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        }>,
+        LibraryChartRow[],
+        LibraryReportRow[],
+    ];
+
+    const itemsByWorkspace = new Map<string, LibraryItem[]>();
+    const add = (item: LibraryItem) => {
+        const list = itemsByWorkspace.get(item.workspaceId);
+        if (list) list.push(item);
+        else itemsByWorkspace.set(item.workspaceId, [item]);
+    };
+    for (const c of chartRows) {
+        add({
+            kind: "chart",
+            id: c.id,
+            workspaceId: c.workspaceId,
+            name: c.name ?? "",
+            toolType: normalizeToolType(c.configType ?? c.chartType),
+            model: c.configData?.model || null,
+            hasData: !!c.hasData,
+            position: c.position,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+        });
+    }
+    for (const r of reportRows) {
+        add({
+            kind: "report",
+            id: r.id,
+            workspaceId: r.workspaceId,
+            title: deriveReportTitle(r.content as SerializedEditorState),
+            position: r.position,
+            createdAt: r.createdAt,
+            updatedAt: r.updatedAt,
+        });
+    }
+
+    const folders: LibraryWorkspace[] = workspaceRows
+        .filter((w) => !w.isDefault)
+        .map((w) => ({
+            id: w.id,
+            name: w.name,
+            isWorkshop: w.workshopId != null,
+            createdAt: w.createdAt,
+            updatedAt: w.updatedAt,
+            items: (itemsByWorkspace.get(w.id) ?? []).sort(byPosition),
+        }));
+
+    return {
+        defaultWorkspaceId: defaultWorkspace.id,
+        defaultItems: (itemsByWorkspace.get(defaultWorkspace.id) ?? []).sort(byRecency),
+        workspaces: folders,
+    };
+};
+
+/**
+ * Checks that the user may move an item out of `sourceWorkspaceId` and into
+ * the target (null: their default workspace), and resolves the target's id.
+ * Both must belong to the user and neither may be a workshop workspace.
+ */
+const resolveMoveTarget = async (
+    userId: string,
+    sourceWorkspaceId: string,
+    targetWorkspaceId: string | null,
+): Promise<string> => {
+    const assertMovable = async (workspaceId: string) => {
+        const [workspace] = await db
+            .select({ userId: workspaces.userId, workshopId: workspaces.workshopId })
+            .from(workspaces)
+            .where(eq(workspaces.id, workspaceId))
+            .limit(1);
+        if (!workspace || workspace.userId !== userId) {
+            throw new Error("Workspace not found or access denied");
+        }
+        if (workspace.workshopId) {
+            throw new Error("Items can't be moved into or out of a workshop workspace");
+        }
+    };
+
+    await assertMovable(sourceWorkspaceId);
+    const targetId = targetWorkspaceId ?? (await getOrCreateDefaultWorkspace(userId)).id;
+    if (targetId !== sourceWorkspaceId) await assertMovable(targetId);
+    return targetId;
+};
+
+/**
+ * Moves a chart to the end of another of the user's workspaces (null: the
+ * default workspace). Its config and lens runs carry their own workspace_id
+ * and cascade on workspace delete, so they move with it.
+ *
+ * Sequential rather than a transaction (drizzle's sqlite drivers reject async
+ * transaction callbacks). The chart row is written last, so a partial failure
+ * leaves the chart in its source workspace and a retry converges.
+ */
+export const moveChart = async (
+    userId: string,
+    chartId: string,
+    targetWorkspaceId: string | null,
+): Promise<void> => {
+    const [chart] = await db
+        .select({ workspaceId: charts.workspaceId })
+        .from(charts)
+        .where(eq(charts.id, chartId))
+        .limit(1);
+    if (!chart) throw new Error("Chart not found");
+
+    const sourceId: string = chart.workspaceId;
+    const targetId = await resolveMoveTarget(userId, sourceId, targetWorkspaceId);
+    if (targetId === sourceId) return;
+
+    const position = await getNextWorkspaceItemPosition(targetId);
+    await db.update(lensRuns).set({ workspaceId: targetId }).where(eq(lensRuns.chartId, chartId));
+    await db
+        .update(configs)
+        .set({ workspaceId: targetId })
+        .where(
+            inArray(
+                configs.id,
+                db
+                    .select({ id: chartConfigLinks.configId })
+                    .from(chartConfigLinks)
+                    .where(eq(chartConfigLinks.chartId, chartId)),
+            ),
+        );
+    await db
+        .update(charts)
+        .set({ workspaceId: targetId, position, updatedAt: sql`${charts.updatedAt}` })
+        .where(eq(charts.id, chartId));
+    await Promise.all([touchWorkspace(sourceId), touchWorkspace(targetId)]);
+};
+
+/** Moves a report to the end of another of the user's workspaces (null: the default workspace). */
+export const moveReport = async (
+    userId: string,
+    documentId: string,
+    targetWorkspaceId: string | null,
+): Promise<void> => {
+    const [report] = await db
+        .select({ workspaceId: documents.workspaceId })
+        .from(documents)
+        .where(eq(documents.id, documentId))
+        .limit(1);
+    if (!report) throw new Error("Report not found");
+
+    const sourceId: string = report.workspaceId;
+    const targetId = await resolveMoveTarget(userId, sourceId, targetWorkspaceId);
+    if (targetId === sourceId) return;
+
+    const position = await getNextWorkspaceItemPosition(targetId);
+    await db
+        .update(documents)
+        .set({ workspaceId: targetId, position, updatedAt: sql`${documents.updatedAt}` })
+        .where(eq(documents.id, documentId));
+    await Promise.all([touchWorkspace(sourceId), touchWorkspace(targetId)]);
+};
+
+const scopeColumns = {
+    workspaceId: workspaces.id,
+    workshopId: workspaces.workshopId,
+    isDefault: workspaces.isDefault,
+};
+
+const toScope = (row: { workspaceId: string; workshopId: string | null; isDefault: boolean }) => ({
+    workspaceId: row.workspaceId,
+    workshopId: row.workshopId ?? null,
+    isDefault: !!row.isDefault,
+});
+
+/** The workspace a chart page renders in, or null when the chart doesn't exist. */
+export const getChartWorkspaceScope = async (chartId: string): Promise<WorkspaceScope | null> => {
+    const [row] = await db
+        .select(scopeColumns)
+        .from(charts)
+        .innerJoin(workspaces, eq(charts.workspaceId, workspaces.id))
+        .where(eq(charts.id, chartId))
+        .limit(1);
+    return row ? toScope(row) : null;
+};
+
+/** The workspace a report page renders in, or null when the report doesn't exist. */
+export const getReportWorkspaceScope = async (
+    documentId: string,
+): Promise<WorkspaceScope | null> => {
+    const [row] = await db
+        .select(scopeColumns)
+        .from(documents)
+        .innerJoin(workspaces, eq(documents.workspaceId, workspaces.id))
+        .where(eq(documents.id, documentId))
+        .limit(1);
+    return row ? toScope(row) : null;
+};
+
+/**
+ * The user's most recently updated chart of a live tool, outside workshop
+ * workspaces, with that tool. A chart's tool is its config's type, or the
+ * chart's own type when it has no config.
+ */
+export const getMostRecentUserChart = async (
+    userId: string,
+): Promise<{ chartId: string; toolType: ToolType } | null> => {
+    const toolType = sql<string>`coalesce(${configs.type}, ${charts.type})`;
+    const [row] = await db
+        .select({ chartId: charts.id, toolType })
+        .from(charts)
+        .innerJoin(workspaces, eq(charts.workspaceId, workspaces.id))
+        .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
+        .leftJoin(configs, eq(chartConfigLinks.configId, configs.id))
+        .where(
+            and(
+                eq(workspaces.userId, userId),
+                isNull(workspaces.workshopId),
+                inArray(toolType, [...toolTypes, ...Object.keys(LEGACY_TOOL_ALIASES)]),
+            ),
+        )
+        .orderBy(desc(charts.updatedAt))
+        .limit(1);
+
+    return row
+        ? { chartId: row.chartId, toolType: normalizeToolType(row.toolType) as ToolType }
+        : null;
+};

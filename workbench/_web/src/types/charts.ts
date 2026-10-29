@@ -24,8 +24,8 @@ export type ToolType = (typeof toolTypes)[number];
  * Temporary: only until the stored rows are migrated from "lens2" to
  * "logit-lens". Then remove this and `normalizeToolType` with its call sites,
  * `normalizeWorkshopTools` and its callers (`withCurrentTools`, `validateTools`),
- * the legacy keys in `getMostRecentChartForWorkspace`'s `IN` list, and the alias
- * tests. */
+ * the legacy keys in `getMostRecentChartForWorkspace`'s and `getMostRecentUserChart`'s
+ * `IN` lists, and the alias tests. */
 export const LEGACY_TOOL_ALIASES: Readonly<Record<string, ToolType>> = { lens2: "logit-lens" };
 
 /** A stored tool type under its current name. Other values, including retired
