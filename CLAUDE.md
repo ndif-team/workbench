@@ -17,7 +17,7 @@ If you're proposing visual UI changes, also follow `.claude/skills/product-nativ
   - `"lens2"` is a legacy alias of the `"logit-lens"` tool type, still accepted when reading `configs.type`, `charts.type`, `workshops.allowed_tools` and saved chart embeds until the stored rows are migrated (`normalizeToolType` in `src/types/charts.ts`, and `normalizeWorkshopTools` in `src/lib/workshop.ts` for workshop allowed tools). Writes always use `"logit-lens"`; old `/workbench/<ws>/lens2/<chartId>` links redirect to `/logit-lens/<chartId>` (`next.config.js`).
 - **Config** — the parameters that produced the chart (prompt, topk, etc.). Stored as `jsonb` in the `configs` table.
 - **Document** — a Lexical-based research note inside a workspace.
-- **Workshop / tutorial** — a workshop is a join link (`/w/[slug]`) that signs participants in anonymously (optionally carrying Prolific IDs) and gives each a workspace limited to the workshop's tools and (unless the workshop allows changing it) its model. It runs a DB-backed guided Patch Lens tutorial (`tutorials` table); participant progress goes to `tutorial_events`. Both are managed under `/admin` (`ADMIN_EMAILS` allowlist).
+- **Workshop / tutorial** — a workshop is a join link (`/w/[slug]`) that signs participants in anonymously (optionally carrying Prolific IDs) and gives each a workspace limited to the workshop's tools and (unless the workshop allows changing it) its model. It runs a DB-backed guided Patch Lens tutorial (`tutorials` table); participant progress goes to `tutorial_events`. Both are managed under `/admin` (`ADMIN_EMAILS` allowlist). Anonymous participants (`hasWorkshopClaim`) are kept inside their workshop workspace: pages outside it redirect them there (`redirectWorkshopParticipant` in `src/lib/auth/user.ts`), the shell shows them only the workshop sidebar, and they never get a default workspace. Workshop workspaces can't be renamed, deleted or moved into or out of.
 
 **High-level architecture**
 ```
@@ -169,7 +169,8 @@ workbench/                          # repo root
         │   ├── utils.ts            # cn(), resolveThemeCssVars()
         │   ├── queryKeys.ts        # all React Query keys
         │   ├── api/                # CLIENT-side API wrappers (use*Mutation hooks)
-        │   ├── queries/            # SERVER actions ("use server")
+        │   ├── queries/            # *Db.ts: unguarded DB internals; *Queries.ts: "use server" RPC wrappers
+        │   ├── auth/user.ts        # requireUser/requireUserId, workshop participant redirect
         │   ├── auth/admin.ts       # ADMIN_EMAILS allowlist, requireAdmin()
         │   ├── supabase/           # client.ts, server.ts, middleware.ts, admin.ts
         │   └── posthog-server.ts
@@ -308,12 +309,13 @@ Migration folders are `pg-migrations/` and `sqlite-migrations/`, generated local
 Look at `charts` / `configs` for the canonical shape:
 - One row per entity; flexible payload in a `jsonb`/`json` column typed via `$type<T>()`.
 - `userId` is stamped on `workspaces` only; child tables cascade through `workspaceId` FK.
-- Auth is enforced in the server action body (e.g. `getWorkspaces(userId)`), not by the DB.
+- Auth is enforced in the server action body (e.g. `getUserWorkspaces()` resolves the user, then calls `getWorkspaces(userId)`), not by the DB.
 
 ### Server vs client query layers
 
-Two distinct files for each entity:
-- `src/lib/queries/<entity>Queries.ts` — `"use server"` directive; calls `db` directly. Server-only; safe to use Supabase auth and secrets here.
+Three files for each entity:
+- `src/lib/queries/<entity>Db.ts` — unguarded internals that call `db` (e.g. `workspaceDb.ts`, `chartDb.ts`, `documentDb.ts`). Writes take the acting user's id and only touch that user's rows. Server code (pages, layouts, other actions) and the `bun:test` suites call these directly.
+- `src/lib/queries/<entity>Queries.ts` — `"use server"` directive. **Every export is a public RPC endpoint**, so each one resolves the signed-in user itself (`requireUser()` / `requireUserId()` from `src/lib/auth/user.ts`; never a client-supplied user id) and calls the `*Db.ts` internal, or checks admin access (`requireAdmin()`). A `"use server"` file may export only async functions (and types).
 - `src/lib/api/<entity>Api.ts` — client-side React Query wrappers (`useQuery`, `useMutation`). Calls server actions or external HTTP (FastAPI / NDIF).
 
 Keep them split. Server actions are RPCs invoked from client mutations.
@@ -385,7 +387,7 @@ Set in `src/components/providers/QueryProvider.tsx`: `staleTime: 5min`, `retry: 
 
 ### Layout patterns the app uses
 
-- **App shell** = the `(shell)` layout: a global sidebar (`AppSidebar`; New chart, Models, Workspaces, the workspace folders and the unfiled charts) beside the page. It collapses to a rail (`workbench_sidebar_collapsed` cookie) and is a drawer on mobile. On a workshop workspace's chart it shows the focused `ChartCardsSidebar` instead (the workshop's tools only, starting as the rail). Every shell page starts with a `PageHeader` (`h-12`; it carries the mobile drawer button).
+- **App shell** = the `(shell)` layout: a global sidebar (`AppSidebar`; New chart, Models, Workspaces, the workspace folders and the unfiled charts) beside the page. It collapses to a rail (`workbench_sidebar_collapsed` cookie) and is a drawer on mobile. On a workshop workspace's chart, and on every page of a workshop participant, it shows the focused `ChartCardsSidebar` instead (the workshop's tools only, starting as the rail). Every shell page starts with a `PageHeader` (`h-12`; it carries the mobile drawer button).
 - **Chart pages** = the item header (`ItemPage`: `ModelControl`, the workspace → item breadcrumb, the item's actions) above a `ResizablePanelGroup` of feature panels. Examples: `logit-lens/[chartId]/page.tsx`, `activation-patching/[chartId]/page.tsx`.
 - **Item actions** = `ItemActionsMenu` everywhere a chart or report is listed (sidebar rows, the item header, the workspace page): Rename, Copy, Move to workspace, Remove from workspace, Delete (confirmed in a popover).
 - **Feature panel** = bordered, rounded card (`rounded dark:bg-secondary/50 bg-secondary/80 border`) with the standard panel header pattern (see §4).
