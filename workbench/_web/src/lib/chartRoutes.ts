@@ -1,8 +1,8 @@
-import { toolTypes, type ToolType } from "@/types/charts";
+import { normalizeToolType, toolTypes, type ToolType } from "@/types/charts";
 
 /** Route segment of each tool's chart page under `/workbench/[workspaceId]/`. */
 const TOOL_ROUTE_SEGMENT: Record<ToolType, string> = {
-    lens2: "lens2",
+    "logit-lens": "logit-lens",
     jlens: "j-lens",
     "activation-patching": "activation-patching",
     "patch-lens": "patch-lens",
@@ -20,7 +20,7 @@ export function toolForRouteSegment(segment: string): ToolType | undefined {
 
 /** Chart page of a live tool. */
 export function toolChartPath(workspaceId: string, chartId: string, tool: ToolType): string {
-    return `/workbench/${workspaceId}/${TOOL_ROUTE_SEGMENT[tool]}/${chartId}`;
+    return `/workbench/${workspaceId}/${TOOL_ROUTE_SEGMENT[normalizeToolType(tool)]}/${chartId}`;
 }
 
 /**
@@ -33,7 +33,8 @@ export function chartPath(
     chartId: string,
     toolType: string | null | undefined,
 ): string {
-    return isToolType(toolType)
-        ? toolChartPath(workspaceId, chartId, toolType)
+    const tool = normalizeToolType(toolType);
+    return isToolType(tool)
+        ? toolChartPath(workspaceId, chartId, tool)
         : `/workbench/${workspaceId}`;
 }

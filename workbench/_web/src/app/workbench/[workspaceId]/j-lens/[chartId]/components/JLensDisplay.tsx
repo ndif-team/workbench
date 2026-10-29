@@ -73,7 +73,7 @@ export function JLensDisplay() {
     const hasData = jlensChart?.data && "meta" in jlensChart.data;
 
     // ── Persist heatmap UI state (pins, selection, layer window, appearance)
-    // into the chart config, mirroring Lens2Display. Debounced because the
+    // into the chart config, mirroring LogitLensDisplay. Debounced because the
     // widget emits on every interaction; restored on mount via the `uiState`
     // prop below.
     const savedUiState = jlensConfig?.data?.uiState as LogitLensUIState | undefined;
@@ -110,7 +110,7 @@ export function JLensDisplay() {
     const chartModel = chartModelFromConfig(jlensConfig, jlensChart);
     const stale = isChartStale(chartModel, selectedModel, modelsAvailable);
 
-    // Chart title — mirrors Lens2Display. "Untitled Chart" is the stored
+    // Chart title — mirrors LogitLensDisplay. "Untitled Chart" is the stored
     // default and treated as empty for display purposes.
     const rawChartName = jlensChart?.name || "";
     const chartName = rawChartName === "Untitled Chart" ? "" : rawChartName;

@@ -17,7 +17,7 @@ export type JLensUIState = LogitLensUIState;
 export type JLensMeta = LogitLensData["meta"];
 
 /**
- * J-Lens configuration data (mirrors Lens2 — same prompt/top-k/entropy knobs)
+ * J-Lens configuration data (mirrors the logit lens — same prompt/top-k/entropy knobs)
  */
 export interface JLensConfigData {
     model: string;

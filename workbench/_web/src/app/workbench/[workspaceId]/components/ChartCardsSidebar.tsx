@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getChartsMetadata } from "@/lib/queries/chartQueries";
 import { useParams, useRouter } from "next/navigation";
 import {
-    useCreateLens2ChartPair,
+    useCreateLogitLensChartPair,
     useCreateJLensChartPair,
     useCreatePatchLensChartPair,
     useCreateActivationPatchingChartPair,
@@ -80,7 +80,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     // Workshop workspaces only offer the tools their workshop allows.
     const { data: workshop } = useWorkspaceWorkshop(workspaceId as string);
 
-    const { mutate: createLens2Pair, isPending: isCreatingLens2 } = useCreateLens2ChartPair();
+    const { mutate: createLogitLensPair, isPending: isCreatingLogitLens } =
+        useCreateLogitLensChartPair();
     const { mutate: createJLensPair, isPending: isCreatingJLens } = useCreateJLensChartPair();
     const { mutate: createPatchLensPair, isPending: isCreatingPatchLens } =
         useCreatePatchLensChartPair();
@@ -226,11 +227,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         // already filtered. createChartConfigPair re-checks server-side.
         if (workshop && !workshop.allowedTools.includes(toolType as WorkshopTool)) return;
         capture("chart_created", { tool: toolType });
-        if (toolType === "lens2") {
-            createLens2Pair(
+        if (toolType === "logit-lens") {
+            createLogitLensPair(
                 { workspaceId: workspaceId as string },
                 {
-                    onSuccess: ({ chart }) => navigateToChart(chart.id, "lens2"),
+                    onSuccess: ({ chart }) => navigateToChart(chart.id, "logit-lens"),
                 },
             );
             return;
@@ -338,7 +339,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     };
 
     const isCreatingAny =
-        isCreatingLens2 ||
+        isCreatingLogitLens ||
         isCreatingJLens ||
         isCreatingPatchLens ||
         isCreatingActivationPatching ||
@@ -348,11 +349,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     // filtered down to the workshop's allowed tools for workshop workspaces.
     const toolButtons = [
         {
-            tool: "lens2" as const,
+            tool: "logit-lens" as const,
             label: "Logit Lens",
             title: "New Logit Lens visualization",
             Icon: Layers,
-            isCreating: isCreatingLens2,
+            isCreating: isCreatingLogitLens,
         },
         {
             tool: "jlens" as const,

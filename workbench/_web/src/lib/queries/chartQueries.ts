@@ -1,10 +1,10 @@
 "use server";
 
-import { toolTypes } from "@/types/charts";
+import { LEGACY_TOOL_ALIASES, normalizeToolType, toolTypes } from "@/types/charts";
 import type { ChartData, ChartMetadata, ChartType, ToolType } from "@/types/charts";
 import { db } from "@/db/client";
 import { charts, configs, chartConfigLinks, Chart, Config } from "@/db/schema";
-import { Lens2ConfigData } from "@/types/lens2";
+import { LogitLensConfigData } from "@/types/logitLens";
 import { JLensConfigData } from "@/types/jlens";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { PatchLensChartData } from "@/types/patchLens";
@@ -14,10 +14,14 @@ import { touchWorkspace, getNextWorkspaceItemPosition } from "@/lib/queries/work
 // pair creators below, so importing it back here would be circular.
 import { getWorkshopForWorkspace } from "@/lib/queries/workshopDb";
 
+/** A chart or config row with a legacy tool type read under its current name. */
+const withCurrentToolType = <R extends { type: string | null }>(row: R): R =>
+    ({ ...row, type: normalizeToolType(row.type) }) as R;
+
 export const setChartData = async (chartId: string, chartData: ChartData, chartType: ChartType) => {
     const [chart] = await db
         .update(charts)
-        .set({ data: chartData, type: chartType })
+        .set({ data: chartData, type: normalizeToolType(chartType) })
         .where(eq(charts.id, chartId))
         .returning();
     if (chart) await touchWorkspace(chart.workspaceId);
@@ -29,7 +33,7 @@ export const updateChartName = async (chartId: string, name: string) => {
 
 export const getChartById = async (chartId: string): Promise<Chart | null> => {
     const [chart] = await db.select().from(charts).where(eq(charts.id, chartId));
-    return (chart ?? null) as Chart | null;
+    return chart ? withCurrentToolType(chart as Chart) : null;
 };
 
 export const deleteChart = async (chartId: string): Promise<void> => {
@@ -44,11 +48,11 @@ export const getConfigForChart = async (chartId: string): Promise<Config | null>
         .where(eq(chartConfigLinks.chartId, chartId))
         .limit(1);
     if (rows.length === 0) return null;
-    return rows[0].configs as Config;
+    return withCurrentToolType(rows[0].configs as Config);
 };
 
 type ConfigPayload =
-    | { type: "lens2"; data: Lens2ConfigData }
+    | { type: "logit-lens"; data: LogitLensConfigData }
     | { type: "jlens"; data: JLensConfigData }
     | { type: "activation-patching"; data: ActivationPatchingConfigData }
     | { type: "patch-lens"; data: Record<string, never> };
@@ -84,8 +88,10 @@ const createChartConfigPair = async (
     return { chart: newChart as Chart, config: newConfig as Config };
 };
 
-export const createLens2ChartPair = async (workspaceId: string, defaultConfig: Lens2ConfigData) =>
-    createChartConfigPair(workspaceId, { type: "lens2", data: defaultConfig });
+export const createLogitLensChartPair = async (
+    workspaceId: string,
+    defaultConfig: LogitLensConfigData,
+) => createChartConfigPair(workspaceId, { type: "logit-lens", data: defaultConfig });
 
 export const createJLensChartPair = async (workspaceId: string, defaultConfig: JLensConfigData) =>
     createChartConfigPair(workspaceId, { type: "jlens", data: defaultConfig });
@@ -154,8 +160,8 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
             ({
                 id: r.id,
                 name: r.name,
-                chartType: r.chartType ?? null,
-                toolType: r.toolType ?? null,
+                chartType: normalizeToolType(r.chartType ?? null),
+                toolType: normalizeToolType(r.toolType ?? null),
                 position: r.position,
                 createdAt: r.createdAt,
                 updatedAt: r.updatedAt,
@@ -174,17 +180,27 @@ export const getChartsMetadata = async (workspaceId: string): Promise<ChartMetad
 export const getMostRecentChartForWorkspace = async (
     workspaceId: string,
 ): Promise<{ chart: Chart; toolType: ToolType } | null> => {
-    const toolType = sql<ToolType>`coalesce(${configs.type}, ${charts.type})`;
+    const toolType = sql<string>`coalesce(${configs.type}, ${charts.type})`;
     const [row] = await db
         .select({ chart: charts, toolType })
         .from(charts)
         .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
         .leftJoin(configs, eq(chartConfigLinks.configId, configs.id))
-        .where(and(eq(charts.workspaceId, workspaceId), inArray(toolType, [...toolTypes])))
+        .where(
+            and(
+                eq(charts.workspaceId, workspaceId),
+                inArray(toolType, [...toolTypes, ...Object.keys(LEGACY_TOOL_ALIASES)]),
+            ),
+        )
         .orderBy(desc(charts.updatedAt))
         .limit(1);
 
-    return row ? { chart: row.chart as Chart, toolType: row.toolType } : null;
+    return row
+        ? {
+              chart: withCurrentToolType(row.chart as Chart),
+              toolType: normalizeToolType(row.toolType) as ToolType,
+          }
+        : null;
 };
 
 export const copyChart = async (chartId: string): Promise<Chart> => {
@@ -221,7 +237,7 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
             workspaceId: originalChart.workspaceId,
             name: `Copy of ${originalChart.name}`,
             data: copiedData,
-            type: originalChart.type,
+            type: normalizeToolType(originalChart.type),
             position,
         })
         .returning();
@@ -231,7 +247,7 @@ export const copyChart = async (chartId: string): Promise<Chart> => {
         .insert(configs)
         .values({
             workspaceId: originalConfig.workspaceId,
-            type: originalConfig.type,
+            type: normalizeToolType(originalConfig.type),
             data: originalConfig.data,
         })
         .returning();

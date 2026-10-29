@@ -1,14 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     deleteChart,
-    createLens2ChartPair,
+    createLogitLensChartPair,
     createJLensChartPair,
     createPatchLensChartPair,
     createActivationPatchingChartPair,
     updateChartName,
     copyChart,
 } from "@/lib/queries/chartQueries";
-import { Lens2ConfigData } from "@/types/lens2";
+import { LogitLensConfigData } from "@/types/logitLens";
 import { JLensConfigData } from "@/types/jlens";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { queryKeys } from "../queryKeys";
@@ -48,10 +48,10 @@ export const useDeleteChart = () => {
     });
 };
 
-export const useCreateLens2ChartPair = () => {
+export const useCreateLogitLensChartPair = () => {
     const queryClient = useQueryClient();
 
-    const defaultConfig: Lens2ConfigData = {
+    const defaultConfig: LogitLensConfigData = {
         prompt: "",
         model: "",
         topk: 5,
@@ -64,9 +64,9 @@ export const useCreateLens2ChartPair = () => {
             config = defaultConfig,
         }: {
             workspaceId: string;
-            config?: Lens2ConfigData;
+            config?: LogitLensConfigData;
         }) => {
-            return await createLens2ChartPair(workspaceId, config);
+            return await createLogitLensChartPair(workspaceId, config);
         },
         onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });

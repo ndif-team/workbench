@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import { GitBranch, Grid3X3 } from "lucide-react";
 import { JLensIcon } from "@/components/JLensIcon";
 import { PatchLensIcon } from "@/components/PatchLensIcon";
-import { toolTypes, type ToolType } from "@/types/charts";
+import { normalizeToolType, toolTypes, type ToolType } from "@/types/charts";
 
 type ToolMeta = {
     label: string;
@@ -12,7 +12,7 @@ type ToolMeta = {
 };
 
 const TOOL_META: Record<ToolType, ToolMeta> = {
-    lens2: { label: "Logit Lens", Icon: Grid3X3 },
+    "logit-lens": { label: "Logit Lens", Icon: Grid3X3 },
     jlens: { label: "J-Lens", Icon: JLensIcon },
     "activation-patching": {
         label: "Activation Patching",
@@ -29,7 +29,8 @@ const TOOL_META: Record<ToolType, ToolMeta> = {
  * render their own fallback.
  */
 export function toolMeta(type: string | null | undefined): ToolMeta | undefined {
-    return (toolTypes as readonly (string | null | undefined)[]).includes(type)
-        ? TOOL_META[type as ToolType]
+    const tool = normalizeToolType(type);
+    return (toolTypes as readonly (string | null | undefined)[]).includes(tool)
+        ? TOOL_META[tool as ToolType]
         : undefined;
 }

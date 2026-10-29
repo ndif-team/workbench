@@ -1,28 +1,29 @@
 /**
- * Lens2 API - Full LogitLensKit V2 format visualization API
+ * Logit Lens API - Full LogitLensKit V2 format visualization API
  */
 
 import config from "@/lib/config";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { setChartData } from "@/lib/queries/chartQueries";
-import { Lens2ConfigData, Lens2Data } from "@/types/lens2";
+import type { LogitLensData } from "nnsightful";
+import { LogitLensConfigData } from "@/types/logitLens";
 import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
 import { runAndStream } from "../runAndStream";
 import { createUserHeadersAction } from "@/actions/auth";
 
 /**
- * API request for lens2 endpoint
+ * API request for the logit lens endpoint
  */
-interface Lens2Request {
-    completion: Lens2ConfigData;
+interface LogitLensRequest {
+    completion: LogitLensConfigData;
     chartId: string;
 }
 
 /**
- * Fetch lens2 data from the backend
+ * Fetch logit lens data from the backend
  */
-const getLens2 = async (lensRequest: Lens2Request): Promise<Lens2Data> => {
+const getLogitLens = async (lensRequest: LogitLensRequest): Promise<LogitLensData> => {
     const headers = await createUserHeadersAction();
 
     // Transform to backend request format
@@ -33,34 +34,39 @@ const getLens2 = async (lensRequest: Lens2Request): Promise<Lens2Data> => {
         include_entropy: lensRequest.completion.includeEntropy ?? true,
     };
 
-    return await runAndStream<Lens2Data>(config.endpoints.runLens2, request, headers);
+    return await runAndStream<LogitLensData>(config.endpoints.runLogitLens, request, headers);
 };
 
 /**
- * React Query mutation hook for lens2 visualization
+ * React Query mutation hook for logit lens visualization
  */
-export const useLens2 = () => {
+export const useLogitLens = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationKey: ["lens2"],
-        onMutate: async ({ lensRequest }: { lensRequest: Lens2Request; configId: string }) => {
+        mutationKey: ["logit-lens"],
+        onMutate: async ({ lensRequest }: { lensRequest: LogitLensRequest; configId: string }) => {
             const chartKey = queryKeys.charts.chart(lensRequest.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
             queryClient.setQueryData(chartKey, (old: unknown) => {
                 if (!old) return old;
-                return { ...(old as object), type: "lens2" };
+                return { ...(old as object), type: "logit-lens" };
             });
             return { previousChart, chartKey } as {
                 previousChart: unknown;
                 chartKey: ReturnType<typeof queryKeys.charts.chart>;
             };
         },
-        mutationFn: async ({ lensRequest }: { lensRequest: Lens2Request; configId: string }) => {
-            const response = await getLens2(lensRequest);
-            // Store the lens2 data as chart data (in V2 format)
-            await setChartData(lensRequest.chartId, response, "lens2");
+        mutationFn: async ({
+            lensRequest,
+        }: {
+            lensRequest: LogitLensRequest;
+            configId: string;
+        }) => {
+            const response = await getLogitLens(lensRequest);
+            // Store the logit lens data as chart data (in V2 format)
+            await setChartData(lensRequest.chartId, response, "logit-lens");
             return response;
         },
         onError: (error, variables, context) => {
@@ -74,7 +80,7 @@ export const useLens2 = () => {
             await queryClient.invalidateQueries({ queryKey: chartKey });
 
             // Do NOT invalidate configByChart here. The lens run is always
-            // followed by `updateConfig` in the caller (Lens2Controls.handleSubmit
+            // followed by `updateConfig` in the caller (LogitLensControls.handleSubmit
             // and the auto-run effect), and useUpdateChartConfig owns that
             // invalidation. Triggering it here races the in-flight config write
             // and can cache the pre-write (stale) row.

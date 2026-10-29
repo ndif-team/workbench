@@ -83,9 +83,9 @@ Report back to the user:
 - **Do not run `next build` / `bun run build`** while the user's dev server is up — it corrupts `.next/`. `bunx tsc --noEmit` is the safe verifier.
 - Most likely **break sites** after a nnsightful bump:
   - Backend: `workbench/_api/routes/logit_lens.py`, `workbench/_api/routes/activation_patching.py` (import nnsightful tools).
-  - Frontend: `workbench/_web/src/app/workbench/[workspaceId]/lens2/[chartId]/components/Lens2Display.tsx` and `.../activation-patching/[chartId]/components/ActivationPatchingDisplay.tsx` (consume nnsightful types/widgets).
+  - Frontend: `workbench/_web/src/app/workbench/[workspaceId]/logit-lens/[chartId]/components/LogitLensDisplay.tsx` and `.../activation-patching/[chartId]/components/ActivationPatchingDisplay.tsx` (consume nnsightful types/widgets).
   - Notebook export: `workbench/_web/src/actions/notebook.ts` reads `node_modules/nnsightful/src/nnsightful/viz/charts.js` — if nnsightful restructures `viz/`, this path needs updating here AND in `next.config.js` `outputFileTracingIncludes`.
-- If the dev server is up, exercise lens2 and activation-patching pages in the browser after a nnsightful bump.
+- If the dev server is up, exercise logit-lens and activation-patching pages in the browser after a nnsightful bump.
 
 ## Commit suggestion
 

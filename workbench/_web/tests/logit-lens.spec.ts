@@ -20,8 +20,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 /**
- * Lens2 UI primer (what these tests anchor on — see
- * src/app/workbench/[workspaceId]/lens2/[chartId]/components/Lens2*.tsx):
+ * Logit Lens UI primer (what these tests anchor on — see
+ * src/app/workbench/[workspaceId]/logit-lens/[chartId]/components/LogitLens*.tsx):
  *
  *   Controls panel:
  *     - <textarea placeholder="Enter your prompt here...">
@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
  *     - "Run Logit Lens" Button (turns into "Computing..." while running)
  *     - Submit shortcut is Cmd/Ctrl + Enter (plain Enter just inserts a newline)
  *
- *   Display panel (Lens2Display.tsx):
+ *   Display panel (LogitLensDisplay.tsx):
  *     - Empty state: "No visualization data"
  *     - Running state: "Computing logit lens visualization..."
  *     - Result: a nnsightful <LogitLensWidget /> (we don't poke inside it)

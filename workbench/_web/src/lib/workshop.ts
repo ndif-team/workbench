@@ -1,8 +1,11 @@
 /**
- * Workshop claim helpers. Isomorphic (no db / server imports): the claim is
- * `app_metadata.workshop_slug`, stamped on anonymous participants by the join
- * action via the Supabase admin API.
+ * Workshop claim and allowed-tool helpers. Isomorphic (no db / server imports):
+ * the claim is `app_metadata.workshop_slug`, stamped on anonymous participants
+ * by the join action via the Supabase admin API.
  */
+
+import { normalizeToolType } from "@/types/charts";
+import type { WorkshopTool } from "@/db/schema";
 
 type ClaimUser = { app_metadata?: Record<string, unknown> } | null | undefined;
 
@@ -24,3 +27,7 @@ export const isWorkshopExpired = (workshop: { expiresAt: Date }): boolean =>
  * per-participant telemetry distinct.
  */
 export const workshopEmailFor = (userId: string): string => `workshop+${userId}@anon.workbench`;
+
+/** A workshop's allowed tools under their current names (see `normalizeToolType`). */
+export const normalizeWorkshopTools = (tools: readonly string[]): WorkshopTool[] =>
+    tools.map((tool) => normalizeToolType(tool)) as WorkshopTool[];

@@ -26,7 +26,7 @@ type ToolSupport =
       };
 
 const TOOL_SUPPORT: Record<ToolType, ToolSupport> = {
-    lens2: { supportsAll: true },
+    "logit-lens": { supportsAll: true },
     "activation-patching": { supportsAll: true },
     "patch-lens": { supportsAll: true },
     jlens: {
@@ -41,7 +41,7 @@ const TOOL_SUPPORT: Record<ToolType, ToolSupport> = {
 
 /** Landing page / launch dialog tool *display names* → the internal ToolType. */
 const TOOL_DISPLAY_TO_TYPE: Record<string, ToolType> = {
-    "Logit Lens": "lens2",
+    "Logit Lens": "logit-lens",
     "J-Lens": "jlens",
     "Activation Patching": "activation-patching",
 };

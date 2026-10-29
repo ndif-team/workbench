@@ -64,7 +64,7 @@ export function WorkshopFormDialog({
     const DEFAULT_TUTORIAL = "__default__";
 
     const [name, setName] = useState("");
-    const [tools, setTools] = useState<WorkshopTool[]>(["lens2"]);
+    const [tools, setTools] = useState<WorkshopTool[]>(["logit-lens"]);
     const [model, setModel] = useState("");
     const [allowModelChange, setAllowModelChange] = useState(false);
     const [starterPrompt, setStarterPrompt] = useState("");
@@ -78,7 +78,7 @@ export function WorkshopFormDialog({
         if (target === null) return;
         if (target === "new") {
             setName("");
-            setTools(["lens2"]);
+            setTools(["logit-lens"]);
             setModel("");
             setAllowModelChange(false);
             setStarterPrompt("");

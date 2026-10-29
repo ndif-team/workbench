@@ -14,7 +14,7 @@ import type { Model } from "@/types/models";
 function chartHasData(data: unknown): boolean {
     if (!data || typeof data !== "object") return false;
     const d = data as Record<string, unknown>;
-    if ("meta" in d) return true; // lens2
+    if ("meta" in d) return true; // logit lens
     if ("lines" in d) return Array.isArray(d.lines) && d.lines.length > 0; // AP
     return false;
 }

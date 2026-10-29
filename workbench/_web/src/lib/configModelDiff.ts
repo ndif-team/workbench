@@ -1,4 +1,4 @@
-import type { Lens2ConfigData } from "@/types/lens2";
+import type { LogitLensConfigData } from "@/types/logitLens";
 import type { JLensConfigData } from "@/types/jlens";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 import type { Token } from "@/types/models";
@@ -16,7 +16,7 @@ interface ConfigWithModel {
 /**
  * The model that produced a visualization, in order of authority:
  *   1. chart.data.meta.model (stamped by the run, when the tool's data shape carries it)
- *   2. config.data.model (fallback; lens2 has both, activation-patching only has this)
+ *   2. config.data.model (fallback; logit lens has both, activation-patching only has this)
  *
  * Tools that don't stamp the model on their chart data can pass `undefined`
  * for `chart` — the config falls through.
@@ -74,13 +74,13 @@ const numberArrayEqual = (a: number[], b: number[]): boolean =>
 // ---- per-tool draft-vs-saved comparators -------------------------------------------
 
 /**
- * Compare a lens2 draft against its saved config, excluding model.
+ * Compare a logit lens draft against its saved config, excluding model.
  */
-export function lens2ConfigEqualsExceptModel(
-    saved: Lens2ConfigData | undefined | null,
-    draft: Omit<Lens2ConfigData, "model"> | null | undefined,
+export function logitLensConfigEqualsExceptModel(
+    saved: LogitLensConfigData | undefined | null,
+    draft: Omit<LogitLensConfigData, "model"> | null | undefined,
 ): boolean {
-    return configFieldsEqual(saved as Lens2ConfigData, draft as Lens2ConfigData, [
+    return configFieldsEqual(saved as LogitLensConfigData, draft as LogitLensConfigData, [
         (c) => c.prompt ?? "",
         (c) => c.topk ?? 5,
         (c) => c.includeEntropy ?? true,
@@ -89,7 +89,7 @@ export function lens2ConfigEqualsExceptModel(
 
 /**
  * Compare a j-lens draft against its saved config, excluding model. Same knobs
- * as lens2 (prompt/top-k/entropy).
+ * as the logit lens (prompt/top-k/entropy).
  */
 export function jlensConfigEqualsExceptModel(
     saved: JLensConfigData | undefined | null,
@@ -139,7 +139,7 @@ export function apConfigEqualsExceptModel(
 
 /**
  * Computes whether a chart is "stale" — the model behind the rendered
- * visualization differs from the workspace's current selection. Both the Lens2
+ * visualization differs from the workspace's current selection. Both the Logit Lens
  * and AP Display surfaces use this to decide whether to show the ChartModelPill.
  *
  * While the catalog is still loading (`modelsAvailable` false) we can't know

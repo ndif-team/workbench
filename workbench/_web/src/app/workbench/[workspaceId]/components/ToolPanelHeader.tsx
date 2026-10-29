@@ -19,7 +19,7 @@ interface ToolPanelHeaderProps {
     showSync: boolean;
     /** Disables both action buttons while a mutation is in flight. */
     isExecuting: boolean;
-    /** Optional className override for the Sync button. Lens2 omits it and
+    /** Optional className override for the Sync button. Logit lens omits it and
      * inherits the primary blue; AP passes a violet class to match its Run
      * button. */
     syncClassName?: string;

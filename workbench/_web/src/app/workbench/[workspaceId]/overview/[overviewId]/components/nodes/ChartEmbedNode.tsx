@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { queryKeys } from "@/lib/queryKeys";
 import { chartPath } from "@/lib/chartRoutes";
 import { toolMeta } from "@/app/workbench/[workspaceId]/components/toolMeta";
+import { normalizeToolType } from "@/types/charts";
 
 // Node payload. `chartType` is the chart's stored type when it was embedded;
 // documents saved before a tool was retired may still hold its old type.
@@ -57,7 +58,10 @@ export class ChartEmbedNode extends DecoratorNode<JSX.Element> {
     }
 
     static importJSON(serializedNode: SerializedChartEmbedNode): ChartEmbedNode {
-        const node = new ChartEmbedNode(serializedNode.chartId, serializedNode.chartType);
+        const node = new ChartEmbedNode(
+            serializedNode.chartId,
+            normalizeToolType(serializedNode.chartType),
+        );
         return node;
     }
 
