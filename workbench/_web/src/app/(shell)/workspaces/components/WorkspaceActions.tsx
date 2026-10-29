@@ -37,7 +37,9 @@ export function describeContents(workspace: LibraryWorkspace): string {
 /**
  * A workspace's Rename and Delete. Delete confirms in a dialog that says what
  * goes with the workspace, since its charts and reports are deleted too. Not
- * for workshop workspaces, which can't be renamed or deleted.
+ * for workshop workspaces, which can't be renamed or deleted. Both move focus
+ * elsewhere, so they run once the menu has closed (`afterCloseRef`), in place
+ * of its return of focus to the trigger.
  */
 export function WorkspaceActionsMenu({
     workspace,
@@ -51,8 +53,6 @@ export function WorkspaceActionsMenu({
     variant?: "row" | "header";
 }) {
     const [confirming, setConfirming] = useState(false);
-    // Rename and Delete… move focus elsewhere, so they run once the menu has
-    // closed, in place of its return to the trigger.
     const afterCloseRef = useRef<(() => void) | null>(null);
 
     return (

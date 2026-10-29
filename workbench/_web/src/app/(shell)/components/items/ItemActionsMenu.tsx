@@ -55,6 +55,10 @@ interface ItemActionsMenuProps {
  * existing folder or a new one), Remove from workspace, Delete. Delete asks
  * for confirmation in a popover beside the trigger. Shared by the sidebar
  * rows, the item page header and the workspace page.
+ *
+ * Rename, Delete… and New workspace… move focus elsewhere, so they run once
+ * the menu has closed (`afterCloseRef`), in place of its return of focus to
+ * the trigger.
  */
 export function ItemActionsMenu({
     item,
@@ -68,8 +72,6 @@ export function ItemActionsMenu({
     const router = useRouter();
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [creatingWorkspace, setCreatingWorkspace] = useState(false);
-    // Rename, Delete… and New workspace… move focus elsewhere, so they run
-    // once the menu has closed, in place of its return to the trigger.
     const afterCloseRef = useRef<(() => void) | null>(null);
 
     const moveChart = useMoveChart();

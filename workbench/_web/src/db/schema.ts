@@ -1,3 +1,4 @@
+import { sql, type AnyColumn } from "drizzle-orm";
 import {
     workspaces as sqliteWorkspaces,
     charts as sqliteCharts,
@@ -33,6 +34,12 @@ export const lensRuns = isLocal ? sqliteLensRuns : pgLensRuns;
 export const workshops = isLocal ? sqliteWorkshops : pgWorkshops;
 export const tutorials = isLocal ? sqliteTutorials : pgTutorials;
 export const tutorialEvents = isLocal ? sqliteTutorialEvents : pgTutorialEvents;
+
+/** A top-level string field of a JSON column as text: `->>` on Postgres jsonb, `json_extract` on SQLite's JSON text. */
+export const jsonTextField = (column: AnyColumn, key: string) =>
+    isLocal
+        ? sql<string | null>`json_extract(${column}, ${`$.${key}`})`
+        : sql<string | null>`${column}->>${key}`;
 
 /**
  * Whether `id` has the shape of a row id (a UUID, in both schemas). Postgres

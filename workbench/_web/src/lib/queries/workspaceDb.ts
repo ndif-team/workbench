@@ -1,4 +1,14 @@
-import { and, asc, desc, eq, inArray, isNull, sql, type AnyColumn } from "drizzle-orm";
+import {
+    and,
+    asc,
+    desc,
+    eq,
+    inArray,
+    isNull,
+    sql,
+    type AnyColumn,
+    type SQLWrapper,
+} from "drizzle-orm";
 import type { SerializedEditorState } from "lexical";
 
 import { db } from "@/db/client";
@@ -8,6 +18,7 @@ import {
     configs,
     documents,
     isUuid,
+    jsonTextField,
     lensRuns,
     workspaces,
 } from "@/db/schema";
@@ -314,17 +325,6 @@ type LibraryReportRow = {
     updatedAt: Date;
 };
 
-/** A top-level string field of a JSON column, as text (jsonb in Postgres, JSON text in SQLite). */
-const jsonTextField = (column: typeof charts.data, key: string) =>
-    process.env.NEXT_PUBLIC_LOCAL_DB === "true"
-        ? sql<string | null>`json_extract(${column}, ${`$.${key}`})`
-        : sql<string | null>`${column}->>${key}`;
-
-const byPosition = (a: LibraryItem, b: LibraryItem) =>
-    a.position - b.position || a.createdAt.getTime() - b.createdAt.getTime();
-
-const byRecency = (a: LibraryItem, b: LibraryItem) => b.updatedAt.getTime() - a.updatedAt.getTime();
-
 /**
  * Every workspace of the user with its charts and reports, for the global
  * sidebar. Only a Patch Lens chart's `data` is read into (for its source
@@ -444,13 +444,17 @@ export const getWorkspaceLibrary = async (
             isWorkshop: w.workshopId != null,
             createdAt: w.createdAt,
             updatedAt: w.updatedAt,
-            items: (itemsByWorkspace.get(w.id) ?? []).sort(byPosition),
+            items: (itemsByWorkspace.get(w.id) ?? []).sort(
+                (a, b) => a.position - b.position || a.createdAt.getTime() - b.createdAt.getTime(),
+            ),
         }));
 
     return {
         defaultWorkspaceId: defaultWorkspace?.id ?? null,
         defaultItems: defaultWorkspace
-            ? (itemsByWorkspace.get(defaultWorkspace.id) ?? []).sort(byRecency)
+            ? (itemsByWorkspace.get(defaultWorkspace.id) ?? []).sort(
+                  (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
+              )
             : [],
         workspaces: folders,
     };
@@ -557,50 +561,47 @@ export const moveReport = async (
     await Promise.all([touchWorkspace(sourceId), touchWorkspace(targetId)]);
 };
 
-const scopeColumns = {
-    workspaceId: workspaces.id,
-    name: workspaces.name,
-    workshopId: workspaces.workshopId,
-    isDefault: workspaces.isDefault,
+/** The scope of the workspace whose id `workspaceId` selects (an item's workspace_id), or null. */
+const getWorkspaceScope = async (workspaceId: SQLWrapper): Promise<WorkspaceScope | null> => {
+    const [workspace] = await db
+        .select({
+            id: workspaces.id,
+            name: workspaces.name,
+            workshopId: workspaces.workshopId,
+            isDefault: workspaces.isDefault,
+        })
+        .from(workspaces)
+        .where(inArray(workspaces.id, workspaceId))
+        .limit(1);
+    if (!workspace) return null;
+    return {
+        workspaceId: workspace.id,
+        name: workspace.name,
+        workshopId: workspace.workshopId ?? null,
+        isDefault: !!workspace.isDefault,
+    };
 };
-
-const toScope = (row: {
-    workspaceId: string;
-    name: string;
-    workshopId: string | null;
-    isDefault: boolean;
-}) => ({
-    workspaceId: row.workspaceId,
-    name: row.name,
-    workshopId: row.workshopId ?? null,
-    isDefault: !!row.isDefault,
-});
 
 /** The workspace a chart page renders in, or null when the chart doesn't exist (or the id isn't a UUID). */
-export const getChartWorkspaceScope = async (chartId: string): Promise<WorkspaceScope | null> => {
-    if (!isUuid(chartId)) return null;
-    const [row] = await db
-        .select(scopeColumns)
-        .from(charts)
-        .innerJoin(workspaces, eq(charts.workspaceId, workspaces.id))
-        .where(eq(charts.id, chartId))
-        .limit(1);
-    return row ? toScope(row) : null;
-};
+export const getChartWorkspaceScope = async (chartId: string): Promise<WorkspaceScope | null> =>
+    isUuid(chartId)
+        ? getWorkspaceScope(
+              db.select({ id: charts.workspaceId }).from(charts).where(eq(charts.id, chartId)),
+          )
+        : null;
 
 /** The workspace a report page renders in, or null when the report doesn't exist (or the id isn't a UUID). */
 export const getReportWorkspaceScope = async (
     documentId: string,
-): Promise<WorkspaceScope | null> => {
-    if (!isUuid(documentId)) return null;
-    const [row] = await db
-        .select(scopeColumns)
-        .from(documents)
-        .innerJoin(workspaces, eq(documents.workspaceId, workspaces.id))
-        .where(eq(documents.id, documentId))
-        .limit(1);
-    return row ? toScope(row) : null;
-};
+): Promise<WorkspaceScope | null> =>
+    isUuid(documentId)
+        ? getWorkspaceScope(
+              db
+                  .select({ id: documents.workspaceId })
+                  .from(documents)
+                  .where(eq(documents.id, documentId)),
+          )
+        : null;
 
 /**
  * The user's most recently updated chart of a live tool, outside workshop
