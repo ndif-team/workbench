@@ -13,6 +13,9 @@ export type ConfigData =
 
 export type ChartType = "logit-lens" | "jlens" | "activation-patching" | "patch-lens";
 
+/** The name a chart is stored with until it is renamed (the column's default). */
+export const DEFAULT_CHART_NAME = "Untitled Chart";
+
 /** Every tool a chart can be created with. Config rows of any other type are
  * from retired tools and have no chart page. */
 export const toolTypes = ["logit-lens", "jlens", "activation-patching", "patch-lens"] as const;

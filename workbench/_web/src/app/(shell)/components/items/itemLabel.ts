@@ -1,12 +1,10 @@
 import type { ComponentType } from "react";
 import { FileText, FileQuestion } from "lucide-react";
 
+import { DEFAULT_CHART_NAME } from "@/types/charts";
 import type { LibraryItem } from "@/types/workspaces";
 import { chartPath, reportPath } from "@/lib/chartRoutes";
 import { toolMeta } from "../toolMeta";
-
-/** The name a chart is stored with until it is renamed. */
-const DEFAULT_CHART_NAME = "Untitled Chart";
 
 /** A chart's own name, or "" while it still has the default one. */
 export function chartName(name: string | null | undefined): string {

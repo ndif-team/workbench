@@ -13,6 +13,7 @@ import {
 } from "@/lib/queries/workspaceDb";
 import type { ActivationPatchingConfigData } from "@/types/activationPatching";
 import {
+    DEFAULT_CHART_NAME,
     LEGACY_TOOL_ALIASES,
     normalizeToolType,
     toolTypes,
@@ -227,8 +228,10 @@ export const deleteChart = async (userId: string, chartId: string): Promise<void
 
 /**
  * Copies one of the user's charts, with its config, to the end of its
- * workspace. A Patch Lens copy starts without run history, so it drops the
- * pointer to the source's active lens run.
+ * workspace. A named chart's copy is "Copy of <name>"; an unnamed one's stays
+ * unnamed, so it is labelled by its prompt like the original. A Patch Lens
+ * copy starts without run history, so it drops the pointer to the source's
+ * active lens run.
  */
 export const copyChart = async (userId: string, chartId: string): Promise<Chart> => {
     const [originalChart] = await db.select().from(charts).where(isUserChart(userId, chartId));
@@ -251,12 +254,13 @@ export const copyChart = async (userId: string, chartId: string): Promise<Chart>
         copiedData = rest as typeof originalChart.data;
     }
 
+    const name = originalChart.name?.trim();
     const position = await getNextWorkspaceItemPosition(originalChart.workspaceId);
     const [newChart] = await db
         .insert(charts)
         .values({
             workspaceId: originalChart.workspaceId,
-            name: `Copy of ${originalChart.name}`,
+            name: name && name !== DEFAULT_CHART_NAME ? `Copy of ${name}` : DEFAULT_CHART_NAME,
             data: copiedData,
             type: normalizeToolType(originalChart.type),
             position,

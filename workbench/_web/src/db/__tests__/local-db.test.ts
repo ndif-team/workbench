@@ -43,7 +43,7 @@ import {
 } from "@/lib/queries/documentQueries";
 import { createDocument, updateDocument, deleteDocument } from "@/lib/queries/documentDb";
 
-import type { ChartData, ChartType } from "@/types/charts";
+import { DEFAULT_CHART_NAME, type ChartData, type ChartType } from "@/types/charts";
 import type { LogitLensConfigData } from "@/types/logitLens";
 
 // Test user ID (simulating the mock user from disabled auth)
@@ -377,6 +377,20 @@ describe("Chart Queries", () => {
         // Verify copy has its own config
         const copyConfig = await getConfigForChart(copy.id);
         expect(copyConfig).not.toBeNull();
+    });
+
+    it("should leave an unnamed chart's copy unnamed", async () => {
+        const { chart: original } = await createLogitLensChartPair(
+            workspaceId,
+            createTestLensConfig("The Eiffel Tower is in"),
+        );
+
+        const copy = await copyChart(TEST_USER_ID, original.id);
+        expect(original.name).toBe(DEFAULT_CHART_NAME);
+        expect(copy.name).toBe(DEFAULT_CHART_NAME);
+
+        await renameChart(TEST_USER_ID, original.id, "  ");
+        expect((await copyChart(TEST_USER_ID, original.id)).name).toBe(DEFAULT_CHART_NAME);
     });
 
     it("should delete a chart", async () => {

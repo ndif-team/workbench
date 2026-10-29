@@ -16,6 +16,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { workspacePath } from "@/lib/chartRoutes";
 import { deriveReportTitle } from "@/lib/reportTitle";
 import { cn } from "@/lib/utils";
+import { DEFAULT_CHART_NAME } from "@/types/charts";
 import { useWorkshopParticipant } from "../shell/AppShell";
 import { PageHeader } from "../shell/PageHeader";
 import { ItemActionsMenu } from "./ItemActionsMenu";
@@ -155,7 +156,7 @@ function ChartTitle({
                     onEditingChange(false);
                     if (next === null || next === name) return;
                     setPendingName(next);
-                    renameChart({ chartId, name: next || "Untitled Chart" });
+                    renameChart({ chartId, name: next || DEFAULT_CHART_NAME });
                 }}
             />
         );
