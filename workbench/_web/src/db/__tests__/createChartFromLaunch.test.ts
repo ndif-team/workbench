@@ -81,6 +81,37 @@ describe("createChartFromLaunch", () => {
         expect(await chartCount()).toBe(0);
     });
 
+    it("keeps a workshop participant to their workshop workspace and its tools", async () => {
+        const workshop = await createWorkshop(workshopInput(["patch-lens"]));
+        const ws = await createWorkspace(USER, "Pilot", workshop.id);
+        const folder = await createWorkspace(USER, "Folder");
+        const participant = { workshopParticipant: true };
+
+        await expect(
+            createChartFromLaunch(USER, { tool: "patch-lens" }, participant),
+        ).rejects.toThrow("only add charts to their workshop");
+        await expect(
+            createChartFromLaunch(
+                USER,
+                { tool: "patch-lens", workspaceId: folder.id },
+                participant,
+            ),
+        ).rejects.toThrow("only add charts to their workshop");
+        await expect(
+            createChartFromLaunch(USER, { tool: "Logit Lens", workspaceId: ws.id }, participant),
+        ).rejects.toThrow('does not allow the "logit-lens" tool');
+        expect(await chartCount()).toBe(0);
+        const defaults = await db.select().from(workspaces).where(eq(workspaces.isDefault, true));
+        expect(defaults).toEqual([]);
+
+        const launched = await createChartFromLaunch(
+            USER,
+            { tool: "patch-lens", workspaceId: ws.id },
+            participant,
+        );
+        expect(launched.workspaceId).toBe(ws.id);
+    });
+
     it("enforces a workshop workspace's allowed tools", async () => {
         const workshop = await createWorkshop(workshopInput(["patch-lens"]));
         const ws = await createWorkspace(USER, "Pilot", workshop.id);

@@ -16,6 +16,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/
 import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
+import type { WorkshopParticipant } from "@/lib/workshop";
 import { AppSidebar } from "./AppSidebar";
 import { writeSidebarCollapsed } from "./sidebarCookie";
 
@@ -27,6 +28,8 @@ type ShellSidebarState = {
     openDrawer: () => void;
     /** Closes the drawer, e.g. after navigating from it. */
     closeDrawer: () => void;
+    /** Set when the signed-in user is an anonymous workshop participant, kept in their workshop. */
+    workshopParticipant: WorkshopParticipant | null;
 };
 
 const ShellSidebarContext = createContext<ShellSidebarState | null>(null);
@@ -38,12 +41,19 @@ export function useShellSidebar(): ShellSidebarState {
     return value;
 }
 
+/** Where the signed-in anonymous workshop participant is kept; null for everyone else. */
+export function useWorkshopParticipant(): WorkshopParticipant | null {
+    return useContext(ShellSidebarContext)?.workshopParticipant ?? null;
+}
+
 /**
  * The app shell: the persistent left sidebar (a rail when collapsed; a drawer
  * on mobile) beside the page. The collapsed preference persists in a cookie
  * (`sidebarCookie.ts`).
  * A workshop workspace gets its focused sidebar instead, which starts as the
- * rail every time a workshop is entered and doesn't touch the preference.
+ * rail every time a workshop is entered and doesn't touch the preference. So
+ * does every page of an anonymous workshop participant (`workshopParticipant`,
+ * resolved by the server), who is kept in their workshop.
  *
  * The page's scope reaches the shell only once the page has mounted, so the
  * server-rendered paint of a workshop page can't know it yet; there, CSS
@@ -52,9 +62,11 @@ export function useShellSidebar(): ShellSidebarState {
  */
 export function AppShell({
     defaultCollapsed,
+    workshopParticipant,
     children,
 }: {
     defaultCollapsed: boolean;
+    workshopParticipant: WorkshopParticipant | null;
     children: ReactNode;
 }) {
     const scope = useWorkspaceScope();
@@ -74,7 +86,9 @@ export function AppShell({
     }
     if (drawerOpen && isMobile === false) setDrawerOpen(false);
 
-    const workshopWorkspaceId = scope?.workshopId ? scope.workspaceId : null;
+    const workshopWorkspaceId = scope?.workshopId
+        ? scope.workspaceId
+        : (workshopParticipant?.workspaceId ?? null);
     const effectiveCollapsed = workshopWorkspaceId
         ? workshopExpandedIn !== workshopWorkspaceId
         : collapsed;
@@ -96,8 +110,9 @@ export function AppShell({
             toggleCollapsed,
             openDrawer: () => setDrawerOpen(true),
             closeDrawer: () => setDrawerOpen(false),
+            workshopParticipant,
         }),
-        [effectiveCollapsed, toggleCollapsed],
+        [effectiveCollapsed, toggleCollapsed, workshopParticipant],
     );
 
     return (

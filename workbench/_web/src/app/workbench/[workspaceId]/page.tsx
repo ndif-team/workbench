@@ -1,13 +1,20 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { redirectWorkshopParticipant, requireUser } from "@/lib/auth/user";
 import {
     createLogitLensChartPair,
     getMostRecentChartForWorkspace,
     seedWorkshopChart,
 } from "@/lib/queries/chartDb";
 import { getWorkshopForWorkspace } from "@/lib/queries/workshopDb";
+import { getWorkspaceById } from "@/lib/queries/workspaceDb";
 import { toolChartPath } from "@/lib/chartRoutes";
 import { LogitLensConfigData } from "@/types/logitLens";
 
+/**
+ * Opens one of the user's workspaces on its most recent live chart, creating
+ * one when it has none. Another user's (or a missing) workspace is a 404, and
+ * a workshop participant can only open a workshop workspace.
+ */
 export default async function Page({
     params,
     searchParams,
@@ -16,6 +23,10 @@ export default async function Page({
     searchParams: Promise<{ prompt?: string; model?: string }>;
 }) {
     const { workspaceId } = await params;
+    const [user, workspace] = await Promise.all([requireUser(), getWorkspaceById(workspaceId)]);
+    if (!workspace || workspace.userId !== user.id) notFound();
+    if (!workspace.workshopId) await redirectWorkshopParticipant(user);
+
     const urlParams = await searchParams;
     const initialPrompt = urlParams?.prompt || "";
     const initialModel = urlParams?.model || "";

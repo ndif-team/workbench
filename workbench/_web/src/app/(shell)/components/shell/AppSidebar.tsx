@@ -13,7 +13,7 @@ import { useWorkspaceLibrary } from "@/lib/api/workspaceApi";
 import { cn } from "@/lib/utils";
 import ChartCardsSidebar from "../ChartCardsSidebar";
 import { NewItemMenu } from "../items/NewItemMenu";
-import { useShellSidebar } from "./AppShell";
+import { useShellSidebar, useWorkshopParticipant } from "./AppShell";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { SidebarFooter } from "./SidebarFooter";
 
@@ -21,9 +21,10 @@ type SidebarVariant = "expanded" | "rail" | "drawer";
 
 /**
  * The shell's sidebar in one of three shapes: expanded, the collapsed rail,
- * or the mobile drawer. On a workshop workspace's chart it is the focused
- * workshop sidebar (`ChartCardsSidebar`) instead of the global one, so
- * participants keep the workshop's tools and never get the global New chart.
+ * or the mobile drawer. On a workshop workspace's chart, and on every page of
+ * an anonymous workshop participant, it is the focused workshop sidebar
+ * (`ChartCardsSidebar`) instead of the global one, so participants keep the
+ * workshop's tools and never get the global New chart.
  * A chart or report page's scope only reaches the shell once the page has
  * mounted, so until then the global sidebar is `pending`: it shows its
  * skeleton and doesn't read the library (reading it creates a default
@@ -32,23 +33,31 @@ type SidebarVariant = "expanded" | "rail" | "drawer";
  */
 export function AppSidebar({ variant }: { variant: SidebarVariant }) {
     const scope = useWorkspaceScope();
+    const participant = useWorkshopParticipant();
     const params = useParams<{ chartId?: string; reportId?: string }>();
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
 
     const onItemPage = !!(params.chartId || params.reportId);
-    const mode = scope?.workshopId
-        ? "workshop"
-        : onItemPage && !scope && !mounted
-          ? "pending"
-          : "global";
+    const workshopWorkspaceId = scope?.workshopId
+        ? scope.workspaceId
+        : (participant?.workspaceId ?? null);
+    const mode =
+        scope?.workshopId || participant
+            ? "workshop"
+            : onItemPage && !scope && !mounted
+              ? "pending"
+              : "global";
 
     return (
         <div data-variant={variant} className="group/sidebar flex h-full min-h-0 flex-col">
-            <SidebarHeader variant={variant} />
+            <SidebarHeader variant={variant} homeHref={participant?.entryPath ?? "/"} />
             {mode === "workshop" ? (
                 <div className="flex min-h-0 flex-1 flex-col">
-                    <ChartCardsSidebar collapsed={variant === "rail"} />
+                    <ChartCardsSidebar
+                        workspaceId={workshopWorkspaceId ?? ""}
+                        collapsed={variant === "rail"}
+                    />
                 </div>
             ) : variant === "rail" ? (
                 <LibraryRail pending={mode === "pending"} />
@@ -60,7 +69,8 @@ export function AppSidebar({ variant }: { variant: SidebarVariant }) {
     );
 }
 
-function SidebarHeader({ variant }: { variant: SidebarVariant }) {
+/** The sidebar's top row; the product name leads to `homeHref` (a participant's workshop, else the landing page). */
+function SidebarHeader({ variant, homeHref }: { variant: SidebarVariant; homeHref: string }) {
     const { toggleCollapsed, closeDrawer } = useShellSidebar();
 
     if (variant === "rail") {
@@ -76,7 +86,7 @@ function SidebarHeader({ variant }: { variant: SidebarVariant }) {
     return (
         <div className="flex h-12 shrink-0 items-center justify-between pl-4 pr-2">
             <Link
-                href="/"
+                href={homeHref}
                 className="rounded-md bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-lg font-bold text-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
                 Workbench
@@ -165,7 +175,7 @@ function LibraryRail({ pending }: { pending: boolean }) {
     const { data: library } = useWorkspaceLibrary({ enabled: !pending });
     return (
         <div className="flex flex-1 flex-col items-center gap-1">
-            <NewItemMenu reportWorkspaceId={library?.defaultWorkspaceId} side="right">
+            <NewItemMenu reportWorkspaceId={library?.defaultWorkspaceId ?? undefined} side="right">
                 <Button
                     variant="outline"
                     size="icon"

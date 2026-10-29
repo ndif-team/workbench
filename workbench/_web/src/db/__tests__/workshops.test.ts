@@ -12,12 +12,13 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db, clearDatabase } from "../client";
-import { workshops } from "../schema";
+import { workshops, workspaces } from "../schema";
 import {
     generateWorkshopSlug,
     getWorkshopBySlug,
     getWorkshopForWorkspace,
     getWorkshopWorkspaceForUser,
+    getParticipantWorkspace,
     listWorkshops,
     createWorkshop,
     updateWorkshop,
@@ -204,5 +205,29 @@ describe("workshops", () => {
         expect(survivor).not.toBeNull();
         expect(survivor!.workshopId).toBeNull();
         expect(await getWorkshopForWorkspace(ws.id)).toBeNull();
+    });
+
+    it("keeps a participant in the workspace of the workshop their claim names", async () => {
+        const first = await createWorkshop(input({ name: "First" }));
+        const second = await createWorkshop(input({ name: "Second" }));
+        const other = await createWorkshop(input({ name: "Other" }));
+        const firstWs = await createWorkspace(USER, "First", first.id);
+        const secondWs = await createWorkspace(USER, "Second", second.id);
+        await createWorkspace(USER, "Folder");
+        await createWorkspace("someone-else", "Other", other.id);
+
+        expect((await getParticipantWorkspace(USER, second.slug))!.id).toBe(secondWs.id);
+        expect((await getParticipantWorkspace(USER, first.slug))!.id).toBe(firstWs.id);
+
+        // A claim whose workshop they never joined (or that is gone) falls back
+        // to their most recently updated workshop workspace.
+        await db
+            .update(workspaces)
+            .set({ updatedAt: new Date(Date.now() + 60_000) })
+            .where(eq(workspaces.id, firstWs.id));
+        expect((await getParticipantWorkspace(USER, other.slug))!.id).toBe(firstWs.id);
+        expect((await getParticipantWorkspace(USER, "gone"))!.id).toBe(firstWs.id);
+
+        expect(await getParticipantWorkspace("no-workshops", second.slug)).toBeNull();
     });
 });

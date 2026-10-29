@@ -16,6 +16,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { workspacePath } from "@/lib/chartRoutes";
 import { deriveReportTitle } from "@/lib/reportTitle";
 import { cn } from "@/lib/utils";
+import { useWorkshopParticipant } from "../shell/AppShell";
 import { PageHeader } from "../shell/PageHeader";
 import { ItemActionsMenu } from "./ItemActionsMenu";
 import { chartName, itemLabel } from "./itemLabel";
@@ -49,7 +50,10 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
     const folderId = scope && !scope.isDefault ? scope.workspaceId : null;
     const [renaming, setRenaming] = useState(false);
 
-    const { data: library } = useWorkspaceLibrary({ enabled: !!scope && !isWorkshop });
+    const participant = useWorkshopParticipant();
+    const { data: library } = useWorkspaceLibrary({
+        enabled: !!scope && !isWorkshop && !participant,
+    });
     const folderName =
         library?.workspaces.find((w) => w.id === folderId)?.name ?? scope?.name ?? "";
 

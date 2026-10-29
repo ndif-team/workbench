@@ -4,9 +4,10 @@ import type { Chart, Config } from "@/db/schema";
 import { db } from "@/db/client";
 import { charts, configs, chartConfigLinks } from "@/db/schema";
 import { asc, eq, sql } from "drizzle-orm";
-import { requireUserId } from "@/lib/auth/user";
+import { requireUser, requireUserId } from "@/lib/auth/user";
 import type { ChartLaunchRequest } from "@/lib/chartLaunch";
 import * as chartDb from "@/lib/queries/chartDb";
+import { hasWorkshopClaim } from "@/lib/workshop";
 import { normalizeToolType } from "@/types/charts";
 import type { ChartData, ChartMetadata, ChartType, ToolType } from "@/types/charts";
 import type { ActivationPatchingConfigData } from "@/types/activationPatching";
@@ -125,9 +126,16 @@ export async function copyChart(chartId: string): Promise<Chart> {
     return chartDb.copyChart(await requireUserId(), chartId);
 }
 
+/** The signed-in user and whether they're an anonymous workshop participant, for chart creation. */
+async function chartCreator() {
+    const user = await requireUser();
+    return { userId: user.id, creator: { workshopParticipant: hasWorkshopClaim(user) } };
+}
+
 /** The signed-in user's workspace `workspaceId`, checked as a place for a new chart. */
 async function newChartWorkspace(workspaceId: string): Promise<string> {
-    return chartDb.assertChartWorkspace(await requireUserId(), workspaceId);
+    const { userId, creator } = await chartCreator();
+    return chartDb.assertChartWorkspace(userId, workspaceId, creator);
 }
 
 export async function createLogitLensChartPair(
@@ -157,11 +165,12 @@ export async function createActivationPatchingChartPair(
 
 /**
  * Creates the chart a `/new` launch asks for, in the signed-in user's default
- * workspace or in `request.workspaceId` when it is one of theirs, and returns
- * where to open it.
+ * workspace or in `request.workspaceId` when it is one of theirs (a workshop
+ * participant: only their workshop workspace), and returns where to open it.
  */
 export async function createChartFromLaunch(
     request: ChartLaunchRequest,
 ): Promise<{ chartId: string; toolType: ToolType; workspaceId: string }> {
-    return chartDb.createChartFromLaunch(await requireUserId(), request);
+    const { userId, creator } = await chartCreator();
+    return chartDb.createChartFromLaunch(userId, request, creator);
 }

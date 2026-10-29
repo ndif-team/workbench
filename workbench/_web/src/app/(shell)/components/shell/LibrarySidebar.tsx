@@ -119,7 +119,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
         <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex flex-col gap-0.5 px-2 pb-2">
                 <NewItemMenu
-                    reportWorkspaceId={library?.defaultWorkspaceId}
+                    reportWorkspaceId={library?.defaultWorkspaceId ?? undefined}
                     contentClassName="w-[var(--radix-dropdown-menu-trigger-width)]"
                 >
                     <Button variant="outline" className="mb-1.5 w-full justify-start gap-2 px-2">

@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getChartsMetadata } from "@/lib/queries/chartQueries";
 import { useParams, useRouter } from "next/navigation";
-import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 import {
     useCreateLogitLensChartPair,
     useCreateJLensChartPair,
@@ -50,15 +49,19 @@ import {
 } from "@dnd-kit/sortable";
 
 /**
- * The workspace-scoped sidebar the shell shows on a workshop workspace's
- * charts: that workspace's charts and reports, plus buttons that create a
- * chart (of the workshop's allowed tools) or a report in it. Reads the
- * workspace from the workspace scope. `collapsed` renders the rail strip; the
- * shell owns the collapse control.
+ * The workspace-scoped sidebar the shell shows for a workshop workspace:
+ * that workspace's charts and reports, plus buttons that create a chart (of
+ * the workshop's allowed tools) or a report in it. `collapsed` renders the
+ * rail strip; the shell owns the collapse control.
  */
-export default function ChartCardsSidebar({ collapsed }: { collapsed: boolean }) {
+export default function ChartCardsSidebar({
+    workspaceId,
+    collapsed,
+}: {
+    workspaceId: string;
+    collapsed: boolean;
+}) {
     const { chartId } = useParams<{ chartId?: string }>();
-    const workspaceId = useWorkspaceScope()?.workspaceId ?? "";
     const router = useRouter();
     const capture = useCapture();
 

@@ -327,11 +327,17 @@ const byRecency = (a: LibraryItem, b: LibraryItem) => b.updatedAt.getTime() - a.
 
 /**
  * Every workspace of the user with its charts and reports, for the global
- * sidebar. Creates the default workspace on first read. Batched per user: one
+ * sidebar. Creates the default workspace on first read unless `createDefault`
+ * is false (a workshop participant never gets one). Batched per user: one
  * query each for workspaces, charts and reports, whatever the folder count.
  */
-export const getWorkspaceLibrary = async (userId: string): Promise<WorkspaceLibrary> => {
-    const defaultWorkspace = await getOrCreateDefaultWorkspace(userId);
+export const getWorkspaceLibrary = async (
+    userId: string,
+    { createDefault = true }: { createDefault?: boolean } = {},
+): Promise<WorkspaceLibrary> => {
+    const defaultWorkspace = createDefault
+        ? await getOrCreateDefaultWorkspace(userId)
+        : await getDefaultWorkspace(userId);
 
     const [workspaceRows, chartRows, reportRows] = (await Promise.all([
         db
@@ -436,8 +442,10 @@ export const getWorkspaceLibrary = async (userId: string): Promise<WorkspaceLibr
         }));
 
     return {
-        defaultWorkspaceId: defaultWorkspace.id,
-        defaultItems: (itemsByWorkspace.get(defaultWorkspace.id) ?? []).sort(byRecency),
+        defaultWorkspaceId: defaultWorkspace?.id ?? null,
+        defaultItems: defaultWorkspace
+            ? (itemsByWorkspace.get(defaultWorkspace.id) ?? []).sort(byRecency)
+            : [],
         workspaces: folders,
     };
 };

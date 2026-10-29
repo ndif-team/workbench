@@ -468,7 +468,24 @@ describe("workspace library", () => {
         const library = await getWorkspaceLibrary(USER);
         expect(library.defaultItems).toEqual([]);
         expect(library.workspaces).toEqual([]);
-        expect((await getWorkspaceById(library.defaultWorkspaceId))!.isDefault).toBe(true);
+        expect((await getWorkspaceById(library.defaultWorkspaceId!))!.isDefault).toBe(true);
+    });
+
+    it("never creates a default workspace for a workshop participant", async () => {
+        const workshop = await createWorkshop(workshopInput());
+        const ws = await createWorkspace(USER, "Pilot", workshop.id);
+        const chartId = await createChart(ws.id, "Guided");
+
+        const library = await getWorkspaceLibrary(USER, { createDefault: false });
+
+        expect(library.defaultWorkspaceId).toBeNull();
+        expect(library.defaultItems).toEqual([]);
+        expect(library.workspaces.map((w) => [w.id, ids(w.items)])).toEqual([[ws.id, [chartId]]]);
+        const defaults = await db
+            .select()
+            .from(workspaces)
+            .where(and(eq(workspaces.userId, USER), eq(workspaces.isDefault, true)));
+        expect(defaults).toEqual([]);
     });
 
     it("flags workshop workspaces", async () => {

@@ -1,7 +1,8 @@
 "use server";
 
 import type { Workspace } from "@/db/schema";
-import { requireUserId } from "@/lib/auth/user";
+import { requireUser, requireUserId } from "@/lib/auth/user";
+import { hasWorkshopClaim } from "@/lib/workshop";
 import * as workspaceDb from "@/lib/queries/workspaceDb";
 import type { WorkspaceItemKind, WorkspaceLibrary } from "@/types/workspaces";
 
@@ -11,9 +12,13 @@ import type { WorkspaceItemKind, WorkspaceLibrary } from "@/types/workspaces";
  * workspaces; the unguarded internals live in workspaceDb.ts.
  */
 
-/** The signed-in user's workspaces and their charts and reports, for the global sidebar. */
+/**
+ * The signed-in user's workspaces and their charts and reports, for the global
+ * sidebar. A workshop participant's read never creates a default workspace.
+ */
 export async function getWorkspaceLibrary(): Promise<WorkspaceLibrary> {
-    return workspaceDb.getWorkspaceLibrary(await requireUserId());
+    const user = await requireUser();
+    return workspaceDb.getWorkspaceLibrary(user.id, { createDefault: !hasWorkshopClaim(user) });
 }
 
 /** The signed-in user's workspaces (folders) with item counts, for workspace pickers. */

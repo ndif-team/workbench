@@ -101,29 +101,44 @@ export const createActivationPatchingChartPair = async (
     defaultConfig: ActivationPatchingConfigData,
 ) => createChartConfigPair(workspaceId, { type: "activation-patching", data: defaultConfig });
 
+/** Who is adding a chart: an anonymous workshop participant may only add to a workshop workspace. */
+type ChartCreator = { workshopParticipant?: boolean };
+
+const participantOutsideWorkshop = () =>
+    new Error("Workshop participants can only add charts to their workshop");
+
 /**
  * Checks that the user may add a chart to `workspaceId` and returns it: the
- * workspace must be theirs.
+ * workspace must be theirs, and a workshop participant's must be a workshop
+ * workspace. (Which tools it allows is checked when the chart is created.)
  */
-export const assertChartWorkspace = async (userId: string, workspaceId: string) => {
+export const assertChartWorkspace = async (
+    userId: string,
+    workspaceId: string,
+    { workshopParticipant = false }: ChartCreator = {},
+) => {
     const workspace = await getWorkspaceById(workspaceId);
     if (!workspace || workspace.userId !== userId) {
         throw new Error("Workspace not found or access denied");
     }
+    if (workshopParticipant && !workspace.workshopId) throw participantOutsideWorkshop();
     return workspace.id;
 };
 
 /**
  * Creates the chart a `/new` launch asks for: in `request.workspaceId` when
  * that workspace is the user's, else in their default workspace (created on
- * first use). Returns where to open it.
+ * first use). A workshop participant must name their workshop workspace and
+ * one of its tools. Returns where to open it.
  */
 export const createChartFromLaunch = async (
     userId: string,
     request: ChartLaunchRequest,
+    creator: ChartCreator = {},
 ): Promise<{ chartId: string; toolType: ToolType; workspaceId: string }> => {
+    if (creator.workshopParticipant && !request.workspaceId) throw participantOutsideWorkshop();
     const workspaceId = request.workspaceId
-        ? await assertChartWorkspace(userId, request.workspaceId)
+        ? await assertChartWorkspace(userId, request.workspaceId, creator)
         : (await getOrCreateDefaultWorkspace(userId)).id;
 
     const plan = planChartLaunch(request);

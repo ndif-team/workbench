@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { db } from "@/db/client";
 import { workshops, workspaces, workshopTools } from "@/db/schema";
 import type { Workshop, Workspace, WorkshopTool } from "@/db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, isNotNull, sql } from "drizzle-orm";
 import { normalizeWorkshopTools } from "@/lib/workshop";
 
 /**
@@ -94,6 +94,27 @@ export const getWorkshopWorkspaceForUser = async (
         .orderBy(desc(workspaces.updatedAt))
         .limit(1);
     return (workspace ?? null) as Workspace | null;
+};
+
+/**
+ * The workshop workspace an anonymous participant is kept in: theirs for the
+ * workshop their claim names (the one they joined last), else their most
+ * recently updated workshop workspace. Null when they have none.
+ */
+export const getParticipantWorkspace = async (
+    userId: string,
+    workshopSlug: string,
+): Promise<Workspace | null> => {
+    const workshop = await getWorkshopBySlug(workshopSlug);
+    const claimed = workshop ? await getWorkshopWorkspaceForUser(userId, workshop.id) : null;
+    if (claimed) return claimed;
+    const [latest] = await db
+        .select()
+        .from(workspaces)
+        .where(and(eq(workspaces.userId, userId), isNotNull(workspaces.workshopId)))
+        .orderBy(desc(workspaces.updatedAt))
+        .limit(1);
+    return (latest ?? null) as Workspace | null;
 };
 
 export type WorkshopWithCount = Workshop & { participantCount: number };

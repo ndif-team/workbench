@@ -60,7 +60,8 @@ export type LibraryWorkspace = {
 
 /** Everything the global sidebar lists for one user, in one round trip. */
 export type WorkspaceLibrary = {
-    defaultWorkspaceId: string;
+    /** Null only for a workshop participant, who has no default workspace. */
+    defaultWorkspaceId: string | null;
     /** The default workspace's charts and reports, most recently updated first. */
     defaultItems: LibraryItem[];
     /** Every other workspace (folder), most recently updated first. */
