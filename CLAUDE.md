@@ -114,9 +114,13 @@ workbench/                          # repo root
         │   │   └── [workspaceId]/page.tsx   # "open workspace": its most recent chart, or a new one
         │   └── (shell)/            # route group; layout.tsx is the app shell (persists across pages)
         │       ├── components/     # UI shared by the routes below
+        │       │   ├── shell/       # AppShell (sidebar + page, rail/drawer state), AppSidebar, LibrarySidebar
+        │       │   │                #   (global sidebar), SidebarRows, SidebarFooter, PageHeader
+        │       │   ├── items/       # ItemPage (chart/report header), ItemActionsMenu (rename, copy, move,
+        │       │   │                #   delete), NewItemMenu, itemLabel (how items read in lists)
         │       │   ├── WorkspaceScopes.tsx      # server wrappers that look up an item's workspace scope
-        │       │   ├── ChartCardsSidebar.tsx, ChartCard.tsx, ReportCard.tsx  # workspace-scoped sidebar
-        │       │   ├── MobileSidebarDrawer.tsx, MobileCollapsibleControls.tsx
+        │       │   ├── ChartCardsSidebar.tsx, ChartCard.tsx, ReportCard.tsx  # workshop (workspace-scoped) sidebar
+        │       │   ├── MobileCollapsibleControls.tsx
         │       │   ├── ToolPanelHeader.tsx      # title row shared by the tool Controls
         │       │   ├── ModelDeployingPanel.tsx, DeployCard.tsx  # cold-model deploy states
         │       │   └── PendingRequestHandler.tsx  # resumes a launch that waited on sign-in
@@ -127,23 +131,23 @@ workbench/                          # repo root
         │       ├── reports/[reportId]/          # Lexical report editor
         │       ├── new/            # /new?tool=…&model=…&prompt=…: creates a chart, then opens it
         │       ├── models/         # models grid
-        │       └── workspaces/     # workspace (folder) list
+        │       └── workspaces/     # all workspaces (folders); [workspaceId]/ is one folder
         │
         ├── components/             # app-wide composed components
         │   ├── ui/                 # shadcn primitives (Button, Card, Popover, PillPopover, ...)
         │   ├── charts/             # ChartModelPill (stale-model pill), theming.ts (Nivo theme)
         │   ├── activation-patching/  # toolkit.tsx (shared AP state, prompt section, patch arrows)
         │   ├── model-selector/     # ModelPopover (model picker body), status.ts (model heat vocabulary)
-        │   ├── models/             # ModelsSection (models grid on the workspace list)
+        │   ├── models/             # ModelsSection (the models grid on /models), ModelLaunchDialog
         │   ├── providers/          # QueryProvider, ThemeProvider, TourProvider, TutorialEventProvider
         │   ├── ModelControl.tsx    # header model pill + picker; its job badge shows useWorkspace.jobStatus
-        │   ├── LandingPage.tsx, UserDropdown.tsx, WorkspaceNameEditor.tsx, NotebookExporter.tsx
+        │   ├── LandingPage.tsx, UserDropdown.tsx, CreateWorkspaceDialog.tsx, NotebookExporter.tsx
         │   └── ...
         │
         ├── stores/                 # zustand stores
         │   ├── useWorkspace.ts     # selectedModelIdx, jobStatus
         │   ├── useModelDeployment.ts    # cold-model warmups in flight, keyed by model
-        │   ├── useModelsSection.ts      # models-grid collapse on the workspace list (persisted)
+        │   ├── useSidebarFolders.ts     # which workspace folders are expanded in the sidebar (persisted)
         │   ├── usePatchLensTutorial.ts  # patch-lens tour "completed" flag (localStorage)
         │   └── useProlificTutorial.ts   # guided-tutorial progress + panel UI (persisted; resume UX only)
         │
@@ -212,9 +216,9 @@ Every non-trivial feature has **one container** (knows about URL params, stores,
 
 ### Reusing `components/ui`
 
-Always reach for the existing primitive first. The catalog: `badge, button, card, checkbox, dialog, dropdown-menu, input, label, mode-toggle, pill-popover, popover, resizable, select, separator, slider, sonner, textarea, tooltip`. Don't fork them for cosmetic tweaks — pass `className` and merge with `cn()` from `lib/utils`.
+Always reach for the existing primitive first. The catalog: `badge, button, card, checkbox, dialog, dropdown-menu, input, label, mode-toggle, pill-popover, popover, resizable, select, separator, sheet, slider, sonner, textarea, tooltip`. Don't fork them for cosmetic tweaks — pass `className` and merge with `cn()` from `lib/utils`.
 
-If a primitive is missing (e.g. a Switch or a Sheet), prefer adding a thin wrapper around the existing Radix package (`radix-ui`, already a dep) over hand-rolling.
+If a primitive is missing (e.g. a Switch), prefer adding a thin wrapper around the existing Radix package (`radix-ui`, already a dep) over hand-rolling.
 
 ### Styling rules (this app's actual tokens)
 
@@ -256,7 +260,8 @@ Pick the lightest location that does the job:
 | Survives reload, shareable | URL search params | chart launch from the landing page (`/new?tool=…&model=…&prompt=…`) |
 | Server data | React Query | charts, configs, documents, models list, lens runs |
 | Cross-page UI | zustand | `useWorkspace` (selected model; job status, shown as the job badge in the header's model pill), `useModelDeployment` (cold-model warmups in flight) |
-| Survives reload, no server | localStorage via zustand `persist` | `workbench:models-section` (`useModelsSection`), `workbench:prolific-tutorial` (`useProlificTutorial`); a lone flag like `workbench_sidebar_collapsed` uses `localStorage` directly |
+| Survives reload, no server | localStorage via zustand `persist` | `workbench:sidebar-folders` (`useSidebarFolders`), `workbench:prolific-tutorial` (`useProlificTutorial`) |
+| Survives reload, needed on the server's first render | cookie | `workbench_sidebar_collapsed`: the shell layout reads it so the sidebar renders at the right width (`shell/sidebarCookie.ts`) |
 | Many descendants need read | React Context | `TutorialEventProvider` (`components/providers/TutorialEventProvider.tsx`), the workspace scope (below) — rare |
 
 **zustand is for ephemeral UI state, not durable history.** Long-term history belongs in the DB: Patch Lens run history is `lens_runs` rows, and `useProlificTutorial` persists to localStorage only as resume UX while `tutorial_events` rows are the source of truth.
@@ -376,13 +381,15 @@ Set in `src/components/providers/QueryProvider.tsx`: `staleTime: 5min`, `retry: 
 
 ### Existing primitives to prefer
 
-`src/components/ui/`: Badge, Button, Card, Checkbox, Dialog, DropdownMenu, Input, Label, ModeToggle, PillPopover, Popover, Resizable, Select, Separator, Slider, Sonner, Textarea, Tooltip.
+`src/components/ui/`: Badge, Button, Card, Checkbox, Dialog, DropdownMenu, Input, Label, ModeToggle, PillPopover, Popover, Resizable, Select, Separator, Sheet, Slider, Sonner, Textarea, Tooltip.
 
 ### Layout patterns the app uses
 
-- **Chart pages** = rendered inside the `(shell)` layout: `ChartCardsSidebar` (left, `w-[20vw]`, collapsible via `workbench_sidebar_collapsed` localStorage key) + a `ResizablePanelGroup` of feature panels. Examples: `logit-lens/[chartId]/page.tsx`, `activation-patching/[chartId]/page.tsx`.
+- **App shell** = the `(shell)` layout: a global sidebar (`AppSidebar`; New chart, Models, Workspaces, the workspace folders and the unfiled charts) beside the page. It collapses to a rail (`workbench_sidebar_collapsed` cookie) and is a drawer on mobile. On a workshop workspace's chart it shows the focused `ChartCardsSidebar` instead (the workshop's tools only, starting as the rail). Every shell page starts with a `PageHeader` (`h-12`; it carries the mobile drawer button).
+- **Chart pages** = the item header (`ItemPage`: `ModelControl`, the workspace → item breadcrumb, the item's actions) above a `ResizablePanelGroup` of feature panels. Examples: `logit-lens/[chartId]/page.tsx`, `activation-patching/[chartId]/page.tsx`.
+- **Item actions** = `ItemActionsMenu` everywhere a chart or report is listed (sidebar rows, the item header, the workspace page): Rename, Copy, Move to workspace, Remove from workspace, Delete (confirmed in a popover).
 - **Feature panel** = bordered, rounded card (`rounded dark:bg-secondary/50 bg-secondary/80 border`) with the standard panel header pattern (see §4).
-- **Mobile** = `MobileSidebarDrawer` (FAB bottom-left), `MobileCollapsibleControls` (collapsible top section). Mirror these when adding mobile paths.
+- **Mobile** = the shell's sidebar drawer (opened from the page header), `MobileCollapsibleControls` (collapsible top section). Mirror these when adding mobile paths.
 - **Charts** = each tool's `*Display` component (`LogitLensDisplay`, `JLensDisplay`, `ActivationPatchingDisplay`) renders its nnsightful widget straight from `chart.data`; `PatchLensDisplay` renders `edulogitlens`'s `CausalMediationExplorer`.
 - **Modals/dialogs** = used sparingly, only for blocking confirmations or single-step entry.
 - **Right-rail** = the guided-tutorial dock on patch-lens (`TutorialDockPanel` in `patch-lens/[chartId]/components/tutorial/TutorialDock.tsx`); it collapses to a slim strip (`TutorialCollapsedRail`) that mirrors the chart sidebar's collapsed state.
