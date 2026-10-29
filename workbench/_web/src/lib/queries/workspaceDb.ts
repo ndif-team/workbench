@@ -327,7 +327,9 @@ const byRecency = (a: LibraryItem, b: LibraryItem) => b.updatedAt.getTime() - a.
 
 /**
  * Every workspace of the user with its charts and reports, for the global
- * sidebar. Creates the default workspace on first read unless `createDefault`
+ * sidebar. Only a Patch Lens chart's `data` is read into (for its source
+ * prompt); other tools' results can be large and only their presence is
+ * selected. Creates the default workspace on first read unless `createDefault`
  * is false (a workshop participant never gets one). Batched per user: one
  * query each for workspaces, charts and reports, whatever the folder count.
  */
@@ -338,6 +340,10 @@ export const getWorkspaceLibrary = async (
     const defaultWorkspace = createDefault
         ? await getOrCreateDefaultWorkspace(userId)
         : await getDefaultWorkspace(userId);
+
+    const isPatchLens = sql`${configs.type} = 'patch-lens' or ${charts.type} = 'patch-lens'`;
+    const sourcePrompt = jsonTextField(charts.data, "sourcePrompt");
+    const patchLensPrompt = sql<string | null>`case when ${isPatchLens} then ${sourcePrompt} end`;
 
     const [workspaceRows, chartRows, reportRows] = (await Promise.all([
         db
@@ -360,7 +366,7 @@ export const getWorkspaceLibrary = async (
                 chartType: charts.type,
                 configType: configs.type,
                 configData: configs.data,
-                chartPrompt: jsonTextField(charts.data, "sourcePrompt"),
+                chartPrompt: patchLensPrompt,
                 hasData: sql<boolean>`${charts.data} is not null`,
                 position: charts.position,
                 createdAt: charts.createdAt,

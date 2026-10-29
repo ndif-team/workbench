@@ -403,6 +403,10 @@ describe("workspace library", () => {
             targetPrompt: "The capital of Italy is",
         });
         const { chart: blank } = await createLogitLensChartPair(def.id, lensConfig(""));
+        await db
+            .update(charts)
+            .set({ data: { sourcePrompt: "Only Patch Lens keeps prompts on the chart" } })
+            .where(eq(charts.id, blank.id));
 
         const library = await getWorkspaceLibrary(USER);
         const promptOf = (id: string) =>

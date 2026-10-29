@@ -8,6 +8,9 @@ import { updateDocument, deleteDocument } from "@/lib/queries/documentQueries";
 import { SerializedEditorState } from "lexical";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
 import { queryKeys } from "@/lib/queryKeys";
+import { deriveReportTitle } from "@/lib/reportTitle";
+import type { WorkspaceLibrary } from "@/types/workspaces";
+import { findLibraryItem } from "./workspaceApi";
 
 export const useGetDocument = (documentId: string) => {
     return useQuery({
@@ -25,6 +28,22 @@ export const useGetDocumentsForWorkspace = (workspaceId: string) => {
     });
 };
 
+/** The library with one report's title replaced, where it is listed. */
+const retitleInLibrary = (library: WorkspaceLibrary, reportId: string, title: string) => {
+    const retitle = <T extends WorkspaceLibrary["defaultItems"][number]>(item: T): T =>
+        item.kind === "report" && item.id === reportId ? { ...item, title } : item;
+    return {
+        ...library,
+        defaultItems: library.defaultItems.map(retitle),
+        workspaces: library.workspaces.map((w) => ({ ...w, items: w.items.map(retitle) })),
+    };
+};
+
+/**
+ * Saves a report (the editor's autosave). The lists that show the report
+ * only show its title, so instead of refetching them after every save, the
+ * cached title is updated in place when the save changed it.
+ */
 export const useSaveDocument = () => {
     const queryClient = useQueryClient();
 
@@ -52,11 +71,26 @@ export const useSaveDocument = () => {
                     old ? { ...old, content } : old,
             );
         },
-        onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({
-                queryKey: queryKeys.documents.byWorkspace(variables.workspaceId),
-            });
-            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
+        onSuccess: (saved, variables) => {
+            const title = deriveReportTitle(saved.content as SerializedEditorState);
+            const library = queryClient.getQueryData<WorkspaceLibrary>(
+                queryKeys.workspaces.library,
+            );
+            const listed = library && findLibraryItem(library, "report", saved.id);
+            if (listed?.kind === "report" && listed.title !== title) {
+                queryClient.setQueryData<WorkspaceLibrary>(queryKeys.workspaces.library, (lib) =>
+                    lib ? retitleInLibrary(lib, saved.id, title) : lib,
+                );
+            }
+            queryClient.setQueryData<DocumentListItem[]>(
+                queryKeys.documents.byWorkspace(variables.workspaceId),
+                (reports) =>
+                    reports?.some((r) => r.id === saved.id && r.derivedTitle !== title)
+                        ? reports.map((r) =>
+                              r.id === saved.id ? { ...r, derivedTitle: title } : r,
+                          )
+                        : reports,
+            );
             if (variables.documentId) {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.documents.one(variables.documentId),
