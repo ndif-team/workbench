@@ -164,3 +164,13 @@ export async function moveReport(
 ): Promise<void> {
     return workspaceDb.moveReport(await requireUserId(), documentId, targetWorkspaceId);
 }
+
+/** Renames one of the signed-in user's workspaces (never the default one). */
+export async function renameUserWorkspace(workspaceId: string, name: string): Promise<Workspace> {
+    return updateWorkspace(workspaceId, { name }, await requireUserId());
+}
+
+/** Deletes one of the signed-in user's workspaces and its contents (never the default one). */
+export async function deleteUserWorkspace(workspaceId: string): Promise<void> {
+    return deleteWorkspace(await requireUserId(), workspaceId);
+}

@@ -3,11 +3,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
     createUserWorkspace,
-    deleteWorkspace,
+    deleteUserWorkspace,
     getWorkspaceLibrary,
     moveChart,
     moveReport,
-    updateWorkspace,
+    renameUserWorkspace,
     reorderWorkspaceItems,
     type WorkspaceItemKind,
 } from "@/lib/queries/workspaceQueries";
@@ -100,20 +100,14 @@ export const useCreateWorkspace = () => {
     });
 };
 
+/** Deletes one of the signed-in user's workspaces, and its contents with it. */
 export const useDeleteWorkspace = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ userId, workspaceId }: { userId: string; workspaceId: string }) => {
-            await deleteWorkspace(userId, workspaceId);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
-            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
-        },
-        onError: (error) => {
-            console.error("Error deleting workspace:", error);
-        },
+        mutationFn: ({ workspaceId }: { workspaceId: string }) => deleteUserWorkspace(workspaceId),
+        onSuccess: () => invalidateItemLists(queryClient),
+        onError: () => toast.error("Couldn't delete the workspace"),
     });
 };
 
@@ -125,6 +119,32 @@ type ReorderVariables = {
 type ReorderContext = {
     prevCharts: ChartMetadata[] | undefined;
     prevReports: DocumentListItem[] | undefined;
+    prevLibrary: WorkspaceLibrary | undefined;
+};
+
+/** The library with one workspace's items put in `items` order (optimistic reorder). */
+const reorderLibraryFolder = (
+    library: WorkspaceLibrary,
+    workspaceId: string,
+    items: { kind: WorkspaceItemKind; id: string }[],
+): WorkspaceLibrary => {
+    const rank = new Map(items.map((it, i) => [`${it.kind}:${it.id}`, i]));
+    return {
+        ...library,
+        workspaces: library.workspaces.map((w) =>
+            w.id !== workspaceId
+                ? w
+                : {
+                      ...w,
+                      items: w.items
+                          .map((item) => ({
+                              ...item,
+                              position: rank.get(`${item.kind}:${item.id}`) ?? item.position,
+                          }))
+                          .sort((a, b) => a.position - b.position),
+                  },
+        ),
+    };
 };
 
 export const useReorderWorkspaceItems = () => {
@@ -140,9 +160,19 @@ export const useReorderWorkspaceItems = () => {
 
             await queryClient.cancelQueries({ queryKey: chartsKey });
             await queryClient.cancelQueries({ queryKey: reportsKey });
+            await queryClient.cancelQueries({ queryKey: queryKeys.workspaces.library });
 
             const prevCharts = queryClient.getQueryData<ChartMetadata[]>(chartsKey);
             const prevReports = queryClient.getQueryData<DocumentListItem[]>(reportsKey);
+            const prevLibrary = queryClient.getQueryData<WorkspaceLibrary>(
+                queryKeys.workspaces.library,
+            );
+            if (prevLibrary) {
+                queryClient.setQueryData(
+                    queryKeys.workspaces.library,
+                    reorderLibraryFolder(prevLibrary, workspaceId, items),
+                );
+            }
 
             const positionByItem = new Map<string, number>();
             items.forEach((it, i) => positionByItem.set(`${it.kind}:${it.id}`, i));
@@ -160,7 +190,7 @@ export const useReorderWorkspaceItems = () => {
                 })),
             );
 
-            return { prevCharts, prevReports };
+            return { prevCharts, prevReports, prevLibrary };
         },
         onError: (_err, { workspaceId }, context) => {
             if (!context) return;
@@ -169,6 +199,7 @@ export const useReorderWorkspaceItems = () => {
                 queryKeys.documents.byWorkspace(workspaceId),
                 context.prevReports,
             );
+            queryClient.setQueryData(queryKeys.workspaces.library, context.prevLibrary);
         },
         onSettled: (_data, _err, { workspaceId }) => {
             queryClient.invalidateQueries({
@@ -182,31 +213,20 @@ export const useReorderWorkspaceItems = () => {
     });
 };
 
-export const useUpdateWorkspaceName = () => {
+/** Renames one of the signed-in user's workspaces. */
+export const useRenameWorkspace = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({
-            workspaceId,
-            name,
-            userId,
-        }: {
-            workspaceId: string;
-            name: string;
-            userId: string;
-        }) => {
-            const updated = await updateWorkspace(workspaceId, { name }, userId);
-            return updated;
-        },
-        onSuccess: (data, variables) => {
+        mutationFn: ({ workspaceId, name }: { workspaceId: string; name: string }) =>
+            renameUserWorkspace(workspaceId, name),
+        onSuccess: (_, { workspaceId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
             queryClient.invalidateQueries({
-                queryKey: queryKeys.workspaces.workspace(variables.workspaceId),
+                queryKey: queryKeys.workspaces.workspace(workspaceId),
             });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
-        onError: (error) => {
-            console.error("Error updating workspace name:", error);
-        },
+        onError: () => toast.error("Couldn't rename the workspace"),
     });
 };
