@@ -16,11 +16,16 @@ import type { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
 import type { WorkspaceLibrary } from "@/types/workspaces";
 
-/** The signed-in user's workspaces with their charts and reports (global sidebar). */
-export const useWorkspaceLibrary = () =>
+/**
+ * The signed-in user's workspaces with their charts and reports (global
+ * sidebar). Reading it creates the user's default workspace, so leave it
+ * disabled where only a workshop workspace is in view.
+ */
+export const useWorkspaceLibrary = ({ enabled = true }: { enabled?: boolean } = {}) =>
     useQuery<WorkspaceLibrary>({
         queryKey: queryKeys.workspaces.library,
         queryFn: () => getWorkspaceLibrary(),
+        enabled,
     });
 
 /** Refetches every list an item can appear in after it changes workspace. */

@@ -1,0 +1,287 @@
+"use client";
+
+import { useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+    Copy,
+    Folder,
+    FolderInput,
+    FolderMinus,
+    FolderPlus,
+    MoreVertical,
+    Pencil,
+    Trash2,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
+import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
+import { useCopyChart, useDeleteChart } from "@/lib/api/chartApi";
+import { useDeleteDocument } from "@/lib/api/documentApi";
+import { useMoveChart, useMoveReport } from "@/lib/api/workspaceApi";
+import { chartPath, workspacePath } from "@/lib/chartRoutes";
+import { cn } from "@/lib/utils";
+import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
+import { itemLabel } from "./itemLabel";
+
+interface ItemActionsMenuProps {
+    item: LibraryItem;
+    /** The user's folders; workshop folders and the item's own are left out of "Move to workspace". */
+    workspaces: LibraryWorkspace[];
+    /** Set when the item is filed in a folder rather than the default workspace. */
+    folder: { id: string; name: string } | null;
+    /** The item is the page on screen, so deleting it navigates away. */
+    active: boolean;
+    /** Starts renaming the chart where it is shown; charts only. */
+    onRename?: () => void;
+    /** "row" is the faint sidebar/list trigger; "header" sits in a page header. */
+    variant?: "row" | "header";
+    align?: "start" | "end";
+}
+
+/**
+ * The actions of a chart or report: Rename, Copy, Move to workspace (an
+ * existing folder or a new one), Remove from workspace, Delete. Delete asks
+ * for confirmation in a popover beside the trigger. Shared by the sidebar
+ * rows, the item page header and the workspace page.
+ */
+export function ItemActionsMenu({
+    item,
+    workspaces,
+    folder,
+    active,
+    onRename,
+    variant = "row",
+    align = "start",
+}: ItemActionsMenuProps) {
+    const router = useRouter();
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+    // Rename, Delete… and New workspace… move focus elsewhere; the menu must
+    // not pull it back to its trigger as it closes.
+    const keepFocusRef = useRef(false);
+
+    const moveChart = useMoveChart();
+    const moveReport = useMoveReport();
+    const copyChart = useCopyChart();
+    const deleteChart = useDeleteChart();
+    const deleteReport = useDeleteDocument();
+
+    const noun = item.kind;
+    const label = itemLabel(item).text;
+    const moveTargets = workspaces.filter((w) => !w.isWorkshop && w.id !== item.workspaceId);
+
+    const move = (target: { id: string; name: string } | null) => {
+        const onSuccess = () =>
+            toast.success(target ? `Moved to ${target.name}` : `Removed from ${folder?.name}`);
+        if (item.kind === "chart") {
+            moveChart.mutate(
+                { chartId: item.id, targetWorkspaceId: target?.id ?? null },
+                { onSuccess },
+            );
+        } else {
+            moveReport.mutate(
+                { documentId: item.id, targetWorkspaceId: target?.id ?? null },
+                { onSuccess },
+            );
+        }
+    };
+
+    const copy = () => {
+        if (item.kind !== "chart") return;
+        copyChart.mutate(item.id, {
+            onSuccess: (copied) => {
+                toast.success("Chart copied");
+                router.push(chartPath(copied.id, item.toolType, copied.workspaceId));
+            },
+            onError: () => toast.error("Couldn't copy the chart"),
+        });
+    };
+
+    const remove = () => {
+        const onSuccess = () => {
+            setConfirmingDelete(false);
+            if (active) router.push(folder ? workspacePath(folder.id) : "/workbench");
+        };
+        const onError = () => toast.error(`Couldn't delete the ${noun}`);
+        if (item.kind === "chart") {
+            deleteChart.mutate(
+                { chartId: item.id, workspaceId: item.workspaceId },
+                { onSuccess, onError },
+            );
+        } else {
+            deleteReport.mutate(
+                { documentId: item.id, workspaceId: item.workspaceId },
+                { onSuccess, onError },
+            );
+        }
+    };
+
+    const isDeleting = deleteChart.isPending || deleteReport.isPending;
+
+    const withFocusHandoff = (action: () => void) => () => {
+        keepFocusRef.current = true;
+        action();
+    };
+
+    return (
+        <>
+            <Popover open={confirmingDelete} onOpenChange={setConfirmingDelete}>
+                <DropdownMenu modal={false}>
+                    <PopoverAnchor asChild>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`${noun === "chart" ? "Chart" : "Report"} actions`}
+                                className={cn(
+                                    variant === "row"
+                                        ? "size-6 rounded-sm text-muted-foreground/40 hover:text-foreground focus-visible:text-foreground data-[state=open]:text-foreground"
+                                        : "text-muted-foreground hover:text-foreground data-[state=open]:bg-accent",
+                                )}
+                            >
+                                <MoreVertical
+                                    className={variant === "row" ? "size-3.5" : "size-4"}
+                                />
+                            </Button>
+                        </DropdownMenuTrigger>
+                    </PopoverAnchor>
+                    <DropdownMenuContent
+                        side={variant === "row" ? "right" : "bottom"}
+                        align={align}
+                        className="w-52"
+                        onCloseAutoFocus={(e) => {
+                            if (keepFocusRef.current) e.preventDefault();
+                            keepFocusRef.current = false;
+                        }}
+                    >
+                        {item.kind === "chart" && onRename && (
+                            <DropdownMenuItem onSelect={withFocusHandoff(onRename)}>
+                                <Pencil />
+                                Rename
+                            </DropdownMenuItem>
+                        )}
+                        {item.kind === "chart" && (
+                            <DropdownMenuItem onSelect={copy} disabled={copyChart.isPending}>
+                                <Copy />
+                                Copy
+                            </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                                <FolderInput className="text-muted-foreground" />
+                                Move to workspace
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="max-h-72 w-56 overflow-y-auto">
+                                {moveTargets.map((w) => (
+                                    <DropdownMenuItem key={w.id} onSelect={() => move(w)}>
+                                        <Folder />
+                                        <span className="truncate" title={w.name}>
+                                            {w.name}
+                                        </span>
+                                    </DropdownMenuItem>
+                                ))}
+                                {moveTargets.length > 0 && <DropdownMenuSeparator />}
+                                <DropdownMenuItem
+                                    onSelect={withFocusHandoff(() => setCreatingWorkspace(true))}
+                                >
+                                    <FolderPlus />
+                                    New workspace…
+                                </DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        {folder && (
+                            <DropdownMenuItem onSelect={() => move(null)}>
+                                <FolderMinus />
+                                Remove from workspace
+                            </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onSelect={withFocusHandoff(() => setConfirmingDelete(true))}
+                            className="text-destructive focus:text-destructive [&>svg]:text-destructive"
+                        >
+                            <Trash2 />
+                            Delete…
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <PopoverContent
+                    align={align}
+                    side={variant === "row" ? "right" : "bottom"}
+                    className="w-64 p-3"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <ConfirmDelete
+                        title={`Delete this ${noun}?`}
+                        detail={
+                            <>
+                                <span className="font-medium text-foreground">{label}</span> will be
+                                deleted. You can&apos;t undo this.
+                            </>
+                        }
+                        pending={isDeleting}
+                        onCancel={() => setConfirmingDelete(false)}
+                        onConfirm={remove}
+                    />
+                </PopoverContent>
+            </Popover>
+            <CreateWorkspaceDialog
+                open={creatingWorkspace}
+                onOpenChange={setCreatingWorkspace}
+                submitLabel={`Create and move ${noun}`}
+                onCreated={(workspace) => move({ id: workspace.id, name: workspace.name })}
+            />
+        </>
+    );
+}
+
+/** The body of a delete confirmation popover. */
+export function ConfirmDelete({
+    title,
+    detail,
+    pending,
+    onCancel,
+    onConfirm,
+}: {
+    title: string;
+    detail: ReactNode;
+    pending: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
+}) {
+    return (
+        <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+                <p className="text-sm font-medium">{title}</p>
+                <p className="break-words text-sm text-muted-foreground">{detail}</p>
+            </div>
+            <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+                    Cancel
+                </Button>
+                <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={onConfirm}
+                    disabled={pending}
+                >
+                    Delete
+                </Button>
+            </div>
+        </div>
+    );
+}

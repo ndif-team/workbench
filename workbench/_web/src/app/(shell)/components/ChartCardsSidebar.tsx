@@ -24,25 +24,12 @@ import { chartPath, openWorkspacePath, reportPath } from "@/lib/chartRoutes";
 import type { WorkshopTool } from "@/db/schema";
 import ChartCard from "./ChartCard";
 import ReportCard from "./ReportCard";
-import { DeployCard, type DeployCardState } from "./DeployCard";
+import { DeployCard } from "./DeployCard";
 import { SortableEntry, entryKey, type SidebarEntry } from "./SortableEntry";
-import { useModelDeployment } from "@/stores/useModelDeployment";
-import { useModelsQuery } from "@/lib/api/modelsApi";
-import { isChartModelDeploying } from "@/hooks/useChartModelReady";
-import { isModelDeploying } from "@/components/model-selector/status";
+import { useDeployStateOf } from "./useDeployStateOf";
 import type { ChartMetadata, ToolType } from "@/types/charts";
-import type { DocumentListItem } from "@/lib/queries/documentQueries";
-import {
-    Loader2,
-    Plus,
-    PanelLeftClose,
-    PanelLeftOpen,
-    FileText,
-    Layers,
-    GitBranch,
-} from "lucide-react";
+import { Loader2, Plus, FileText, Layers, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { PatchLensIcon } from "@/components/PatchLensIcon";
 import { JLensIcon } from "@/components/JLensIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -62,14 +49,14 @@ import {
     verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 
-const SIDEBAR_COLLAPSED_KEY = "workbench_sidebar_collapsed";
-
 /**
- * The workspace-scoped sidebar: the current workspace's charts and reports,
- * plus buttons that create a chart or report in it. Reads the workspace from
- * the workspace scope, so it works inside an item route and in the shell.
+ * The workspace-scoped sidebar the shell shows on a workshop workspace's
+ * charts: that workspace's charts and reports, plus buttons that create a
+ * chart (of the workshop's allowed tools) or a report in it. Reads the
+ * workspace from the workspace scope. `collapsed` renders the rail strip; the
+ * shell owns the collapse control.
  */
-export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: boolean }) {
+export default function ChartCardsSidebar({ collapsed }: { collapsed: boolean }) {
     const { chartId } = useParams<{ chartId?: string }>();
     const workspaceId = useWorkspaceScope()?.workspaceId ?? "";
     const router = useRouter();
@@ -116,31 +103,8 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     }, [charts, reports]);
 
     // A chart whose saved model is still warming up shows *its own* row as a
-    // deploying card (instead of a second, independent one), then swaps to the
-    // normal chart card once the model is ready. Derived from the same source
-    // as the chart page's deploying panel — the persisted model + the live
-    // catalog heat + the deployment store — so the sidebar and the display area
-    // never disagree (e.g. after a reload, when the store has been cleared).
-    const deployments = useModelDeployment((s) => s.deployments);
-    const { data: models } = useModelsQuery();
-    const modelByName = useMemo(() => new Map((models ?? []).map((m) => [m.name, m])), [models]);
-    const deployStateOf = useCallback(
-        (chart: ChartMetadata): DeployCardState | null => {
-            if (!chart.model) return null;
-            const phase = deployments[chart.model]?.phase ?? "idle";
-            const catalogModel = modelByName.get(chart.model);
-            if (!isChartModelDeploying(catalogModel, phase, chart.hasData ?? false)) return null;
-            if (phase === "error") return "failed";
-            // In flight either via our own warmup or NDIF reporting it mid-load;
-            // otherwise it's simply cold/not-deployed (matches the chart panel's
-            // "Deploy" state after a reload clears the store).
-            if (phase === "submitting" || phase === "deploying" || isModelDeploying(catalogModel)) {
-                return "deploying";
-            }
-            return "cold";
-        },
-        [deployments, modelByName],
-    );
+    // deploying card, then swaps to the normal chart card once it is ready.
+    const deployStateOf = useDeployStateOf();
 
     const handleDragEnd = useCallback(
         (event: DragEndEvent) => {
@@ -162,32 +126,6 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     const cardsRef = useRef<HTMLDivElement | null>(null);
     const buttonsMeasureRef = useRef<HTMLDivElement | null>(null);
     const [canInlineButtons, setCanInlineButtons] = useState(true);
-
-    // Collapse state - persisted in localStorage
-    const [isCollapsed, setIsCollapsed] = useState(() => {
-        if (typeof window !== "undefined") {
-            return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
-        }
-        return false;
-    });
-
-    const toggleCollapse = () => {
-        const newState = !isCollapsed;
-        setIsCollapsed(newState);
-        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newState));
-    };
-
-    // Workshop participants land on a single guided task, so start with the
-    // workspace/chart list collapsed to keep focus on the tool. Applied once when
-    // the workshop lookup resolves; they can still expand it. NOT persisted —
-    // SIDEBAR_COLLAPSED_KEY is shared across workspaces, so writing it would
-    // wrongly collapse the sidebar for unrelated (non-workshop) workspaces too.
-    const appliedWorkshopCollapseRef = useRef(false);
-    useEffect(() => {
-        if (appliedWorkshopCollapseRef.current || !workshop) return;
-        appliedWorkshopCollapseRef.current = true;
-        setIsCollapsed(true);
-    }, [workshop]);
 
     useEffect(() => {
         const listEl = listRef.current;
@@ -419,27 +357,11 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
         </div>
     );
 
-    // Collapsed view - just a thin strip with expand button at top
-    if (isCollapsed && !fillWidth) {
+    // Collapsed: a strip of create buttons under the shell's expand control.
+    if (collapsed) {
         return (
-            <div className="flex h-full flex-col w-10 p-2 pt-0 items-center transition-all duration-300 ease-in-out">
-                {/* Expand button - top. Full opacity + a distinct "open" icon and a
-                    separator set it apart from the create-action icons below, which
-                    otherwise look identical and hide the way to reopen the sidebar. */}
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={toggleCollapse}
-                    className="mt-2 h-7 w-7 hover:bg-muted"
-                    title="Expand sidebar"
-                >
-                    <PanelLeftOpen className="h-4 w-4" />
-                </Button>
-
-                <Separator className="my-2 w-6" />
-
-                {/* Action buttons - below expand */}
-                <div className="flex flex-col items-center gap-2 mt-3">
+            <div className="flex h-full flex-col items-center p-2 pt-0">
+                <div className="flex flex-col items-center gap-2">
                     {toolButtons.map(({ tool, title, Icon, isCreating }) => (
                         <Button
                             key={tool}
@@ -483,21 +405,7 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
     }
 
     return (
-        <div
-            className={`relative flex h-full flex-col ${fillWidth ? "w-full" : "w-[20vw]"} p-3 pt-3 transition-all duration-300 ease-in-out`}
-        >
-            {/* Collapse button - centered vertically on the right edge */}
-            {!fillWidth && (
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={toggleCollapse}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-6 w-6 rounded-full bg-background/60 hover:bg-background/90 border border-border/50 opacity-70 hover:opacity-100 transition-opacity z-10"
-                    title="Collapse sidebar"
-                >
-                    <PanelLeftClose className="h-3 w-3" />
-                </Button>
-            )}
+        <div className="relative flex h-full w-full min-h-0 flex-col p-3 pt-0">
             <div ref={listRef} className="flex-1 scrollbar-hide overflow-auto">
                 <div ref={cardsRef} className="flex flex-col gap-2">
                     {(isChartsLoading || isReportsLoading) && (
@@ -530,7 +438,10 @@ export default function ChartCardsSidebar({ fillWidth = false }: { fillWidth?: b
                                     if (entry.type === "chart") {
                                         const canDelete = (charts?.length || 0) > 1;
                                         const chart = entry.item;
-                                        const deployState = deployStateOf(chart);
+                                        const deployState = deployStateOf({
+                                            model: chart.model,
+                                            hasData: chart.hasData ?? false,
+                                        });
                                         return (
                                             <SortableEntry key={key} id={key}>
                                                 {deployState ? (

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -15,87 +17,88 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateWorkspace } from "@/lib/api/workspaceApi";
-import { useRouter } from "next/navigation";
-import { openWorkspacePath } from "@/lib/chartRoutes";
+import { workspacePath } from "@/lib/chartRoutes";
+import type { Workspace } from "@/db/schema";
 
-export function CreateWorkspaceDialog() {
-    const [open, setOpen] = useState(false);
+interface CreateWorkspaceDialogProps {
+    /** Opens the dialog; omit to control it with `open` / `onOpenChange`. */
+    trigger?: ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    /** Runs after the workspace is created. Defaults to opening its page. */
+    onCreated?: (workspace: Workspace) => void;
+    /** The dialog's primary button label. */
+    submitLabel?: string;
+}
+
+/** Names and creates a workspace (folder). Used by the sidebar, the workspaces page and "Move to workspace". */
+export function CreateWorkspaceDialog({
+    trigger,
+    open: controlledOpen,
+    onOpenChange,
+    onCreated,
+    submitLabel = "Create workspace",
+}: CreateWorkspaceDialogProps) {
+    const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+    const open = controlledOpen ?? uncontrolledOpen;
     const [name, setName] = useState("");
     const router = useRouter();
-    const createWorkspaceMutation = useCreateWorkspace();
+    const createWorkspace = useCreateWorkspace();
+
+    const setOpen = (next: boolean) => {
+        if (!next) setName("");
+        setUncontrolledOpen(next);
+        onOpenChange?.(next);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name.trim()) return;
-
+        const trimmed = name.trim();
+        if (!trimmed) return;
         try {
-            const newWorkspace = await createWorkspaceMutation.mutateAsync({
-                name: name.trim(),
-            });
-
+            const workspace = await createWorkspace.mutateAsync({ name: trimmed });
             setOpen(false);
-            setName("");
-            // Navigate to workspace - chart will be created automatically
-            router.push(openWorkspacePath(newWorkspace.id));
-        } catch (error) {
-            console.error("Failed to create workspace:", error);
-            // You might want to show a toast notification here
+            if (onCreated) onCreated(workspace);
+            else router.push(workspacePath(workspace.id));
+        } catch {
+            toast.error("Couldn't create the workspace");
         }
-    };
-
-    const handleOpenChange = (newOpen: boolean) => {
-        if (!newOpen) {
-            setName("");
-        }
-        setOpen(newOpen);
     };
 
     return (
-        <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogTrigger asChild>
-                <Button
-                    variant="outline"
-                    className="px-4 py-3 border bg-blue-500/10 hover:bg-blue-400/40 border-blue-400/40 hover:border-blue-400 transition-all flex items-center gap-2"
-                >
-                    <Plus className="h-4 w-4" />
-                    workspace
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+        <Dialog open={open} onOpenChange={setOpen}>
+            {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+            <DialogContent className="sm:max-w-[400px]">
                 <DialogHeader>
-                    <DialogTitle>Create New Workspace</DialogTitle>
+                    <DialogTitle>New workspace</DialogTitle>
                     <DialogDescription>
-                        Create a new workspace to start exploring your model's behavior. You can add
-                        Logit Lens and Activation Patching collections after creation.
+                        A workspace groups related charts and reports, like a project folder.
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-3">
-                            <Label htmlFor="name">Workspace Name</Label>
-                            <Input
-                                id="name"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="Enter workspace name..."
-                                required
-                            />
-                        </div>
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="workspace-name">Name</Label>
+                        <Input
+                            id="workspace-name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="e.g. IOI circuit"
+                            autoComplete="off"
+                            autoFocus
+                            required
+                        />
                     </div>
                     <DialogFooter>
                         <Button
                             type="button"
                             variant="outline"
                             onClick={() => setOpen(false)}
-                            disabled={createWorkspaceMutation.isPending}
+                            disabled={createWorkspace.isPending}
                         >
                             Cancel
                         </Button>
-                        <Button
-                            type="submit"
-                            disabled={!name.trim() || createWorkspaceMutation.isPending}
-                        >
-                            {createWorkspaceMutation.isPending ? "Creating..." : "Create Workspace"}
+                        <Button type="submit" disabled={!name.trim() || createWorkspace.isPending}>
+                            {createWorkspace.isPending ? "Creating…" : submitLabel}
                         </Button>
                     </DialogFooter>
                 </form>

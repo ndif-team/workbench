@@ -1,5 +1,6 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChartWorkspaceScope } from "@/app/(shell)/components/WorkspaceScopes";
+import { ItemPage } from "@/app/(shell)/components/items/ItemPage";
 
 export default async function ActivationPatchingLayout({
     children,
@@ -11,7 +12,9 @@ export default async function ActivationPatchingLayout({
     const { chartId } = await params;
     return (
         <ChartWorkspaceScope chartId={chartId}>
-            <TooltipProvider>{children}</TooltipProvider>
+            <TooltipProvider>
+                <ItemPage item={{ kind: "chart", id: chartId }}>{children}</ItemPage>
+            </TooltipProvider>
         </ChartWorkspaceScope>
     );
 }

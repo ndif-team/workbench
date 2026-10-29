@@ -4,11 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import ChartCardsSidebar from "../../components/ChartCardsSidebar";
 import PatchLensArea from "./components/PatchLensArea";
 import { PatchLensDisplay } from "./components/PatchLensDisplay";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { MobileSidebarDrawer } from "../../components/MobileSidebarDrawer";
 import { MobileCollapsibleControls } from "../../components/MobileCollapsibleControls";
 import { GitBranch } from "lucide-react";
 import { PatchLensResult } from "@/lib/api/patchLensApi";
@@ -214,7 +212,7 @@ export default function PatchLensChartPage() {
         return (
             <TutorialEventProvider>
                 <TutorialSpotlightProvider>
-                    <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pb-20 gap-2">
+                    <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pt-0 gap-2">
                         <MobileCollapsibleControls
                             label="Patch Lens"
                             icon={GitBranch}
@@ -241,7 +239,6 @@ export default function PatchLensChartPage() {
                                 lensResult={lensResult}
                             />
                         </div>
-                        <MobileSidebarDrawer />
                     </div>
                 </TutorialSpotlightProvider>
             </TutorialEventProvider>
@@ -253,8 +250,7 @@ export default function PatchLensChartPage() {
             <TutorialSpotlightProvider>
                 <TutorialDockProvider>
                     <div className="size-full flex min-h-0">
-                        <ChartCardsSidebar />
-                        <div className="flex-1 min-w-0 min-h-0 pb-3 pr-3 flex">
+                        <div className="flex-1 min-w-0 min-h-0 pb-3 px-3 flex">
                             <ResizablePanelGroup
                                 direction="horizontal"
                                 className="flex h-full flex-1 min-w-0 rounded dark:bg-secondary/50 bg-secondary/80 border"

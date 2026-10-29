@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
     deleteChart,
     createLogitLensChartPair,
@@ -12,6 +13,18 @@ import { LogitLensConfigData } from "@/types/logitLens";
 import { JLensConfigData } from "@/types/jlens";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
 import { queryKeys } from "../queryKeys";
+import type { WorkspaceLibrary } from "@/types/workspaces";
+
+/** The library with one chart renamed, so the sidebar shows a rename before the refetch lands. */
+const renameInLibrary = (library: WorkspaceLibrary, chartId: string, name: string) => {
+    const rename = <T extends WorkspaceLibrary["defaultItems"][number]>(item: T): T =>
+        item.kind === "chart" && item.id === chartId ? { ...item, name } : item;
+    return {
+        ...library,
+        defaultItems: library.defaultItems.map(rename),
+        workspaces: library.workspaces.map((w) => ({ ...w, items: w.items.map(rename) })),
+    };
+};
 
 export const useUpdateChartName = () => {
     const queryClient = useQueryClient();
@@ -19,6 +32,11 @@ export const useUpdateChartName = () => {
     return useMutation({
         mutationFn: async ({ chartId, name }: { chartId: string; name: string }) => {
             return await updateChartName(chartId, name);
+        },
+        onMutate: ({ chartId, name }) => {
+            queryClient.setQueryData<WorkspaceLibrary>(queryKeys.workspaces.library, (library) =>
+                library ? renameInLibrary(library, chartId, name) : library,
+            );
         },
         onSuccess: (data, variables) => {
             const chartKey = queryKeys.charts.chart(variables.chartId);
@@ -34,6 +52,10 @@ export const useUpdateChartName = () => {
                     queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
             }
+        },
+        onError: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
+            toast.error("Couldn't rename the chart");
         },
     });
 };

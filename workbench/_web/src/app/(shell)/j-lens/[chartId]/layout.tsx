@@ -1,4 +1,5 @@
 import { ChartWorkspaceScope } from "@/app/(shell)/components/WorkspaceScopes";
+import { ItemPage } from "@/app/(shell)/components/items/ItemPage";
 
 export default async function JLensChartLayout({
     children,
@@ -8,5 +9,9 @@ export default async function JLensChartLayout({
     params: Promise<{ chartId: string }>;
 }) {
     const { chartId } = await params;
-    return <ChartWorkspaceScope chartId={chartId}>{children}</ChartWorkspaceScope>;
+    return (
+        <ChartWorkspaceScope chartId={chartId}>
+            <ItemPage item={{ kind: "chart", id: chartId }}>{children}</ItemPage>
+        </ChartWorkspaceScope>
+    );
 }
