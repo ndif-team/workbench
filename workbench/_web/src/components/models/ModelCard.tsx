@@ -118,7 +118,7 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
                 </span>
             </div>
 
-            <div className="flex flex-col">
+            <div className={cn("flex flex-col", m.has_jacobian && "pr-12 sm:pr-14")}>
                 <span className="text-xs text-muted-foreground truncate leading-tight">
                     {m.org}
                 </span>

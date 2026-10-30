@@ -6,7 +6,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getModels, useModelsQuery } from "@/lib/api/modelsApi";
 import { queryKeys } from "@/lib/queryKeys";
 import type { Model } from "@/types/models";
-import { cn } from "@/lib/utils";
 import {
     deriveHeat,
     FILTERABLE_HEAT,
@@ -15,11 +14,10 @@ import {
     type ModelHeat,
 } from "@/components/model-selector/status";
 import { useModelDeployment } from "@/stores/useModelDeployment";
-import { ModelRowCarousel, useCarouselScroll, CarouselControls } from "./ModelRowCarousel";
 import { ModelsSectionHeader } from "./ModelsSectionHeader";
 import { ModelsFetchErrorBanner } from "./ModelsFetchErrorBanner";
 import { ModelLaunchDialog, type ModelLaunchMode } from "./ModelLaunchDialog";
-import type { ModelCardModel } from "./ModelCard";
+import { ModelCard, type ModelCardModel } from "./ModelCard";
 
 const URL_STATUS = "models_status";
 const URL_GROUP = "models_group";
@@ -90,9 +88,14 @@ interface ModelsSectionProps {
     isSignedIn?: boolean;
 }
 
+/**
+ * The models the backend serves, as a filterable grid in a panel that fills
+ * the page: hottest first, filters (type, status, search) mirrored to the URL.
+ * A card opens the launch dialog (or deploys a cold model).
+ */
 export function ModelsSection({
     cardHref = (m) => `https://huggingface.co/${m.org}/${m.name}`,
-    onCardClick,
+    onCardClick: onCardClickProp,
     isSignedIn = true,
 }: ModelsSectionProps) {
     const router = useRouter();
@@ -219,11 +222,6 @@ export function ModelsSection({
             .sort(byHeat);
     }, [cards, query, statusFilters, groupFilters]);
 
-    // Carousel scroll state lives here so its nav controls can render up in the
-    // section header (next to the filters) rather than above the row. Re-measure
-    // whenever the visible list changes.
-    const { scrollRef, progress, hasOverflow, scrollByPage } = useCarouselScroll(filtered);
-
     // Local retry-in-flight flag. Drives the banner spinner reliably, since
     // `useModelsQuery` has `enabled: false` and its observer's `isFetching`
     // doesn't track manual `queryClient.fetchQuery` calls cleanly.
@@ -248,17 +246,17 @@ export function ModelsSection({
             .finally(() => setIsRetrying(false));
     }, [queryClient]);
 
+    const onCardClick =
+        onCardClickProp ??
+        ((m: ModelCardModel) =>
+            setDialog({ model: m, mode: m.heat === "cold" ? "deploy" : "launch" }));
+
     return (
         <section
-            className={cn(
-                "relative rounded-xl border-2 overflow-hidden",
-                "bg-card/65 dark:bg-card/55 border-border/75",
-                "shadow-[0_16px_40px_-14px_hsl(var(--primary)/0.18),0_4px_12px_-2px_hsl(0_0%_0%/0.05)]",
-                "dark:shadow-[0_18px_44px_-14px_hsl(var(--primary)/0.28),0_4px_16px_hsl(0_0%_0%/0.35)]",
-            )}
             aria-label="Models"
+            className="flex h-full min-h-0 flex-col rounded border bg-secondary/80 dark:bg-secondary/50"
         >
-            <div className="px-4 py-4">
+            <div className="border-b p-3">
                 <ModelsSectionHeader
                     total={cards.length}
                     filteredTotal={filtered.length}
@@ -270,15 +268,10 @@ export function ModelsSection({
                     onToggleStatus={onToggleStatus}
                     groupFilters={groupFilters}
                     onToggleGroup={onToggleGroup}
-                    scrollControls={
-                        hasOverflow ? (
-                            <CarouselControls progress={progress} scrollByPage={scrollByPage} />
-                        ) : null
-                    }
                 />
             </div>
 
-            <div className="p-3 pt-1">
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
                 {isLoading && !rawModels ? (
                     <div className="py-8 text-center text-xs text-muted-foreground">
                         Loading models…
@@ -294,25 +287,17 @@ export function ModelsSection({
                         No models match the current filters.
                     </div>
                 ) : (
-                    // Base and chat share one scroller now — the card's
-                    // group pill already signals the family, so a hard
-                    // section split isn't needed. Three rows deep.
-                    <ModelRowCarousel
-                        models={filtered}
-                        rows={3}
-                        scrollRef={scrollRef}
-                        progress={progress}
-                        hasOverflow={hasOverflow}
-                        cardHref={cardHref}
-                        onCardClick={
-                            onCardClick ??
-                            ((m) =>
-                                setDialog({
-                                    model: m,
-                                    mode: m.heat === "cold" ? "deploy" : "launch",
-                                }))
-                        }
-                    />
+                    <ul className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3">
+                        {filtered.map((m) => (
+                            <li key={`${m.org}/${m.name}`} className="flex">
+                                <ModelCard
+                                    m={m}
+                                    onClick={() => onCardClick(m)}
+                                    href={cardHref(m)}
+                                />
+                            </li>
+                        ))}
+                    </ul>
                 )}
             </div>
 

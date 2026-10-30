@@ -20,7 +20,7 @@ export default async function ModelsPage() {
     return (
         <div className="flex size-full min-h-0 flex-col">
             <ModelsPageHeader />
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-6">
+            <div className="min-h-0 flex-1 px-3 pb-3">
                 <ModelsSection isSignedIn={isSignedIn} />
             </div>
         </div>
