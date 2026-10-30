@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useGetDocument, useSaveDocument } from "@/lib/api/documentApi";
 
@@ -83,6 +83,8 @@ export function Editor() {
     };
 
     const [isQueuedToSave, setIsQueuedToSave] = useState(false);
+    // The editor's scroll area: charts dropped anywhere on it are embedded.
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     const debouncedSave = useDebouncedCallback(
         async (editorState: EditorState) => {
@@ -149,7 +151,7 @@ export function Editor() {
             <LexicalComposer initialConfig={initialConfig}>
                 <div className="flex flex-col flex-1 min-h-0">
                     {/* Toolbar removed; rely on Markdown shortcuts */}
-                    <div className="flex-1 overflow-auto">
+                    <div ref={scrollRef} className="flex-1 overflow-auto">
                         <div className="relative max-w-4xl mx-auto p-4">
                             <RichTextPlugin
                                 contentEditable={
@@ -164,7 +166,7 @@ export function Editor() {
                             {/* <LinkPlugin /> */}
                             <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
                             <AutoFocusPlugin />
-                            <DragDropChartPlugin />
+                            <DragDropChartPlugin dropZoneRef={scrollRef} />
                         </div>
                     </div>
                 </div>
