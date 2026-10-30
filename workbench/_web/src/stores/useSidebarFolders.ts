@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
 /** The global sidebar's two collapsible sections. */
-export type SidebarSection = "workspaces" | "charts";
+type SidebarSection = "workspaces" | "charts";
 
 interface SidebarFoldersState {
     /** Workspace ids whose folder is expanded in the global sidebar. */
