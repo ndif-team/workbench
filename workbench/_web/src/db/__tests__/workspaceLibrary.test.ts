@@ -36,7 +36,7 @@ import {
 import { getConfigForChart } from "@/lib/queries/chartQueries";
 import { createLogitLensChartPair, createPatchLensChartPair } from "@/lib/queries/chartDb";
 import { createDocument, updateDocument } from "@/lib/queries/documentDb";
-import { setConfig } from "@/lib/queries/configQueries";
+import { setConfig } from "@/lib/queries/configDb";
 import { createLensRun } from "@/lib/queries/lensRunDb";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import type { LensRunHeatmaps, LensRunSummary } from "@/types/lensRun";
@@ -579,7 +579,7 @@ describe("moves", () => {
             summary: {} as LensRunSummary,
             heatmaps: {} as LensRunHeatmaps,
         });
-        await setConfig(config.id, {
+        await setConfig(USER, config.id, {
             workspaceId: def.id,
             type: "logit-lens",
             data: lensConfig("Edited after the move"),

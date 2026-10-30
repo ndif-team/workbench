@@ -34,7 +34,7 @@ import {
     copyChart,
 } from "@/lib/queries/chartDb";
 
-import { getConfigs, setConfig, deleteConfig } from "@/lib/queries/configQueries";
+import { setConfig } from "@/lib/queries/configDb";
 
 import {
     getDocumentById,
@@ -336,7 +336,6 @@ describe("Chart Queries", () => {
         expect(metadata.chartType).toBe("logit-lens");
         expect((await getChartById(legacy.id))!.type).toBe("logit-lens");
         expect((await getConfigForChart(legacy.id))!.type).toBe("logit-lens");
-        expect((await getConfigs(legacy.id))[0].type).toBe("logit-lens");
     });
 
     it("should write the current type when copying a legacy lens2 chart", async () => {
@@ -415,16 +414,14 @@ describe("Config Queries", () => {
         chartId = chart.id;
     });
 
-    it("should get configs for a chart", async () => {
-        const configs = await getConfigs(chartId);
+    it("should get the config for a chart", async () => {
+        const config = await getConfigForChart(chartId);
 
-        expect(configs).toHaveLength(1);
-        expect(configs[0].type).toBe("logit-lens");
+        expect(config!.type).toBe("logit-lens");
     });
 
     it("should update config data", async () => {
-        const configs = await getConfigs(chartId);
-        const configId = configs[0].id;
+        const configId = (await getConfigForChart(chartId))!.id;
 
         const updatedData: LogitLensConfigData = {
             prompt: "updated prompt",
@@ -433,37 +430,25 @@ describe("Config Queries", () => {
             includeEntropy: false,
         };
 
-        await setConfig(configId, {
+        await setConfig(TEST_USER_ID, configId, {
             workspaceId,
             type: "logit-lens",
             data: updatedData,
         });
 
-        const updatedConfigs = await getConfigs(chartId);
-        expect(updatedConfigs[0].data).toEqual(updatedData);
+        expect((await getConfigForChart(chartId))!.data).toEqual(updatedData);
     });
 
     it("should store the current type when setting a config with legacy lens2", async () => {
-        const [config] = await getConfigs(chartId);
+        const config = (await getConfigForChart(chartId))!;
 
-        await setConfig(config.id, {
+        await setConfig(TEST_USER_ID, config.id, {
             workspaceId,
             type: "lens2",
             data: createTestLensConfig("legacy"),
         });
 
         expect(await storedConfigType(chartId)).toBe("logit-lens");
-    });
-
-    it("should delete a config", async () => {
-        const configs = await getConfigs(chartId);
-        const configId = configs[0].id;
-
-        await deleteConfig(configId);
-
-        // Note: This doesn't clean up the link, just the config
-        const remainingConfigs = await getConfigs(chartId);
-        expect(remainingConfigs).toHaveLength(0);
     });
 });
 

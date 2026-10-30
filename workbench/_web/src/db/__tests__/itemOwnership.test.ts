@@ -1,19 +1,20 @@
 /**
- * Integration tests for the owner checks on chart, report and lens-run
- * writes, on SQLite.
+ * Integration tests for the owner checks on chart, report, lens-run and
+ * config writes, on SQLite.
  *
- * The "use server" wrappers in chartQueries.ts, documentQueries.ts and
- * lensRunQueries.ts pass the signed-in user to the internals in chartDb.ts,
- * documentDb.ts and lensRunDb.ts; these tests call the internals with one
- * user against another user's rows (and a workshop participant against their
- * own workshop workspace, which must keep working).
+ * The "use server" wrappers in chartQueries.ts, documentQueries.ts,
+ * lensRunQueries.ts and configQueries.ts pass the signed-in user to the
+ * internals in chartDb.ts, documentDb.ts, lensRunDb.ts and configDb.ts; these
+ * tests call the internals with one user against another user's rows (and a
+ * workshop participant against their own workshop workspace, which must keep
+ * working).
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import type { SerializedEditorState } from "lexical";
 import { db, clearDatabase } from "../client";
-import { charts, documents, lensRuns } from "../schema";
+import { charts, configs, documents, lensRuns } from "../schema";
 import {
     assertChartWorkspace,
     copyChart,
@@ -23,6 +24,7 @@ import {
     renameChart,
     setChartData,
 } from "@/lib/queries/chartDb";
+import { setConfig } from "@/lib/queries/configDb";
 import { createDocument, deleteDocument, updateDocument } from "@/lib/queries/documentDb";
 import {
     clearLensRunsForChart,
@@ -62,6 +64,16 @@ const chartRow = async (chartId: string) =>
 
 const documentRow = async (documentId: string) =>
     (await db.select().from(documents).where(eq(documents.id, documentId)))[0];
+
+const configRow = async (configId: string) =>
+    (await db.select().from(configs).where(eq(configs.id, configId)))[0];
+
+/** A logit lens config save, as the config editor sends it. */
+const savedConfig = (workspaceId: string, prompt: string) => ({
+    workspaceId,
+    type: "logit-lens" as const,
+    data: { ...lensConfig, prompt },
+});
 
 const chartRuns = async (chartId: string) =>
     db.select().from(lensRuns).where(eq(lensRuns.chartId, chartId));
@@ -269,5 +281,58 @@ describe("lens run writes", () => {
         expect(listed.summary.intervention?.tgtLayer).toBe(12);
         expect(await getLensRunHeatmaps(participant, run.id)).not.toBeNull();
         await expect(patchRun(INTRUDER, run.id)).rejects.toThrow("access denied");
+    });
+});
+
+describe("config writes", () => {
+    let workspaceId: string;
+    let configId: string;
+
+    beforeEach(async () => {
+        await clearDatabase();
+        workspaceId = (await createWorkspace(OWNER, "Mine")).id;
+        configId = (await createLogitLensChartPair(workspaceId, lensConfig)).config.id;
+        await createWorkspace(INTRUDER, "Theirs");
+    });
+
+    it("refuse another user's save", async () => {
+        await expect(
+            setConfig(INTRUDER, configId, savedConfig(workspaceId, "Hacked")),
+        ).rejects.toThrow("access denied");
+
+        expect((await configRow(configId)).data).toEqual(lensConfig);
+    });
+
+    it("let the owner save", async () => {
+        await setConfig(OWNER, configId, savedConfig(workspaceId, "Edited"));
+
+        expect((await configRow(configId)).data).toMatchObject({ prompt: "Edited" });
+    });
+
+    it("throw for a config that doesn't exist or no chart links", async () => {
+        await expect(setConfig(OWNER, "missing", savedConfig(workspaceId, "x"))).rejects.toThrow(
+            "Config not found",
+        );
+        const [unlinked] = await db
+            .insert(configs)
+            .values({ workspaceId, type: "logit-lens", data: lensConfig })
+            .returning();
+        await expect(setConfig(OWNER, unlinked.id, savedConfig(workspaceId, "x"))).rejects.toThrow(
+            "Config not found",
+        );
+    });
+
+    it("keep working for a participant in their own workshop workspace", async () => {
+        const workshop = await createWorkshop(workshopInput(["logit-lens"]));
+        const participant = "anon-participant";
+        const ws = await createWorkspace(participant, "Pilot", workshop.id);
+        const own = (await createLogitLensChartPair(ws.id, lensConfig)).config.id;
+
+        await setConfig(participant, own, savedConfig(ws.id, "My guided prompt"));
+
+        expect((await configRow(own)).data).toMatchObject({ prompt: "My guided prompt" });
+        await expect(setConfig(INTRUDER, own, savedConfig(ws.id, "Hacked"))).rejects.toThrow(
+            "access denied",
+        );
     });
 });

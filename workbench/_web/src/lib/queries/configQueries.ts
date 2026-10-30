@@ -1,34 +1,16 @@
 "use server";
 
-import { db } from "@/db/client";
-import { eq } from "drizzle-orm";
-import { configs, NewConfig, Config, chartConfigLinks } from "@/db/schema";
-import { normalizeToolType } from "@/types/charts";
+import type { NewConfig } from "@/db/schema";
+import { requireUserId } from "@/lib/auth/user";
+import * as configDb from "@/lib/queries/configDb";
 
 /**
- * Saves a config's payload and type. Its workspace isn't written: it follows
- * the chart (`moveChart` moves it), so a `workspaceId` sent from a page whose
- * scope predates a move is ignored.
+ * The config RPC surface. Every export is a public endpoint: it resolves the
+ * signed-in user and acts only on the configs of their charts (the unguarded
+ * internals live in configDb.ts).
  */
-export const setConfig = async (configId: string, config: NewConfig): Promise<void> => {
-    await db
-        .update(configs)
-        .set({ data: config.data, type: normalizeToolType(config.type) })
-        .where(eq(configs.id, configId));
-};
 
-export const deleteConfig = async (configId: string): Promise<void> => {
-    await db.delete(configs).where(eq(configs.id, configId));
-};
-
-export const getConfigs = async (chartId: string): Promise<Config[]> => {
-    const configsData = await db
-        .select()
-        .from(configs)
-        .innerJoin(chartConfigLinks, eq(configs.id, chartConfigLinks.configId))
-        .where(eq(chartConfigLinks.chartId, chartId));
-    return configsData.map(
-        (data: { configs: Config }) =>
-            ({ ...data.configs, type: normalizeToolType(data.configs.type) }) as Config,
-    );
-};
+/** Saves the payload and type of the config of one of the signed-in user's charts. */
+export async function setConfig(configId: string, config: NewConfig): Promise<void> {
+    return configDb.setConfig(await requireUserId(), configId, config);
+}
