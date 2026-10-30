@@ -7,7 +7,7 @@
  */
 
 import type { SerializedEditorState } from "lexical";
-import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
+import type { Content, ContentText, TDocumentDefinitions } from "pdfmake/interfaces";
 
 /** A chart as the PDF shows it, keyed by chart id. */
 export type ReportPdfChart = {
@@ -34,7 +34,8 @@ type LexNode = {
     chartId?: string;
 };
 
-type Run = Exclude<Content, string> & { text: string };
+/** An inline text run (pdfmake nests these in a block's `text`). */
+type Run = ContentText & { text: string };
 
 // US Letter, with the content box these margins leave.
 const PAGE_MARGINS: [number, number, number, number] = [64, 60, 64, 64];
@@ -113,9 +114,11 @@ function textRun(node: LexNode, extra: Partial<Run>): Run {
     const run: Run = { text: pdfText(node.text ?? "").replace(/\t/g, "    ") };
     if (f & BOLD) run.bold = true;
     if (f & ITALIC) run.italics = true;
-    const decoration = [f & UNDERLINE && "underline", f & STRIKETHROUGH && "lineThrough"].filter(
-        Boolean,
-    ) as ("underline" | "lineThrough")[];
+    // A link is underlined on top of the text's own decoration.
+    const decoration = [
+        (f & UNDERLINE || extra.link) && "underline",
+        f & STRIKETHROUGH && "lineThrough",
+    ].filter(Boolean) as ("underline" | "lineThrough")[];
     if (decoration.length) run.decoration = decoration.length === 1 ? decoration[0] : decoration;
     if (f & CODE) Object.assign(run, { font: "Courier", fontSize: 9.5, background: SURFACE });
     if (f & SUBSCRIPT) run.sub = true;
@@ -123,6 +126,13 @@ function textRun(node: LexNode, extra: Partial<Run>): Run {
     if (f & HIGHLIGHT) run.background = "#fef08a";
     return { ...run, ...extra };
 }
+
+/** Link a run only to web and mail addresses, not e.g. `javascript:`. */
+function linkTarget(url: string | undefined): { link?: string } {
+    return url && /^(https?:|mailto:)/i.test(url.trim()) ? { link: url.trim() } : {};
+}
+
+const INLINE_TYPES = new Set(["text", "code-highlight", "linebreak", "tab", "link", "autolink"]);
 
 /** Inline content of a block as text runs. Chart embeds are left to the
  *  block level. */
@@ -143,12 +153,7 @@ function inlines(nodes: LexNode[] | undefined, extra: Partial<Run> = {}): Run[] 
             case "link":
             case "autolink":
                 runs.push(
-                    ...inlines(node.children, {
-                        ...extra,
-                        ...(node.url ? { link: node.url } : {}),
-                        color: LINK,
-                        decoration: "underline",
-                    }),
+                    ...inlines(node.children, { ...extra, ...linkTarget(node.url), color: LINK }),
                 );
                 break;
             case "chart-embed":
@@ -359,8 +364,16 @@ function blocks(nodes: LexNode[], charts: Map<string, ReportPdfChart>): Content[
                     margin: [0, 6, 0, 12],
                 });
                 break;
-            default:
-                if (node.children) out.push(...blocks(node.children, charts));
+            default: {
+                // A block type this mapping doesn't know: its text as a
+                // paragraph, or its child blocks.
+                const kids = node.children ?? [];
+                if (kids.some((c) => INLINE_TYPES.has(c.type))) {
+                    out.push({ text: textOrSpace(inlines(kids)), margin: indentMargin(node, 8) });
+                } else {
+                    out.push(...blocks(kids, charts));
+                }
+            }
         }
     }
     return out;

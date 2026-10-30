@@ -11,6 +11,7 @@ import {
     type Spread,
 } from "lexical";
 import * as React from "react";
+import { $dfs } from "@lexical/utils";
 import { normalizeToolType } from "@/types/charts";
 import { ChartEmbed } from "../embed/ChartEmbed";
 
@@ -103,18 +104,34 @@ export function $isChartEmbedNode(node: LexicalNode | null | undefined): node is
 }
 
 /**
- * Move an embed nested in a block (a paragraph, as older documents saved it)
- * to just after that top-level block, dropping the block if that empties it.
- * An embed left as the document's last block gets an empty paragraph after
- * it, so there is somewhere to keep writing.
+ * Move embeds nested in a block (a paragraph, as older documents saved them)
+ * to just after that top-level block: all of the block's embeds at once, in
+ * document order, dropping whatever the move left empty (the paragraph, or a
+ * list item and its list). An embed left as the document's last block gets an
+ * empty paragraph after it, so there is somewhere to keep writing.
  */
 export function $hoistChartEmbed(node: ChartEmbedNode): void {
     const parent = node.getParent();
     if (parent === null) return;
     if (!$isRootOrShadowRoot(parent)) {
         const block = node.getTopLevelElementOrThrow() as ElementNode;
-        block.insertAfter(node);
-        if (block.isEmpty()) block.remove();
+        const embeds = $dfs(block)
+            .map(({ node: n }) => n)
+            .filter($isChartEmbedNode);
+        const emptied = embeds.map((embed) => embed.getParentOrThrow());
+        let anchor: LexicalNode = block;
+        for (const embed of embeds) {
+            anchor.insertAfter(embed);
+            anchor = embed;
+        }
+        for (const from of emptied) {
+            let el: ElementNode | null = from;
+            while (el && !$isRootOrShadowRoot(el) && el.isAttached() && el.isEmpty()) {
+                const up: ElementNode | null = el.getParent();
+                el.remove();
+                el = up;
+            }
+        }
     }
     if (node.getNextSibling() === null) node.insertAfter($createParagraphNode());
 }

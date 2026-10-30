@@ -18,7 +18,7 @@ const doc = (...children: N[]) =>
 const embed = (chartId: string): N => ({ type: "chart-embed", chartId, chartType: "logit-lens" });
 
 function content(state: SerializedEditorState, charts = new Map<string, ReportPdfChart>()) {
-    return reportPdfDefinition(state, { title: "T", charts }).content as N[];
+    return reportPdfDefinition(state, { title: "T", charts }).content as unknown as N[];
 }
 
 describe("reportChartIds", () => {
@@ -77,6 +77,28 @@ describe("reportPdfDefinition", () => {
             link: "https://ndif.us",
             decoration: "underline",
         });
+    });
+
+    it("underlines a link on top of its text's strikethrough, and links only web/mail URLs", () => {
+        const [p] = content(
+            doc(
+                block("paragraph", [
+                    block("link", [text("old", 4)], { url: "https://a.org" }),
+                    block("link", [text("bad")], { url: "javascript:alert(1)" }),
+                ]),
+            ),
+        );
+        const [old, bad] = p.text as N[];
+        expect(old).toMatchObject({
+            link: "https://a.org",
+            decoration: ["underline", "lineThrough"],
+        });
+        expect(bad.link).toBeUndefined();
+    });
+
+    it("keeps the text of a block type it doesn't know", () => {
+        const [p] = content(doc(block("callout", [text("note this")])));
+        expect(p.text).toEqual([{ text: "note this" }]);
     });
 
     it("keeps an empty paragraph as a blank line", () => {

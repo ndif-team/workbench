@@ -8,6 +8,8 @@ import {
     type LexicalNode,
 } from "lexical";
 
+import { $createListItemNode, $createListNode, ListItemNode, ListNode } from "@lexical/list";
+
 import { $createChartEmbedNode, $hoistChartEmbed, ChartEmbedNode } from "../ChartEmbedNode";
 
 const editor = createEditor({
@@ -59,7 +61,7 @@ describe("$hoistChartEmbed", () => {
      *  as "type" or "type:text". */
     function blocksAfter(build: () => void): string[] {
         const hoisting = createEditor({
-            nodes: [ChartEmbedNode],
+            nodes: [ChartEmbedNode, ListNode, ListItemNode],
             onError: (error) => {
                 throw error;
             },
@@ -75,7 +77,23 @@ describe("$hoistChartEmbed", () => {
                 ),
         );
     }
-    const embed = () => $createChartEmbedNode({ chartId: "chart-1", chartType: "logit-lens" });
+    const embed = (chartId = "chart-1") =>
+        $createChartEmbedNode({ chartId, chartType: "logit-lens" });
+    const chartIds = (build: () => void) => {
+        const hoisting = createEditor({
+            nodes: [ChartEmbedNode],
+            onError: (error) => {
+                throw error;
+            },
+        });
+        hoisting.registerNodeTransform(ChartEmbedNode, $hoistChartEmbed);
+        hoisting.update(build, { discrete: true });
+        return hoisting.getEditorState().read(() =>
+            $getRoot()
+                .getChildren()
+                .map((n) => (n as ChartEmbedNode).__chartId ?? n.getType()),
+        );
+    };
     const paragraph = (text?: string) => {
         const p = $createParagraphNode();
         if (text) p.append($createTextNode(text));
@@ -108,5 +126,27 @@ describe("$hoistChartEmbed", () => {
                 $getRoot().clear().append(paragraph("a"), embed(), paragraph("b"));
             }),
         ).toEqual(["paragraph:a", "chart-embed", "paragraph:b"]);
+    });
+
+    it("keeps several embeds from one paragraph in their order", () => {
+        expect(
+            chartIds(() => {
+                const p = paragraph("t");
+                p.append(embed("a"), embed("b"), embed("c"));
+                $getRoot().clear().append(p, paragraph("next"));
+            }),
+        ).toEqual(["paragraph", "a", "b", "c", "paragraph"]);
+    });
+
+    it("drops a list item and list the move left empty", () => {
+        expect(
+            blocksAfter(() => {
+                const item = $createListItemNode();
+                item.append(embed());
+                const list = $createListNode("bullet");
+                list.append(item);
+                $getRoot().clear().append(list, paragraph("after"));
+            }),
+        ).toEqual(["chart-embed", "paragraph:after"]);
     });
 });

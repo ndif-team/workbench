@@ -29,16 +29,23 @@ const SNAPSHOT_HEIGHT = 360; // activation patching; the lenses take their conte
  *  saved state, or a note saying why it isn't drawn. Fetches fresh rows so
  *  the latest state is drawn. */
 async function pdfChart(queryClient: QueryClient, chartId: string): Promise<ReportPdfChart> {
-    const [chart, config] = await Promise.all([
-        queryClient.fetchQuery({
-            queryKey: queryKeys.charts.chart(chartId),
-            queryFn: () => getChartById(chartId),
-        }),
-        queryClient.fetchQuery({
-            queryKey: queryKeys.charts.configByChart(chartId),
-            queryFn: () => getConfigForChart(chartId),
-        }),
-    ]);
+    let chart, config;
+    try {
+        [chart, config] = await Promise.all([
+            queryClient.fetchQuery({
+                queryKey: queryKeys.charts.chart(chartId),
+                queryFn: () => getChartById(chartId),
+            }),
+            queryClient.fetchQuery({
+                queryKey: queryKeys.charts.configByChart(chartId),
+                queryFn: () => getConfigForChart(chartId),
+            }),
+        ]);
+    } catch (error) {
+        // One chart failing to load shouldn't fail the whole export.
+        console.error(`Failed to load chart ${chartId}:`, error);
+        return { title: "Chart", note: "This chart couldn't be loaded." };
+    }
     const tool = toolMeta(config?.type ?? chart?.type);
     const model = (config?.data as { model?: string } | undefined)?.model;
     const title = chart ? chart.name || "Untitled" : "Chart";

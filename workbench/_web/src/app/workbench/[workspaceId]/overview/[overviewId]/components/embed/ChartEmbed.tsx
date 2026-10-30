@@ -81,7 +81,7 @@ export function ChartEmbed({
     const openChart = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        window.open(chartPath(workspaceId, chartId, toolType), "_blank");
+        window.open(chartPath(workspaceId, chartId, toolType), "_blank", "noopener");
     };
 
     return (
