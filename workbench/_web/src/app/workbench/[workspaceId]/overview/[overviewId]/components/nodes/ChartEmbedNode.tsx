@@ -1,77 +1,105 @@
 "use client";
 
 import {
+    $createParagraphNode,
+    $isRootOrShadowRoot,
     DecoratorNode,
-    LexicalEditor,
-    NodeKey,
-    SerializedLexicalNode,
-    Spread,
-    $getNodeByKey,
-    KEY_BACKSPACE_COMMAND,
-    KEY_DELETE_COMMAND,
-    COMMAND_PRIORITY_LOW,
+    type ElementNode,
+    type LexicalNode,
+    type NodeKey,
+    type SerializedLexicalNode,
+    type Spread,
 } from "lexical";
 import * as React from "react";
-import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
-import { useQuery } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
-import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { mergeRegister } from "@lexical/utils";
-import { Separator } from "@/components/ui/separator";
-import { useParams } from "next/navigation";
-import { ExternalLink } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { queryKeys } from "@/lib/queryKeys";
-import { chartPath } from "@/lib/chartRoutes";
-import { toolMeta } from "@/app/workbench/[workspaceId]/components/toolMeta";
+import { $dfs } from "@lexical/utils";
 import { normalizeToolType } from "@/types/charts";
+import type { ChartLock } from "@/lib/report/chartLock";
+import { ChartEmbed } from "../embed/ChartEmbed";
 
 // Node payload. `chartType` is the chart's stored type when it was embedded;
 // documents saved before a tool was retired may still hold its old type.
+// `lock`, when set, is the view state the embed is frozen at.
 export type ChartEmbedPayload = {
     chartId: string;
     chartType: string | null;
+    lock?: ChartLock | null;
 };
 
+// Version 2 added the optional `lock`; version 1 documents load unlocked.
 export type SerializedChartEmbedNode = Spread<
-    { type: "chart-embed"; version: 1; chartId: string; chartType: string | null },
+    {
+        type: "chart-embed";
+        version: 1 | 2;
+        chartId: string;
+        chartType: string | null;
+        lock?: ChartLock;
+    },
     SerializedLexicalNode
 >;
 
-export class ChartEmbedNode extends DecoratorNode<JSX.Element> {
+/**
+ * A chart in a report: a top-level block that draws the chart from its saved
+ * state. Documents from before embeds were blocks hold it inside a paragraph;
+ * `$hoistChartEmbed` moves it out (the editor runs it as a node transform).
+ */
+export class ChartEmbedNode extends DecoratorNode<React.JSX.Element> {
     __chartId: string;
     __chartType: string | null;
+    __lock: ChartLock | null;
 
     static getType(): string {
         return "chart-embed";
     }
 
     static clone(node: ChartEmbedNode): ChartEmbedNode {
-        return new ChartEmbedNode(node.__chartId, node.__chartType, node.__key);
+        return new ChartEmbedNode(node.__chartId, node.__chartType, node.__lock, node.__key);
     }
 
-    constructor(chartId: string, chartType: string | null, key?: NodeKey) {
+    constructor(
+        chartId: string,
+        chartType: string | null,
+        lock: ChartLock | null = null,
+        key?: NodeKey,
+    ) {
         super(key);
         this.__chartId = chartId;
         this.__chartType = chartType;
+        this.__lock = lock;
     }
 
     static importJSON(serializedNode: SerializedChartEmbedNode): ChartEmbedNode {
-        const node = new ChartEmbedNode(
+        return new ChartEmbedNode(
             serializedNode.chartId,
             normalizeToolType(serializedNode.chartType),
+            serializedNode.lock ?? null,
         );
-        return node;
     }
 
     exportJSON(): SerializedChartEmbedNode {
         return {
             type: "chart-embed",
-            version: 1,
+            version: 2,
             chartId: this.__chartId,
             chartType: this.__chartType,
+            ...(this.__lock ? { lock: this.__lock } : {}),
         };
+    }
+
+    getChartId(): string {
+        return this.getLatest().__chartId;
+    }
+
+    getLock(): ChartLock | null {
+        return this.getLatest().__lock;
+    }
+
+    /** Freeze the embed at `lock`'s view state, or follow the chart (null). */
+    setLock(lock: ChartLock | null): void {
+        this.getWritable().__lock = lock;
+    }
+
+    isInline(): false {
+        return false;
     }
 
     createDOM(): HTMLElement {
@@ -84,152 +112,55 @@ export class ChartEmbedNode extends DecoratorNode<JSX.Element> {
         return false;
     }
 
-    decorate(editor: LexicalEditor, config: unknown): JSX.Element {
+    decorate(): React.JSX.Element {
         return (
-            <ChartEmbedComponent
+            <ChartEmbed
                 nodeKey={this.getKey()}
                 chartId={this.__chartId}
                 chartType={this.__chartType}
+                lock={this.__lock}
             />
         );
     }
 }
 
 export function $createChartEmbedNode(payload: ChartEmbedPayload): ChartEmbedNode {
-    return new ChartEmbedNode(payload.chartId, payload.chartType);
+    return new ChartEmbedNode(payload.chartId, payload.chartType, payload.lock ?? null);
 }
 
-// React renderer that fetches the chart and shows its name, model and status
-function ChartEmbedComponent({
-    nodeKey,
-    chartId,
-    chartType,
-}: {
-    nodeKey: NodeKey;
-    chartId: string;
-    chartType: string | null;
-}) {
-    const [editor] = useLexicalComposerContext();
-    const { workspaceId } = useParams<{ workspaceId: string }>();
-    const [isSelected, setSelected] = useLexicalNodeSelection(nodeKey);
-    const {
-        data: chart,
-        isLoading: isChartLoading,
-        isError: isChartError,
-    } = useQuery({
-        queryKey: queryKeys.charts.chart(chartId),
-        queryFn: () => getChartById(chartId),
-        enabled: !!chartId,
-        retry: 3,
-        staleTime: 1000 * 60 * 5, // 5 minutes
-    });
-    const {
-        data: config,
-        isLoading: isConfigLoading,
-        isError: isConfigError,
-    } = useQuery({
-        queryKey: queryKeys.charts.configByChart(chartId),
-        queryFn: () => getConfigForChart(chartId),
-        enabled: !!chartId,
-        retry: 3,
-        staleTime: 1000 * 60 * 5, // 5 minutes
-    });
+export function $isChartEmbedNode(node: LexicalNode | null | undefined): node is ChartEmbedNode {
+    return node instanceof ChartEmbedNode;
+}
 
-    React.useEffect(() => {
-        return mergeRegister(
-            editor.registerCommand(
-                KEY_BACKSPACE_COMMAND,
-                (event) => {
-                    if (isSelected) {
-                        event?.preventDefault();
-                        editor.update(() => {
-                            const node = $getNodeByKey(nodeKey);
-                            if (node) {
-                                node.remove();
-                            }
-                        });
-                        return true;
-                    }
-                    return false;
-                },
-                COMMAND_PRIORITY_LOW,
-            ),
-            editor.registerCommand(
-                KEY_DELETE_COMMAND,
-                (event) => {
-                    if (isSelected) {
-                        event?.preventDefault();
-                        editor.update(() => {
-                            const node = $getNodeByKey(nodeKey);
-                            if (node) {
-                                node.remove();
-                            }
-                        });
-                        return true;
-                    }
-                    return false;
-                },
-                COMMAND_PRIORITY_LOW,
-            ),
-        );
-    }, [editor, isSelected, nodeKey]);
-
-    const name = chart?.name ?? "Untitled";
-    const modelName = (config?.data as { model?: string } | undefined)?.model;
-    const toolType = config?.type ?? chart?.type ?? chartType;
-    const tool = toolMeta(toolType);
-    const hasData = chart?.data != null && Object.keys(chart.data).length > 0;
-
-    const openChart = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        window.open(chartPath(workspaceId, chartId, toolType), "_blank");
-    };
-
-    return (
-        <Card
-            className={`p-3 rounded cursor-pointer ${isSelected ? "border-primary ring-1 ring-primary" : ""}`}
-            onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setSelected(true);
-                editor.focus();
-            }}
-            tabIndex={0}
-        >
-            <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-muted-foreground">{name}</span>
-                <button
-                    className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground"
-                    onClick={openChart}
-                >
-                    Open <ExternalLink className="w-3 h-3" />
-                </button>
-            </div>
-            {modelName && (
-                <Badge
-                    className="h-5 min-w-5 rounded-md px-1 font-mono tabular-nums"
-                    variant="outline"
-                >
-                    {modelName}
-                </Badge>
-            )}
-            {isChartLoading || isConfigLoading ? (
-                <div className="text-sm text-muted-foreground">Loading chart…</div>
-            ) : isChartError || isConfigError ? (
-                <div className="text-sm text-destructive">Failed to load chart</div>
-            ) : !chart ? (
-                <div className="text-sm text-muted-foreground">Chart not found</div>
-            ) : toolType && !tool ? (
-                <div className="text-sm text-muted-foreground">Made with a retired tool</div>
-            ) : !hasData ? (
-                <div className="text-sm text-muted-foreground">Not run yet</div>
-            ) : (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    {tool && <tool.Icon className="h-3.5 w-3.5 shrink-0" />}
-                    <span>{tool ? `${tool.label} · Open to view` : "Open to view"}</span>
-                </div>
-            )}
-        </Card>
-    );
+/**
+ * Move embeds nested in a block (a paragraph, as older documents saved them)
+ * to just after that top-level block: all of the block's embeds at once, in
+ * document order, dropping whatever the move left empty (the paragraph, or a
+ * list item and its list). An embed left as the document's last block gets an
+ * empty paragraph after it, so there is somewhere to keep writing.
+ */
+export function $hoistChartEmbed(node: ChartEmbedNode): void {
+    const parent = node.getParent();
+    if (parent === null) return;
+    if (!$isRootOrShadowRoot(parent)) {
+        const block = node.getTopLevelElementOrThrow() as ElementNode;
+        const embeds = $dfs(block)
+            .map(({ node: n }) => n)
+            .filter($isChartEmbedNode);
+        const emptied = embeds.map((embed) => embed.getParentOrThrow());
+        let anchor: LexicalNode = block;
+        for (const embed of embeds) {
+            anchor.insertAfter(embed);
+            anchor = embed;
+        }
+        for (const from of emptied) {
+            let el: ElementNode | null = from;
+            while (el && !$isRootOrShadowRoot(el) && el.isAttached() && el.isEmpty()) {
+                const up: ElementNode | null = el.getParent();
+                el.remove();
+                el = up;
+            }
+        }
+    }
+    if (node.getNextSibling() === null) node.insertAfter($createParagraphNode());
 }

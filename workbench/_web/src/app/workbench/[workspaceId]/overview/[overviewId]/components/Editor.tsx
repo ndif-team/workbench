@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useGetDocument, useSaveDocument } from "@/lib/api/documentApi";
 
@@ -22,6 +22,7 @@ import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { ChartEmbedNode } from "./nodes/ChartEmbedNode";
 import { DragDropChartPlugin } from "./plugins/DragDropChartPlugin";
+import { ExportPdfButton } from "./ExportPdfButton";
 import { Check, Loader2 } from "lucide-react";
 import { useDebouncedCallback } from "use-debounce";
 
@@ -83,6 +84,8 @@ export function Editor() {
     };
 
     const [isQueuedToSave, setIsQueuedToSave] = useState(false);
+    // The editor's scroll area: charts dropped anywhere on it are embedded.
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     const debouncedSave = useDebouncedCallback(
         async (editorState: EditorState) => {
@@ -129,27 +132,28 @@ export function Editor() {
     }
 
     return (
-        <div className="h-full w-full flex flex-col">
-            <div className="flex items-center justify-end border-b h-14 px-3 py-3">
-                <div className="text-xs text-muted-foreground inline-flex items-center gap-2 px-3">
-                    {isQueuedToSave || mutation.isPending ? (
-                        <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            <span>Saving</span>
-                        </>
-                    ) : (
-                        <>
-                            <Check className="h-3.5 w-3.5" />
-                            <span>Saved</span>
-                        </>
-                    )}
+        <LexicalComposer initialConfig={initialConfig}>
+            <div className="h-full w-full flex flex-col">
+                <div className="flex items-center justify-end gap-2 border-b h-14 px-3 py-3">
+                    <div className="text-xs text-muted-foreground inline-flex items-center gap-2 px-3">
+                        {isQueuedToSave || mutation.isPending ? (
+                            <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                <span>Saving</span>
+                            </>
+                        ) : (
+                            <>
+                                <Check className="h-3.5 w-3.5" />
+                                <span>Saved</span>
+                            </>
+                        )}
+                    </div>
+                    <ExportPdfButton />
                 </div>
-            </div>
 
-            <LexicalComposer initialConfig={initialConfig}>
                 <div className="flex flex-col flex-1 min-h-0">
                     {/* Toolbar removed; rely on Markdown shortcuts */}
-                    <div className="flex-1 overflow-auto">
+                    <div ref={scrollRef} className="flex-1 overflow-auto">
                         <div className="relative max-w-4xl mx-auto p-4">
                             <RichTextPlugin
                                 contentEditable={
@@ -164,11 +168,11 @@ export function Editor() {
                             {/* <LinkPlugin /> */}
                             <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
                             <AutoFocusPlugin />
-                            <DragDropChartPlugin />
+                            <DragDropChartPlugin dropZoneRef={scrollRef} />
                         </div>
                     </div>
                 </div>
-            </LexicalComposer>
-        </div>
+            </div>
+        </LexicalComposer>
     );
 }

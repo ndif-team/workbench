@@ -1,190 +1,132 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, type RefObject } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import {
-    $createParagraphNode,
-    $getRoot,
-    COMMAND_PRIORITY_LOW,
-    DRAGOVER_COMMAND,
-    DROP_COMMAND,
-    ElementNode,
-} from "lexical";
-import { $createChartEmbedNode } from "../nodes/ChartEmbedNode";
+import { $getRoot, type LexicalEditor } from "lexical";
+import { $createChartEmbedNode, $hoistChartEmbed, ChartEmbedNode } from "../nodes/ChartEmbedNode";
 
-// MIME type must match what sidebar sets
+// MIME type must match what the sidebar's ChartCard sets
 const CHART_MIME = "application/x-chart";
 
 type ChartPayload = { chartId: string; chartType: string | null };
 
-export function DragDropChartPlugin() {
+function parsePayload(raw: string): ChartPayload | null {
+    try {
+        const p = JSON.parse(raw) as Partial<ChartPayload>;
+        return typeof p.chartId === "string" && p.chartId
+            ? { chartId: p.chartId, chartType: p.chartType ?? null }
+            : null;
+    } catch {
+        return null;
+    }
+}
+
+/** Index of the top-level block a drop at `clientY` goes before (the first
+ *  block whose middle is below it), or the block count to append. Read from
+ *  the rendered blocks, so it works for drops beside the text column too. */
+function dropIndex(editor: LexicalEditor, clientY: number): { index: number; y: number | null } {
+    return editor.getEditorState().read(() => {
+        const blocks = $getRoot().getChildren();
+        let y: number | null = null;
+        for (let i = 0; i < blocks.length; i++) {
+            const rect = editor.getElementByKey(blocks[i].getKey())?.getBoundingClientRect();
+            if (!rect) continue;
+            if (clientY < rect.top + rect.height / 2) return { index: i, y: rect.top };
+            y = rect.bottom;
+        }
+        return { index: blocks.length, y };
+    });
+}
+
+/**
+ * Drop a chart from the sidebar anywhere over the editor's scroll area to
+ * embed it as a block between the nearest blocks, with an insertion line
+ * while dragging. Also keeps embeds top-level (see `$hoistChartEmbed`).
+ */
+export function DragDropChartPlugin({
+    dropZoneRef,
+}: {
+    dropZoneRef: RefObject<HTMLElement | null>;
+}) {
     const [editor] = useLexicalComposerContext();
-    const indicatorRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => editor.registerNodeTransform(ChartEmbedNode, $hoistChartEmbed), [editor]);
 
     useEffect(() => {
-        const rootElem = editor.getRootElement();
-        if (!rootElem) return;
-
-        // Create indicator
-        const indicator = document.createElement("div");
-        indicator.style.position = "absolute";
-        indicator.style.height = "2px";
-        indicator.style.background = "hsl(var(--primary))"; // ensure CSS var usage matches theme
-        indicator.style.left = "0";
-        indicator.style.right = "0";
-        indicator.style.opacity = "0";
-        indicator.style.pointerEvents = "none";
-        indicator.style.transform = "translateY(-1px)";
-        indicator.style.zIndex = "50";
-        indicator.style.borderRadius = "1px";
-        indicatorRef.current = indicator;
-
-        // Append to nearest relatively positioned wrapper for correct coordinates
-        const wrapper = rootElem.closest(".relative") ?? rootElem;
-        wrapper.appendChild(indicator);
-
-        const hideIndicator = () => {
-            if (indicatorRef.current) indicatorRef.current.style.opacity = "0";
+        const zone = dropZoneRef.current;
+        if (!zone) return;
+        let detach = () => {};
+        const unregister = editor.registerRootListener((rootElem) => {
+            detach();
+            detach = rootElem ? attach(editor, zone, rootElem) : () => {};
+        });
+        return () => {
+            unregister();
+            detach();
         };
-
-        const positionIndicatorAtY = (clientY: number) => {
-            const wrapperRect = wrapper.getBoundingClientRect();
-            let topY = clientY;
-
-            // Compute nearest block boundary using DOM rects for each top-level block
-            editor.getEditorState().read(() => {
-                const root = $getRoot();
-                const children = root.getChildren();
-
-                for (let i = 0; i < children.length; i++) {
-                    const block = children[i] as ElementNode;
-                    const elem = editor.getElementByKey(block.getKey());
-                    if (!elem) continue;
-                    const rect = elem.getBoundingClientRect();
-                    const mid = rect.top + rect.height / 2;
-                    if (clientY < mid) {
-                        topY = rect.top;
-                        break;
-                    }
-                    topY = rect.bottom; // default to after this block
-                }
-
-                const clamped = Math.max(wrapperRect.top, Math.min(topY, wrapperRect.bottom));
-                const top = clamped - wrapperRect.top;
-                if (indicatorRef.current) {
-                    indicatorRef.current.style.top = `${top}px`;
-                    indicatorRef.current.style.opacity = "1";
-                }
-            });
-        };
-
-        const unregisterDragOver = editor.registerCommand<DragEvent>(
-            DRAGOVER_COMMAND,
-            (event) => {
-                if (!event.dataTransfer) return false;
-                const hasChart = Array.from(event.dataTransfer.types).includes(CHART_MIME);
-                if (!hasChart) {
-                    hideIndicator();
-                    return false;
-                }
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "copy";
-                positionIndicatorAtY(event.clientY);
-                return true;
-            },
-            COMMAND_PRIORITY_LOW,
-        );
-
-        const unregisterDrop = editor.registerCommand<DragEvent>(
-            DROP_COMMAND,
-            (event) => {
-                if (!event.dataTransfer) return false;
-                const raw = event.dataTransfer.getData(CHART_MIME);
-                if (!raw) {
-                    hideIndicator();
-                    return false;
-                }
-                event.preventDefault();
-
-                let payload: ChartPayload | null = null;
-                try {
-                    payload = JSON.parse(raw);
-                } catch {
-                    payload = null;
-                }
-                if (!payload) {
-                    hideIndicator();
-                    return true;
-                }
-
-                const clientY = event.clientY;
-
-                editor.update(() => {
-                    const root = $getRoot();
-                    const children = root.getChildren();
-
-                    // Decide insertion position relative to blocks
-                    let insertAfterIndex = -1; // -1 means insert at start
-                    for (let i = 0; i < children.length; i++) {
-                        const block = children[i] as ElementNode;
-                        const elem = editor.getElementByKey(block.getKey());
-                        if (!elem) continue;
-                        const rect = elem.getBoundingClientRect();
-                        const mid = rect.top + rect.height / 2;
-                        if (clientY < mid) {
-                            insertAfterIndex = i - 1;
-                            break;
-                        }
-                        insertAfterIndex = i; // will insert after last matched
-                    }
-
-                    const paragraph = $createParagraphNode();
-                    paragraph.append(
-                        $createChartEmbedNode({
-                            chartId: payload!.chartId,
-                            chartType: payload!.chartType,
-                        }),
-                    );
-
-                    if (children.length === 0) {
-                        root.append(paragraph);
-                    } else if (insertAfterIndex < 0) {
-                        // insert at start
-                        const first = children[0];
-                        root.insertBefore(paragraph, first);
-                    } else if (insertAfterIndex >= children.length - 1) {
-                        // insert at end
-                        root.append(paragraph);
-                    } else {
-                        const refNode = children[insertAfterIndex];
-                        refNode.insertAfter(paragraph);
-                    }
-                });
-
-                hideIndicator();
-                return true;
-            },
-            COMMAND_PRIORITY_LOW,
-        );
-
-        const onDragLeave = (e: DragEvent) => {
-            // Hide when leaving the editor wrapper
-            const related = e.relatedTarget as Node | null;
-            if (!wrapper.contains(related)) hideIndicator();
-        };
-
-        wrapper.addEventListener("dragleave", onDragLeave);
-
-        const cleanup = () => {
-            hideIndicator();
-            indicator.remove();
-            unregisterDragOver();
-            unregisterDrop();
-            wrapper.removeEventListener("dragleave", onDragLeave);
-        };
-
-        return cleanup;
-    }, [editor]);
+    }, [editor, dropZoneRef]);
 
     return null;
+}
+
+/** Wire the drop zone's listeners and insertion line; returns the cleanup. */
+function attach(editor: LexicalEditor, zone: HTMLElement, rootElem: HTMLElement): () => void {
+    // The line is positioned within the text column's relative wrapper.
+    const column = (rootElem.closest(".relative") as HTMLElement | null) ?? rootElem;
+
+    const indicator = document.createElement("div");
+    indicator.style.cssText =
+        "position:absolute;left:0;right:0;height:2px;border-radius:1px;transform:translateY(-1px);" +
+        "background:hsl(var(--primary));opacity:0;pointer-events:none;z-index:50;";
+    column.appendChild(indicator);
+    const hide = () => {
+        indicator.style.opacity = "0";
+    };
+
+    const isChartDrag = (e: DragEvent) =>
+        !!e.dataTransfer && Array.from(e.dataTransfer.types).includes(CHART_MIME);
+
+    // Capture phase, so Lexical's own drag/drop handling never sees a
+    // chart drag (and drops beside the text column still land).
+    const onDragOver = (e: DragEvent) => {
+        if (!isChartDrag(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer!.dropEffect = "copy";
+        const { y } = dropIndex(editor, e.clientY);
+        const box = column.getBoundingClientRect();
+        const top = Math.max(box.top, Math.min(y ?? box.top, box.bottom)) - box.top;
+        indicator.style.top = `${top}px`;
+        indicator.style.opacity = "1";
+    };
+    const onDrop = (e: DragEvent) => {
+        if (!isChartDrag(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        hide();
+        const payload = parsePayload(e.dataTransfer!.getData(CHART_MIME));
+        if (!payload) return;
+        const { index } = dropIndex(editor, e.clientY);
+        editor.update(() => {
+            const embed = $createChartEmbedNode(payload);
+            const before = $getRoot().getChildAtIndex(index);
+            if (before) before.insertBefore(embed);
+            else $getRoot().append(embed);
+        });
+    };
+    const onDragLeave = (e: DragEvent) => {
+        if (!zone.contains(e.relatedTarget as Node | null)) hide();
+    };
+
+    zone.addEventListener("dragover", onDragOver, true);
+    zone.addEventListener("drop", onDrop, true);
+    zone.addEventListener("dragleave", onDragLeave);
+    window.addEventListener("dragend", hide);
+    return () => {
+        zone.removeEventListener("dragover", onDragOver, true);
+        zone.removeEventListener("drop", onDrop, true);
+        zone.removeEventListener("dragleave", onDragLeave);
+        window.removeEventListener("dragend", hide);
+        indicator.remove();
+    };
 }
