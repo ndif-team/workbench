@@ -351,7 +351,7 @@ test.describe("app shell", () => {
         // A run that stays queued: one status event, and the stream never ends.
         await page.addInitScript(() => {
             const fetch = window.fetch.bind(window);
-            window.fetch = (input, init) => {
+            window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
                 const url = input instanceof Request ? input.url : String(input);
                 if (!url.includes("/logit_lens/run")) return fetch(input, init);
                 const status = { status: "QUEUED", description: "position 12" };
@@ -366,7 +366,7 @@ test.describe("app shell", () => {
                 return Promise.resolve(
                     new Response(body, { headers: { "content-type": "text/event-stream" } }),
                 );
-            };
+            }) as typeof window.fetch;
         });
         await page.setViewportSize({ width: 800, height: 700 });
 
@@ -375,5 +375,39 @@ test.describe("app shell", () => {
         const pill = (await page.getByTestId("model-select-trigger").boundingBox())!;
         const title = (await header(page).getByRole("heading", { level: 1 }).boundingBox())!;
         expect(pill.x + pill.width).toBeLessThanOrEqual(title.x);
+    });
+
+    test("a workspace is renamed and deleted from its sidebar row", async ({ page }) => {
+        const name = unique("Sidebar folder");
+        await page.goto("/workspaces");
+        await page.locator("main header").getByRole("button", { name: "New workspace" }).click();
+        await page.getByRole("dialog", { name: "New workspace" }).getByLabel("Name").fill(name);
+        await page.getByRole("button", { name: "Create workspace" }).click();
+        await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/);
+        const workspaceId = new URL(page.url()).pathname.split("/")[2];
+        await page.goto(`/new?tool=logit-lens&workspaceId=${workspaceId}`);
+        await page.waitForURL(/\/logit-lens\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+        await expect(page.getByPlaceholder("Enter your prompt here...")).toBeFocused({
+            timeout: 30_000,
+        });
+
+        const folderLink = sidebar(page).locator(`a[href="/workspaces/${workspaceId}"]`);
+        const folderActions = folderLink
+            .locator("..")
+            .getByRole("button", { name: "Workspace actions" });
+        await folderActions.click();
+        await page.getByRole("menuitem", { name: "Rename" }).click();
+        const renamed = unique("Sidebar folder, renamed");
+        await sidebar(page).getByLabel("Workspace name").fill(renamed);
+        await page.keyboard.press("Enter");
+        await expect(folderLink).toHaveAttribute("title", renamed);
+
+        await folderActions.click();
+        await page.getByRole("menuitem", { name: "Delete…" }).click();
+        const dialog = page.getByRole("dialog", { name: `Delete ${renamed}?` });
+        await expect(dialog).toContainText("1 chart");
+        await dialog.getByRole("button", { name: "Delete workspace" }).click();
+        await page.waitForURL(/\/workbench$/);
+        await expect(folderLink).toHaveCount(0);
     });
 });

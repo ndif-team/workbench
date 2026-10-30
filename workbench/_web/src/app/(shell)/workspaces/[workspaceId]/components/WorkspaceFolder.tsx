@@ -39,7 +39,7 @@ import { PageHeader } from "../../../components/shell/PageHeader";
 import { InlineNameInput } from "../../../components/items/InlineNameInput";
 import { NewItemMenu } from "../../../components/items/NewItemMenu";
 import { SortableEntry } from "../../../components/SortableEntry";
-import { WorkspaceActionsMenu } from "../../components/WorkspaceActions";
+import { WorkspaceActionsMenu } from "../../../components/items/WorkspaceActions";
 import {
     EMPTY_WORKSPACE_TEXT,
     describeContents,

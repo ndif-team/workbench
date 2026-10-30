@@ -22,25 +22,27 @@ import {
 import { useDeleteWorkspace } from "@/lib/api/workspaceApi";
 import { cn } from "@/lib/utils";
 import type { LibraryWorkspace } from "@/types/workspaces";
-import { describeContents } from "../../components/items/workspaceContents";
+import { describeContents } from "./workspaceContents";
 
 /**
  * A workspace's Rename and Delete. Delete confirms in a dialog that says what
  * goes with the workspace, since its charts and reports are deleted too. Not
  * for workshop workspaces, which can't be renamed or deleted. Both move focus
  * elsewhere, so they run once the menu has closed (`afterCloseRef`), in place
- * of its return of focus to the trigger.
+ * of its return of focus to the trigger. `className` sizes the trigger.
  */
 export function WorkspaceActionsMenu({
     workspace,
     onRename,
     onDeleted,
     variant = "row",
+    className,
 }: {
     workspace: LibraryWorkspace;
     onRename: () => void;
     onDeleted?: () => void;
     variant?: "row" | "header";
+    className?: string;
 }) {
     const [confirming, setConfirming] = useState(false);
     const afterCloseRef = useRef<(() => void) | null>(null);
@@ -58,6 +60,7 @@ export function WorkspaceActionsMenu({
                             variant === "row"
                                 ? "size-7 text-muted-foreground/40 hover:text-foreground focus-visible:text-foreground data-[state=open]:text-foreground"
                                 : "text-muted-foreground hover:text-foreground data-[state=open]:bg-accent",
+                            className,
                         )}
                     >
                         <MoreVertical className={variant === "row" ? "size-3.5" : "size-4"} />

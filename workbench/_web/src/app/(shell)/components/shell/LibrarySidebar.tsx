@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState } from "react";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { Boxes, ChevronDown, FolderClosed, House, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
-import { findLibraryItem, useWorkspaceLibrary } from "@/lib/api/workspaceApi";
+import { findLibraryItem, useRenameWorkspace, useWorkspaceLibrary } from "@/lib/api/workspaceApi";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { workspacePath } from "@/lib/chartRoutes";
 import { useSidebarFolders } from "@/stores/useSidebarFolders";
 import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
 import { ItemActionsMenu, useMoveItem } from "../items/ItemActionsMenu";
 import { NewItemMenu } from "../items/NewItemMenu";
+import { WorkspaceActionsMenu } from "../items/WorkspaceActions";
 import { chartName, itemIcon, itemLabel, itemPath } from "../items/itemLabel";
 import { recencyGroup } from "../items/formatUpdated";
 import { EMPTY_WORKSPACE_TEXT } from "../items/workspaceContents";
@@ -55,10 +56,13 @@ const groupByRecency = (items: LibraryItem[]) => {
  * updated folders (`visibleFolders`, always including the one holding the
  * item on screen, or the one whose page is open) until "Show N more" lists
  * them all. A chart row dropped on
- * another folder moves the chart there.
+ * another folder moves the chart there. A folder's actions rename it in place
+ * or delete it; deleting the folder on screen (its page, or the item open in
+ * it) goes Home.
  */
 export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const pathname = usePathname();
+    const router = useRouter();
     const params = useParams<{ chartId?: string; reportId?: string; workspaceId?: string }>();
     const activeItemId = params.chartId ?? params.reportId ?? null;
 
@@ -72,9 +76,11 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const showAllFolders = useSidebarFolders((s) => s.showAllFolders);
     const setShowAllFolders = useSidebarFolders((s) => s.setShowAllFolders);
     const [renamingId, setRenamingId] = useState<string | null>(null);
+    const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
     const [creatingWorkspace, setCreatingWorkspace] = useState(false);
     const [draggedChartId, setDraggedChartId] = useState<string | null>(null);
     const { mutate: renameChart } = useUpdateChartName();
+    const { mutate: renameWorkspace } = useRenameWorkspace();
     const moveItem = useMoveItem();
     const deployStateOf = useDeployStateOf();
     const workspacesListId = useId();
@@ -165,6 +171,24 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                     isWorkshop={folder.isWorkshop}
                     onToggle={() => toggleFolder(folder.id)}
                     onDropChart={dropInto(folder)}
+                    renaming={renamingFolderId === folder.id}
+                    onRename={(name) => renameWorkspace({ workspaceId: folder.id, name })}
+                    onRenameEnd={() => setRenamingFolderId(null)}
+                    actions={
+                        folder.isWorkshop ? null : (
+                            <WorkspaceActionsMenu
+                                workspace={folder}
+                                onRename={() => setRenamingFolderId(folder.id)}
+                                onDeleted={() => {
+                                    const onScreen =
+                                        params.workspaceId === folder.id ||
+                                        activeFolderId === folder.id;
+                                    if (onScreen) router.push("/workbench");
+                                }}
+                                className="size-6 group-data-[variant=drawer]/sidebar:size-8"
+                            />
+                        )
+                    }
                 />
                 {isOpen && (
                     <SidebarFolderItems>

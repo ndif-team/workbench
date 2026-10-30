@@ -18,7 +18,7 @@ import { InlineNameInput } from "../../components/items/InlineNameInput";
 import { formatTimestamp, formatUpdated } from "../../components/items/formatUpdated";
 import { itemIcon, itemLabel } from "../../components/items/itemLabel";
 import { EMPTY_WORKSPACE_TEXT, describeContents } from "../../components/items/workspaceContents";
-import { WorkspaceActionsMenu } from "./WorkspaceActions";
+import { WorkspaceActionsMenu } from "../../components/items/WorkspaceActions";
 import { inFolderOrder } from "../../components/shell/folderOrder";
 
 /** How many of a workspace's items its card previews. */

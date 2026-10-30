@@ -209,8 +209,11 @@ export function SidebarRowsSkeleton({ rows = 6 }: { rows?: number }) {
 
 /**
  * A workspace (folder): its chevron expands it in place, its name opens its
- * page. With `onDropChart` it takes a chart dragged from another sidebar row
- * (`CHART_DRAG_TYPE`), lighting up while one is held over it.
+ * page, and `actions` (when given) sits at its end, faintly visible like an
+ * item row's. With `onDropChart` it takes a chart dragged from another
+ * sidebar row (`CHART_DRAG_TYPE`), lighting up while one is held over it.
+ * While `renaming`, the name becomes an input that saves on Enter or blur and
+ * cancels on Escape.
  */
 export function SidebarFolderRow({
     name,
@@ -221,6 +224,10 @@ export function SidebarFolderRow({
     isWorkshop,
     onToggle,
     onDropChart,
+    actions,
+    renaming = false,
+    onRename,
+    onRenameEnd,
 }: {
     name: string;
     href: string;
@@ -230,11 +237,34 @@ export function SidebarFolderRow({
     isWorkshop: boolean;
     onToggle: () => void;
     onDropChart?: () => void;
+    actions?: ReactNode;
+    renaming?: boolean;
+    onRename?: (name: string) => void;
+    onRenameEnd?: () => void;
 }) {
     const [dropping, setDropping] = useState(false);
     const FolderIcon = isWorkshop ? GraduationCap : expanded ? FolderOpen : Folder;
     const accepts = (e: DragEvent) =>
         !!onDropChart && e.dataTransfer.types.includes(CHART_DRAG_TYPE);
+
+    if (renaming) {
+        return (
+            <div className="flex h-7 items-center gap-2 pl-7 pr-2 group-data-[variant=drawer]/sidebar:pl-9">
+                <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+                <InlineNameInput
+                    initialValue={name}
+                    ariaLabel="Workspace name"
+                    placeholder="Workspace name"
+                    className="h-6 min-w-0 flex-1 px-1.5"
+                    onDone={(next) => {
+                        onRenameEnd?.();
+                        if (next && next !== name) onRename?.(next);
+                    }}
+                />
+            </div>
+        );
+    }
+
     return (
         <div
             className="group/row relative"
@@ -275,6 +305,7 @@ export function SidebarFolderRow({
                     active,
                     cn(
                         "pl-7 group-data-[variant=drawer]/sidebar:pl-9",
+                        actions && "pr-8",
                         dropping && "bg-primary/10 ring-1 ring-inset ring-primary/60",
                     ),
                 )}
@@ -285,6 +316,9 @@ export function SidebarFolderRow({
                     {count}
                 </span>
             </Link>
+            {actions && (
+                <div className="absolute right-0.5 top-1/2 -translate-y-1/2">{actions}</div>
+            )}
         </div>
     );
 }
