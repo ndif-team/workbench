@@ -144,6 +144,8 @@ workbench/                          # repo root
         │   ├── providers/          # QueryProvider, ThemeProvider, TourProvider, TutorialEventProvider
         │   ├── ModelControl.tsx    # header model pill + picker; its job badge shows useWorkspace.jobStatus
         │   ├── LandingPage.tsx, LandingComposer.tsx (its hero + composer, also the app's Home)
+        │   ├── CwLogo.tsx          # the workbench mosaic, self-contained (inline styles); its mark sits beside
+        │   │                   #   the product name in the hero and the sidebar
         │   ├── UserDropdown.tsx, CreateWorkspaceDialog.tsx, NotebookExporter.tsx
         │   └── ...
         │

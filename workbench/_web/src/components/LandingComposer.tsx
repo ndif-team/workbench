@@ -24,6 +24,7 @@ import {
 } from "@/components/selectors/LaunchSelectors";
 import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
+import { CwLogoMark } from "@/components/CwLogo";
 import { JLensIcon } from "@/components/JLensIcon";
 import { SparkBadge } from "@/components/SparkBadge";
 import type { Model, Token } from "@/types/models";
@@ -498,11 +499,17 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                     <span>tool</span>
                 </button>
 
-                <h1 className="text-5xl lg:text-7xl font-bold tracking-tight pt-2">
+                <h1 className="flex items-center justify-center gap-3 text-5xl lg:gap-4 lg:text-7xl font-bold tracking-tight pt-2">
                     {/* <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/80 bg-clip-text text-transparent">
                         Explore the Inner
                     </span>
                     <br /> */}
+                    <span className="lg:hidden">
+                        <CwLogoMark cell={10} />
+                    </span>
+                    <span className="hidden lg:block">
+                        <CwLogoMark cell={15} />
+                    </span>
                     <span className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
                         workbench
                     </span>

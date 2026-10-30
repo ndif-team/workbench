@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { Boxes, FolderClosed, House, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
 
+import { CwLogoMark } from "@/components/CwLogo";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -97,9 +98,12 @@ function SidebarHeader({ variant, homeHref }: { variant: SidebarVariant; homeHre
         <div className="flex h-12 shrink-0 items-center justify-between pl-4 pr-2">
             <Link
                 href={homeHref}
-                className="rounded-md bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-lg font-bold text-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="flex items-center gap-2.5 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
-                Workbench
+                <CwLogoMark cell={6} />
+                <span className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-lg font-bold text-transparent">
+                    Workbench
+                </span>
             </Link>
             {variant === "drawer" ? (
                 <Button
