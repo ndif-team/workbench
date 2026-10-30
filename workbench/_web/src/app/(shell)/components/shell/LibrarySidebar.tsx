@@ -53,7 +53,8 @@ const groupByRecency = (items: LibraryItem[]) => {
  *
  * Both sections fold under their headers. Workspaces lists the most recently
  * updated folders (`visibleFolders`, always including the one holding the
- * item on screen) until "Show N more" lists them all. A chart row dropped on
+ * item on screen, or the one whose page is open) until "Show N more" lists
+ * them all. A chart row dropped on
  * another folder moves the chart there.
  */
 export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
@@ -109,7 +110,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
         if (library) pruneFolders(library.workspaces.map((w) => w.id));
     }, [library, pruneFolders]);
 
-    const cappedFolders = visibleFolders(folders, activeFolderId);
+    const cappedFolders = visibleFolders(folders, activeFolderId ?? params.workspaceId ?? null);
     const shownFolders = showAllFolders ? folders : cappedFolders;
     const hiddenFolderCount = folders.length - cappedFolders.length;
 
