@@ -52,7 +52,7 @@ export function CreateWorkspaceDialog({
     const [name, setName] = useState("");
     const router = useRouter();
     const createWorkspace = useCreateWorkspace();
-    const { data: library } = useWorkspaceLibrary();
+    const { data: library } = useWorkspaceLibrary({ enabled: open });
     const nameError = workspaceNameError(library, name);
     const errorId = useId();
 
