@@ -8,6 +8,7 @@ import { AppShell } from "./components/shell/AppShell";
 import {
     SIDEBAR_COLLAPSED_COOKIE,
     SIDEBAR_WIDTH_COOKIE,
+    readSidebarCollapsed,
     readSidebarWidth,
 } from "./components/shell/sidebarCookie";
 
@@ -27,7 +28,7 @@ export default async function ShellLayout({
     children: React.ReactNode;
 }>) {
     const [cookieStore, user] = await Promise.all([cookies(), getSessionUser()]);
-    const collapsed = cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value === "true";
+    const collapsed = readSidebarCollapsed(cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value);
     const width = readSidebarWidth(cookieStore.get(SIDEBAR_WIDTH_COOKIE)?.value);
     const workshopParticipant = await getWorkshopParticipant(user);
     return (

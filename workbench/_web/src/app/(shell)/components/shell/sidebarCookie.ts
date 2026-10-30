@@ -5,6 +5,14 @@
  */
 export const SIDEBAR_COLLAPSED_COOKIE = "workbench_sidebar_collapsed";
 
+/**
+ * Whether a cookie value stands for the rail: yes unless the sidebar was expanded,
+ * so a first visit starts collapsed.
+ */
+export function readSidebarCollapsed(value: string | undefined): boolean {
+    return value !== "false";
+}
+
 export function writeSidebarCollapsed(collapsed: boolean) {
     document.cookie = `${SIDEBAR_COLLAPSED_COOKIE}=${collapsed}; path=/; max-age=31536000; samesite=lax`;
 }

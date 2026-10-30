@@ -27,7 +27,13 @@ test.beforeAll(async () => {
     user = await createTestUserOrStub();
 });
 
-test.beforeEach(async ({ page }) => {
+/** The sidebar's collapsed-preference cookie; these tests start with it expanded. */
+const SIDEBAR_COLLAPSED_COOKIE = "workbench_sidebar_collapsed";
+
+test.beforeEach(async ({ page, baseURL }) => {
+    await page
+        .context()
+        .addCookies([{ name: SIDEBAR_COLLAPSED_COOKIE, value: "false", url: baseURL! }]);
     await page.route("**/models/**", (route) =>
         route.fulfill({
             json: [
@@ -410,5 +416,21 @@ test.describe("app shell", () => {
         await dialog.getByRole("button", { name: "Delete workspace" }).click();
         await page.waitForURL((url) => url.pathname === "/");
         await expect(folderLink).toHaveCount(0);
+    });
+
+    test("a first visit starts with the sidebar collapsed, and expanding it is remembered", async ({
+        page,
+    }) => {
+        await page.context().clearCookies({ name: SIDEBAR_COLLAPSED_COOKIE });
+        await page.goto("/");
+        const aside = page.locator("aside#app-sidebar");
+        const width = async () => Math.round((await aside.boundingBox())!.width);
+        expect(await width()).toBe(48);
+
+        await page.getByRole("button", { name: "Expand sidebar" }).press("Enter");
+        await expect(page.getByRole("button", { name: "Collapse sidebar" })).toBeVisible();
+        expect(await width()).toBe(256);
+        await page.reload();
+        expect(await width()).toBe(256);
     });
 });

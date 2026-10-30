@@ -54,7 +54,7 @@ export function useWorkshopParticipant(): WorkshopParticipant | null {
  * The app shell: the persistent left sidebar (a rail when collapsed; a drawer
  * on mobile) beside the page. Expanded, its right edge drags to resize it.
  * The collapsed preference and the width persist in cookies
- * (`sidebarCookie.ts`).
+ * (`sidebarCookie.ts`); a first visit starts with the rail.
  * A workshop workspace gets its focused sidebar instead, which starts as the
  * rail every time a workshop is entered and doesn't touch the preference. So
  * does every page of an anonymous workshop participant (`workshopParticipant`,
