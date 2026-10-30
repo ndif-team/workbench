@@ -11,7 +11,7 @@ If you're proposing visual UI changes, also follow `.claude/skills/product-nativ
 **Workbench** is an interactive web UI for AI interpretability research. Researchers open a workspace, load an open-source LLM, and run interpretability "tools" (logit lens, j-lens, activation patching, Patch Lens) against it. Results are visualized as charts and saved per-workspace.
 
 **Top-level concepts**
-- **Workspace** — a folder of saved work. Owned by one user. Holds charts and documents (research notes). Each user also has one **default workspace** (`workspaces.is_default`, created lazily by `getOrCreateDefaultWorkspace` in `src/lib/queries/workspaceDb.ts`) that holds the charts and reports not filed in a folder; it is never listed as a folder, renamed or deleted. Charts and reports move between workspaces with `moveChart` / `moveReport` (a chart's config and lens runs move with it).
+- **Workspace** — a folder of saved work. Owned by one user. Holds charts and documents (research notes). Each user also has one **default workspace** (`workspaces.is_default`, created lazily by `getOrCreateDefaultWorkspace` in `src/lib/queries/workspaceDb.ts`) that holds the charts and reports not filed in a folder; it is never listed as a folder, renamed or deleted. Charts and reports move between workspaces with `moveChart` / `moveReport` (a chart's config and lens runs move with it). A user's folder names are unique, ignoring case (`createWorkspace` / `renameWorkspace` refuse a taken one).
 - **Model** — an open-source LLM that the active backend can host (e.g. `meta-llama/Llama-3.2-1B`). Selected per-workspace via `useWorkspace.selectedModelIdx`.
 - **Chart** — a single experiment + its visualization (currently: logit-lens / jlens / activation-patching / patch-lens). One chart row = one config row = one display. Patch Lens shows source/target logit-lens heatmaps plus a single-cell patch (causal mediation), with its run history in `lens_runs`.
   - `"lens2"` is a legacy alias of the `"logit-lens"` tool type, still accepted when reading `configs.type`, `charts.type`, `workshops.allowed_tools` and saved chart embeds until the stored rows are migrated (`normalizeToolType` in `src/types/charts.ts`, and `normalizeWorkshopTools` in `src/lib/workshop.ts` for workshop allowed tools). Writes always use `"logit-lens"`; old `/workbench/<ws>/lens2/<chartId>` links redirect to `/logit-lens/<chartId>` (`next.config.js`).
@@ -117,7 +117,8 @@ workbench/                          # repo root
         │       │   ├── shell/       # AppShell (sidebar + page, rail/drawer state), AppSidebar, LibrarySidebar
         │       │   │                #   (global sidebar), SidebarRows, SidebarFooter, PageHeader
         │       │   ├── items/       # ItemPage (chart/report header), ItemActionsMenu (rename, copy, move,
-        │       │   │                #   delete), NewItemMenu, itemLabel (how items read in lists)
+        │       │   │                #   delete), NewItemMenu, itemLabel (how items read in lists),
+        │       │   │                #   workspaceContents (how a workspace's contents read)
         │       │   ├── WorkspaceScopes.tsx      # server wrappers that look up an item's workspace scope
         │       │   ├── ChartCardsSidebar.tsx, ChartCard.tsx, ReportCard.tsx  # workshop (workspace-scoped) sidebar
         │       │   ├── MobileCollapsibleControls.tsx
@@ -147,13 +148,15 @@ workbench/                          # repo root
         ├── stores/                 # zustand stores
         │   ├── useWorkspace.ts     # selectedModelIdx, jobStatus
         │   ├── useModelDeployment.ts    # cold-model warmups in flight, keyed by model
-        │   ├── useSidebarFolders.ts     # which workspace folders are expanded in the sidebar (persisted)
+        │   ├── useSidebarFolders.ts     # how the sidebar was left: open folders, folded sections (persisted)
+        │   ├── usePromptFocus.ts        # one-shot: /new asks the chart it opens to focus its prompt
         │   ├── usePatchLensTutorial.ts  # patch-lens tour "completed" flag (localStorage)
         │   └── useProlificTutorial.ts   # guided-tutorial progress + panel UI (persisted; resume UX only)
         │
         ├── hooks/
         │   ├── useToolArea.ts      # shared chart/config/model loading for the logit-lens / j-lens / AP *Area
         │   ├── useChartModelReady.ts    # whether a chart shows its deploying state (page + sidebar)
+        │   ├── useFocusNewChartPrompt.ts  # a tool's Controls focus their empty prompt for usePromptFocus
         │   ├── useDraftModel.ts    # chart's locally committed model (Reset / Sync)
         │   ├── useBackgroundTokenPair.ts    # tokenize a prompt under two models to compare
         │   ├── useBlurTokenizeScheduler.ts  # cancellable auto-tokenize after textarea blur
@@ -387,8 +390,8 @@ Set in `src/components/providers/QueryProvider.tsx`: `staleTime: 5min`, `retry: 
 
 ### Layout patterns the app uses
 
-- **App shell** = the `(shell)` layout: a global sidebar (`AppSidebar`; New chart, Models, Workspaces, the workspace folders and the unfiled charts) beside the page. It collapses to a rail (`workbench_sidebar_collapsed` cookie) and is a drawer on mobile. On a workshop workspace's chart, and on every page of a workshop participant, it shows the focused `ChartCardsSidebar` instead (the workshop's tools only, starting as the rail). Every shell page starts with a `PageHeader` (`h-12`; it carries the mobile drawer button).
-- **Chart pages** = the item header (`ItemPage`: `ModelControl`, the workspace → item breadcrumb, the item's actions) above a `ResizablePanelGroup` of feature panels. Examples: `logit-lens/[chartId]/page.tsx`, `activation-patching/[chartId]/page.tsx`.
+- **App shell** = the `(shell)` layout: a global sidebar (`AppSidebar`; New chart, Models, Workspaces, the workspace folders and the unfiled charts) beside the page. Its Workspaces and Charts sections fold under their headers; Workspaces lists the five most recently updated folders (plus the active one) until "Show N more", and a chart row dropped on a folder moves the chart there. New chart goes through `/new`, which reopens an untouched blank chart of that tool rather than adding another (`createChartFromLaunch`) and lands focus in its prompt. The sidebar collapses to a rail (`workbench_sidebar_collapsed` cookie) and is a drawer on mobile. On a workshop workspace's chart, and on every page of a workshop participant, it shows the focused `ChartCardsSidebar` instead (the workshop's tools only, starting as the rail). Every shell page starts with a `PageHeader` (`h-12`; it carries the mobile drawer button).
+- **Chart pages** = the item header (`ItemPage`: `ModelControl`, the workspace → item breadcrumb, the item's actions) above a `ResizablePanelGroup` of feature panels. The header owns the chart's name and its rename; the tool displays carry no title of their own. A report's header has no model picker. Examples: `logit-lens/[chartId]/page.tsx`, `activation-patching/[chartId]/page.tsx`.
 - **Item actions** = `ItemActionsMenu` everywhere a chart or report is listed (sidebar rows, the item header, the workspace page): Rename, Copy, Move to workspace, Remove from workspace, Delete (confirmed in a popover).
 - **Feature panel** = bordered, rounded card (`rounded dark:bg-secondary/50 bg-secondary/80 border`) with the standard panel header pattern (see §4).
 - **Mobile** = the shell's sidebar drawer (opened from the page header), `MobileCollapsibleControls` (collapsible top section). Mirror these when adding mobile paths.
