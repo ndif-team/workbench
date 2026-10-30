@@ -152,6 +152,35 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
         );
     };
 
+    const renderFolder = (folder: LibraryWorkspace) => {
+        const isOpen = expanded.includes(folder.id);
+        return (
+            <li key={folder.id}>
+                <SidebarFolderRow
+                    name={folder.name}
+                    href={workspacePath(folder.id)}
+                    count={folder.items.length}
+                    expanded={isOpen}
+                    active={params.workspaceId === folder.id}
+                    isWorkshop={folder.isWorkshop}
+                    onToggle={() => toggleFolder(folder.id)}
+                    onDropChart={dropInto(folder)}
+                />
+                {isOpen && (
+                    <SidebarFolderItems>
+                        {folder.items.length === 0 ? (
+                            <p className="py-1.5 pl-3.5 pr-2 text-xs text-muted-foreground">
+                                {EMPTY_WORKSPACE_TEXT}
+                            </p>
+                        ) : (
+                            folder.items.map((item) => renderItem(item, folder))
+                        )}
+                    </SidebarFolderItems>
+                )}
+            </li>
+        );
+    };
+
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex flex-col gap-0.5 px-2 pb-2">
@@ -224,43 +253,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                                     ) : (
                                         <>
                                             <ul className="flex flex-col">
-                                                {shownFolders.map((folder) => {
-                                                    const isOpen = expanded.includes(folder.id);
-                                                    return (
-                                                        <li key={folder.id}>
-                                                            <SidebarFolderRow
-                                                                name={folder.name}
-                                                                href={workspacePath(folder.id)}
-                                                                count={folder.items.length}
-                                                                expanded={isOpen}
-                                                                active={
-                                                                    params.workspaceId === folder.id
-                                                                }
-                                                                isWorkshop={folder.isWorkshop}
-                                                                onToggle={() =>
-                                                                    toggleFolder(folder.id)
-                                                                }
-                                                                onDropChart={dropInto(folder)}
-                                                            />
-                                                            {isOpen && (
-                                                                <SidebarFolderItems>
-                                                                    {folder.items.length === 0 ? (
-                                                                        <p className="py-1.5 pl-3.5 pr-2 text-xs text-muted-foreground">
-                                                                            {EMPTY_WORKSPACE_TEXT}
-                                                                        </p>
-                                                                    ) : (
-                                                                        folder.items.map((item) =>
-                                                                            renderItem(
-                                                                                item,
-                                                                                folder,
-                                                                            ),
-                                                                        )
-                                                                    )}
-                                                                </SidebarFolderItems>
-                                                            )}
-                                                        </li>
-                                                    );
-                                                })}
+                                                {shownFolders.map(renderFolder)}
                                             </ul>
                                             {hiddenFolderCount > 0 && (
                                                 <SidebarShowMore
