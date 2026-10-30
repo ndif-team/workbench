@@ -51,7 +51,7 @@ function LoginContent() {
     }, [isGatedModelRequest, pendingModel, searchParams]);
 
     if (process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
-        redirect("/workbench");
+        redirect("/");
     }
 
     const getRedirectUrl = () => {
@@ -121,7 +121,7 @@ function LoginContent() {
                 setShowCaptcha(false);
                 captchaRef.current?.resetCaptcha();
             } else {
-                window.location.href = next ?? "/workbench";
+                window.location.href = next ?? "/";
             }
         } catch (err) {
             console.error("Anonymous sign-in error:", err);

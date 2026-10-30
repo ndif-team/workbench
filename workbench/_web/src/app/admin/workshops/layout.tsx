@@ -22,7 +22,7 @@ export default async function AdminWorkshopsLayout({ children }: { children: Rea
             <header className="py-2 px-3 md:py-3 md:px-5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Link
-                        href="/workbench"
+                        href="/"
                         className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent"
                     >
                         <h1 className="text-2xl font-bold">Workbench</h1>

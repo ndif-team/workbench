@@ -183,7 +183,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                                     const onScreen =
                                         params.workspaceId === folder.id ||
                                         activeFolderId === folder.id;
-                                    if (onScreen) router.push("/workbench");
+                                    if (onScreen) router.push("/");
                                 }}
                                 className="size-6 group-data-[variant=drawer]/sidebar:size-8"
                             />
@@ -218,12 +218,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                         <ChevronDown className="ml-auto size-3.5 text-muted-foreground" />
                     </Button>
                 </NewItemMenu>
-                <SidebarNavLink
-                    href="/workbench"
-                    label="Home"
-                    Icon={House}
-                    active={pathname === "/workbench"}
-                />
+                <SidebarNavLink href="/" label="Home" Icon={House} active={pathname === "/"} />
                 <SidebarNavLink
                     href="/models"
                     label="Models"

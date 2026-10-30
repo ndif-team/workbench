@@ -59,7 +59,7 @@ export function AppSidebar({ variant }: { variant: SidebarVariant }) {
             data-variant={variant}
             className="group/sidebar flex h-full min-h-0 flex-col [--scrollbar-thumb:transparent] focus-within:[--scrollbar-thumb:inherit] hover:[--scrollbar-thumb:inherit]"
         >
-            <SidebarHeader variant={variant} homeHref={participant?.entryPath ?? "/workbench"} />
+            <SidebarHeader variant={variant} homeHref={participant?.entryPath ?? "/"} />
             {mode === "workshop" ? (
                 <div className="flex min-h-0 flex-1 flex-col">
                     <ChartCardsSidebar
@@ -212,7 +212,7 @@ function LibraryRail({ pending }: { pending: boolean }) {
                 <TooltipContent side="right">New chart</TooltipContent>
             </Tooltip>
             <Separator className="my-1.5 w-6" />
-            <RailButton href="/workbench" label="Home" active={pathname === "/workbench"}>
+            <RailButton href="/" label="Home" active={pathname === "/"}>
                 <House />
             </RailButton>
             <RailButton href="/models" label="Models" active={pathname === "/models"}>

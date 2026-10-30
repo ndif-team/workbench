@@ -26,7 +26,7 @@ export function toolChartPath(chartId: string, tool: ToolType): string {
 /**
  * Page that opens a chart of any stored type. Charts of retired tools have no
  * page, so they open their workspace when the caller knows it (which
- * redirects to its most recent live chart), else the workbench entry.
+ * redirects to its most recent live chart), else Home.
  */
 export function chartPath(
     chartId: string,
@@ -35,7 +35,7 @@ export function chartPath(
 ): string {
     const tool = normalizeToolType(toolType);
     if (isToolType(tool)) return toolChartPath(chartId, tool);
-    return workspaceId ? openWorkspacePath(workspaceId) : "/workbench";
+    return workspaceId ? openWorkspacePath(workspaceId) : "/";
 }
 
 /** Report editor. */

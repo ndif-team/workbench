@@ -26,7 +26,7 @@ export async function signInWithMagicLinkAction(formData: FormData): Promise<voi
         redirect(`/auth/magic-link?error=${encodeURIComponent(error.message)}`);
     }
 
-    redirect("/workbench");
+    redirect("/");
 }
 
 /**

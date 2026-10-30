@@ -12,12 +12,14 @@ import {
 } from "./components/shell/sidebarCookie";
 
 /**
- * The app shell around the chart, report, workspace and models pages: the
- * global sidebar beside the page, persisting across navigation. Shell chrome
- * reads the current item's workspace through `WorkspaceScopeHost`. An
- * anonymous workshop participant's shell is their workshop's (see
- * `getWorkshopParticipant`). Keep `PendingRequestHandler` mounted here: it
- * resumes a chart launch that waited on sign-in, wherever sign-in lands.
+ * The app shell around Home and the chart, report, workspace and models
+ * pages: the global sidebar beside the page, persisting across navigation.
+ * Shell chrome reads the current item's workspace through
+ * `WorkspaceScopeHost`. An anonymous workshop participant's shell is their
+ * workshop's (see `getWorkshopParticipant`). Without a session, `/` is the
+ * landing page, shown without the shell (`signedIn`). Keep
+ * `PendingRequestHandler` mounted here for a session: it resumes a chart
+ * launch that waited on sign-in, wherever sign-in lands.
  */
 export default async function ShellLayout({
     children,
@@ -30,8 +32,9 @@ export default async function ShellLayout({
     const workshopParticipant = await getWorkshopParticipant(user);
     return (
         <WorkspaceScopeHost>
-            <PendingRequestHandler />
+            {user && <PendingRequestHandler />}
             <AppShell
+                signedIn={!!user}
                 defaultCollapsed={collapsed}
                 defaultWidth={width}
                 workshopParticipant={workshopParticipant}

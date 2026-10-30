@@ -8,7 +8,7 @@ import {
 } from "./TestingUtils";
 
 /**
- * E2E for the app shell: the home composer, New chart and `/new`, the global
+ * E2E for the app shell: Home at `/` and its composer, New chart and `/new`, the global
  * sidebar's item actions (rename, move to a workspace and back, delete), the
  * workspaces pages, and the old `/workbench/…` links.
  *
@@ -270,9 +270,10 @@ test.describe("app shell", () => {
         await deleteWorkspace(page, workspaceId, workspace);
     });
 
-    test("Home starts a chart from the landing page's composer", async ({ page }) => {
+    test("Home, at /, starts a chart from the landing page's composer", async ({ page }) => {
         const prompt = unique("Home prompt");
         await page.goto("/workbench");
+        await page.waitForURL((url) => url.pathname === "/");
         await expect(page.getByRole("heading", { name: "workbench" })).toBeVisible();
         await expect(page.getByRole("link", { name: "Home" })).toHaveAttribute(
             "aria-current",
@@ -323,7 +324,7 @@ test.describe("app shell", () => {
     test("the sidebar's edge drags to resize it, and the width survives a reload", async ({
         page,
     }) => {
-        await page.goto("/workbench");
+        await page.goto("/");
         const aside = page.locator("aside#app-sidebar");
         const handle = page.getByRole("separator", { name: "Resize sidebar" });
         const width = async () => Math.round((await aside.boundingBox())!.width);
@@ -407,7 +408,7 @@ test.describe("app shell", () => {
         const dialog = page.getByRole("dialog", { name: `Delete ${renamed}?` });
         await expect(dialog).toContainText("1 chart");
         await dialog.getByRole("button", { name: "Delete workspace" }).click();
-        await page.waitForURL(/\/workbench$/);
+        await page.waitForURL((url) => url.pathname === "/");
         await expect(folderLink).toHaveCount(0);
     });
 });

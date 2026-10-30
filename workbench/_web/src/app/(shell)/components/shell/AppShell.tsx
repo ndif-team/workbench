@@ -60,17 +60,22 @@ export function useWorkshopParticipant(): WorkshopParticipant | null {
  * does every page of an anonymous workshop participant (`workshopParticipant`,
  * resolved by the server), who is kept in their workshop.
  *
+ * Without a session (`signedIn` false), `/` is the landing page, which the
+ * shell renders bare: no sidebar, no page frame.
+ *
  * The page's scope reaches the shell only once the page has mounted, so the
  * server-rendered paint of a workshop page can't know it yet; there, CSS
  * keys off the scope provider's `data-workshop-scope` marker to start at the
  * rail's width with the sidebar blank, instead of flashing the global one.
  */
 export function AppShell({
+    signedIn,
     defaultCollapsed,
     defaultWidth,
     workshopParticipant,
     children,
 }: {
+    signedIn: boolean;
     defaultCollapsed: boolean;
     defaultWidth: number;
     workshopParticipant: WorkshopParticipant | null;
@@ -128,6 +133,12 @@ export function AppShell({
         }),
         [effectiveCollapsed, width, toggleCollapsed, workshopParticipant],
     );
+
+    if (!signedIn && pathname === "/") {
+        return (
+            <ShellSidebarContext.Provider value={value}>{children}</ShellSidebarContext.Provider>
+        );
+    }
 
     return (
         <ShellSidebarContext.Provider value={value}>

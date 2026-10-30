@@ -27,8 +27,8 @@ describe("chart routes", () => {
     it("opens the workspace for retired or missing types, else the workbench entry", () => {
         expect(chartPath("c1", "lens", "ws")).toBe("/workbench/ws");
         expect(chartPath("c1", null, "ws")).toBe("/workbench/ws");
-        expect(chartPath("c1", "lens")).toBe("/workbench");
-        expect(chartPath("c1", undefined, null)).toBe("/workbench");
+        expect(chartPath("c1", "lens")).toBe("/");
+        expect(chartPath("c1", undefined, null)).toBe("/");
     });
 
     it("builds report, workspace and open-workspace paths", () => {

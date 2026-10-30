@@ -181,7 +181,7 @@ export async function loginAsUser(page: Page, user: TestingUser, retries = 4): P
                 await page.goto(`/auth/magic-link?token_hash=${encodeURIComponent(tokenHash)}`);
                 await page.getByRole("button", { name: /sign in with magic link/i }).click();
                 // Success = the verifyOtp server action redirected us out of
-                // /auth (to /workbench, the home page). On failure it
+                // /auth (to /, Home). On failure it
                 // bounces back to /auth/magic-link with an ?error, so record
                 // that (or the current URL) and retry.
                 try {
