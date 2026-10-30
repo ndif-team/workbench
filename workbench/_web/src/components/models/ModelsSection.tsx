@@ -18,6 +18,7 @@ import { ModelsSectionHeader } from "./ModelsSectionHeader";
 import { ModelsFetchErrorBanner } from "./ModelsFetchErrorBanner";
 import { ModelLaunchDialog, type ModelLaunchMode } from "./ModelLaunchDialog";
 import { ModelCard, type ModelCardModel } from "./ModelCard";
+import { ModelsPager } from "./ModelsPager";
 
 const URL_STATUS = "models_status";
 const URL_GROUP = "models_group";
@@ -80,6 +81,50 @@ const toCardModel = (m: Model, isSignedIn: boolean): ModelCardModel => {
     };
 };
 
+/** The card grid's geometry: `grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3`. */
+const CARD_MIN_WIDTH = 256;
+const GRID_GAP = 12;
+
+/**
+ * How many cards fit in the grid's area without scrolling: as many columns as
+ * the grid fits at its minimum card width, times as many card rows as fit in
+ * its height. Null until both the area and a card have been measured. Attach
+ * `areaRef` to the box the grid fills and `cardRef` to one card's cell.
+ */
+function useGridPageSize() {
+    const [pageSize, setPageSize] = useState<number | null>(null);
+    const area = useRef<HTMLElement | null>(null);
+    const card = useRef<HTMLElement | null>(null);
+    const observer = useRef<ResizeObserver | null>(null);
+
+    const measure = useCallback(() => {
+        if (!area.current || !card.current) return;
+        const cols = Math.floor(
+            (area.current.clientWidth + GRID_GAP) / (CARD_MIN_WIDTH + GRID_GAP),
+        );
+        const rows = Math.floor(
+            (area.current.clientHeight + GRID_GAP) / (card.current.offsetHeight + GRID_GAP),
+        );
+        setPageSize(Math.max(1, cols) * Math.max(1, rows));
+    }, []);
+
+    const track = useCallback(
+        (slot: typeof area) => (el: HTMLElement | null) => {
+            observer.current ??= new ResizeObserver(measure);
+            if (slot.current) observer.current.unobserve(slot.current);
+            slot.current = el;
+            if (el) observer.current.observe(el);
+        },
+        [measure],
+    );
+    const areaRef = useMemo(() => track(area), [track]);
+    const cardRef = useMemo(() => track(card), [track]);
+
+    useEffect(() => () => observer.current?.disconnect(), []);
+
+    return { pageSize, areaRef, cardRef };
+}
+
 interface ModelsSectionProps {
     cardHref?: (m: ModelCardModel) => string | undefined;
     onCardClick?: (m: ModelCardModel) => void;
@@ -91,7 +136,8 @@ interface ModelsSectionProps {
 /**
  * The models the backend serves, as a filterable grid in a panel that fills
  * the page: hottest first, filters (type, status, search) mirrored to the URL.
- * A card opens the launch dialog (or deploys a cold model).
+ * The grid never scrolls: it shows as many cards as fit and pages through the
+ * rest. A card opens the launch dialog (or deploys a cold model).
  */
 export function ModelsSection({
     cardHref = (m) => `https://huggingface.co/${m.org}/${m.name}`,
@@ -246,6 +292,14 @@ export function ModelsSection({
             .finally(() => setIsRetrying(false));
     }, [queryClient]);
 
+    const { pageSize, areaRef, cardRef } = useGridPageSize();
+    const [page, setPage] = useState(0);
+    useEffect(() => setPage(0), [query, statusFilters, groupFilters]);
+    const perPage = pageSize ?? filtered.length;
+    const pageCount = Math.max(1, Math.ceil(filtered.length / Math.max(1, perPage)));
+    const currentPage = Math.min(page, pageCount - 1);
+    const pageModels = filtered.slice(currentPage * perPage, (currentPage + 1) * perPage);
+
     const onCardClick =
         onCardClickProp ??
         ((m: ModelCardModel) =>
@@ -268,10 +322,19 @@ export function ModelsSection({
                     onToggleStatus={onToggleStatus}
                     groupFilters={groupFilters}
                     onToggleGroup={onToggleGroup}
+                    pager={
+                        pageCount > 1 ? (
+                            <ModelsPager
+                                page={currentPage}
+                                pageCount={pageCount}
+                                onPage={setPage}
+                            />
+                        ) : null
+                    }
                 />
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            <div ref={areaRef} className="m-3 min-h-0 flex-1 overflow-hidden">
                 {isLoading && !rawModels ? (
                     <div className="py-8 text-center text-xs text-muted-foreground">
                         Loading models…
@@ -288,8 +351,12 @@ export function ModelsSection({
                     </div>
                 ) : (
                     <ul className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3">
-                        {filtered.map((m) => (
-                            <li key={`${m.org}/${m.name}`} className="flex">
+                        {pageModels.map((m, i) => (
+                            <li
+                                key={`${m.org}/${m.name}`}
+                                ref={i === 0 ? cardRef : undefined}
+                                className="flex"
+                            >
                                 <ModelCard
                                     m={m}
                                     onClick={() => onCardClick(m)}

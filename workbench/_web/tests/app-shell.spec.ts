@@ -289,4 +289,34 @@ test.describe("app shell", () => {
         const chartId = new URL(page.url()).pathname.split("/")[2];
         await expect(chartRow(page, chartId)).toContainText(prompt);
     });
+
+    test("the models page shows the cards that fit and pages through the rest", async ({
+        page,
+    }) => {
+        const models = Array.from({ length: 60 }, (_, i) => ({
+            name: `e2e-org/model-${String(i).padStart(2, "0")}`,
+            is_chat: false,
+            n_layers: 12,
+            params: "124M",
+            gated: false,
+            allowed: true,
+            status: "cold",
+        }));
+        await page.route("**/models/**", (route) => route.fulfill({ json: models }));
+        await page.goto("/models");
+
+        const panel = page.getByRole("region", { name: "Models" });
+        await expect(panel.getByRole("heading", { name: "Models" })).toBeVisible();
+        const cards = panel.getByRole("list").getByRole("listitem");
+        await expect(cards.first()).toContainText("model-00");
+        const perPage = await cards.count();
+        expect(perPage).toBeLessThan(models.length);
+        const area = panel.getByRole("list").locator("..");
+        expect(await area.evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(true);
+
+        await panel.getByRole("button", { name: "Next page" }).click();
+        await expect(cards.first()).toContainText(`model-${String(perPage).padStart(2, "0")}`);
+        await panel.getByRole("button", { name: "Previous page" }).click();
+        await expect(cards.first()).toContainText("model-00");
+    });
 });

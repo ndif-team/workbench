@@ -1,12 +1,14 @@
 import { getSessionUser, redirectWorkshopParticipant } from "@/lib/auth/user";
 import { ModelsSection } from "@/components/models/ModelsSection";
-import { ModelsPageHeader } from "./components/ModelsPageHeader";
+import { PageHeader } from "../components/shell/PageHeader";
 
 export const dynamic = "force-dynamic";
 
 /**
  * The models the backend serves, with filters; a card opens a chart with that
- * model. A workshop participant goes to their workshop instead.
+ * model. The panel carries the page's title, so the page header shows only on
+ * mobile, for the sidebar drawer's button. A workshop participant goes to their
+ * workshop instead.
  */
 export default async function ModelsPage() {
     const user = await getSessionUser();
@@ -19,8 +21,8 @@ export default async function ModelsPage() {
 
     return (
         <div className="flex size-full min-h-0 flex-col">
-            <ModelsPageHeader />
-            <div className="min-h-0 flex-1 px-3 pb-3">
+            <PageHeader className="md:hidden" />
+            <div className="min-h-0 flex-1 px-3 pb-3 md:pl-6 md:pt-4">
                 <ModelsSection isSignedIn={isSignedIn} />
             </div>
         </div>

@@ -31,6 +31,9 @@ interface ModelsSectionHeaderProps {
 
     groupFilters: Set<ModelGroup>;
     onToggleGroup: (g: ModelGroup) => void;
+
+    /** Page controls, shown after the filters when the models span pages. */
+    pager?: React.ReactNode;
 }
 
 export function ModelsSectionHeader({
@@ -44,6 +47,7 @@ export function ModelsSectionHeader({
     onToggleStatus,
     groupFilters,
     onToggleGroup,
+    pager,
 }: ModelsSectionHeaderProps) {
     const searchRef = useRef<HTMLInputElement>(null);
     const filtered = filteredTotal !== total;
@@ -71,11 +75,14 @@ export function ModelsSectionHeader({
     return (
         <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-baseline gap-3 mr-auto">
-                {!hasError && !isLoading && (
-                    <span className="text-sm text-muted-foreground tabular-nums">
-                        {filtered ? `${filteredTotal} of ${total} models` : `${total} models`}
-                    </span>
-                )}
+                <h1 className="text-sm font-medium">
+                    Models
+                    {!hasError && !isLoading && (
+                        <span className="ml-1.5 font-normal text-muted-foreground tabular-nums">
+                            ({filtered ? `${filteredTotal} of ${total}` : total})
+                        </span>
+                    )}
+                </h1>
                 <a
                     href="https://ndif.us"
                     target="_blank"
@@ -145,6 +152,8 @@ export function ModelsSectionHeader({
                     />
                 </PopoverContent>
             </Popover>
+
+            {pager}
         </div>
     );
 }
