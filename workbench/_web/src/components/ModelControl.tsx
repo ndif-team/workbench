@@ -72,6 +72,15 @@ const BADGE_CLASSES = cn(
     "text-xs font-semibold uppercase tracking-wide",
 );
 
+/**
+ * The model's name in the pill. Clamped to one line that breaks anywhere,
+ * rather than `truncate`d, so it adds nothing to the pill's minimum width:
+ * when a page header runs short (a job badge widens the pill), the name ends
+ * in "…" while the badges keep their room and push the header's title aside
+ * instead of running under it.
+ */
+const NAME_CLASSES = "font-mono text-xs px-0.5 min-w-0 break-all line-clamp-1 text-foreground";
+
 // ----- component ------------------------------------------------------------------
 
 interface ModelControlProps {
@@ -205,13 +214,7 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
                         className={cn(TRIGGER_CLASSES, "max-w-[28rem] cursor-default", className)}
                     >
                         <HeatBadge heat={heat} compact={compact} />
-                        <span
-                            className={cn(
-                                "font-mono text-xs px-0.5 truncate min-w-0 text-foreground",
-                                hideCompact,
-                            )}
-                            title={selectedModel.name}
-                        >
+                        <span className={cn(NAME_CLASSES, hideCompact)} title={selectedModel.name}>
                             {display.label}
                         </span>
                         {job && (
@@ -242,13 +245,7 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
                     className={cn(TRIGGER_CLASSES, "max-w-[28rem]", className)}
                 >
                     <HeatBadge heat={heat} compact={compact} />
-                    <span
-                        className={cn(
-                            "font-mono text-xs px-0.5 truncate min-w-0 text-foreground",
-                            hideCompact,
-                        )}
-                        title={selectedModel.name}
-                    >
+                    <span className={cn(NAME_CLASSES, hideCompact)} title={selectedModel.name}>
                         {display.label}
                     </span>
                     <ChevronDown className="w-3 h-3 opacity-50 shrink-0" />

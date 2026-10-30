@@ -344,4 +344,36 @@ test.describe("app shell", () => {
         await handle.dblclick();
         expect(await width()).toBe(256);
     });
+
+    test("a running job shortens the header's model name instead of covering the chart title", async ({
+        page,
+    }) => {
+        // A run that stays queued: one status event, and the stream never ends.
+        await page.addInitScript(() => {
+            const fetch = window.fetch.bind(window);
+            window.fetch = (input, init) => {
+                const url = input instanceof Request ? input.url : String(input);
+                if (!url.includes("/logit_lens/run")) return fetch(input, init);
+                const status = { status: "QUEUED", description: "position 12" };
+                const body = new ReadableStream({
+                    start: (stream) =>
+                        stream.enqueue(
+                            new TextEncoder().encode(
+                                `event: status\ndata: ${JSON.stringify(status)}\n\n`,
+                            ),
+                        ),
+                });
+                return Promise.resolve(
+                    new Response(body, { headers: { "content-type": "text/event-stream" } }),
+                );
+            };
+        });
+        await page.setViewportSize({ width: 800, height: 700 });
+
+        await newChart(page, unique("Where the header's title and model pill meet"));
+        await expect(header(page).getByRole("status", { name: "Job queued 12" })).toBeVisible();
+        const pill = (await page.getByTestId("model-select-trigger").boundingBox())!;
+        const title = (await header(page).getByRole("heading", { level: 1 }).boundingBox())!;
+        expect(pill.x + pill.width).toBeLessThanOrEqual(title.x);
+    });
 });

@@ -11,7 +11,9 @@ import { useShellSidebar } from "./AppShell";
  * The slim bar at the top of every shell page. `start` holds the page's
  * leading control or title; `center`, when given, is centered on the page
  * (an item's breadcrumb); `end` holds the page's actions. On mobile it leads
- * with the button that opens the sidebar drawer.
+ * with the button that opens the sidebar drawer. Beside a `center`, `start`
+ * keeps its content's minimum width (on desktop) and `center` shrinks or
+ * moves aside for it, so the two never overlap.
  */
 export function PageHeader({
     start,
@@ -38,14 +40,14 @@ export function PageHeader({
             </Button>
             <div
                 className={cn(
-                    "flex min-w-0 items-center gap-2",
-                    center ? "md:flex-1 md:basis-0" : "flex-1",
+                    "flex items-center gap-2",
+                    center ? "max-md:min-w-0 md:flex-1 md:basis-0" : "min-w-0 flex-1",
                 )}
             >
                 {start}
             </div>
             {center && (
-                <div className="flex min-w-0 flex-1 items-center justify-center md:max-w-[50%] md:flex-none">
+                <div className="flex min-w-0 flex-1 items-center justify-center md:max-w-[50%] md:flex-initial">
                     {center}
                 </div>
             )}
