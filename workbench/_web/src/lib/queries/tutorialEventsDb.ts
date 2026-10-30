@@ -1,16 +1,18 @@
 import { db } from "@/db/client";
 import { tutorialEvents, workspaces } from "@/db/schema";
 import type { TutorialEvent } from "@/db/schema";
+import { getWorkspaceById } from "@/lib/queries/workspaceDb";
 import type { TutorialEventPayload, TutorialEventType, TutorialNote } from "@/types/tutorialEvents";
 import { asc, eq } from "drizzle-orm";
 
 /**
  * Unguarded tutorial_events DB internals. The "use server" RPC surface splits
- * two ways: the participant write (recordTutorialEvent) lives in
- * tutorialEventsQueries.ts; the admin-guarded analytics reads compose the
- * aggregation helpers below from workshopAnalyticsQueries.ts. Keeping the
- * internals here makes them directly testable under bun:test (no Supabase
- * session) and mirrors the workshopDb / workshopQueries split.
+ * two ways: the participant write in tutorialEventsQueries.ts resolves the
+ * signed-in user and calls recordTutorialEvent; the admin-guarded analytics
+ * reads compose the aggregation helpers below from
+ * workshopAnalyticsQueries.ts. Keeping the internals here makes them directly
+ * testable under bun:test (no Supabase session) and mirrors the workshopDb /
+ * workshopQueries split.
  *
  * Aggregation (funnel, observations, per-participant progress) is derived in TS
  * from the raw rows rather than with dialect-specific GROUP BY — same reasoning
@@ -37,6 +39,21 @@ export const insertTutorialEvent = async (
         })
         .returning();
     return row as TutorialEvent;
+};
+
+/**
+ * Records a tutorial event in one of the user's workspaces (a participant's
+ * own workshop workspace); throws when the workspace isn't theirs.
+ */
+export const recordTutorialEvent = async (
+    userId: string,
+    input: RecordTutorialEventInput,
+): Promise<TutorialEvent> => {
+    const workspace = await getWorkspaceById(input.workspaceId);
+    if (!workspace || workspace.userId !== userId) {
+        throw new Error("Workspace not found or access denied");
+    }
+    return insertTutorialEvent(input);
 };
 
 /** All events for one workspace, oldest → newest (the participant's own timeline). */

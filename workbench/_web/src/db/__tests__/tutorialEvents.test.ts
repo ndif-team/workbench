@@ -2,10 +2,11 @@
  * Integration tests for the tutorial_events entity on SQLite.
  *
  * Exercises the unguarded internals in lib/queries/tutorialEventsDb.ts (the
- * recordTutorialEvent RPC in tutorialEventsQueries.ts is a thin unguarded write
- * over insertTutorialEvent). Covers the insert round-trip, the per-workspace
- * timeline, the workshop-scoped join through workspaces.workshop_id, and the
- * pure TS aggregators the analytics dashboard derives (funnel, observations,
+ * recordTutorialEvent RPC in tutorialEventsQueries.ts passes the signed-in
+ * user to recordTutorialEvent, which writes only to that user's workspace).
+ * Covers the owner check, the insert round-trip, the per-workspace timeline,
+ * the workshop-scoped join through workspaces.workshop_id, and the pure TS
+ * aggregators the analytics dashboard derives (funnel, observations,
  * per-participant progress).
  */
 

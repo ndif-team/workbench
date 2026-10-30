@@ -1,20 +1,20 @@
 /**
- * Integration tests for the owner checks on chart, report, lens-run and
- * config writes, on SQLite.
+ * Integration tests for the owner checks on chart, report, lens-run, config
+ * and tutorial-event writes, on SQLite.
  *
  * The "use server" wrappers in chartQueries.ts, documentQueries.ts,
- * lensRunQueries.ts and configQueries.ts pass the signed-in user to the
- * internals in chartDb.ts, documentDb.ts, lensRunDb.ts and configDb.ts; these
- * tests call the internals with one user against another user's rows (and a
- * workshop participant against their own workshop workspace, which must keep
- * working).
+ * lensRunQueries.ts, configQueries.ts and tutorialEventsQueries.ts pass the
+ * signed-in user to the internals in chartDb.ts, documentDb.ts, lensRunDb.ts,
+ * configDb.ts and tutorialEventsDb.ts; these tests call the internals with
+ * one user against another user's rows (and a workshop participant against
+ * their own workshop workspace, which must keep working).
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import type { SerializedEditorState } from "lexical";
 import { db, clearDatabase } from "../client";
-import { charts, configs, documents, lensRuns } from "../schema";
+import { charts, configs, documents, lensRuns, tutorialEvents } from "../schema";
 import {
     assertChartWorkspace,
     copyChart,
@@ -35,6 +35,7 @@ import {
     getLensRunsByChart,
     updateLensRunIntervention,
 } from "@/lib/queries/lensRunDb";
+import { recordTutorialEvent } from "@/lib/queries/tutorialEventsDb";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import { createWorkspace } from "@/lib/queries/workspaceDb";
 import type { ChartData } from "@/types/charts";
@@ -334,5 +335,41 @@ describe("config writes", () => {
         await expect(setConfig(INTRUDER, own, savedConfig(ws.id, "Hacked"))).rejects.toThrow(
             "access denied",
         );
+    });
+});
+
+describe("tutorial event writes", () => {
+    const participant = "anon-participant";
+    let workspaceId: string;
+
+    const stepStarted = (workspaceId: string) => ({
+        workspaceId,
+        stepId: "u0-orientation",
+        eventType: "step_started" as const,
+    });
+
+    beforeEach(async () => {
+        await clearDatabase();
+        const workshop = await createWorkshop(workshopInput(["patch-lens"]));
+        workspaceId = (await createWorkspace(participant, "Pilot", workshop.id)).id;
+        await createWorkspace(INTRUDER, "Theirs");
+    });
+
+    it("refuse an event in another user's workspace", async () => {
+        await expect(recordTutorialEvent(INTRUDER, stepStarted(workspaceId))).rejects.toThrow(
+            "access denied",
+        );
+        await expect(recordTutorialEvent(participant, stepStarted("missing"))).rejects.toThrow(
+            "access denied",
+        );
+
+        expect(await db.select().from(tutorialEvents)).toEqual([]);
+    });
+
+    it("keep working for a participant in their own workshop workspace", async () => {
+        const event = await recordTutorialEvent(participant, stepStarted(workspaceId));
+
+        expect(event.workspaceId).toBe(workspaceId);
+        expect((await db.select().from(tutorialEvents)).length).toBe(1);
     });
 });
