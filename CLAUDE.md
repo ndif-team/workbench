@@ -317,16 +317,25 @@ Look at `charts` / `configs` for the canonical shape:
 ### Server vs client query layers
 
 Three files for each entity:
-- `src/lib/queries/<entity>Db.ts` — unguarded internals that call `db` (e.g. `workspaceDb.ts`, `chartDb.ts`, `documentDb.ts`). Writes take the acting user's id and only touch that user's rows. Server code (pages, layouts, other actions) and the `bun:test` suites call these directly.
-- `src/lib/queries/<entity>Queries.ts` — `"use server"` directive. **Every export is a public RPC endpoint**, so each one resolves the signed-in user itself (`requireUser()` / `requireUserId()` from `src/lib/auth/user.ts`; never a client-supplied user id) and calls the `*Db.ts` internal, or checks admin access (`requireAdmin()`). A `"use server"` file may export only async functions (and types).
+- `src/lib/queries/<entity>Db.ts` — unguarded internals that call `db` (e.g. `workspaceDb.ts`, `chartDb.ts`, `documentDb.ts`, `configDb.ts`, `lensRunDb.ts`). Writes take the acting user's id and only touch that user's rows. Server code (pages, layouts, other actions) and the `bun:test` suites call these directly.
+- `src/lib/queries/<entity>Queries.ts` — `"use server"` directive. **Every export is a public RPC endpoint**, so each one resolves the signed-in user itself (`requireUser()` / `requireUserId()` from `src/lib/auth/user.ts`; never a client-supplied user id) and calls the `*Db.ts` internal, or checks admin access (`requireAdmin()`). A `"use server"` file may export only async functions (and types). Export nothing here that only tests or server code need; put it in `*Db.ts`.
 - `src/lib/api/<entity>Api.ts` — client-side React Query wrappers (`useQuery`, `useMutation`). Calls server actions or external HTTP (FastAPI / NDIF).
 
 Keep them split. Server actions are RPCs invoked from client mutations.
+
+How a `*Db.ts` write checks ownership:
+- **Keyed by an item id** (update, delete): one statement whose `WHERE` carries an owner subquery (`isUserChart`, `isUserDocument`, `isUserConfig`, `isUserRun`), then throw "… not found or access denied" when it matched nothing. Don't read the row, compare, then write.
+- **Creating under a parent** (a chart in a workspace, a run on a chart, a tutorial event in a workspace): check that the parent is the user's first, and take the workspace from the parent row rather than from the client.
+- **Configs and lens runs belong to their chart.** Their owner check goes through the chart (`chart_config_links` for configs), not the row's own `workspaceId`, which only follows the chart (`moveChart` moves it).
+- **Workshop participants** are anonymous Supabase users who own their workshop workspace, so these checks cover them with no special case. Test each guarded write in `src/db/__tests__/itemOwnership.test.ts`: refused for another user, allowed for the owner and for a participant in their workshop workspace.
+
+Lens-run reads are owner-checked too: they return nothing for another user's runs. Chart and report reads keyed by id (`getChartById`, `getConfigForChart`, `getChartsMetadata`, `getDocumentById`, `getDocumentsForWorkspace`) and the participant reads keyed by workspace (`getWorkshopForWorkspace`, `resolveTutorialForWorkspace`, `getTutorialNotesForWorkspace`) are not. Whether they should be depends on whether charts become shareable by link.
 
 ### Run history (`lens_runs`)
 
 Patch Lens prompt history is the reference for durable per-run history:
 - **One row per successful run**, cascading through `workspaceId` and `chartId` like `configs`. `model` is its own column because the history rail filters by it.
+- **Owned through the chart.** `createLensRun` files a run under its chart's current workspace, and every `lensRunDb.ts` function matches only runs on the user's charts, so the client sends chart and run ids but never a workspace id.
 - **Split storage.** `summary` (JSON) is the compact slice the rail lists; `data` (JSON) holds the full heatmaps and is fetched by id on demand (`queryKeys.lensRuns.heatmaps`).
 - **History writes are best-effort.** A failed write must not fail an otherwise successful run (see `runPatchLensLogitLens`).
 - **Use JSON columns** for payloads whose shape evolves; promote a field to a column only when you query by it.
