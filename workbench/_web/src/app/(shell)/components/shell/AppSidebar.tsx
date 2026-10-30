@@ -30,7 +30,9 @@ type SidebarVariant = "expanded" | "rail" | "drawer";
  * mounted, so until then the global sidebar is `pending`: it shows its
  * skeleton and doesn't read the library (reading it creates a default
  * workspace, which a workshop participant should never get). `AppShell`
- * hides it on a workshop page's first paint.
+ * hides it on a workshop page's first paint. Its scrollbars stay hidden until
+ * the pointer is over it or focus is inside it (`--scrollbar-thumb`, in
+ * `globals.css`); their space stays reserved, so nothing shifts.
  */
 export function AppSidebar({ variant }: { variant: SidebarVariant }) {
     const scope = useWorkspaceScope();
@@ -52,7 +54,10 @@ export function AppSidebar({ variant }: { variant: SidebarVariant }) {
               : "global";
 
     return (
-        <div data-variant={variant} className="group/sidebar flex h-full min-h-0 flex-col">
+        <div
+            data-variant={variant}
+            className="group/sidebar flex h-full min-h-0 flex-col [--scrollbar-thumb:transparent] focus-within:[--scrollbar-thumb:inherit] hover:[--scrollbar-thumb:inherit]"
+        >
             <SidebarHeader variant={variant} homeHref={participant?.entryPath ?? "/workbench"} />
             {mode === "workshop" ? (
                 <div className="flex min-h-0 flex-1 flex-col">

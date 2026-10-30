@@ -156,10 +156,15 @@
  * once they are set Chromium ignores ::-webkit-scrollbar, so setting them
  * here also overrides a browser's own scrollbar styling. The
  * ::-webkit-scrollbar pill is for engines without them (older Safari).
- * `.scrollbar-hide` below still hides one where it's set. */
+ * `--scrollbar-thumb` is the thumb's color and inherits: set it to
+ * transparent to hide the thumbs inside an element (the sidebar does, until
+ * it's hovered). `.scrollbar-hide` below still hides one where it's set. */
+:root {
+    --scrollbar-thumb: hsl(var(--muted-foreground) / 0.35);
+}
 * {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 @supports not (scrollbar-color: auto) {
     ::-webkit-scrollbar {
@@ -174,7 +179,7 @@
         border: 3px solid transparent;
         border-radius: 9999px;
         background-clip: padding-box;
-        background-color: hsl(var(--muted-foreground) / 0.35);
+        background-color: var(--scrollbar-thumb);
     }
 }
 

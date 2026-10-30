@@ -240,6 +240,7 @@ Defined in `src/app/globals.css`:
 - No tracked-uppercase tiny labels (`text-[10px] uppercase tracking-…`) — the rest of the app uses sentence-case `text-sm font-medium`.
 - No arbitrary `text-[Npx]`. Use Tailwind's standard scale (`text-xs`, `text-sm`).
 - One radius token per feature.
+- Scrollbars are styled once, in `globals.css` (thin, a muted thumb on a clear track). Don't restyle them per component; to hide the thumbs inside an element until it's hovered, set `--scrollbar-thumb` to transparent there, as `AppSidebar` does.
 
 Existing panel header pattern (copy this exactly when adding a new panel):
 ```tsx
