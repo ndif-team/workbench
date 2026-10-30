@@ -28,11 +28,12 @@ test.describe("Activation Patching (real NDIF)", () => {
     }) => {
         await gotoFreshLensChart(page);
 
-        // The sidebar exposes an "Activation Patching" button — clicking it
-        // creates an AP chart in the current workspace.
-        const apButton = page.getByRole("button", { name: "Activation Patching" }).first();
-        await expect(apButton).toBeVisible({ timeout: 15_000 });
-        await apButton.click();
+        // The sidebar's New chart menu offers each tool; picking Activation
+        // Patching creates an AP chart and opens it.
+        const newChart = page.getByRole("button", { name: "New chart" }).first();
+        await expect(newChart).toBeVisible({ timeout: 15_000 });
+        await newChart.click();
+        await page.getByRole("menuitem", { name: "Activation Patching" }).click();
 
         await page.waitForURL(/\/activation-patching\//, { timeout: 30_000 });
 
