@@ -2,16 +2,16 @@ import { redirect } from "next/navigation";
 import { redirectWorkshopParticipant, requireUser } from "@/lib/auth/user";
 import { chartLaunchFromSearchParams } from "@/lib/chartLaunch";
 import { newChartPath } from "@/lib/chartRoutes";
+import { LandingComposer } from "@/components/LandingComposer";
 import { PageHeader } from "../components/shell/PageHeader";
-import { HomeComposer } from "./components/HomeComposer";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Home, and the post-login entry: a composer that starts a chart from a
- * prompt, a tool and a model. Chart-creation params (old
- * `/workbench?tool=…&prompt=…` links) go on to `/new`. A workshop participant
- * goes to their workshop instead.
+ * Home, and the post-login entry: the landing page's composer, which starts a
+ * chart from a prompt, a tool and a model, on the landing page's background.
+ * Chart-creation params (old `/workbench?tool=…&prompt=…` links) go on to
+ * `/new`. A workshop participant goes to their workshop instead.
  */
 export default async function WorkbenchPage({
     searchParams,
@@ -30,9 +30,11 @@ export default async function WorkbenchPage({
     }
 
     return (
-        <div className="flex size-full min-h-0 flex-col">
+        <div className="aurora-bg flex size-full min-h-0 flex-col">
             <PageHeader />
-            <HomeComposer />
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-3 md:px-6">
+                <LandingComposer loggedIn />
+            </div>
         </div>
     );
 }

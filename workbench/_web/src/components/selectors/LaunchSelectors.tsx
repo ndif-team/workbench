@@ -88,7 +88,7 @@ export function WorkspacePill({
     value: string;
     onChange: (v: string) => void;
     disabled: boolean;
-    workspaces: Pick<WorkspaceListItem, "id" | "name">[];
+    workspaces: WorkspaceListItem[];
     triggerClassName?: string;
     /** `false` = neutral menu shell (shadcn vibe); `true` = brand landing look. */
     compact?: boolean;

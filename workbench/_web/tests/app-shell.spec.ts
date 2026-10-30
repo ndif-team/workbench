@@ -270,21 +270,20 @@ test.describe("app shell", () => {
         await deleteWorkspace(page, workspaceId, workspace);
     });
 
-    test("Home starts a chart from its prompt, tool and model", async ({ page }) => {
+    test("Home starts a chart from the landing page's composer", async ({ page }) => {
         const prompt = unique("Home prompt");
         await page.goto("/workbench");
-        await expect(page.getByRole("heading", { name: "Start a chart" })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "workbench" })).toBeVisible();
         await expect(page.getByRole("link", { name: "Home" })).toHaveAttribute(
             "aria-current",
             "page",
         );
 
-        const promptBox = page.getByRole("textbox", { name: "Prompt" });
-        await expect(promptBox).toBeFocused();
-        await expect(page.getByTestId("model-select-trigger")).toContainText("gpt2");
-        await expect(page.getByRole("button", { name: "Run Logit Lens" })).toBeDisabled();
+        await expect(page.getByRole("button", { name: "Select model" })).toContainText("gpt2");
+        await expect(page.getByRole("button", { name: "Run", exact: true })).toBeDisabled();
+        const promptBox = page.getByPlaceholder("Enter a prompt to analyze...");
         await promptBox.fill(prompt);
-        await promptBox.press("ControlOrMeta+Enter");
+        await promptBox.press("Enter");
 
         await page.waitForURL(/\/logit-lens\/[0-9a-f-]{36}$/, { timeout: 60_000 });
         const chartId = new URL(page.url()).pathname.split("/")[2];
