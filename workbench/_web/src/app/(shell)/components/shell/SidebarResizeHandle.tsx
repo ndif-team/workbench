@@ -78,8 +78,8 @@ export function SidebarResizeHandle({
             onDoubleClick={() => onResizeEnd(SIDEBAR_WIDTH.default)}
             onKeyDown={onKeyDown}
             className={cn(
-                "absolute inset-y-0 -right-1.5 z-10 w-3 cursor-col-resize outline-none",
-                "after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 after:transition-colors",
+                "absolute inset-y-0 -right-2 z-10 w-2 cursor-col-resize outline-none",
+                "after:absolute after:inset-y-0 after:left-0 after:w-0.5 after:transition-colors",
                 "hover:after:bg-primary/40 focus-visible:after:bg-primary data-[dragging]:after:bg-primary/60",
             )}
         />

@@ -151,6 +151,35 @@
         hsl(220 22% 7%);
 }
 
+/* Scrollbars: a slim rounded thumb on a clear track, faint until it is
+ * pointed at. Chromium and Safari draw the ::-webkit-scrollbar parts (giving
+ * them scrollbar-color would turn those off); Firefox only has the standard
+ * properties. `.scrollbar-hide` below still hides one where it's set. */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: padding-box;
+    background-color: hsl(var(--muted-foreground) / 0.3);
+}
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+}
+@supports not selector(::-webkit-scrollbar) {
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+    }
+}
+
 .scrollbar-hide {
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
