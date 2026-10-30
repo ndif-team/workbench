@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { Boxes, FolderClosed, House, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
+import { Boxes, FolderClosed, House, PanelLeftClose, Plus, X } from "lucide-react";
 
 import { CwLogoMark } from "@/components/CwLogo";
 import { Button } from "@/components/ui/button";
@@ -80,7 +80,11 @@ export function AppSidebar({ variant }: { variant: SidebarVariant }) {
     );
 }
 
-/** The sidebar's top row; the product name leads to `homeHref` (a participant's workshop, else the home page). */
+/**
+ * The sidebar's top row; the product name leads to `homeHref` (a
+ * participant's workshop, else the home page). On the rail it is the logo
+ * mark alone, which expands the sidebar.
+ */
 function SidebarHeader({ variant, homeHref }: { variant: SidebarVariant; homeHref: string }) {
     const { toggleCollapsed, closeDrawer } = useShellSidebar();
 
@@ -88,7 +92,7 @@ function SidebarHeader({ variant, homeHref }: { variant: SidebarVariant; homeHre
         return (
             <div className="flex h-12 shrink-0 items-center justify-center">
                 <RailButton label="Expand sidebar" onClick={toggleCollapsed}>
-                    <PanelLeftOpen />
+                    <CwLogoMark cell={6} />
                 </RailButton>
             </div>
         );
