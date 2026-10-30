@@ -36,11 +36,7 @@ import {
 
 import { setConfig } from "@/lib/queries/configDb";
 
-import {
-    getDocumentById,
-    getDocumentByWorkspaceId,
-    getDocumentsForWorkspace,
-} from "@/lib/queries/documentQueries";
+import { getDocumentById, getDocumentsForWorkspace } from "@/lib/queries/documentQueries";
 import { createDocument, updateDocument, deleteDocument } from "@/lib/queries/documentDb";
 
 import { DEFAULT_CHART_NAME, type ChartData, type ChartType } from "@/types/charts";
@@ -477,14 +473,6 @@ describe("Document Queries", () => {
 
         expect(found).not.toBeNull();
         expect(found!.id).toBe(created.id);
-    });
-
-    it("should get document by workspace ID", async () => {
-        await createDocument(TEST_USER_ID, workspaceId);
-        const found = await getDocumentByWorkspaceId(workspaceId);
-
-        expect(found).not.toBeNull();
-        expect(found!.workspaceId).toBe(workspaceId);
     });
 
     it("should update document content", async () => {

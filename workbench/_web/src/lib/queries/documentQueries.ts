@@ -21,15 +21,6 @@ export const getDocumentById = async (documentId: string): Promise<Document | nu
     return document ?? null;
 };
 
-export const getDocumentByWorkspaceId = async (workspaceId: string): Promise<Document | null> => {
-    const [document] = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.workspaceId, workspaceId));
-
-    return document ?? null;
-};
-
 export type DocumentListItem = Pick<Document, "id" | "workspaceId" | "createdAt" | "updatedAt"> & {
     position: number;
     derivedTitle: string;
