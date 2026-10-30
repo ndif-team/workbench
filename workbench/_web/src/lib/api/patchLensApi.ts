@@ -40,11 +40,6 @@ interface PatchLensRequest {
     targetPrompt: string;
     model: string;
     chartId: string;
-    // Sourced from the route, not re-fetched from the chart row. Lets the
-    // prompt-history write stand on its own even if the chart row is briefly
-    // missing (e.g. a preview pod whose ephemeral DB was just reset), instead
-    // of silently skipping.
-    workspaceId: string;
     topk?: number;
     includeEntropy?: boolean;
 }
@@ -135,13 +130,12 @@ export const runPatchLensLogitLens = async (
           }
         : undefined;
     try {
-        if (request.workspaceId && summary) {
+        if (summary) {
             const heatmaps: LensRunHeatmaps = {
                 source,
                 ...(target ? { target } : {}),
             };
             const created = await createLensRun({
-                workspaceId: request.workspaceId,
                 chartId: request.chartId,
                 model: request.model,
                 summary,

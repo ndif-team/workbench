@@ -566,7 +566,6 @@ export default function PatchLensArea({
                     targetPrompt: tgt, // empty/whitespace is fine — mutation skips the call
                     model: selectedModel,
                     chartId,
-                    workspaceId,
                 });
                 onLensResult?.(result, src, tgt);
                 // Advance runCompleted-gated steps; the predicate (if any) inspects
@@ -598,7 +597,6 @@ export default function PatchLensArea({
             runLogitLens,
             onLensResult,
             chartId,
-            workspaceId,
             capture,
             emitTutorialEvent,
         ],

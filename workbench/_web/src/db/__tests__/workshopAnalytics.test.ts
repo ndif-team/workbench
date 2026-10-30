@@ -9,7 +9,8 @@
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
-import { clearDatabase } from "../client";
+import { db, clearDatabase } from "../client";
+import { lensRuns } from "../schema";
 import {
     getWorkshopAnalytics,
     buildWorkshopCsv,
@@ -18,7 +19,6 @@ import {
 import { tutorialCompletionPct } from "@/lib/workshopCompletion";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import { createWorkspace } from "@/lib/queries/workspaceDb";
-import { createLensRun } from "@/lib/queries/lensRunQueries";
 import { insertTutorialEvent } from "@/lib/queries/tutorialEventsDb";
 import type { WorkshopTool } from "@/db/schema";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
@@ -48,7 +48,9 @@ const summary = (): LensRunSummary =>
 const heatmaps = (): LensRunHeatmaps => ({}) as unknown as LensRunHeatmaps;
 
 const seedRun = (workspaceId: string, chartId: string, model: string) =>
-    createLensRun({ workspaceId, chartId, model, summary: summary(), heatmaps: heatmaps() });
+    db
+        .insert(lensRuns)
+        .values({ workspaceId, chartId, model, summary: summary(), data: heatmaps() });
 
 describe("workshop analytics", () => {
     beforeEach(async () => {

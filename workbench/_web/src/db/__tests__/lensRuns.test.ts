@@ -9,6 +9,7 @@
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { clearDatabase } from "../client";
+import { createPatchLensChartPair } from "@/lib/queries/chartDb";
 import {
     createLensRun,
     getLensRunsByChart,
@@ -17,13 +18,12 @@ import {
     clearLensRunsForChart,
     deleteLensRun,
     updateLensRunIntervention,
-} from "@/lib/queries/lensRunQueries";
+} from "@/lib/queries/lensRunDb";
+import { createWorkspace } from "@/lib/queries/workspaceDb";
 import type { LensRunSummary, LensRunHeatmaps, LensRunPromptSummary } from "@/types/lensRun";
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
 
-const WS = "ws-test-1";
-const CHART_A = "chart-aaaa";
-const CHART_B = "chart-bbbb";
+const USER = "user-runs";
 
 // A minimal but well-formed full lens payload (1 layer, 1 token).
 const fakeLens = (finalToken: string): LogitLensIntroData =>
@@ -62,13 +62,18 @@ const heatmaps = (srcTok = " Paris", tgtTok?: string): LensRunHeatmaps => ({
 });
 
 describe("lens_runs (F1 prompt history)", () => {
+    let CHART_A: string;
+    let CHART_B: string;
+
     beforeEach(async () => {
         await clearDatabase();
+        const ws = await createWorkspace(USER, "Runs");
+        CHART_A = (await createPatchLensChartPair(ws.id)).chart.id;
+        CHART_B = (await createPatchLensChartPair(ws.id)).chart.id;
     });
 
     it("creates a run and reads back the compact summary payload intact", async () => {
-        const created = await createLensRun({
-            workspaceId: WS,
+        const created = await createLensRun(USER, {
             chartId: CHART_A,
             model: "meta-llama/Llama-3.1-8B",
             summary: summary(" Paris", " Rome"),
@@ -77,7 +82,7 @@ describe("lens_runs (F1 prompt history)", () => {
 
         expect(created.id).toBeTruthy();
 
-        const rows = await getLensRunsByChart(WS, CHART_A);
+        const rows = await getLensRunsByChart(USER, CHART_A);
         expect(rows).toHaveLength(1);
         expect(rows[0].summary.source.finalToken).toBe(" Paris");
         expect(rows[0].summary.target?.finalToken).toBe(" Rome");
@@ -85,44 +90,41 @@ describe("lens_runs (F1 prompt history)", () => {
     });
 
     it("never returns the heavy `data` heatmaps from list queries", async () => {
-        await createLensRun({
-            workspaceId: WS,
+        await createLensRun(USER, {
             chartId: CHART_A,
             model: "m1",
             summary: summary(" Paris"),
             heatmaps: heatmaps(" Paris"),
         });
-        const rows = await getLensRunsByChart(WS, CHART_A);
+        const rows = await getLensRunsByChart(USER, CHART_A);
         expect("data" in rows[0]).toBe(false);
     });
 
     it("fetches full heatmaps on demand by id", async () => {
-        const created = await createLensRun({
-            workspaceId: WS,
+        const created = await createLensRun(USER, {
             chartId: CHART_A,
             model: "m1",
             summary: summary(" Paris", " Rome"),
             heatmaps: heatmaps(" Paris", " Rome"),
         });
 
-        const single = await getLensRunHeatmaps(created.id);
+        const single = await getLensRunHeatmaps(USER, created.id);
         expect(single).not.toBeNull();
         expect(single!.data.source).toBeTruthy();
         expect(single!.data.target).toBeTruthy();
 
-        const batch = await getLensRunHeatmapsByIds([created.id]);
+        const batch = await getLensRunHeatmapsByIds(USER, [created.id]);
         expect(batch).toHaveLength(1);
         expect(batch[0].data.source).toBeTruthy();
     });
 
     it("returns [] / null for empty or unknown heatmap fetches", async () => {
-        expect(await getLensRunHeatmapsByIds([])).toEqual([]);
-        expect(await getLensRunHeatmaps("does-not-exist")).toBeNull();
+        expect(await getLensRunHeatmapsByIds(USER, [])).toEqual([]);
+        expect(await getLensRunHeatmaps(USER, "does-not-exist")).toBeNull();
     });
 
     it("attaches a patch to an existing run via updateLensRunIntervention", async () => {
-        const created = await createLensRun({
-            workspaceId: WS,
+        const created = await createLensRun(USER, {
             chartId: CHART_A,
             model: "m1",
             summary: summary(" Paris", " Rome"),
@@ -130,27 +132,27 @@ describe("lens_runs (F1 prompt history)", () => {
         });
 
         await updateLensRunIntervention(
+            USER,
             created.id,
             { srcTokenPos: 1, srcLayer: 12, tgtTokenPos: 1, tgtLayer: 12 },
             promptSummary("The Colosseum is in", " Paris"),
             fakeLens(" Paris"),
         );
 
-        const [row] = await getLensRunsByChart(WS, CHART_A);
+        const [row] = await getLensRunsByChart(USER, CHART_A);
         // Source/target preserved on the summary, patch merged on.
         expect(row.summary.source.finalToken).toBe(" Paris");
         expect(row.summary.intervention?.srcLayer).toBe(12);
         expect(row.summary.interventionResult?.finalToken).toBe(" Paris");
 
         // The patched heatmap is merged onto `data` too.
-        const full = await getLensRunHeatmaps(created.id);
+        const full = await getLensRunHeatmaps(USER, created.id);
         expect(full!.data.interventionResult).toBeTruthy();
     });
 
     it("returns runs oldest → newest for a chart (createdAt asc, id asc)", async () => {
         for (const tok of [" A", " B", " C"]) {
-            await createLensRun({
-                workspaceId: WS,
+            await createLensRun(USER, {
                 chartId: CHART_A,
                 model: "m1",
                 summary: summary(tok),
@@ -158,80 +160,71 @@ describe("lens_runs (F1 prompt history)", () => {
             });
             await new Promise((r) => setTimeout(r, 5));
         }
-        const rows = await getLensRunsByChart(WS, CHART_A);
+        const rows = await getLensRunsByChart(USER, CHART_A);
         expect(rows.map((r) => r.summary.source.finalToken)).toEqual([" A", " B", " C"]);
     });
 
     it("scopes history by chart and (optionally) model", async () => {
-        await createLensRun({
-            workspaceId: WS,
+        await createLensRun(USER, {
             chartId: CHART_A,
             model: "m1",
             summary: summary(" x"),
             heatmaps: heatmaps(" x"),
         });
-        await createLensRun({
-            workspaceId: WS,
+        await createLensRun(USER, {
             chartId: CHART_A,
             model: "m2",
             summary: summary(" y"),
             heatmaps: heatmaps(" y"),
         });
-        await createLensRun({
-            workspaceId: WS,
+        await createLensRun(USER, {
             chartId: CHART_B,
             model: "m1",
             summary: summary(" z"),
             heatmaps: heatmaps(" z"),
         });
 
-        expect(await getLensRunsByChart(WS, CHART_A)).toHaveLength(2);
-        expect(await getLensRunsByChart(WS, CHART_A, "m1")).toHaveLength(1);
-        expect(await getLensRunsByChart(WS, CHART_B)).toHaveLength(1);
-        // Workspace scoping: the same chart id under a different workspace reads nothing.
-        expect(await getLensRunsByChart("other-ws", CHART_A)).toHaveLength(0);
+        expect(await getLensRunsByChart(USER, CHART_A)).toHaveLength(2);
+        expect(await getLensRunsByChart(USER, CHART_A, "m1")).toHaveLength(1);
+        expect(await getLensRunsByChart(USER, CHART_B)).toHaveLength(1);
     });
 
     it("clears a chart's history without touching another chart", async () => {
-        await createLensRun({
-            workspaceId: WS,
+        await createLensRun(USER, {
             chartId: CHART_A,
             model: "m1",
             summary: summary(" x"),
             heatmaps: heatmaps(" x"),
         });
-        await createLensRun({
-            workspaceId: WS,
+        await createLensRun(USER, {
             chartId: CHART_B,
             model: "m1",
             summary: summary(" y"),
             heatmaps: heatmaps(" y"),
         });
 
-        await clearLensRunsForChart(WS, CHART_A);
-        expect(await getLensRunsByChart(WS, CHART_A)).toHaveLength(0);
-        expect(await getLensRunsByChart(WS, CHART_B)).toHaveLength(1);
+        await clearLensRunsForChart(USER, CHART_A);
+        expect(await getLensRunsByChart(USER, CHART_A)).toHaveLength(0);
+        expect(await getLensRunsByChart(USER, CHART_B)).toHaveLength(1);
     });
 
     it("deletes a single run by id", async () => {
-        const a = await createLensRun({
-            workspaceId: WS,
+        const a = await createLensRun(USER, {
             chartId: CHART_A,
             model: "m1",
             summary: summary(" x"),
             heatmaps: heatmaps(" x"),
         });
         await new Promise((r) => setTimeout(r, 5));
-        await createLensRun({
-            workspaceId: WS,
+        await createLensRun(USER, {
             chartId: CHART_A,
             model: "m1",
             summary: summary(" y"),
             heatmaps: heatmaps(" y"),
         });
 
-        await deleteLensRun(a.workspaceId, a.id);
-        const rows = await getLensRunsByChart(WS, CHART_A);
+        await deleteLensRun(USER, a.id);
+        const rows = await getLensRunsByChart(USER, CHART_A);
         expect(rows).toHaveLength(1);
         expect(rows[0].summary.source.finalToken).toBe(" y");
     });
@@ -240,8 +233,7 @@ describe("lens_runs (F1 prompt history)", () => {
         const RETENTION_CAP = 50;
         const total = RETENTION_CAP + 3;
         for (let i = 0; i < total; i++) {
-            await createLensRun({
-                workspaceId: WS,
+            await createLensRun(USER, {
                 chartId: CHART_A,
                 model: "m1",
                 summary: summary(` t${i}`),
@@ -251,7 +243,7 @@ describe("lens_runs (F1 prompt history)", () => {
             await new Promise((r) => setTimeout(r, 2));
         }
 
-        const rows = await getLensRunsByChart(WS, CHART_A);
+        const rows = await getLensRunsByChart(USER, CHART_A);
         expect(rows).toHaveLength(RETENTION_CAP);
 
         // The 3 oldest tokens should have been pruned; the newest survive.

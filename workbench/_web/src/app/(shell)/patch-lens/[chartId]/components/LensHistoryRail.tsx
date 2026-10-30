@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
 import { useQuery } from "@tanstack/react-query";
 import { Maximize2 } from "lucide-react";
 import { useLensRuns, useClearLensRuns } from "@/lib/api/lensRunApi";
@@ -30,12 +29,10 @@ interface LensHistoryRailProps {
 
 export function LensHistoryRail({ onSelectRun }: LensHistoryRailProps) {
     const { chartId } = useParams<{ chartId: string }>();
-    const workspaceId = useScopedWorkspaceId();
 
-    // No model filter: history is per-chart and survives model switches. Scoped
-    // by workspace so the read/clear can't touch another workspace's rows.
-    const { data: runs } = useLensRuns(workspaceId, chartId);
-    const { mutate: clearHistory, isPending: isClearing } = useClearLensRuns(workspaceId, chartId);
+    // No model filter: history is per-chart and survives model switches.
+    const { data: runs } = useLensRuns(chartId);
+    const { mutate: clearHistory, isPending: isClearing } = useClearLensRuns(chartId);
     const [compareOpen, setCompareOpen] = useState(false);
 
     // The highlight must follow the LOADED run (the one the chart row points at),

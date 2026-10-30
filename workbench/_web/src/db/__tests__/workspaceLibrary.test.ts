@@ -37,7 +37,7 @@ import { getConfigForChart } from "@/lib/queries/chartQueries";
 import { createLogitLensChartPair, createPatchLensChartPair } from "@/lib/queries/chartDb";
 import { createDocument, updateDocument } from "@/lib/queries/documentDb";
 import { setConfig } from "@/lib/queries/configQueries";
-import { createLensRun } from "@/lib/queries/lensRunQueries";
+import { createLensRun } from "@/lib/queries/lensRunDb";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import type { LensRunHeatmaps, LensRunSummary } from "@/types/lensRun";
 import type { LibraryItem } from "@/types/workspaces";
@@ -573,8 +573,7 @@ describe("moves", () => {
         const config = (await getConfigForChart(chartId))!;
         await moveChart(USER, chartId, folder.id);
 
-        const run = await createLensRun({
-            workspaceId: def.id,
+        const run = await createLensRun(USER, {
             chartId,
             model: "gpt2",
             summary: {} as LensRunSummary,
