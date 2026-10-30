@@ -59,9 +59,16 @@ function FooterLink({
 /**
  * The sidebar's footer: account, theme, and the app's outside links
  * (feedback form, logit lens explainer, source). A row when the sidebar is
- * expanded, a column on the rail.
+ * expanded, a column on the rail. Feedback is labelled in a row unless the
+ * row is `narrow` (a sidebar resized below its default width).
  */
-export function SidebarFooter({ orientation }: { orientation: "row" | "column" }) {
+export function SidebarFooter({
+    orientation,
+    narrow = false,
+}: {
+    orientation: "row" | "column";
+    narrow?: boolean;
+}) {
     const side = orientation === "row" ? "top" : "right";
     return (
         <div
@@ -79,7 +86,7 @@ export function SidebarFooter({ orientation }: { orientation: "row" | "column" }
             <FooterLink href={GITHUB_URL} label="Source on GitHub" side={side}>
                 <GitHubMark className="size-4" />
             </FooterLink>
-            {orientation === "row" ? (
+            {orientation === "row" && !narrow ? (
                 <Button
                     variant="ghost"
                     size="sm"

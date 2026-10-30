@@ -5,7 +5,11 @@ import { WorkspaceScopeHost } from "@/components/providers/WorkspaceScopeProvide
 import { getSessionUser, getWorkshopParticipant } from "@/lib/auth/user";
 import { PendingRequestHandler } from "./components/PendingRequestHandler";
 import { AppShell } from "./components/shell/AppShell";
-import { SIDEBAR_COLLAPSED_COOKIE } from "./components/shell/sidebarCookie";
+import {
+    SIDEBAR_COLLAPSED_COOKIE,
+    SIDEBAR_WIDTH_COOKIE,
+    readSidebarWidth,
+} from "./components/shell/sidebarCookie";
 
 /**
  * The app shell around the chart, report, workspace and models pages: the
@@ -22,11 +26,16 @@ export default async function ShellLayout({
 }>) {
     const [cookieStore, user] = await Promise.all([cookies(), getSessionUser()]);
     const collapsed = cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value === "true";
+    const width = readSidebarWidth(cookieStore.get(SIDEBAR_WIDTH_COOKIE)?.value);
     const workshopParticipant = await getWorkshopParticipant(user);
     return (
         <WorkspaceScopeHost>
             <PendingRequestHandler />
-            <AppShell defaultCollapsed={collapsed} workshopParticipant={workshopParticipant}>
+            <AppShell
+                defaultCollapsed={collapsed}
+                defaultWidth={width}
+                workshopParticipant={workshopParticipant}
+            >
                 {children}
             </AppShell>
         </WorkspaceScopeHost>

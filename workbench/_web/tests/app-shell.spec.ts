@@ -319,4 +319,29 @@ test.describe("app shell", () => {
         await panel.getByRole("button", { name: "Previous page" }).click();
         await expect(cards.first()).toContainText("model-00");
     });
+
+    test("the sidebar's edge drags to resize it, and the width survives a reload", async ({
+        page,
+    }) => {
+        await page.goto("/workbench");
+        const aside = page.locator("aside#app-sidebar");
+        const handle = page.getByRole("separator", { name: "Resize sidebar" });
+        const width = async () => Math.round((await aside.boundingBox())!.width);
+        expect(await width()).toBe(256);
+
+        const box = (await handle.boundingBox())!;
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2 + 100, box.y + box.height / 2, { steps: 5 });
+        await page.mouse.up();
+        expect(await width()).toBe(356);
+
+        await page.reload();
+        expect(await width()).toBe(356);
+        await handle.focus();
+        await page.keyboard.press("Home");
+        expect(await width()).toBe(208);
+        await handle.dblclick();
+        expect(await width()).toBe(256);
+    });
 });

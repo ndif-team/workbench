@@ -16,6 +16,7 @@ import { NewItemMenu } from "../items/NewItemMenu";
 import { useShellSidebar, useWorkshopParticipant } from "./AppShell";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { SidebarFooter } from "./SidebarFooter";
+import { SIDEBAR_WIDTH } from "./sidebarCookie";
 
 type SidebarVariant = "expanded" | "rail" | "drawer";
 
@@ -35,6 +36,7 @@ export function AppSidebar({ variant }: { variant: SidebarVariant }) {
     const scope = useWorkspaceScope();
     const participant = useWorkshopParticipant();
     const params = useParams<{ chartId?: string; reportId?: string }>();
+    const { width } = useShellSidebar();
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
 
@@ -64,7 +66,10 @@ export function AppSidebar({ variant }: { variant: SidebarVariant }) {
             ) : (
                 <LibrarySidebar pending={mode === "pending"} />
             )}
-            <SidebarFooter orientation={variant === "rail" ? "column" : "row"} />
+            <SidebarFooter
+                orientation={variant === "rail" ? "column" : "row"}
+                narrow={variant === "expanded" && width < SIDEBAR_WIDTH.default}
+            />
         </div>
     );
 }

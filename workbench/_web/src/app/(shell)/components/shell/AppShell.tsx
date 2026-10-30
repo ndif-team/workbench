@@ -7,6 +7,7 @@ import {
     useEffect,
     useMemo,
     useState,
+    type CSSProperties,
     type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
@@ -18,11 +19,14 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 import type { WorkshopParticipant } from "@/lib/workshop";
 import { AppSidebar } from "./AppSidebar";
-import { writeSidebarCollapsed } from "./sidebarCookie";
+import { SidebarResizeHandle } from "./SidebarResizeHandle";
+import { writeSidebarCollapsed, writeSidebarWidth } from "./sidebarCookie";
 
 type ShellSidebarState = {
     /** Whether the desktop sidebar is the slim rail. */
     collapsed: boolean;
+    /** The desktop sidebar's width when expanded, in px. */
+    width: number;
     toggleCollapsed: () => void;
     /** Opens the sidebar drawer (mobile). */
     openDrawer: () => void;
@@ -48,7 +52,8 @@ export function useWorkshopParticipant(): WorkshopParticipant | null {
 
 /**
  * The app shell: the persistent left sidebar (a rail when collapsed; a drawer
- * on mobile) beside the page. The collapsed preference persists in a cookie
+ * on mobile) beside the page. Expanded, its right edge drags to resize it.
+ * The collapsed preference and the width persist in cookies
  * (`sidebarCookie.ts`).
  * A workshop workspace gets its focused sidebar instead, which starts as the
  * rail every time a workshop is entered and doesn't touch the preference. So
@@ -62,16 +67,19 @@ export function useWorkshopParticipant(): WorkshopParticipant | null {
  */
 export function AppShell({
     defaultCollapsed,
+    defaultWidth,
     workshopParticipant,
     children,
 }: {
     defaultCollapsed: boolean;
+    defaultWidth: number;
     workshopParticipant: WorkshopParticipant | null;
     children: ReactNode;
 }) {
     const scope = useWorkspaceScope();
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(defaultCollapsed);
+    const [width, setWidth] = useState(defaultWidth);
     const [workshopExpandedIn, setWorkshopExpandedIn] = useState<string | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [drawerPath, setDrawerPath] = useState(pathname);
@@ -104,15 +112,21 @@ export function AppShell({
         writeSidebarCollapsed(!collapsed);
     }, [workshopWorkspaceId, collapsed]);
 
+    const settleWidth = useCallback((next: number) => {
+        setWidth(next);
+        writeSidebarWidth(next);
+    }, []);
+
     const value = useMemo<ShellSidebarState>(
         () => ({
             collapsed: effectiveCollapsed,
+            width,
             toggleCollapsed,
             openDrawer: () => setDrawerOpen(true),
             closeDrawer: () => setDrawerOpen(false),
             workshopParticipant,
         }),
-        [effectiveCollapsed, toggleCollapsed, workshopParticipant],
+        [effectiveCollapsed, width, toggleCollapsed, workshopParticipant],
     );
 
     return (
@@ -128,10 +142,12 @@ export function AppShell({
             </a>
             <div className="group/shell flex h-screen bg-gradient-to-tr from-background dark:to-primary/15 to-primary/30">
                 <aside
+                    id="app-sidebar"
                     aria-label="Sidebar"
+                    style={{ "--sidebar-width": `${width}px` } as CSSProperties}
                     className={cn(
-                        "hidden shrink-0 md:flex md:flex-col",
-                        effectiveCollapsed ? "w-12" : "w-64",
+                        "relative hidden shrink-0 md:flex md:flex-col",
+                        effectiveCollapsed ? "w-12" : "w-[var(--sidebar-width)]",
                         !mounted && "group-has-[[data-workshop-scope]]/shell:w-12",
                     )}
                 >
@@ -143,6 +159,14 @@ export function AppShell({
                     >
                         <AppSidebar variant={effectiveCollapsed ? "rail" : "expanded"} />
                     </div>
+                    {!effectiveCollapsed && (
+                        <SidebarResizeHandle
+                            width={width}
+                            controls="app-sidebar"
+                            onResize={setWidth}
+                            onResizeEnd={settleWidth}
+                        />
+                    )}
                 </aside>
                 <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
                     <SheetContent>
