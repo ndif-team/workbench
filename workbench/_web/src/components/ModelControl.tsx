@@ -78,9 +78,11 @@ interface ModelControlProps {
     className?: string;
     /** Below `md`, shrink the pill to its status dot so a page header's title has room. */
     compact?: boolean;
+    /** The tool to gate models by, where the route has none (the home composer); defaults to the open chart's tool. */
+    tool?: ToolType | null;
 }
 
-export function ModelControl({ className, compact = false }: ModelControlProps) {
+export function ModelControl({ className, compact = false, tool }: ModelControlProps) {
     const hideCompact = compact && "max-md:hidden";
     const { selectedModelIdx, setSelectedModelIdx, jobStatus } = useWorkspace();
     const workspaceId = useWorkspaceScope()?.workspaceId;
@@ -95,15 +97,15 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
 
     const [open, setOpen] = React.useState(false);
 
-    // The tool of the chart currently open (from the route), so the picker can
-    // disable models it doesn't support. Null on non-tool routes / unrestricted
-    // tools → no gating.
+    // The `tool` prop, else the tool of the chart currently open (from the
+    // route), so the picker can disable models it doesn't support. Null on
+    // non-tool routes / unrestricted tools → no gating.
     const pathname = usePathname();
     const activeTool = React.useMemo<ToolType | null>(() => {
         const segment = pathname.split("/").filter(Boolean)[0];
-        const tool = segment ? toolForRouteSegment(segment) : undefined;
-        return tool && isToolModelRestricted(tool) ? tool : null;
-    }, [pathname]);
+        const routeTool = tool ?? (segment ? toolForRouteSegment(segment) : undefined);
+        return routeTool && isToolModelRestricted(routeTool) ? routeTool : null;
+    }, [pathname, tool]);
 
     // Computed before the early returns so the useEffect below is called on
     // every render (Rules of Hooks).

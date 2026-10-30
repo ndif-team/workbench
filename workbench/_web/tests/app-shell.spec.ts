@@ -8,9 +8,9 @@ import {
 } from "./TestingUtils";
 
 /**
- * E2E for the app shell: New chart and `/new`, the global sidebar's item
- * actions (rename, move to a workspace and back, delete), the workspaces
- * pages, and the old `/workbench/<workspace>/…` links.
+ * E2E for the app shell: the home composer, New chart and `/new`, the global
+ * sidebar's item actions (rename, move to a workspace and back, delete), the
+ * workspaces pages, and the old `/workbench/…` links.
  *
  * No NDIF and no Python backend: the model list is stubbed with one hot
  * model, and a logit-lens run (a chart opened with a prompt runs itself)
@@ -264,11 +264,30 @@ test.describe("app shell", () => {
         await expect(page).toHaveURL(`/reports/${reportId}`);
         await page.goto(`/workbench/${workspaceId}`);
         await expect(page).toHaveURL(`/logit-lens/${chartId}`);
-        await page.goto("/workbench");
-        await expect(page).toHaveURL(
-            /\/(logit-lens|j-lens|activation-patching|patch-lens)\/[0-9a-f-]{36}$/,
-        );
+        await page.goto("/workbench?tool=logit-lens");
+        await page.waitForURL(/\/logit-lens\/[0-9a-f-]{36}$/, { timeout: 60_000 });
 
         await deleteWorkspace(page, workspaceId, workspace);
+    });
+
+    test("Home starts a chart from its prompt, tool and model", async ({ page }) => {
+        const prompt = unique("Home prompt");
+        await page.goto("/workbench");
+        await expect(page.getByRole("heading", { name: "Start a chart" })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Home" })).toHaveAttribute(
+            "aria-current",
+            "page",
+        );
+
+        const promptBox = page.getByRole("textbox", { name: "Prompt" });
+        await expect(promptBox).toBeFocused();
+        await expect(page.getByTestId("model-select-trigger")).toContainText("gpt2");
+        await expect(page.getByRole("button", { name: "Run Logit Lens" })).toBeDisabled();
+        await promptBox.fill(prompt);
+        await promptBox.press("ControlOrMeta+Enter");
+
+        await page.waitForURL(/\/logit-lens\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+        const chartId = new URL(page.url()).pathname.split("/")[2];
+        await expect(chartRow(page, chartId)).toContainText(prompt);
     });
 });

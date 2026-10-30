@@ -1,16 +1,17 @@
 import { redirect } from "next/navigation";
 import { redirectWorkshopParticipant, requireUser } from "@/lib/auth/user";
 import { chartLaunchFromSearchParams } from "@/lib/chartLaunch";
-import { newChartPath, toolChartPath } from "@/lib/chartRoutes";
-import { getMostRecentUserChart } from "@/lib/queries/workspaceDb";
+import { newChartPath } from "@/lib/chartRoutes";
+import { PageHeader } from "../components/shell/PageHeader";
+import { HomeComposer } from "./components/HomeComposer";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Post-login entry. Chart-creation params (old `/workbench?tool=…&prompt=…`
- * links) go on to `/new`; otherwise it opens the user's most recently updated
- * chart outside workshops, or a new Logit Lens chart when they have none. A
- * workshop participant goes to their workshop instead.
+ * Home, and the post-login entry: a composer that starts a chart from a
+ * prompt, a tool and a model. Chart-creation params (old
+ * `/workbench?tool=…&prompt=…` links) go on to `/new`. A workshop participant
+ * goes to their workshop instead.
  */
 export default async function WorkbenchPage({
     searchParams,
@@ -28,10 +29,10 @@ export default async function WorkbenchPage({
         redirect(newChartPath(launch));
     }
 
-    const recent = await getMostRecentUserChart(user.id);
-    redirect(
-        recent
-            ? toolChartPath(recent.chartId, recent.toolType)
-            : newChartPath({ tool: "Logit Lens" }),
+    return (
+        <div className="flex size-full min-h-0 flex-col">
+            <PageHeader />
+            <HomeComposer />
+        </div>
     );
 }

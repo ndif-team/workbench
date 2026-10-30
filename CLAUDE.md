@@ -109,9 +109,7 @@ workbench/                          # repo root
         │   ├── auth/callback/, auth/magic-link/
         │   ├── admin/              # workshops + tutorials admin, workshop analytics (ADMIN_EMAILS)
         │   ├── w/[slug]/           # workshop join link → anonymous participant workspace
-        │   ├── workbench/
-        │   │   ├── page.tsx        # post-login entry: launch params → /new, else the most recent chart
-        │   │   └── [workspaceId]/page.tsx   # "open workspace": its most recent chart, or a new one
+        │   ├── workbench/[workspaceId]/page.tsx   # "open workspace": its most recent chart, or a new one
         │   └── (shell)/            # route group; layout.tsx is the app shell (persists across pages)
         │       ├── components/     # UI shared by the routes below
         │       │   ├── shell/       # AppShell (sidebar + page, rail/drawer state), AppSidebar, LibrarySidebar
@@ -130,6 +128,8 @@ workbench/                          # repo root
         │       ├── activation-patching/[chartId]/
         │       ├── patch-lens/[chartId]/        # Patch Lens (edulogitlens), run history rail, guided tutorial
         │       ├── reports/[reportId]/          # Lexical report editor
+        │       ├── workbench/      # home and post-login entry: HomeComposer starts a chart from a prompt,
+        │       │                   #   tool and model; old launch params → /new
         │       ├── new/            # /new?tool=…&model=…&prompt=…: creates a chart, then opens it
         │       ├── models/         # models grid
         │       └── workspaces/     # all workspaces (folders); [workspaceId]/ is one folder
@@ -399,7 +399,7 @@ Set in `src/components/providers/QueryProvider.tsx`: `staleTime: 5min`, `retry: 
 
 ### Layout patterns the app uses
 
-- **App shell** = the `(shell)` layout: a global sidebar (`AppSidebar`; New chart, Models, Workspaces, the workspace folders and the unfiled charts) beside the page. Its Workspaces and Charts sections fold under their headers; Workspaces lists the five most recently updated folders (plus the active one) until "Show N more", and a chart row dropped on a folder moves the chart there. New chart goes through `/new`, which reopens an untouched blank chart of that tool rather than adding another (`createChartFromLaunch`) and lands focus in its prompt. The sidebar collapses to a rail (`workbench_sidebar_collapsed` cookie) and is a drawer on mobile. On a workshop workspace's chart, and on every page of a workshop participant, it shows the focused `ChartCardsSidebar` instead (the workshop's tools only, starting as the rail). Every shell page starts with a `PageHeader` (`h-12`; it carries the mobile drawer button).
+- **App shell** = the `(shell)` layout: a global sidebar (`AppSidebar`; New chart, Home, Models, Workspaces, the workspace folders and the unfiled charts) beside the page. The app opens on Home (`/workbench`, also where sign-in lands and where the sidebar's product name leads): a composer with the prompt, tool, model (`ModelControl`) and workspace pickers, which starts a chart through `/new`; the chart runs the prompt as it opens. The sidebar's Workspaces and Charts sections fold under their headers; Workspaces lists the five most recently updated folders (plus the active one) until "Show N more", and a chart row dropped on a folder moves the chart there. New chart goes through `/new`, which reopens an untouched blank chart of that tool rather than adding another (`createChartFromLaunch`) and lands focus in its prompt. The sidebar collapses to a rail (`workbench_sidebar_collapsed` cookie) and is a drawer on mobile. On a workshop workspace's chart, and on every page of a workshop participant, it shows the focused `ChartCardsSidebar` instead (the workshop's tools only, starting as the rail). Every shell page starts with a `PageHeader` (`h-12`; it carries the mobile drawer button).
 - **Chart pages** = the item header (`ItemPage`: `ModelControl`, the workspace → item breadcrumb, the item's actions) above a `ResizablePanelGroup` of feature panels. The header owns the chart's name and its rename; the tool displays carry no title of their own. A report's header has no model picker. Examples: `logit-lens/[chartId]/page.tsx`, `activation-patching/[chartId]/page.tsx`.
 - **Item actions** = `ItemActionsMenu` everywhere a chart or report is listed (sidebar rows, the item header, the workspace page): Rename, Copy, Move to workspace, Remove from workspace, Delete (confirmed in a popover).
 - **Feature panel** = bordered, rounded card (`rounded dark:bg-secondary/50 bg-secondary/80 border`) with the standard panel header pattern (see §4).

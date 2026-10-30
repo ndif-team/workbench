@@ -22,7 +22,6 @@ import {
     createWorkspace,
     deleteWorkspace,
     getChartWorkspaceScope,
-    getMostRecentUserChart,
     getOrCreateDefaultWorkspace,
     getReportWorkspaceScope,
     getWorkspaceById,
@@ -694,32 +693,5 @@ describe("lookups by an id from a URL", () => {
             expect(await getChartWorkspaceScope(malformed)).toBeNull();
             expect(await getReportWorkspaceScope(malformed)).toBeNull();
         }
-    });
-});
-
-describe("most recent chart", () => {
-    beforeEach(async () => {
-        await clearDatabase();
-    });
-
-    it("skips workshop workspaces and other users", async () => {
-        const workshop = await createWorkshop(workshopInput());
-        const workshopWs = await createWorkspace(USER, "Pilot", workshop.id);
-        const def = await getOrCreateDefaultWorkspace(USER);
-        const theirs = await createWorkspace(OTHER, "Theirs");
-
-        expect(await getMostRecentUserChart(USER)).toBeNull();
-
-        const mine = await createChart(def.id, "Mine");
-        const guided = await createChart(workshopWs.id, "Guided");
-        const other = await createChart(theirs.id, "Theirs");
-        await setChartUpdatedAt(mine, 60);
-        await setChartUpdatedAt(guided, 0);
-        await setChartUpdatedAt(other, 0);
-
-        expect(await getMostRecentUserChart(USER)).toEqual({
-            chartId: mine,
-            toolType: "logit-lens",
-        });
     });
 });

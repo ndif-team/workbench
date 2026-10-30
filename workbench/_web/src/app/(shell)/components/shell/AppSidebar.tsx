@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { Boxes, FolderClosed, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
+import { Boxes, FolderClosed, House, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -51,7 +51,7 @@ export function AppSidebar({ variant }: { variant: SidebarVariant }) {
 
     return (
         <div data-variant={variant} className="group/sidebar flex h-full min-h-0 flex-col">
-            <SidebarHeader variant={variant} homeHref={participant?.entryPath ?? "/"} />
+            <SidebarHeader variant={variant} homeHref={participant?.entryPath ?? "/workbench"} />
             {mode === "workshop" ? (
                 <div className="flex min-h-0 flex-1 flex-col">
                     <ChartCardsSidebar
@@ -69,7 +69,7 @@ export function AppSidebar({ variant }: { variant: SidebarVariant }) {
     );
 }
 
-/** The sidebar's top row; the product name leads to `homeHref` (a participant's workshop, else the landing page). */
+/** The sidebar's top row; the product name leads to `homeHref` (a participant's workshop, else the home page). */
 function SidebarHeader({ variant, homeHref }: { variant: SidebarVariant; homeHref: string }) {
     const { toggleCollapsed, closeDrawer } = useShellSidebar();
 
@@ -169,7 +169,7 @@ function RailButton({
     );
 }
 
-/** The global sidebar collapsed to a rail: New chart and the two pages. */
+/** The global sidebar collapsed to a rail: New chart and the three pages. */
 function LibraryRail({ pending }: { pending: boolean }) {
     const pathname = usePathname();
     const { data: library } = useWorkspaceLibrary({ enabled: !pending });
@@ -194,6 +194,9 @@ function LibraryRail({ pending }: { pending: boolean }) {
                 <TooltipContent side="right">New chart</TooltipContent>
             </Tooltip>
             <Separator className="my-1.5 w-6" />
+            <RailButton href="/workbench" label="Home" active={pathname === "/workbench"}>
+                <House />
+            </RailButton>
             <RailButton href="/models" label="Models" active={pathname === "/models"}>
                 <Boxes />
             </RailButton>

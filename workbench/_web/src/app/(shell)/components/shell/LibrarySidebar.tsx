@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from "react";
 import { useParams, usePathname } from "next/navigation";
-import { Boxes, ChevronDown, FolderClosed, Plus } from "lucide-react";
+import { Boxes, ChevronDown, FolderClosed, House, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
@@ -46,7 +46,7 @@ const groupByRecency = (items: LibraryItem[]) => {
 
 /**
  * The global sidebar's body (expanded and in the mobile drawer): New chart,
- * the Models and Workspaces pages, the workspace folders with their items,
+ * the Home, Models and Workspaces pages, the workspace folders with their items,
  * and the charts and reports that aren't in a folder, newest first. While
  * `pending` (the page's workspace isn't known yet) it doesn't read the
  * library and shows the list's skeleton.
@@ -194,6 +194,12 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                         <ChevronDown className="ml-auto size-3.5 text-muted-foreground" />
                     </Button>
                 </NewItemMenu>
+                <SidebarNavLink
+                    href="/workbench"
+                    label="Home"
+                    Icon={House}
+                    active={pathname === "/workbench"}
+                />
                 <SidebarNavLink
                     href="/models"
                     label="Models"

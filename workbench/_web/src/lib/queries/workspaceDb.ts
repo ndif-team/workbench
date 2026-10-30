@@ -27,7 +27,7 @@ import type { Workspace } from "@/db/schema";
 import type { ProlificParams } from "@/lib/prolific";
 import { isUniqueViolation } from "@/lib/queries/workshopDb";
 import { deriveReportTitle } from "@/lib/reportTitle";
-import { LEGACY_TOOL_ALIASES, normalizeToolType, toolTypes, type ToolType } from "@/types/charts";
+import { normalizeToolType } from "@/types/charts";
 import type {
     LibraryItem,
     LibraryWorkspace,
@@ -630,33 +630,3 @@ export const getReportWorkspaceScope = async (
                   .where(eq(documents.id, documentId)),
           )
         : null;
-
-/**
- * The user's most recently updated chart of a live tool, outside workshop
- * workspaces, with that tool. A chart's tool is its config's type, or the
- * chart's own type when it has no config.
- */
-export const getMostRecentUserChart = async (
-    userId: string,
-): Promise<{ chartId: string; toolType: ToolType } | null> => {
-    const toolType = sql<string>`coalesce(${configs.type}, ${charts.type})`;
-    const [row] = await db
-        .select({ chartId: charts.id, toolType })
-        .from(charts)
-        .innerJoin(workspaces, eq(charts.workspaceId, workspaces.id))
-        .leftJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
-        .leftJoin(configs, eq(chartConfigLinks.configId, configs.id))
-        .where(
-            and(
-                eq(workspaces.userId, userId),
-                isNull(workspaces.workshopId),
-                inArray(toolType, [...toolTypes, ...Object.keys(LEGACY_TOOL_ALIASES)]),
-            ),
-        )
-        .orderBy(desc(charts.updatedAt))
-        .limit(1);
-
-    return row
-        ? { chartId: row.chartId, toolType: normalizeToolType(row.toolType) as ToolType }
-        : null;
-};
