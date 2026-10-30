@@ -56,6 +56,33 @@ describe("ChartEmbedNode", () => {
     });
 });
 
+describe("ChartEmbedNode lock", () => {
+    const lock = { view: { selectedMode: "rank" }, at: 7, data: "abc:10" };
+
+    it("saves a lock and loads it back", () => {
+        editor.update(
+            () => {
+                const paragraph = $createParagraphNode();
+                paragraph.append(
+                    $createChartEmbedNode({ chartId: "chart-1", chartType: "logit-lens", lock }),
+                );
+                $getRoot().clear().append(paragraph);
+            },
+            { discrete: true },
+        );
+        const saved = JSON.stringify(editor.getEditorState().toJSON());
+        const node = loadEmbed(saved);
+        expect(node.__lock).toEqual(lock);
+        expect(node.exportJSON()).toMatchObject({ version: 2, lock });
+    });
+
+    it("loads version 1 embeds unlocked, and saves unlocked ones without a lock", () => {
+        const node = loadEmbed(savedDocument("logit-lens").replace('"version":2', '"version":1'));
+        expect(node.__lock).toBeNull();
+        expect("lock" in node.exportJSON()).toBe(false);
+    });
+});
+
 describe("$hoistChartEmbed", () => {
     /** The top-level blocks after building a document with the transform on,
      *  as "type" or "type:text". */

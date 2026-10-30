@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { chartFigure, chartFigureGapText } from "@/lib/report/chartFigure";
+import { withView, type ChartLock } from "@/lib/report/chartLock";
 import {
-    reportChartIds,
+    reportEmbeds,
     reportPdfDefinition,
     reportPdfFileName,
     reportTitle,
@@ -26,9 +27,13 @@ const SNAPSHOT_WIDTH = 720;
 const SNAPSHOT_HEIGHT = 360; // activation patching; the lenses take their content height
 
 /** One embedded chart as the PDF shows it: a light-theme snapshot of its
- *  saved state, or a note saying why it isn't drawn. Fetches fresh rows so
- *  the latest state is drawn. */
-async function pdfChart(queryClient: QueryClient, chartId: string): Promise<ReportPdfChart> {
+ *  saved state (or the view its embed is locked at), or a note saying why it
+ *  isn't drawn. Fetches fresh rows so the latest state is drawn. */
+async function pdfChart(
+    queryClient: QueryClient,
+    chartId: string,
+    lock: ChartLock | null,
+): Promise<ReportPdfChart> {
     let chart, config;
     try {
         [chart, config] = await Promise.all([
@@ -51,7 +56,7 @@ async function pdfChart(queryClient: QueryClient, chartId: string): Promise<Repo
     const title = chart ? chart.name || "Untitled" : "Chart";
     const subtitle = [tool?.label, model].filter(Boolean).join(" · ") || undefined;
 
-    const figure = chartFigure(chart, config);
+    const figure = chartFigure(chart, lock ? withView(config, lock.view) : config);
     if (figure.gap) return { title, subtitle, note: chartFigureGapText(figure.gap, tool?.label) };
     try {
         const shot = await snapshotChart(figure.spec, {
@@ -84,8 +89,8 @@ export function ExportPdfButton() {
             const title = reportTitle(state);
             const charts = new Map<string, ReportPdfChart>();
             // One at a time: each snapshot lays a chart out offscreen.
-            for (const chartId of reportChartIds(state)) {
-                charts.set(chartId, await pdfChart(queryClient, chartId));
+            for (const embed of reportEmbeds(state)) {
+                charts.set(embed.key, await pdfChart(queryClient, embed.chartId, embed.lock));
             }
             await downloadPdf(
                 reportPdfDefinition(state, { title, charts }),

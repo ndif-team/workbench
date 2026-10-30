@@ -8,8 +8,9 @@
 
 import type { SerializedEditorState } from "lexical";
 import type { Content, ContentText, TDocumentDefinitions } from "pdfmake/interfaces";
+import { embedKey, type ChartLock } from "./chartLock";
 
-/** A chart as the PDF shows it, keyed by chart id. */
+/** A chart as the PDF shows it, keyed by `embedKey` (chart + lock). */
 export type ReportPdfChart = {
     title: string;
     /** Tool and model, shown after the title. */
@@ -32,6 +33,7 @@ type LexNode = {
     url?: string;
     indent?: number;
     chartId?: string;
+    lock?: ChartLock;
 };
 
 /** An inline text run (pdfmake nests these in a block's `text`). */
@@ -88,16 +90,23 @@ function plainText(node: LexNode): string {
     return (node.children ?? []).map(plainText).join("");
 }
 
-/** Ids of the charts embedded in a report, once each, in document order. */
-export function reportChartIds(state: SerializedEditorState): string[] {
-    const ids: string[] = [];
+/** A chart embedded in a report: its chart, its lock if any, and the key
+ *  its figure goes by. */
+export type ReportEmbed = { key: string; chartId: string; lock: ChartLock | null };
+
+/** The report's embeds, once per key (chart + lock), in document order. */
+export function reportEmbeds(state: SerializedEditorState): ReportEmbed[] {
+    const embeds: ReportEmbed[] = [];
     const visit = (node: LexNode) => {
-        if (node.type === "chart-embed" && node.chartId && !ids.includes(node.chartId))
-            ids.push(node.chartId);
+        if (node.type === "chart-embed" && node.chartId) {
+            const key = embedKey(node.chartId, node.lock);
+            if (!embeds.some((e) => e.key === key))
+                embeds.push({ key, chartId: node.chartId, lock: node.lock ?? null });
+        }
         node.children?.forEach(visit);
     };
     rootChildren(state).forEach(visit);
-    return ids;
+    return embeds;
 }
 
 /** The report's title: the text of its first non-empty block, else "Report". */
@@ -182,8 +191,11 @@ function indentMargin(node: LexNode, bottom: number): [number, number, number, n
     return [Math.max(0, node.indent ?? 0) * 18, 0, 0, bottom];
 }
 
-function figure(chartId: string, charts: Map<string, ReportPdfChart>): Content {
-    const chart = charts.get(chartId) ?? { title: "Chart", note: "This chart couldn't be loaded." };
+function figure(embed: LexNode, charts: Map<string, ReportPdfChart>): Content {
+    const chart = charts.get(embedKey(embed.chartId!, embed.lock)) ?? {
+        title: "Chart",
+        note: "This chart couldn't be loaded.",
+    };
     const caption: Content = {
         text: [
             { text: pdfText(chart.title), bold: true },
@@ -283,8 +295,7 @@ function blocks(nodes: LexNode[], charts: Map<string, ReportPdfChart>): Content[
                         margin: indentMargin(node, 8),
                     });
                 }
-                for (const embed of embeds)
-                    if (embed.chartId) out.push(figure(embed.chartId, charts));
+                for (const embed of embeds) if (embed.chartId) out.push(figure(embed, charts));
                 break;
             }
             case "quote":
@@ -346,7 +357,7 @@ function blocks(nodes: LexNode[], charts: Map<string, ReportPdfChart>): Content[
                 });
                 break;
             case "chart-embed":
-                if (node.chartId) out.push(figure(node.chartId, charts));
+                if (node.chartId) out.push(figure(node, charts));
                 break;
             case "horizontalrule":
                 out.push({

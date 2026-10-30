@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { SerializedEditorState } from "lexical";
 import {
     pdfText,
-    reportChartIds,
+    reportEmbeds,
     reportPdfDefinition,
     reportPdfFileName,
     reportTitle,
@@ -21,15 +21,24 @@ function content(state: SerializedEditorState, charts = new Map<string, ReportPd
     return reportPdfDefinition(state, { title: "T", charts }).content as unknown as N[];
 }
 
-describe("reportChartIds", () => {
-    it("lists each embedded chart once, in document order, nested embeds included", () => {
+describe("reportEmbeds", () => {
+    it("lists each embed once, in document order, nested embeds included", () => {
         const state = doc(
             embed("b"),
             block("paragraph", [text("x"), embed("a")]),
             embed("b"),
             embed("c"),
         );
-        expect(reportChartIds(state)).toEqual(["b", "a", "c"]);
+        expect(reportEmbeds(state).map((e) => e.key)).toEqual(["b", "a", "c"]);
+    });
+
+    it("keeps a locked and a live embed of the same chart apart", () => {
+        const lock = { view: { selectedMode: "rank" }, at: 7, data: "f" };
+        const embeds = reportEmbeds(doc(embed("a"), { ...embed("a"), lock }));
+        expect(embeds).toEqual([
+            { key: "a", chartId: "a", lock: null },
+            { key: "a@7", chartId: "a", lock },
+        ]);
     });
 });
 
@@ -180,6 +189,17 @@ describe("reportPdfDefinition", () => {
         const image = (content(doc(embed("a")), charts)[0].stack as N[])[1];
         expect(image.height as number).toBeLessThan(668);
         expect((image.width as number) / (image.height as number)).toBeCloseTo(0.1);
+    });
+
+    it("draws a locked embed from its own figure", () => {
+        const lock = { view: {}, at: 7, data: "f" };
+        const charts = new Map<string, ReportPdfChart>([
+            ["a", { title: "Live", note: "live" }],
+            ["a@7", { title: "Locked", note: "locked" }],
+        ]);
+        const [live, locked] = content(doc(embed("a"), { ...embed("a"), lock }), charts);
+        const title = (f: N) => ((f.stack as N[])[0].text as N[])[0].text;
+        expect([title(live), title(locked)]).toEqual(["Live", "Locked"]);
     });
 
     it("notes a chart it can't draw, and one it wasn't given", () => {
