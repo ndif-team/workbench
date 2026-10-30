@@ -561,6 +561,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                                                     onChange={setSelectedWorkspace}
                                                     disabled={showCaptcha || isSubmitting}
                                                     workspaces={workspacesList}
+                                                    quietDefault
                                                 />
                                             )}
                                         <ToolPill
@@ -620,6 +621,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                                                     onChange={setSelectedWorkspace}
                                                     disabled={showCaptcha || isSubmitting}
                                                     workspaces={workspacesList}
+                                                    quietDefault
                                                 />
                                             )}
                                         <ToolPill

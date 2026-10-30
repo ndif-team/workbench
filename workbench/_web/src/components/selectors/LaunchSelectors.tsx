@@ -75,7 +75,11 @@ export function ToolPill({
     );
 }
 
-/** Workspace picker: "No workspace" (value "", the default workspace) or one of `workspaces`. */
+/**
+ * Workspace picker: "No workspace" (value "", the default workspace) or one of
+ * `workspaces`. With `quietDefault`, the pill shows only its icon until a
+ * folder is picked, for surfaces with no label beside it (the composer).
+ */
 export function WorkspacePill({
     value,
     onChange,
@@ -84,6 +88,7 @@ export function WorkspacePill({
     triggerClassName = PILL_TRIGGER,
     compact = true,
     modal = false,
+    quietDefault = false,
 }: {
     value: string;
     onChange: (v: string) => void;
@@ -94,11 +99,12 @@ export function WorkspacePill({
     compact?: boolean;
     /** Set when used inside a Dialog so the menu list can scroll. */
     modal?: boolean;
+    quietDefault?: boolean;
 }) {
     // The menu needs a non-empty value for its "No workspace" row.
     const noWorkspace = "default";
-    const currentLabel =
-        (value && workspaces.find((ws) => ws.id === value)?.name) || "No workspace";
+    const folderName = value ? workspaces.find((ws) => ws.id === value)?.name : undefined;
+    const currentLabel = folderName ?? (quietDefault ? null : "No workspace");
 
     const options: PillPopoverOption[] = [
         { value: noWorkspace, label: "No workspace" },
@@ -121,7 +127,7 @@ export function WorkspacePill({
             trigger={
                 <span className="inline-flex items-center gap-1.5 min-w-0">
                     <Layers className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{currentLabel}</span>
+                    {currentLabel && <span className="truncate">{currentLabel}</span>}
                 </span>
             }
             options={options}
