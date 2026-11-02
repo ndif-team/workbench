@@ -32,12 +32,20 @@ describe("reportEmbeds", () => {
         expect(reportEmbeds(state).map((e) => e.key)).toEqual(["b", "a", "c"]);
     });
 
+    it("keeps embeds of the same chart showing different rows apart", () => {
+        const embeds = reportEmbeds(doc(embed("a"), { ...embed("a"), rowStart: 40 }));
+        expect(embeds.map((e) => [e.key, e.rowStart])).toEqual([
+            ["a", null],
+            ["a#40", 40],
+        ]);
+    });
+
     it("keeps a locked and a live embed of the same chart apart", () => {
         const lock = { view: { selectedMode: "rank" }, at: 7, data: "f" };
         const embeds = reportEmbeds(doc(embed("a"), { ...embed("a"), lock }));
         expect(embeds).toEqual([
-            { key: "a", chartId: "a", lock: null },
-            { key: "a@7", chartId: "a", lock },
+            { key: "a", chartId: "a", lock: null, rowStart: null },
+            { key: "a@7", chartId: "a", lock, rowStart: null },
         ]);
     });
 });

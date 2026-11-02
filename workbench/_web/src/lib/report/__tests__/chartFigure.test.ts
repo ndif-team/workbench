@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { chartFigure, chartFigureGapText, chartTitle } from "../chartFigure";
+import { chartFigure, chartFigureGapText, chartTitle, rowWindowLabel } from "../chartFigure";
 
 const LENS_DATA = { meta: { version: 2 }, layers: [0, 1], input: ["a"], tracked: [], topk: [] };
 const AP_DATA = {
@@ -89,5 +89,11 @@ describe("chartTitle", () => {
         for (const unnamed of ["Untitled Chart", " Untitled Chart ", "", "   ", null, undefined]) {
             expect(chartTitle(unnamed)).toBeNull();
         }
+    });
+});
+
+describe("rowWindowLabel", () => {
+    it("counts rows from 1", () => {
+        expect(rowWindowLabel({ start: 87, end: 110, total: 111 })).toBe("rows 88–111 of 111");
     });
 });

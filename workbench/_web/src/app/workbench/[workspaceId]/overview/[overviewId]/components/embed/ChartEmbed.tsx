@@ -17,7 +17,13 @@ import { mergeRegister } from "@lexical/utils";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { chartPath } from "@/lib/chartRoutes";
-import { chartFigure, chartFigureGapText, chartTitle } from "@/lib/report/chartFigure";
+import type { LogitLensRowWindow } from "nnsightful";
+import {
+    chartFigure,
+    chartFigureGapText,
+    chartTitle,
+    rowWindowLabel,
+} from "@/lib/report/chartFigure";
 import { lockChart, rerunSinceLock, withView, type ChartLock } from "@/lib/report/chartLock";
 import { useIsDark } from "@/hooks/useIsDark";
 import { cn } from "@/lib/utils";
@@ -32,19 +38,23 @@ import { EmbeddedChart } from "./EmbeddedChart";
  * A chart embedded in a report (container for a ChartEmbedNode): loads the
  * chart and its config — the same queries as the chart's page, so edits made
  * there show up here — and draws it from its saved UI state. Locked, it keeps
- * the view state it had when locked instead (see chartLock.ts). Selectable as
- * a block; Backspace / Delete removes it.
+ * the view state it had when locked instead (see chartLock.ts). A long logit
+ * lens shows a window of rows, scrolled to pick the ones the report (and its
+ * PDF) shows; the window's start is saved in the node. Selectable as a block;
+ * Backspace / Delete removes it.
  */
 export function ChartEmbed({
     nodeKey,
     chartId,
     chartType,
     lock,
+    rowStart,
 }: {
     nodeKey: NodeKey;
     chartId: string;
     chartType: string | null;
     lock: ChartLock | null;
+    rowStart: number | null;
 }) {
     const [editor] = useLexicalComposerContext();
     const queryClient = useQueryClient();
@@ -88,6 +98,23 @@ export function ChartEmbed({
     const figure =
         loading || failed ? null : chartFigure(chart, lock ? withView(config, lock.view) : config);
     const rerun = React.useMemo(() => !!lock && rerunSinceLock(lock, chart), [lock, chart]);
+
+    // The rows a long logit lens's window shows. A scroll that moves the
+    // window saves its start in the report; the initial window is not saved,
+    // so it keeps following the default (the selected row, or the last rows).
+    const [rowWindow, setRowWindow] = React.useState<LogitLensRowWindow | null>(null);
+    const onRowWindowChange = React.useCallback(
+        (window: LogitLensRowWindow | null, source: "render" | "scroll") => {
+            setRowWindow(window);
+            if (source === "scroll" && window && window.start !== rowStart) {
+                editor.update(() =>
+                    $getNodeByKey<ChartEmbedNode>(nodeKey)?.setRowStart(window.start),
+                );
+            }
+        },
+        [editor, nodeKey, rowStart],
+    );
+    const shownRows = figure?.spec?.kind === "logit-lens" ? rowWindow : null;
 
     const toggleLock = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -135,6 +162,11 @@ export function ChartEmbed({
                     </span>
                 )}
                 <div className="ml-auto flex shrink-0 items-center gap-1">
+                    {shownRows && (
+                        <span className="px-1 text-xs text-muted-foreground tabular-nums">
+                            {rowWindowLabel(shownRows)}
+                        </span>
+                    )}
                     {(lock || figure?.spec) && (
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -187,7 +219,12 @@ export function ChartEmbed({
                 ) : failed ? (
                     <EmbedNote className="text-destructive">Failed to load this chart.</EmbedNote>
                 ) : figure?.spec ? (
-                    <EmbeddedChart spec={figure.spec} darkMode={darkMode} />
+                    <EmbeddedChart
+                        spec={figure.spec}
+                        darkMode={darkMode}
+                        rowStart={rowStart}
+                        onRowWindowChange={onRowWindowChange}
+                    />
                 ) : (
                     <EmbedNote>{chartFigureGapText(figure!.gap!, tool?.label)}</EmbedNote>
                 )}

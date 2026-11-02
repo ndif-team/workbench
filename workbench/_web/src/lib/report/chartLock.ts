@@ -65,8 +65,13 @@ export function rerunSinceLock(lock: ChartLock, chart: Row): boolean {
     return !!chart && lock.data !== dataFingerprint(chart.data);
 }
 
-/** The key a report gives one embed: its chart, and the lock if it has one
- *  (the same chart may be embedded twice, locked and live). */
-export function embedKey(chartId: string, lock: ChartLock | null | undefined): string {
-    return lock ? `${chartId}@${lock.at}` : chartId;
+/** The key a report gives one embed: its chart, its lock if it has one, and
+ *  its row window (the same chart may be embedded more than once, locked
+ *  and live, or showing different rows). */
+export function embedKey(
+    chartId: string,
+    lock: ChartLock | null | undefined,
+    rowStart?: number | null,
+): string {
+    return chartId + (lock ? `@${lock.at}` : "") + (rowStart != null ? `#${rowStart}` : "");
 }

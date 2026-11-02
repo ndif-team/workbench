@@ -9,7 +9,13 @@ import { snapshotChart } from "nnsightful";
 import { Button } from "@/components/ui/button";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
-import { chartFigure, chartFigureGapText, chartTitle } from "@/lib/report/chartFigure";
+import {
+    chartFigure,
+    chartFigureGapText,
+    chartTitle,
+    REPORT_MAX_ROWS,
+    rowWindowLabel,
+} from "@/lib/report/chartFigure";
 import { withView, type ChartLock } from "@/lib/report/chartLock";
 import {
     reportEmbeds,
@@ -27,12 +33,14 @@ const SNAPSHOT_WIDTH = 720;
 const SNAPSHOT_HEIGHT = 360; // activation patching; the lenses take their content height
 
 /** One embedded chart as the PDF shows it: a light-theme snapshot of its
- *  saved state (or the view its embed is locked at), or a note saying why it
- *  isn't drawn. Fetches fresh rows so the latest state is drawn. */
+ *  saved state (or the view its embed is locked at), a long logit lens only
+ *  in the row window its embed shows, or a note saying why it isn't drawn.
+ *  Fetches fresh rows so the latest state is drawn. */
 async function pdfChart(
     queryClient: QueryClient,
     chartId: string,
     lock: ChartLock | null,
+    rowStart: number | null,
 ): Promise<ReportPdfChart> {
     let chart, config;
     try {
@@ -59,15 +67,23 @@ async function pdfChart(
 
     const figure = chartFigure(chart, lock ? withView(config, lock.view) : config);
     if (figure.gap) return { title, subtitle, note: chartFigureGapText(figure.gap, tool?.label) };
+    const spec =
+        figure.spec.kind === "logit-lens"
+            ? { ...figure.spec, uiState: { ...figure.spec.uiState, rowStart } }
+            : figure.spec;
     try {
-        const shot = await snapshotChart(figure.spec, {
+        const shot = await snapshotChart(spec, {
             width: SNAPSHOT_WIDTH,
             height: SNAPSHOT_HEIGHT,
             scale: 2,
+            maxRows: REPORT_MAX_ROWS,
         });
         return {
             title,
-            subtitle,
+            // A windowed lens says which rows it shows, as the embed does.
+            subtitle: [subtitle, shot.rows && rowWindowLabel(shot.rows)]
+                .filter(Boolean)
+                .join(" · "),
             image: { dataUrl: shot.dataUrl, width: shot.width, height: shot.height },
         };
     } catch (error) {
@@ -91,7 +107,10 @@ export function ExportPdfButton() {
             const charts = new Map<string, ReportPdfChart>();
             // One at a time: each snapshot lays a chart out offscreen.
             for (const embed of reportEmbeds(state)) {
-                charts.set(embed.key, await pdfChart(queryClient, embed.chartId, embed.lock));
+                charts.set(
+                    embed.key,
+                    await pdfChart(queryClient, embed.chartId, embed.lock, embed.rowStart),
+                );
             }
             await downloadPdf(
                 reportPdfDefinition(state, { title, charts }),

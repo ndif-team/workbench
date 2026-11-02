@@ -35,6 +35,7 @@ type LexNode = {
     indent?: number;
     chartId?: string;
     lock?: ChartLock;
+    rowStart?: number;
 };
 
 /** An inline text run (pdfmake nests these in a block's `text`). */
@@ -93,16 +94,26 @@ function plainText(node: LexNode): string {
 
 /** A chart embedded in a report: its chart, its lock if any, and the key
  *  its figure goes by. */
-export type ReportEmbed = { key: string; chartId: string; lock: ChartLock | null };
+export type ReportEmbed = {
+    key: string;
+    chartId: string;
+    lock: ChartLock | null;
+    rowStart: number | null;
+};
 
 /** The report's embeds, once per key (chart + lock), in document order. */
 export function reportEmbeds(state: SerializedEditorState): ReportEmbed[] {
     const embeds: ReportEmbed[] = [];
     const visit = (node: LexNode) => {
         if (node.type === "chart-embed" && node.chartId) {
-            const key = embedKey(node.chartId, node.lock);
+            const key = embedKey(node.chartId, node.lock, node.rowStart);
             if (!embeds.some((e) => e.key === key))
-                embeds.push({ key, chartId: node.chartId, lock: node.lock ?? null });
+                embeds.push({
+                    key,
+                    chartId: node.chartId,
+                    lock: node.lock ?? null,
+                    rowStart: node.rowStart ?? null,
+                });
         }
         node.children?.forEach(visit);
     };
@@ -193,7 +204,7 @@ function indentMargin(node: LexNode, bottom: number): [number, number, number, n
 }
 
 function figure(embed: LexNode, charts: Map<string, ReportPdfChart>): Content {
-    const chart = charts.get(embedKey(embed.chartId!, embed.lock)) ?? {
+    const chart = charts.get(embedKey(embed.chartId!, embed.lock, embed.rowStart)) ?? {
         title: "Chart",
         note: "This chart couldn't be loaded.",
     };

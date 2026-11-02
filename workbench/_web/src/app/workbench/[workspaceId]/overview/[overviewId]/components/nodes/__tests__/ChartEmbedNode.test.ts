@@ -76,10 +76,32 @@ describe("ChartEmbedNode lock", () => {
         expect(node.exportJSON()).toMatchObject({ version: 2, lock });
     });
 
+    it("saves a row window start and loads it back", () => {
+        editor.update(
+            () => {
+                const paragraph = $createParagraphNode();
+                paragraph.append(
+                    $createChartEmbedNode({
+                        chartId: "chart-1",
+                        chartType: "logit-lens",
+                        rowStart: 40,
+                    }),
+                );
+                $getRoot().clear().append(paragraph);
+            },
+            { discrete: true },
+        );
+        const node = loadEmbed(JSON.stringify(editor.getEditorState().toJSON()));
+        expect(node.__rowStart).toBe(40);
+        expect(node.exportJSON()).toMatchObject({ rowStart: 40 });
+    });
+
     it("loads version 1 embeds unlocked, and saves unlocked ones without a lock", () => {
         const node = loadEmbed(savedDocument("logit-lens").replace('"version":2', '"version":1'));
         expect(node.__lock).toBeNull();
+        expect(node.__rowStart).toBeNull();
         expect("lock" in node.exportJSON()).toBe(false);
+        expect("rowStart" in node.exportJSON()).toBe(false);
     });
 });
 

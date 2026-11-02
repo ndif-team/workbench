@@ -75,6 +75,16 @@ export function chartFigure(chart: Row, config: Row): ChartFigure {
     }
 }
 
+/** The most heatmap rows a report draws: longer logit lenses show a window
+ *  of this many rows, chosen in the embed. 24 rows fit a PDF page legibly
+ *  (a 30 px row is about 20 pt there). */
+export const REPORT_MAX_ROWS = 24;
+
+/** "rows 88–111 of 111" for a row window (counted from 1). */
+export function rowWindowLabel(w: { start: number; end: number; total: number }): string {
+    return `rows ${w.start + 1}–${w.end + 1} of ${w.total}`;
+}
+
 /** The name charts get until they're renamed. */
 const DEFAULT_CHART_NAME = "Untitled Chart";
 

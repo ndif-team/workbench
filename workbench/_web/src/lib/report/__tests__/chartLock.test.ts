@@ -60,5 +60,7 @@ describe("embedKey", () => {
     it("is the chart id, plus the lock time when locked", () => {
         expect(embedKey("c1", null)).toBe("c1");
         expect(embedKey("c1", { view: {}, at: 7, data: "x" })).toBe("c1@7");
+        expect(embedKey("c1", null, 40)).toBe("c1#40");
+        expect(embedKey("c1", { view: {}, at: 7, data: "x" }, 0)).toBe("c1@7#0");
     });
 });
