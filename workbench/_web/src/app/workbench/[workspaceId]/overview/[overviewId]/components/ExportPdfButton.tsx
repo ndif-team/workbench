@@ -53,11 +53,9 @@ async function pdfChart(
     }
     const tool = toolMeta(config?.type ?? chart?.type);
     const model = (config?.data as { model?: string } | undefined)?.model;
-    // As in the embed: an unnamed chart is captioned by its tool.
-    const name = chartTitle(chart?.name);
-    const title = name ?? tool?.label ?? "Chart";
-    const subtitle =
-        [name ? tool?.label : undefined, model].filter(Boolean).join(" · ") || undefined;
+    // As in the embed, a chart still under its default name has no title.
+    const title = chartTitle(chart?.name) ?? undefined;
+    const subtitle = [tool?.label, model].filter(Boolean).join(" · ") || undefined;
 
     const figure = chartFigure(chart, lock ? withView(config, lock.view) : config);
     if (figure.gap) return { title, subtitle, note: chartFigureGapText(figure.gap, tool?.label) };

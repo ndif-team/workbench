@@ -81,9 +81,8 @@ export function ChartEmbed({
     const toolType = config?.type ?? chart?.type ?? chartType;
     const tool = toolMeta(toolType);
     const model = (config?.data as { model?: string } | undefined)?.model;
-    // An unnamed chart is headed by its tool instead of "Untitled Chart".
+    // Null while the chart has no name of its own (still "Untitled Chart").
     const title = chartTitle(chart?.name);
-    const toolLabel = title ? tool?.label : undefined;
     const loading = chartQuery.isLoading || configQuery.isLoading;
     const failed = chartQuery.isError || configQuery.isError;
     const figure =
@@ -127,13 +126,11 @@ export function ChartEmbed({
         >
             <div className="flex items-center gap-2 border-b px-3 py-1.5">
                 {tool && <tool.Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
-                <span className="min-w-0 truncate text-sm font-medium">
-                    {title ?? tool?.label ?? "Chart"}
-                </span>
-                {(toolLabel || model) && (
+                {title && <span className="min-w-0 truncate text-sm font-medium">{title}</span>}
+                {(tool || model) && (
                     <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                        {toolLabel && <span className="shrink-0">{toolLabel}</span>}
-                        {toolLabel && model && <span aria-hidden="true">·</span>}
+                        {tool && <span className="shrink-0">{tool.label}</span>}
+                        {tool && model && <span aria-hidden="true">·</span>}
                         {model && <span className="truncate font-mono">{model}</span>}
                     </span>
                 )}

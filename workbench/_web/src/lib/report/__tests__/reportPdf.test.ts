@@ -182,6 +182,19 @@ describe("reportPdfDefinition", () => {
         expect(image).toMatchObject({ image: "data:image/png;base64,x", width: 484, height: 242 });
     });
 
+    it("captions an unnamed chart with its tool and model alone, unbolded", () => {
+        const charts = new Map<string, ReportPdfChart>([
+            [
+                "a",
+                { subtitle: "Logit Lens · gpt2", image: { dataUrl: "d", width: 10, height: 10 } },
+            ],
+        ]);
+        const caption = (content(doc(embed("a")), charts)[0].stack as N[])[0];
+        expect(caption.text).toEqual([
+            { text: "Logit Lens · gpt2", color: "#71717a", fontSize: 9 },
+        ]);
+    });
+
     it("shrinks a figure taller than a page to fit it", () => {
         const charts = new Map<string, ReportPdfChart>([
             ["a", { title: "Tall", image: { dataUrl: "d", width: 720, height: 7200 } }],

@@ -12,8 +12,9 @@ import { embedKey, type ChartLock } from "./chartLock";
 
 /** A chart as the PDF shows it, keyed by `embedKey` (chart + lock). */
 export type ReportPdfChart = {
-    title: string;
-    /** Tool and model, shown after the title. */
+    /** The chart's name; none for a chart still under its default name. */
+    title?: string;
+    /** Tool and model, shown after the title (or alone). */
     subtitle?: string;
 } & (
     | { image: { dataUrl: string; width: number; height: number }; note?: never }
@@ -198,10 +199,17 @@ function figure(embed: LexNode, charts: Map<string, ReportPdfChart>): Content {
     };
     const caption: Content = {
         text: [
-            { text: pdfText(chart.title), bold: true },
+            ...(chart.title ? [{ text: pdfText(chart.title), bold: true }] : []),
             ...(chart.subtitle
-                ? [{ text: `  ${pdfText(chart.subtitle)}`, color: MUTED, fontSize: 9 }]
+                ? [
+                      {
+                          text: `${chart.title ? "  " : ""}${pdfText(chart.subtitle)}`,
+                          color: MUTED,
+                          fontSize: 9,
+                      },
+                  ]
                 : []),
+            ...(!chart.title && !chart.subtitle ? [{ text: "Chart", bold: true }] : []),
         ],
         fontSize: 10,
         margin: [0, 0, 0, 4],
