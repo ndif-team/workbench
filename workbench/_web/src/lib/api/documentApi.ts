@@ -40,6 +40,18 @@ export const useSaveDocument = () => {
         }) => {
             return await updateDocument(documentId, content);
         },
+        // The editor initializes from this cache when the report is next
+        // opened. Put the content being saved there now: the save that runs
+        // as the editor unmounts (leaving the report flushes it) would
+        // otherwise only mark the cache stale, and the reopened report would
+        // start from the copy before the edit, and save it back over the edit.
+        onMutate: ({ documentId, content }) => {
+            queryClient.setQueryData(
+                queryKeys.documents.one(documentId),
+                (old: Awaited<ReturnType<typeof getDocumentById>> | undefined) =>
+                    old ? { ...old, content } : old,
+            );
+        },
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({
                 queryKey: queryKeys.documents.byWorkspace(variables.workspaceId),
