@@ -46,7 +46,7 @@
         "motion": "^12.23.12",
         "next": "15.5.9",
         "next-themes": "^0.4.6",
-        "nnsightful": "github:AdamBelfki3/nnsightful#b79b04cbb875638a74f3c815e08c24667491b5e3",
+        "nnsightful": "github:AdamBelfki3/nnsightful#dd50b036785fbe13b7ffcc49bc33fe4f02a58c9c",
         "pdfmake": "^0.3.13",
         "postgres": "^3.4.7",
         "posthog-js": "^1.271.0",
