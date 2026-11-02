@@ -17,7 +17,7 @@ import { mergeRegister } from "@lexical/utils";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { chartPath } from "@/lib/chartRoutes";
-import { chartFigure, chartFigureGapText } from "@/lib/report/chartFigure";
+import { chartFigure, chartFigureGapText, chartTitle } from "@/lib/report/chartFigure";
 import { lockChart, rerunSinceLock, withView, type ChartLock } from "@/lib/report/chartLock";
 import { useIsDark } from "@/hooks/useIsDark";
 import { cn } from "@/lib/utils";
@@ -81,6 +81,9 @@ export function ChartEmbed({
     const toolType = config?.type ?? chart?.type ?? chartType;
     const tool = toolMeta(toolType);
     const model = (config?.data as { model?: string } | undefined)?.model;
+    // An unnamed chart is headed by its tool instead of "Untitled Chart".
+    const title = chartTitle(chart?.name);
+    const toolLabel = title ? tool?.label : undefined;
     const loading = chartQuery.isLoading || configQuery.isLoading;
     const failed = chartQuery.isError || configQuery.isError;
     const figure =
@@ -125,12 +128,12 @@ export function ChartEmbed({
             <div className="flex items-center gap-2 border-b px-3 py-1.5">
                 {tool && <tool.Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                 <span className="min-w-0 truncate text-sm font-medium">
-                    {chart?.name || "Untitled"}
+                    {title ?? tool?.label ?? "Chart"}
                 </span>
-                {(tool || model) && (
+                {(toolLabel || model) && (
                     <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                        {tool && <span className="shrink-0">{tool.label}</span>}
-                        {tool && model && <span aria-hidden="true">·</span>}
+                        {toolLabel && <span className="shrink-0">{toolLabel}</span>}
+                        {toolLabel && model && <span aria-hidden="true">·</span>}
                         {model && <span className="truncate font-mono">{model}</span>}
                     </span>
                 )}

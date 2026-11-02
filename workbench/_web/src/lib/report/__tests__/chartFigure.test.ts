@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { chartFigure, chartFigureGapText } from "../chartFigure";
+import { chartFigure, chartFigureGapText, chartTitle } from "../chartFigure";
 
 const LENS_DATA = { meta: { version: 2 }, layers: [0, 1], input: ["a"], tracked: [], topk: [] };
 const AP_DATA = {
@@ -79,5 +79,15 @@ describe("chartFigureGapText", () => {
         expect(chartFigureGapText("unsupported", "Patch Lens")).toBe(
             "Patch Lens charts can't be shown in reports yet.",
         );
+    });
+});
+
+describe("chartTitle", () => {
+    it("is the chart's name, or null while it has none", () => {
+        expect(chartTitle("Eiffel Tower lens")).toBe("Eiffel Tower lens");
+        expect(chartTitle("  Paris  ")).toBe("Paris");
+        for (const unnamed of ["Untitled Chart", " Untitled Chart ", "", "   ", null, undefined]) {
+            expect(chartTitle(unnamed)).toBeNull();
+        }
     });
 });

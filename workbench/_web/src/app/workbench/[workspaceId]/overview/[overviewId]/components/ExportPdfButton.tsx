@@ -9,7 +9,7 @@ import { snapshotChart } from "nnsightful";
 import { Button } from "@/components/ui/button";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
-import { chartFigure, chartFigureGapText } from "@/lib/report/chartFigure";
+import { chartFigure, chartFigureGapText, chartTitle } from "@/lib/report/chartFigure";
 import { withView, type ChartLock } from "@/lib/report/chartLock";
 import {
     reportEmbeds,
@@ -53,8 +53,11 @@ async function pdfChart(
     }
     const tool = toolMeta(config?.type ?? chart?.type);
     const model = (config?.data as { model?: string } | undefined)?.model;
-    const title = chart ? chart.name || "Untitled" : "Chart";
-    const subtitle = [tool?.label, model].filter(Boolean).join(" · ") || undefined;
+    // As in the embed: an unnamed chart is captioned by its tool.
+    const name = chartTitle(chart?.name);
+    const title = name ?? tool?.label ?? "Chart";
+    const subtitle =
+        [name ? tool?.label : undefined, model].filter(Boolean).join(" · ") || undefined;
 
     const figure = chartFigure(chart, lock ? withView(config, lock.view) : config);
     if (figure.gap) return { title, subtitle, note: chartFigureGapText(figure.gap, tool?.label) };

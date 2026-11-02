@@ -75,6 +75,16 @@ export function chartFigure(chart: Row, config: Row): ChartFigure {
     }
 }
 
+/** The name charts get until they're renamed. */
+const DEFAULT_CHART_NAME = "Untitled Chart";
+
+/** A chart's name to show, or null while it has none (empty, or still the
+ *  default "Untitled Chart"), the rule the chart pages use for their titles. */
+export function chartTitle(name: string | null | undefined): string | null {
+    const trimmed = name?.trim() ?? "";
+    return trimmed && trimmed !== DEFAULT_CHART_NAME ? trimmed : null;
+}
+
 /** One line on why a chart isn't drawn; `toolLabel` names its tool. */
 export function chartFigureGapText(gap: ChartFigureGap, toolLabel?: string): string {
     switch (gap) {
