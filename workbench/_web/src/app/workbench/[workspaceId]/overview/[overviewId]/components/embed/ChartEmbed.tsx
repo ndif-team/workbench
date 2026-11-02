@@ -162,11 +162,24 @@ export function ChartEmbed({
                     </span>
                 )}
                 <div className="ml-auto flex shrink-0 items-center gap-1">
-                    {shownRows && (
-                        <span className="px-1 text-xs text-muted-foreground tabular-nums">
-                            {rowWindowLabel(shownRows)}
-                        </span>
-                    )}
+                    {shownRows &&
+                        (isSelected ? (
+                            <span className="px-1 text-xs text-muted-foreground tabular-nums">
+                                {rowWindowLabel(shownRows)} · scroll to change
+                            </span>
+                        ) : (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className="px-1 text-xs text-muted-foreground tabular-nums">
+                                        {rowWindowLabel(shownRows)}
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                    Click the chart, then scroll it to choose the rows the report
+                                    shows
+                                </TooltipContent>
+                            </Tooltip>
+                        ))}
                     {(lock || figure?.spec) && (
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -223,6 +236,7 @@ export function ChartEmbed({
                         spec={figure.spec}
                         darkMode={darkMode}
                         rowStart={rowStart}
+                        active={isSelected}
                         onRowWindowChange={onRowWindowChange}
                     />
                 ) : (

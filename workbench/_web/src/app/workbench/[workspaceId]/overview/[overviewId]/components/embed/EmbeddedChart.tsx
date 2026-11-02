@@ -12,19 +12,22 @@ import { REPORT_MAX_ROWS } from "@/lib/report/chartFigure";
 /**
  * A chart drawn from its saved data and UI state, as a static picture: the
  * same rendering a PDF export snapshots. The widget ignores the pointer, so
- * clicks fall through to the embed around it, except on a long logit lens's
- * row window: REPORT_MAX_ROWS rows at a time, scrolled to choose the rows
- * the report shows (from `rowStart`).
+ * clicks fall through to the embed around it. A long logit lens shows a
+ * window of REPORT_MAX_ROWS rows (from `rowStart`), which scrolls to choose
+ * the rows the report shows, only while `active` (the embed is selected):
+ * otherwise scrolling over it scrolls the report.
  */
 export function EmbeddedChart({
     spec,
     darkMode,
     rowStart,
+    active,
     onRowWindowChange,
 }: {
     spec: ChartSnapshotSpec;
     darkMode: boolean;
     rowStart: number | null;
+    active: boolean;
     onRowWindowChange: (window: LogitLensRowWindow | null, source: "render" | "scroll") => void;
 }) {
     const lensState = spec.kind === "logit-lens" ? spec.uiState : null;
@@ -40,6 +43,7 @@ export function EmbeddedChart({
                 interactive={false}
                 maxRows={REPORT_MAX_ROWS}
                 scrollRows
+                scrollRowsActive={active}
                 onRowWindowChange={onRowWindowChange}
                 className="w-full"
             />
