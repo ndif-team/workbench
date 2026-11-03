@@ -32,6 +32,7 @@ import { getUserWorkspace } from "@/lib/queries/workspaceQueries";
 import { withProlificPid } from "@/lib/prolific";
 import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
+import { selectedModelIn } from "@/components/model-selector/status";
 import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
@@ -193,7 +194,7 @@ export default function PatchLensArea({
     const { emit: emitTutorialEvent } = useTutorialEmit();
     const prolificTutorial = useProlificTutorial();
     const { setTarget: setSpotlight } = useSpotlight();
-    const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
+    const { selectedModel: selectedName, setSelectedModel } = useWorkspace();
     const startOrientationTour = useOrientationTour();
 
     // Bind the guided-tutorial store to this workspace (resets on workspace change).
@@ -252,8 +253,8 @@ export default function PatchLensArea({
     });
     const surveyUrl = withProlificPid(workshop?.surveyUrl, workspace?.prolific?.prolificPid);
 
-    // Default to Llama-3.1-8B once when models load, rather than leaving the
-    // workspace default at index 0 (the 70B, 80 layers). Guarded so a later
+    // Default to Llama-3.1-8B once when models load, rather than the general
+    // default (whichever large model is hot first). Guarded so a later
     // manual model choice is not overridden. Waits for the workshop lookup so
     // a workshop's pinned model wins the race over the intro default.
     const didDefaultModel = useRef(false);
@@ -261,16 +262,15 @@ export default function PatchLensArea({
         if (didDefaultModel.current || !models || models.length === 0 || workshopLoading) return;
         didDefaultModel.current = true;
         const targetModel = workshop ? workshop.model : DEFAULT_INTRO_MODEL;
-        const idx = models.findIndex((m) => m.name === targetModel);
-        if (idx !== -1 && idx !== selectedModelIdx) {
-            setSelectedModelIdx(idx);
+        if (models.some((m) => m.name === targetModel) && targetModel !== selectedName) {
+            setSelectedModel(targetModel);
         }
-    }, [models, selectedModelIdx, setSelectedModelIdx, workshop, workshopLoading]);
+    }, [models, selectedName, setSelectedModel, workshop, workshopLoading]);
 
-    const selectedModel = useMemo(() => {
-        if (!models || models.length === 0) return undefined;
-        return models[selectedModelIdx]?.name || models[0].name;
-    }, [models, selectedModelIdx]);
+    const selectedModel = useMemo(
+        () => selectedModelIn(models, selectedName)?.name,
+        [models, selectedName],
+    );
 
     // Workshop mode auto-launches the configured guided tutorial once its content
     // has loaded — participants shouldn't have to hunt for the Tutorial menu.

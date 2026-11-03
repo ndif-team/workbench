@@ -12,7 +12,7 @@ If you're proposing visual UI changes, also follow `.claude/skills/product-nativ
 
 **Top-level concepts**
 - **Workspace** — a folder of saved work. Owned by one user. Holds charts and documents (research notes). Each user also has one **default workspace** (`workspaces.is_default`, created lazily by `getOrCreateDefaultWorkspace` in `src/lib/queries/workspaceDb.ts`) that holds the charts and reports not filed in a folder; it is never listed as a folder, renamed or deleted. Charts and reports move between workspaces with `moveChart` / `moveReport` (a chart's config and lens runs move with it). A user's folder names are unique, ignoring case (`createWorkspace` / `renameWorkspace` refuse a taken one).
-- **Model** — an open-source LLM that the active backend can host (e.g. `meta-llama/Llama-3.2-1B`). Selected per-workspace via `useWorkspace.selectedModelIdx`.
+- **Model** — an open-source LLM that the active backend can host (e.g. `meta-llama/Llama-3.2-1B`). The header's pick is `useWorkspace.selectedModel` (a model name), read through `selectedModelIn`; a chart with no model of its own starts on `defaultModel` (a hot model the user may run, then any hot, then warm, never cold while one of those can run the tool), and Home's composer uses the same rule.
 - **Chart** — a single experiment + its visualization (currently: logit-lens / jlens / activation-patching / patch-lens). One chart row = one config row = one display. Patch Lens shows source/target logit-lens heatmaps plus a single-cell patch (causal mediation), with its run history in `lens_runs`.
   - `"lens2"` is a legacy alias of the `"logit-lens"` tool type, still accepted when reading `configs.type`, `charts.type`, `workshops.allowed_tools` and saved chart embeds until the stored rows are migrated (`normalizeToolType` in `src/types/charts.ts`, and `normalizeWorkshopTools` in `src/lib/workshop.ts` for workshop allowed tools). Writes always use `"logit-lens"`; old `/workbench/<ws>/lens2/<chartId>` links redirect to `/logit-lens/<chartId>` (`next.config.js`).
 - **Config** — the parameters that produced the chart (prompt, topk, etc.). Stored as `jsonb` in the `configs` table.
@@ -151,7 +151,7 @@ workbench/                          # repo root
         │   └── ...
         │
         ├── stores/                 # zustand stores
-        │   ├── useWorkspace.ts     # selectedModelIdx, jobStatus
+        │   ├── useWorkspace.ts     # selectedModel (by name), jobStatus
         │   ├── useModelDeployment.ts    # cold-model warmups in flight, keyed by model
         │   ├── useSidebarFolders.ts     # how the sidebar was left: open folders, folded sections (persisted)
         │   ├── useWorkspaceView.ts      # the workspace page's layout, grid or list (persisted)

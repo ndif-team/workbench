@@ -17,6 +17,7 @@ import { newChartPath } from "@/lib/chartRoutes";
 import { Select, SelectTrigger } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
+import { defaultModel } from "@/components/model-selector/status";
 import {
     ToolPill,
     WorkspacePill,
@@ -280,18 +281,17 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     const modelsToSelect: Model[] = models && models.length > 0 ? models : [];
     const hasModels = modelsToSelect.length > 0;
 
-    // Default to a hot model the current user can actually run when models
-    // load — prefer hot+allowed (skips gated models a guest can't use),
-    // then any hot, then the first available.
+    // Default to the model a blank chart starts on when models load
+    // (`defaultModel`: a hot one the current user can run, skipping gated
+    // models a guest can't use).
     useEffect(() => {
         if (
             models &&
             models.length > 0 &&
             (!selectedModel || !models.some((m) => m.name === selectedModel))
         ) {
-            const firstUsableHot = models.find((m) => m.status === "hot" && m.allowed);
-            const firstHot = models.find((m) => m.status === "hot");
-            setSelectedModel((firstUsableHot ?? firstHot ?? models[0]).name);
+            const model = defaultModel(models);
+            if (model) setSelectedModel(model.name);
         }
     }, [models, selectedModel]);
 

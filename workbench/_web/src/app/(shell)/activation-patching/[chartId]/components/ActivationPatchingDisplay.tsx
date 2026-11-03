@@ -21,6 +21,7 @@ import { ChartModelPill } from "@/components/charts/ChartModelPill";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
+import { selectedModelIn } from "@/components/model-selector/status";
 
 const validModes = new Set<string>(["probability", "rank", "prob_diff"]);
 
@@ -63,8 +64,8 @@ export function ActivationPatchingDisplay() {
 
     const { data: models } = useModelsQuery();
 
-    const { selectedModelIdx } = useWorkspace();
-    const selectedModel = models?.[selectedModelIdx]?.name ?? models?.[0]?.name ?? null;
+    const { selectedModel: selectedName } = useWorkspace();
+    const selectedModel = selectedModelIn(models, selectedName)?.name ?? null;
     const modelsAvailable = !!models && models.length > 0;
 
     const { mutateAsync: updateConfig } = useUpdateChartConfig();

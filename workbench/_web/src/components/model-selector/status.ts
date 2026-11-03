@@ -43,6 +43,35 @@ const SELECTABLE_HEATS: ReadonlyArray<ModelHeat> = ["hot", "warm"];
 export const isModelRunnable = (model: Model | undefined): boolean =>
     !!model && model.status !== undefined && SELECTABLE_HEATS.includes(model.status);
 
+/**
+ * The model to start on when nothing picks one (a blank chart, a fresh visit):
+ * the first hot model the user may run, then any hot one, then a warm one,
+ * then the first. `supports` narrows the choice to models a tool can use,
+ * unless none of them can.
+ */
+export const defaultModel = (
+    models: Model[],
+    supports: (model: Model) => boolean = () => true,
+): Model | undefined => {
+    const supported = models.filter(supports);
+    const pool = supported.length > 0 ? supported : models;
+    return (
+        pool.find((m) => m.status === "hot" && m.allowed) ??
+        pool.find((m) => m.status === "hot") ??
+        pool.find((m) => m.status === "warm") ??
+        pool[0]
+    );
+};
+
+/** The model named `name` in `models`, else the default one. */
+export const selectedModelIn = (
+    models: Model[] | undefined,
+    name: string | null,
+): Model | undefined => {
+    if (!models || models.length === 0) return undefined;
+    return models.find((m) => m.name === name) ?? defaultModel(models);
+};
+
 /** True when the model is in the catalog but not currently deployed (cold). */
 export const isModelCold = (model: Model | undefined): boolean =>
     !!model && model.status === "cold";

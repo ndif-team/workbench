@@ -13,6 +13,7 @@ import { LogitLensWidget } from "nnsightful";
 import type { LogitLensData, LogitLensUIState } from "nnsightful";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
+import { selectedModelIn } from "@/components/model-selector/status";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
@@ -53,8 +54,8 @@ export function JLensDisplay() {
 
     const { data: models } = useModelsQuery();
 
-    const { selectedModelIdx } = useWorkspace();
-    const selectedModelObj = models?.[selectedModelIdx] ?? models?.[0];
+    const { selectedModel: selectedName } = useWorkspace();
+    const selectedModelObj = selectedModelIn(models, selectedName);
     const selectedModel = selectedModelObj?.name ?? null;
     const modelsAvailable = !!models && models.length > 0;
     // Whether the currently-selected model can run j-lens. Only meaningful for

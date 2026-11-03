@@ -33,7 +33,7 @@ export default function PatchLensChartPage() {
     const isMobile = useIsMobile();
     const { chartId } = useParams<{ chartId: string }>();
     const queryClient = useQueryClient();
-    const { setSelectedModelIdx } = useWorkspace();
+    const { setSelectedModel } = useWorkspace();
     const capture = useCapture();
     // Model list (shares the React Query cache with PatchLensArea/Display) so a
     // history restore can re-select the model the entry was computed with.
@@ -127,8 +127,7 @@ export default function PatchLensChartPage() {
             // Re-select the model this entry was computed with, so the restored
             // heatmaps, the predicted-next-token, and re-tokenization all line up
             // with the historical run rather than the currently-selected model.
-            const modelIdx = models?.findIndex((m) => m.name === run.model) ?? -1;
-            if (modelIdx >= 0) setSelectedModelIdx(modelIdx);
+            if (models?.some((m) => m.name === run.model)) setSelectedModel(run.model);
             setSourcePrompt(src);
             setTargetPrompt(tgt);
             setLastRunSrcPrompt(src);
@@ -167,7 +166,7 @@ export default function PatchLensChartPage() {
             );
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(chartId) });
         },
-        [chartId, queryClient, models, setSelectedModelIdx, capture],
+        [chartId, queryClient, models, setSelectedModel, capture],
     );
 
     // Autosave the prompts into the chart row so they survive navigation even

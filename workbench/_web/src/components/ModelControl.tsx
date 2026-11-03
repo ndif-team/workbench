@@ -12,7 +12,12 @@ import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import type { ModelStatus } from "@/types/models";
 import type { ToolType } from "@/types/charts";
-import { MODEL_STATUS, deriveHeat, splitRepo } from "@/components/model-selector/status";
+import {
+    MODEL_STATUS,
+    deriveHeat,
+    selectedModelIn,
+    splitRepo,
+} from "@/components/model-selector/status";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
 import {
     isToolModelRestricted,
@@ -91,7 +96,7 @@ interface ModelControlProps {
 
 export function ModelControl({ className, compact = false }: ModelControlProps) {
     const hideCompact = compact && "max-md:hidden";
-    const { selectedModelIdx, setSelectedModelIdx, jobStatus } = useWorkspace();
+    const { selectedModel: selectedName, setSelectedModel, jobStatus } = useWorkspace();
     const workspaceId = useWorkspaceScope()?.workspaceId;
 
     const { data: models, isLoading: modelsLoading, isError: modelsError } = useModelsQuery();
@@ -131,19 +136,16 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
     const defaultAppliedRef = React.useRef(false);
     React.useEffect(() => {
         if (!workshop || !models || models.length === 0) return;
-        const idx = models.findIndex((m) => m.name === workshop.model);
-        if (idx === -1) return;
+        if (!models.some((m) => m.name === workshop.model)) return;
         if (workshop.allowModelChange) {
             if (defaultAppliedRef.current) return;
             defaultAppliedRef.current = true;
         }
-        if (idx !== selectedModelIdx) setSelectedModelIdx(idx);
-    }, [workshop, models, selectedModelIdx, setSelectedModelIdx]);
+        if (workshop.model !== selectedName) setSelectedModel(workshop.model);
+    }, [workshop, models, selectedName, setSelectedModel]);
 
     const handleSelect = (name: string) => {
-        if (!models) return;
-        const idx = models.findIndex((m) => m.name === name);
-        if (idx !== -1) setSelectedModelIdx(idx);
+        if (models?.some((m) => m.name === name)) setSelectedModel(name);
         setOpen(false);
     };
 
@@ -196,7 +198,7 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
         );
     }
 
-    const selectedModel = models[selectedModelIdx] ?? models[0];
+    const selectedModel = selectedModelIn(models, selectedName) ?? models[0];
     const heat = deriveHeat(selectedModel);
     const display = splitRepo(selectedModel.name);
 

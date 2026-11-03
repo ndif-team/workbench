@@ -9,6 +9,7 @@ import { getChartById, setChartData } from "@/lib/queries/chartQueries";
 import { useLensRunHeatmaps } from "@/lib/api/lensRunApi";
 import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
+import { selectedModelIn } from "@/components/model-selector/status";
 import { CausalMediationExplorer } from "edulogitlens";
 import type { LogitLensData, Intervention, CausalMediationEvent } from "edulogitlens";
 import { PatchLensResult, usePatchLensIntervention } from "@/lib/api/patchLensApi";
@@ -72,7 +73,7 @@ export function PatchLensDisplay({
     const markPatchApplied = useProlificTutorial((s) => s.markPatchApplied);
     const recordPatchResult = useProlificTutorial((s) => s.recordPatchResult);
     const clearPatchResult = useProlificTutorial((s) => s.clearPatchResult);
-    const { selectedModelIdx } = useWorkspace();
+    const { selectedModel: selectedName } = useWorkspace();
     const queryClient = useQueryClient();
 
     const { data: models } = useQuery({
@@ -81,10 +82,10 @@ export function PatchLensDisplay({
         refetchInterval: 120000,
     });
 
-    const selectedModel = useMemo(() => {
-        if (!models || models.length === 0) return undefined;
-        return models[selectedModelIdx]?.name || models[0].name;
-    }, [models, selectedModelIdx]);
+    const selectedModel = useMemo(
+        () => selectedModelIn(models, selectedName)?.name,
+        [models, selectedName],
+    );
 
     // The patch-lens chart row no longer carries heatmaps — only prompts, the
     // prompts the active run was computed from, and a pointer (activeLensRunId)

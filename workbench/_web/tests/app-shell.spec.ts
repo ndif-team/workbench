@@ -328,6 +328,46 @@ test.describe("app shell", () => {
         await deleteWorkspace(page, workspaceId, workspace);
     });
 
+    test("a new chart starts on a hot model, even after a chart whose model went cold", async ({
+        page,
+    }) => {
+        const prompt = unique("The Eiffel Tower is in");
+        const chartId = await newChart(page, prompt);
+        await expect(page.locator("main").getByText("Paris").first()).toBeVisible({
+            timeout: 60_000,
+        });
+
+        // The chart's model (gpt2) goes cold, and another model is hot but listed after it.
+        const model = (name: string, status: string) => ({
+            name,
+            is_chat: false,
+            n_layers: 12,
+            params: "124M",
+            gated: false,
+            allowed: true,
+            status,
+        });
+        await page.route("**/models/**", (route) =>
+            route.fulfill({
+                json: [model(TUTORIAL_MODEL, "cold"), model("e2e-org/hot-second", "hot")],
+            }),
+        );
+        await page.reload();
+        const pill = page.getByTestId("model-select-trigger");
+        await expect(pill).toContainText("gpt2");
+
+        // A blank chart, opened without a reload, starts on the hot model instead.
+        await page.getByRole("button", { name: "New chart" }).first().click();
+        await page.getByRole("menuitem", { name: "Logit Lens" }).click();
+        await page.waitForURL(
+            (url) =>
+                /^\/logit-lens\/[0-9a-f-]{36}$/.test(url.pathname) &&
+                !url.pathname.endsWith(chartId),
+            { timeout: 60_000 },
+        );
+        await expect(pill).toContainText("hot-second");
+    });
+
     test("Home, at /, starts a chart from the landing page's composer", async ({ page }) => {
         const prompt = unique("Home prompt");
         await page.goto("/workbench");
