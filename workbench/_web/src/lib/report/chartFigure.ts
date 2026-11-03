@@ -76,12 +76,12 @@ export function chartFigure(chart: Row, config: Row): ChartFigure {
 }
 
 /**
- * `spec` drawn as just the heatmap and its layer navigator: a logit lens
- * opens its line plot under them while a row is selected or pinned, so
- * those are cleared, and the window of `maxRows` rows they centered stays
- * put. Other charts are returned as they are.
+ * `spec` without a logit lens's line plot, which opens under the heatmap
+ * while a row is selected or pinned: those are cleared, and the window of
+ * `maxRows` rows they centered stays put. Other charts are returned as they
+ * are.
  */
-export function heatmapOnly(spec: ChartSnapshotSpec, maxRows: number): ChartSnapshotSpec {
+export function withoutLinePlot(spec: ChartSnapshotSpec, maxRows: number): ChartSnapshotSpec {
     if (spec.kind !== "logit-lens" || !spec.uiState) return spec;
     const { selectedRow, pinnedRows, rowStart } = spec.uiState;
     const focus = selectedRow ?? pinnedRows?.[0]?.pos ?? null;

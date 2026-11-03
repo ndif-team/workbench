@@ -3,8 +3,8 @@ import {
     chartFigure,
     chartFigureGapText,
     chartPrompt,
-    heatmapOnly,
     rowWindowLabel,
+    withoutLinePlot,
 } from "../chartFigure";
 
 const LENS_DATA = { meta: { version: 2 }, layers: [0, 1], input: ["a"], tracked: [], topk: [] };
@@ -80,13 +80,13 @@ describe("chartFigure", () => {
     });
 });
 
-describe("heatmapOnly", () => {
+describe("withoutLinePlot", () => {
     const lens = (uiState: Record<string, unknown> | null) =>
         ({ kind: "logit-lens", data: LENS_DATA, uiState }) as never;
 
     it("clears the selected and pinned rows that open the line plot", () => {
         const pinnedGroups = [{ tokens: [" Paris"], color: "#f00" }];
-        const spec = heatmapOnly(
+        const spec = withoutLinePlot(
             lens({ selectedRow: 3, selectedLayer: 1, pinnedRows: [], pinnedGroups, ramp: "blue" }),
             8,
         );
@@ -102,8 +102,10 @@ describe("heatmapOnly", () => {
     });
 
     it("keeps the rows window the selection or first pinned row centered", () => {
-        const rowStart = (uiState: Record<string, unknown>) =>
-            (heatmapOnly(lens(uiState), 8) as { uiState: { rowStart: unknown } }).uiState.rowStart;
+        const rowStart = (uiState: Record<string, unknown>) => {
+            const spec = withoutLinePlot(lens(uiState), 8) as { uiState: { rowStart: unknown } };
+            return spec.uiState.rowStart;
+        };
         expect(rowStart({ selectedRow: 20 })).toBe(16);
         expect(rowStart({ pinnedRows: [{ pos: 2, line: "solid" }] })).toBe(0);
         expect(rowStart({ selectedRow: 20, rowStart: 5 })).toBe(5);
@@ -112,9 +114,9 @@ describe("heatmapOnly", () => {
 
     it("leaves other charts and a lens with no saved view as they are", () => {
         const ap = chartFigure({ type: "activation-patching", data: AP_DATA }, null).spec!;
-        expect(heatmapOnly(ap, 8)).toBe(ap);
+        expect(withoutLinePlot(ap, 8)).toBe(ap);
         const bare = lens(null);
-        expect(heatmapOnly(bare, 8)).toBe(bare);
+        expect(withoutLinePlot(bare, 8)).toBe(bare);
     });
 });
 

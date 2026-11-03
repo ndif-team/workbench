@@ -7,7 +7,7 @@ import { snapshotChart, type ChartSnapshot, type ChartSnapshotSpec } from "nnsig
 import { useIsDark } from "@/hooks/useIsDark";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
-import { chartFigure, heatmapOnly, type ChartFigureGap } from "@/lib/report/chartFigure";
+import { chartFigure, type ChartFigureGap, withoutLinePlot } from "@/lib/report/chartFigure";
 
 export type ChartPreview =
     | { status: "loading" }
@@ -48,13 +48,15 @@ class PreviewQueue {
 
     /**
      * Draws `spec` as a preview, with the color it's drawn on (see
-     * `surfaceOf`); a logit lens shows its heatmap without the line plot.
+     * `surfaceOf`); a logit lens shows just its heatmap, without the layer
+     * navigator or line plot.
      */
     static async draw(spec: ChartSnapshotSpec, darkMode: boolean) {
         return PreviewQueue.run(async () => {
-            const image = await snapshotChart(heatmapOnly(spec, PreviewQueue.MAX_ROWS), {
+            const image = await snapshotChart(withoutLinePlot(spec, PreviewQueue.MAX_ROWS), {
                 width: PreviewQueue.WIDTH,
                 maxRows: PreviewQueue.MAX_ROWS,
+                layerNavigator: false,
                 scale: PreviewQueue.SCALE,
                 darkMode,
             });
