@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
     ChartColumn,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { SearchInput, useSearchShortcut } from "@/components/ui/search-input";
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
 import {
     useRenameWorkspace,
@@ -20,7 +21,7 @@ import {
 } from "@/lib/api/workspaceApi";
 import { workspacePath } from "@/lib/chartRoutes";
 import { cn } from "@/lib/utils";
-import type { LibraryWorkspace } from "@/types/workspaces";
+import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
 import { PageHeader, PageTitle } from "../../components/shell/PageHeader";
 import { InlineNameInput } from "../../components/items/InlineNameInput";
 import { formatTimestamp, formatUpdated } from "../../components/items/formatUpdated";
@@ -29,18 +30,39 @@ import { itemIcon, itemLabel, itemPath } from "../../components/items/itemLabel"
 import { countContents, describeContents } from "../../components/items/workspaceContents";
 import { WorkspaceActionsMenu } from "../../components/items/WorkspaceActions";
 import { inFolderOrder } from "../../components/shell/folderOrder";
+import { searchWorkspaces } from "./workspaceSearch";
 
 /**
  * All workspaces (folders), most recent first: one card each with the
- * folder's cover, its chart and report counts and when it last changed.
+ * folder's cover, its chart and report counts and when it last changed. The
+ * search box keeps the folders whose name, or one of whose charts or
+ * reports, holds the query; a card found by its items unfolds to those.
  */
 export function WorkspaceGrid() {
     const { data: library, isLoading } = useWorkspaceLibrary();
     const [creating, setCreating] = useState(false);
+    const [query, setQuery] = useState("");
+    const searchRef = useRef<HTMLInputElement>(null);
+    useSearchShortcut(
+        searchRef,
+        useCallback(() => setQuery(""), []),
+    );
     const workspaces = useMemo(
         () => inFolderOrder(library?.workspaces ?? []),
         [library?.workspaces],
     );
+    const matches = useMemo(() => searchWorkspaces(workspaces, query), [workspaces, query]);
+    const searching = query.trim() !== "";
+    const search = (props: { className: string; ref?: typeof searchRef }) =>
+        workspaces.length > 0 && (
+            <SearchInput
+                {...props}
+                value={query}
+                onValueChange={setQuery}
+                placeholder="search workspaces and charts…"
+                aria-label="Search workspaces, charts and reports"
+            />
+        );
 
     return (
         <div className="flex size-full min-h-0 flex-col">
@@ -50,19 +72,25 @@ export function WorkspaceGrid() {
                         <PageTitle>Workspaces</PageTitle>
                         {library && workspaces.length > 0 && (
                             <span className="text-sm tabular-nums text-muted-foreground">
-                                {workspaces.length}
+                                {searching
+                                    ? `${matches.length} of ${workspaces.length}`
+                                    : workspaces.length}
                             </span>
                         )}
                     </div>
                 }
                 end={
-                    <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
-                        <FolderPlus />
-                        New workspace
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        {search({ ref: searchRef, className: "w-56 max-sm:hidden" })}
+                        <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
+                            <FolderPlus />
+                            New workspace
+                        </Button>
+                    </div>
                 }
             />
             <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-6">
+                {search({ className: "mb-3 sm:hidden" })}
                 {isLoading ? (
                     <div aria-hidden className={GRID}>
                         {Array.from({ length: 4 }, (_, i) => (
@@ -71,12 +99,16 @@ export function WorkspaceGrid() {
                     </div>
                 ) : workspaces.length === 0 ? (
                     <EmptyWorkspaces onCreate={() => setCreating(true)} />
+                ) : matches.length === 0 ? (
+                    <NoMatches query={query.trim()} onClear={() => setQuery("")} />
                 ) : (
                     <ul className={GRID}>
-                        {workspaces.map((workspace) => (
+                        {matches.map(({ workspace, items }) => (
                             <li key={workspace.id}>
                                 <WorkspaceCard
                                     workspace={workspace}
+                                    query={query}
+                                    matches={items}
                                     nameError={(name) =>
                                         workspaceNameError(library, name, workspace.id)
                                     }
@@ -101,18 +133,28 @@ const CARD =
  * marked with how many charts and reports it holds), then its name and
  * actions, then its counts, which unfold its items in the cover's place,
  * scrolling there when they don't fit, so the card keeps its size. The whole
- * card opens the workspace.
+ * card opens the workspace. While a search found some of its items, it starts
+ * unfolded and lists only those.
  */
 function WorkspaceCard({
     workspace,
+    query,
+    matches,
     nameError,
 }: {
     workspace: LibraryWorkspace;
+    /** The search on the page, as typed. */
+    query: string;
+    /** Its items the search found; empty without a search or when only its name matched. */
+    matches: LibraryItem[];
     /** Why a new name can't be used (another workspace has it), or null. */
     nameError: (name: string) => string | null;
 }) {
     const [renaming, setRenaming] = useState(false);
-    const [open, setOpen] = useState(false);
+    /** The fold the user picked, kept for the search it was picked under. */
+    const [toggled, setToggled] = useState<{ query: string; open: boolean } | null>(null);
+    const open = toggled?.query === query ? toggled.open : matches.length > 0;
+    const listed = matches.length > 0 ? matches : workspace.items;
     const listId = useId();
     const { mutate: rename } = useRenameWorkspace();
     const contents = describeContents(workspace);
@@ -129,29 +171,31 @@ function WorkspaceCard({
                     className="powder-cover h-full dark:brightness-75"
                     style={folderCover(workspace.id)}
                 />
-                <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 flex items-center justify-center gap-5 text-sm font-medium tabular-nums text-white"
-                >
-                    {charts > 0 && (
-                        <span className="flex items-center gap-1.5">
-                            <ChartColumn className="size-5" />
-                            {charts}
-                        </span>
-                    )}
-                    {reports > 0 && (
-                        <span className="flex items-center gap-1.5">
-                            <FileText className="size-5" />
-                            {reports}
-                        </span>
-                    )}
-                </div>
+                {!open && (
+                    <div
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 flex items-center justify-center gap-5 text-sm font-medium tabular-nums text-white"
+                    >
+                        {charts > 0 && (
+                            <span className="flex items-center gap-1.5">
+                                <ChartColumn className="size-5" />
+                                {charts}
+                            </span>
+                        )}
+                        {reports > 0 && (
+                            <span className="flex items-center gap-1.5">
+                                <FileText className="size-5" />
+                                {reports}
+                            </span>
+                        )}
+                    </div>
+                )}
                 {open && (
                     <ul
                         id={listId}
                         className="absolute inset-x-0 bottom-0 top-1.5 z-10 flex flex-col overflow-y-auto overscroll-contain bg-secondary/90 p-1.5 animate-in fade-in-0"
                     >
-                        {workspace.items.map((item) => {
+                        {listed.map((item) => {
                             const Icon = itemIcon(item);
                             const label = itemLabel(item);
                             return (
@@ -210,7 +254,7 @@ function WorkspaceCard({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => setOpen((o) => !o)}
+                        onClick={() => setToggled({ query, open: !open })}
                         aria-expanded={open}
                         aria-controls={open ? listId : undefined}
                         title={open ? "Hide items" : "Show items"}
@@ -219,7 +263,11 @@ function WorkspaceCard({
                         <ChevronRight
                             className={cn("size-3.5 transition-transform", open && "rotate-90")}
                         />
-                        <span className="truncate">{contents}</span>
+                        <span className="truncate">
+                            {matches.length > 0
+                                ? `${matches.length} of ${workspace.items.length} match${matches.length === 1 ? "es" : ""}`
+                                : contents}
+                        </span>
                     </Button>
                 ) : (
                     <span className="flex h-6 items-center pl-1.5">Empty</span>
@@ -246,6 +294,19 @@ function WorkspaceCardSkeleton() {
             <div className="px-3 pb-3">
                 <div className="h-2.5 w-1/3 rounded-sm bg-border animate-pulse" />
             </div>
+        </div>
+    );
+}
+
+function NoMatches({ query, onClear }: { query: string; onClear: () => void }) {
+    return (
+        <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="break-words text-sm text-muted-foreground">
+                No workspace, chart or report matches &ldquo;{query}&rdquo;.
+            </p>
+            <Button variant="outline" size="sm" onClick={onClear}>
+                Clear search
+            </Button>
         </div>
     );
 }

@@ -226,7 +226,7 @@ Every non-trivial feature has **one container** (knows about URL params, stores,
 
 ### Reusing `components/ui`
 
-Always reach for the existing primitive first. The catalog: `badge, button, card, checkbox, dialog, dropdown-menu, input, label, mode-toggle, pill-popover, popover, resizable, select, separator, sheet, slider, sonner, textarea, tooltip`. Don't fork them for cosmetic tweaks — pass `className` and merge with `cn()` from `lib/utils`.
+Always reach for the existing primitive first. The catalog: `badge, button, card, checkbox, dialog, dropdown-menu, input, label, mode-toggle, pill-popover, popover, resizable, search-input, select, separator, sheet, slider, sonner, textarea, tooltip`. Don't fork them for cosmetic tweaks — pass `className` and merge with `cn()` from `lib/utils`.
 
 If a primitive is missing (e.g. a Switch), prefer adding a thin wrapper around the existing Radix package (`radix-ui`, already a dep) over hand-rolling.
 
@@ -403,7 +403,7 @@ Set in `src/components/providers/QueryProvider.tsx`: `staleTime: 5min`, `retry: 
 
 ### Existing primitives to prefer
 
-`src/components/ui/`: Badge, Button, Card, Checkbox, Dialog, DropdownMenu, Input, Label, ModeToggle, PillPopover, Popover, Resizable, Select, Separator, Sheet, Slider, Sonner, Textarea, Tooltip.
+`src/components/ui/`: Badge, Button, Card, Checkbox, Dialog, DropdownMenu, Input, Label, ModeToggle, PillPopover, Popover, Resizable, SearchInput (with `useSearchShortcut`: `/` focuses it, Escape clears it), Select, Separator, Sheet, Slider, Sonner, Textarea, Tooltip.
 
 ### Layout patterns the app uses
 
@@ -411,7 +411,7 @@ Set in `src/components/providers/QueryProvider.tsx`: `staleTime: 5min`, `retry: 
 - **Chart pages** = the item header (`ItemPage`: `ModelControl`, the workspace → item breadcrumb, the item's actions) above a `ResizablePanelGroup` of feature panels. The header owns the chart's name and its rename; the tool displays carry no title of their own. A report's header has no model picker. Examples: `logit-lens/[chartId]/page.tsx`, `activation-patching/[chartId]/page.tsx`.
 - **Item actions** = `ItemActionsMenu` everywhere a chart or report is listed (sidebar rows, the item header, the workspace page): Rename, Copy, Move to workspace, Remove from workspace, Delete (confirmed in a popover). A workspace's own Rename and Delete (confirmed in a dialog) are `WorkspaceActionsMenu`, on its page, its card in all workspaces and its sidebar folder row; workshop workspaces get neither.
 - **Workspace page** = one folder's charts and reports set straight on the page (no surrounding panel): a grid of preview cards (the default) or a list of rows on a card surface, switched in the page header, where the item count sits beside the folder's name (`useWorkspaceView`). A chart card's preview is drawn in the browser the way a report embed draws the chart (`chartFigure` + nnsightful's `snapshotChart`, in `useChartPreview`): only once the card is on screen, two at a time, and cached per saved version of the chart and theme, so each visible chart's data is downloaded once per session. A report card shows a `powder-cover` (brand-color blur under a grain, in `globals.css`), placed per report.
-- **All workspaces** (`/workspaces`) = one card per folder, set straight on the page: a cover in a color of the folder's own (`folderCover` in `components/items/covers.ts`: one of the NDIF logo's colors, over a `powder-cover`), its name and actions, then its counts, which unfold its items (each opening the item) in the cover's place, scrolling there when they don't fit, so a card never changes size.
+- **All workspaces** (`/workspaces`) = one card per folder, set straight on the page: a cover in a color of the folder's own (`folderCover` in `components/items/covers.ts`: one of the NDIF logo's colors, over a `powder-cover`), its name and actions, then its counts, which unfold its items (each opening the item) in the cover's place, scrolling there when they don't fit, so a card never changes size. The header's search (`SearchInput`, as on the models page) keeps the folders whose name or whose charts' and reports' labels hold the query (`searchWorkspaces`); a card found by its items starts unfolded to just those.
 - **Feature panel** = bordered, rounded card (`rounded dark:bg-secondary/50 bg-secondary/80 border`) with the standard panel header pattern (see §4).
 - **Mobile** = the shell's sidebar drawer (opened from the page header), `MobileCollapsibleControls` (collapsible top section). Mirror these when adding mobile paths.
 - **Charts** = each tool's `*Display` component (`LogitLensDisplay`, `JLensDisplay`, `ActivationPatchingDisplay`) renders its nnsightful widget straight from `chart.data`; `PatchLensDisplay` renders `edulogitlens`'s `CausalMediationExplorer`.

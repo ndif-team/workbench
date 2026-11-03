@@ -301,6 +301,62 @@ test.describe("app shell", () => {
         await deleteWorkspace(page, workspaceId, name);
     });
 
+    test("the workspaces search finds a workspace by its name or by a chart in it", async ({
+        page,
+    }) => {
+        const name = unique("Search me");
+        await page.goto("/workspaces");
+        await header(page).getByRole("button", { name: "New workspace" }).click();
+        await page.getByRole("dialog", { name: "New workspace" }).getByLabel("Name").fill(name);
+        await page.getByRole("button", { name: "Create workspace" }).click();
+        await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/);
+        const workspaceId = new URL(page.url()).pathname.split("/")[2];
+        const prompt = unique("The Colosseum is in");
+        await page.goto(
+            `/new?tool=logit-lens&prompt=${encodeURIComponent(prompt)}&workspaceId=${workspaceId}`,
+        );
+        await page.waitForURL(/\/logit-lens\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+        const chartId = new URL(page.url()).pathname.split("/")[2];
+
+        await page.goto("/workspaces");
+        const search = header(page).getByLabel("Search workspaces, charts and reports");
+        const cards = page.locator("main li").filter({ has: page.locator("button[title]") });
+        const card = cards.filter({ has: page.getByRole("link", { name }) });
+        const chartLink = card.locator(`a[href="/logit-lens/${chartId}"]`);
+
+        // "/" focuses the search once the page has hydrated.
+        await expect(async () => {
+            await page.locator("body").press("/");
+            await expect(search).toBeFocused({ timeout: 1_000 });
+        }).toPass({ timeout: 30_000 });
+        await search.fill(name.toUpperCase());
+        await expect(cards).toHaveCount(1);
+        await expect(card.getByRole("button", { name: "1 chart" })).toHaveAttribute(
+            "aria-expanded",
+            "false",
+        );
+
+        await search.fill(prompt.slice(4));
+        await expect(cards).toHaveCount(1);
+        await expect(card.getByRole("button", { name: "1 of 1 matches" })).toHaveAttribute(
+            "aria-expanded",
+            "true",
+        );
+        await expect(chartLink).toBeVisible();
+
+        await search.fill(unique("Nothing is called"));
+        await expect(page.getByText(/^No workspace, chart or report matches/)).toBeVisible();
+        await page
+            .locator("main")
+            .getByRole("button", { name: "Clear search" })
+            .filter({ hasText: "Clear search" })
+            .click();
+        await expect(search).toHaveValue("");
+        await expect(card).toBeVisible();
+
+        await deleteWorkspace(page, workspaceId, name);
+    });
+
     test("old /workbench links open the chart-centric pages", async ({ page }) => {
         const workspace = unique("Redirects");
         await page.goto("/workspaces");

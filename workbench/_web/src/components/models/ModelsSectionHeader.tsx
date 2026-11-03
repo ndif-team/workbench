@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { useCallback, useRef, type RefObject } from "react";
+import { SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput, useSearchShortcut } from "@/components/ui/search-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useIsDark } from "@/hooks/useIsDark";
@@ -53,24 +53,10 @@ export function ModelsSectionHeader({
     const filtered = filteredTotal !== total;
     const activeFilterCount = groupFilters.size + statusFilters.size + (query.trim() ? 1 : 0);
 
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            const target = e.target as HTMLElement | null;
-            const inField =
-                target?.tagName === "INPUT" ||
-                target?.tagName === "TEXTAREA" ||
-                target?.isContentEditable;
-            if (e.key === "/" && !inField) {
-                e.preventDefault();
-                searchRef.current?.focus();
-            } else if (e.key === "Escape" && target === searchRef.current) {
-                onQuery("");
-                searchRef.current?.blur();
-            }
-        };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [onQuery]);
+    useSearchShortcut(
+        searchRef,
+        useCallback(() => onQuery(""), [onQuery]),
+    );
 
     return (
         <div className="flex flex-wrap items-center gap-3">
@@ -183,27 +169,14 @@ function FilterControls({
 }) {
     return (
         <>
-            <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                <Input
-                    ref={searchRef}
-                    value={query}
-                    onChange={(e) => onQuery(e.target.value)}
-                    placeholder="search models…"
-                    aria-label="Search models"
-                    className="h-7 w-44 bg-card pl-7 pr-7 text-xs shadow-xs dark:bg-input/30"
-                />
-                {query && (
-                    <button
-                        type="button"
-                        onClick={() => onQuery("")}
-                        aria-label="Clear search"
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                        <X className="h-3 w-3" />
-                    </button>
-                )}
-            </div>
+            <SearchInput
+                ref={searchRef}
+                value={query}
+                onValueChange={onQuery}
+                placeholder="search models…"
+                aria-label="Search models"
+                className="w-44"
+            />
 
             <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">type</span>
