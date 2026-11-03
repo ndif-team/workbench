@@ -24,8 +24,8 @@ test.describe("Notebook export (real NDIF)", () => {
             tgtPos: [4],
         });
 
-        // Wait for the AP chart to finish rendering — the Export button
-        // is only mounted in the chart display once `patchingChart` exists.
+        // Wait for the AP chart to finish running — the Export menu is only
+        // mounted in the chart's page header once the chart has a result.
         const exportButton = page.getByRole("button", { name: /Export/i });
         await expect(exportButton).toBeVisible({
             timeout: REAL_NDIF_TIMEOUT_MS * 2,

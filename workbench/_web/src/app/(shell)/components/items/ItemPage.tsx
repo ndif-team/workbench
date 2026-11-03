@@ -8,15 +8,18 @@ import { ChevronRight } from "lucide-react";
 
 import { ModelControl } from "@/components/ModelControl";
 import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
+import { useIsDark } from "@/hooks/useIsDark";
 import { useGetDocument } from "@/lib/api/documentApi";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useWorkspaceLibrary } from "@/lib/api/workspaceApi";
-import { getChartById } from "@/lib/queries/chartQueries";
+import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { workspacePath } from "@/lib/chartRoutes";
+import { chartFigure } from "@/lib/report/chartFigure";
 import { deriveReportTitle } from "@/lib/reportTitle";
 import { cn } from "@/lib/utils";
 import { DEFAULT_CHART_NAME } from "@/types/charts";
+import { ChartExportMenu } from "../ChartExportMenu";
 import { useWorkshopParticipant } from "../shell/AppShell";
 import { PageHeader } from "../shell/PageHeader";
 import { ItemActionsMenu } from "./ItemActionsMenu";
@@ -41,10 +44,11 @@ export function ItemPage({ item, children }: { item: ItemRef; children: ReactNod
 
 /**
  * The item's header. A chart's leads with the model picker (a report has no
- * model). The breadcrumb leads with the item's workspace (nothing for the
- * default workspace); a chart's name is renamed in place by clicking it or
- * from the actions menu. Workshop items get no actions menu: they can't be
- * moved, and the workshop sidebar already covers the rest.
+ * model) and ends with its Export menu once it has a result. The breadcrumb
+ * leads with the item's workspace (nothing for the default workspace); a
+ * chart's name is renamed in place by clicking it or from the actions menu.
+ * Workshop items get no actions menu: they can't be moved, and the workshop
+ * sidebar already covers the rest.
  */
 function ItemPageHeader({ item }: { item: ItemRef }) {
     const scope = useWorkspaceScope();
@@ -102,18 +106,46 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
                 </nav>
             }
             end={
-                libraryItem && !isWorkshop ? (
-                    <ItemActionsMenu
-                        item={libraryItem}
-                        workspaces={library.workspaces}
-                        folder={folderId ? { id: folderId, name: folderName } : null}
-                        active
-                        onRename={() => setRenaming(true)}
-                        variant="header"
-                        align="end"
-                    />
-                ) : null
+                <>
+                    {item.kind === "chart" && (
+                        <ChartExport chartId={item.id} workspaceName={scope?.name} />
+                    )}
+                    {libraryItem && !isWorkshop && (
+                        <ItemActionsMenu
+                            item={libraryItem}
+                            workspaces={library.workspaces}
+                            folder={folderId ? { id: folderId, name: folderName } : null}
+                            active
+                            onRename={() => setRenaming(true)}
+                            variant="header"
+                            align="end"
+                        />
+                    )}
+                </>
             }
+        />
+    );
+}
+
+/** The chart's Export menu, from the queries its page uses; none until the
+ *  chart has a result that can be drawn. */
+function ChartExport({ chartId, workspaceName }: { chartId: string; workspaceName?: string }) {
+    const darkMode = useIsDark();
+    const { data: chart } = useQuery({
+        queryKey: queryKeys.charts.chart(chartId),
+        queryFn: () => getChartById(chartId),
+    });
+    const { data: config } = useQuery({
+        queryKey: queryKeys.charts.configByChart(chartId),
+        queryFn: () => getConfigForChart(chartId),
+    });
+    if (!chart || chartFigure(chart, config).gap) return null;
+    return (
+        <ChartExportMenu
+            chart={chart}
+            config={config}
+            darkMode={darkMode}
+            workspaceName={workspaceName}
         />
     );
 }

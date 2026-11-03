@@ -2,10 +2,7 @@
 
 import { useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import {
-    useScopedWorkspaceId,
-    useWorkspaceScope,
-} from "@/components/providers/WorkspaceScopeProvider";
+import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
 import { useQuery, useIsMutating } from "@tanstack/react-query";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
@@ -17,7 +14,6 @@ import { ActivationPatchingWidget } from "nnsightful";
 import { useTheme } from "next-themes";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
-import { ChartExportMenu } from "@/app/(shell)/components/ChartExportMenu";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
@@ -43,7 +39,6 @@ interface ActivationPatchingConfig {
 export function ActivationPatchingDisplay() {
     const { chartId } = useParams<{ chartId: string }>();
     const workspaceId = useScopedWorkspaceId();
-    const workspaceName = useWorkspaceScope()?.name;
     const capture = useCapture();
     const { resolvedTheme } = useTheme();
     const isDarkMode = resolvedTheme === "dark";
@@ -182,15 +177,11 @@ export function ActivationPatchingDisplay() {
 
     return (
         <div className="size-full overflow-auto flex flex-col">
-            <div className="flex items-center justify-end gap-2 px-4 pt-4 pb-2">
-                {stale && chartModel && <ChartModelPill modelName={chartModel} />}
-                <ChartExportMenu
-                    chart={patchingChart!}
-                    config={patchingConfig}
-                    darkMode={isDarkMode}
-                    workspaceName={workspaceName}
-                />
-            </div>
+            {stale && chartModel && (
+                <div className="flex items-center justify-end gap-2 px-4 pt-4 pb-2">
+                    <ChartModelPill modelName={chartModel} />
+                </div>
+            )}
 
             {/* Chart area */}
             <div className="flex-1 p-4 min-h-0">

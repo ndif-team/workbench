@@ -79,8 +79,8 @@ test.describe("Activation Patching (real NDIF)", () => {
         await expect(runButton).toBeVisible({ timeout: 15_000 });
 
         // Real NDIF activation-patching runs poll a job until completion.
-        // Wait for the chart container to render data — the `Export` button only
-        // appears in the AP display once a chart exists.
+        // Wait for the chart to have a result — the `Export` menu only appears in
+        // the chart's page header once it does.
         await expect(page.getByRole("button", { name: /Export/i })).toBeVisible({
             timeout: REAL_NDIF_TIMEOUT_MS * 2,
         });

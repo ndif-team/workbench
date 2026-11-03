@@ -99,8 +99,8 @@ interface ChartExportMenuProps {
 }
 
 /**
- * A chart page's Export menu: the chart as an image, and for a tool with a
- * notebook template, a Jupyter notebook.
+ * A chart page's Export menu, in its header: the chart as an image, and for
+ * a tool with a notebook template, a Jupyter notebook.
  */
 export function ChartExportMenu({ chart, config, darkMode, workspaceName }: ChartExportMenuProps) {
     const [exporting, setExporting] = useState(false);
@@ -122,10 +122,10 @@ export function ChartExportMenu({ chart, config, darkMode, workspaceName }: Char
     return (
         <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-                <Button size="sm" className="h-8" variant="outline" disabled={exporting}>
+                <Button variant="outline" size="sm" disabled={exporting} aria-label="Export">
                     {exporting ? <Loader2 className="animate-spin" /> : <ArrowUpRight />}
-                    {exporting ? "Exporting…" : "Export"}
-                    <ChevronDown className="size-3.5 text-muted-foreground" />
+                    <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export"}</span>
+                    <ChevronDown className="hidden size-3.5 text-muted-foreground sm:block" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

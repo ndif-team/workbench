@@ -124,7 +124,8 @@ workbench/                          # repo root
         │       │   ├── ChartCardsSidebar.tsx, ChartCard.tsx, ReportCard.tsx  # workshop (workspace-scoped) sidebar
         │       │   ├── MobileCollapsibleControls.tsx
         │       │   ├── ToolPanelHeader.tsx      # title row shared by the tool Controls
-        │       │   ├── ChartExportMenu.tsx      # a chart's Export menu: image, and notebook where a template exists
+        │       │   ├── ChartExportMenu.tsx      # a chart's Export menu (in ItemPage's header): image, and notebook
+        │       │   │                            #   where a template exists
         │       │   ├── ModelDeployingPanel.tsx, DeployCard.tsx  # cold-model deploy states
         │       │   └── PendingRequestHandler.tsx  # resumes a launch that waited on sign-in
         │       ├── logit-lens/[chartId]/        # logit-lens chart (nnsightful widget)
@@ -651,6 +652,6 @@ Manual recipe summary (skill has the full version):
 ## Areas this doc may need updating
 
 - **Migration folders** (`pg-migrations/`, `sqlite-migrations/`): gitignored, so there is no committed migration history. If they get committed, document where to find it and how to reset.
-- **Chart export** (`ChartExportMenu`): every chart nnsightful draws (logit lens, j-lens, activation patching) exports as a PNG, snapshotted from its saved view in the current theme without the layer navigator; only activation patching exports a notebook today (`notebook-templates/activation-patching.ipynb`); `actions/notebook.ts` could justify a sub-section if more tools acquire export support.
+- **Chart export** (`ChartExportMenu`, in the chart's page header beside its actions menu, once it has a result): every chart nnsightful draws (logit lens, j-lens, activation patching) exports as a PNG, snapshotted from its saved view in the current theme without the layer navigator; only activation patching exports a notebook today (`notebook-templates/activation-patching.ipynb`); `actions/notebook.ts` could justify a sub-section if more tools acquire export support.
 - **Modal deployment**: `modal/` (`image.py`, `gpu_image.py`) and `make modal` aren't documented here; document them if they become a hot path for contributors.
 - **Telemetry**: InfluxDB telemetry in `_api/telemetry.py` is currently off (`TelemetryClient.init` is commented out in `state.py`, so `log_request` is a no-op) and not exercised in the frontend; document it if it's re-enabled or frontend telemetry is added.
