@@ -191,7 +191,7 @@ function FilterControls({
                     onChange={(e) => onQuery(e.target.value)}
                     placeholder="search models…"
                     aria-label="Search models"
-                    className="h-7 w-44 pl-7 pr-7 text-xs"
+                    className="h-7 w-44 bg-card pl-7 pr-7 text-xs shadow-xs dark:bg-input/30"
                 />
                 {query && (
                     <button
@@ -243,7 +243,7 @@ function SegmentedGroup({ label, children }: { label: string; children: React.Re
         <div
             role="group"
             aria-label={label}
-            className="inline-flex items-center gap-0.5 p-0.5 rounded-md border bg-muted/40"
+            className="inline-flex items-center gap-0.5 p-0.5 rounded-md border bg-card shadow-xs dark:bg-input/30"
         >
             {children}
         </div>
@@ -294,7 +294,7 @@ function FilterChip({
             className={cn(
                 "inline-flex items-center gap-1.5 h-6 px-2 rounded-sm text-xs font-medium transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                !active && "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                !active && "text-muted-foreground hover:text-foreground hover:bg-accent",
             )}
             style={activeStyle}
         >
