@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { chartFigure, chartFigureGapText, chartPrompt, rowWindowLabel } from "../chartFigure";
+import {
+    chartFigure,
+    chartFigureGapText,
+    chartPrompt,
+    heatmapOnly,
+    rowWindowLabel,
+} from "../chartFigure";
 
 const LENS_DATA = { meta: { version: 2 }, layers: [0, 1], input: ["a"], tracked: [], topk: [] };
 const AP_DATA = {
@@ -71,6 +77,44 @@ describe("chartFigure", () => {
         expect(
             chartFigure({ type: null, data: AP_DATA }, { type: "activation-patching" }).spec?.kind,
         ).toBe("activation-patching");
+    });
+});
+
+describe("heatmapOnly", () => {
+    const lens = (uiState: Record<string, unknown> | null) =>
+        ({ kind: "logit-lens", data: LENS_DATA, uiState }) as never;
+
+    it("clears the selected and pinned rows that open the line plot", () => {
+        const pinnedGroups = [{ tokens: [" Paris"], color: "#f00" }];
+        const spec = heatmapOnly(
+            lens({ selectedRow: 3, selectedLayer: 1, pinnedRows: [], pinnedGroups, ramp: "blue" }),
+            8,
+        );
+        expect(spec).toMatchObject({
+            uiState: {
+                selectedRow: null,
+                selectedLayer: null,
+                pinnedRows: [],
+                pinnedGroups,
+                ramp: "blue",
+            },
+        });
+    });
+
+    it("keeps the rows window the selection or first pinned row centered", () => {
+        const rowStart = (uiState: Record<string, unknown>) =>
+            (heatmapOnly(lens(uiState), 8) as { uiState: { rowStart: unknown } }).uiState.rowStart;
+        expect(rowStart({ selectedRow: 20 })).toBe(16);
+        expect(rowStart({ pinnedRows: [{ pos: 2, line: "solid" }] })).toBe(0);
+        expect(rowStart({ selectedRow: 20, rowStart: 5 })).toBe(5);
+        expect(rowStart({ ramp: "teal" })).toBeNull();
+    });
+
+    it("leaves other charts and a lens with no saved view as they are", () => {
+        const ap = chartFigure({ type: "activation-patching", data: AP_DATA }, null).spec!;
+        expect(heatmapOnly(ap, 8)).toBe(ap);
+        const bare = lens(null);
+        expect(heatmapOnly(bare, 8)).toBe(bare);
     });
 });
 

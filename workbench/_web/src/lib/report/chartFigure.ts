@@ -75,6 +75,29 @@ export function chartFigure(chart: Row, config: Row): ChartFigure {
     }
 }
 
+/**
+ * `spec` drawn as just the heatmap and its layer navigator: a logit lens
+ * opens its line plot under them while a row is selected or pinned, so
+ * those are cleared, and the window of `maxRows` rows they centered stays
+ * put. Other charts are returned as they are.
+ */
+export function heatmapOnly(spec: ChartSnapshotSpec, maxRows: number): ChartSnapshotSpec {
+    if (spec.kind !== "logit-lens" || !spec.uiState) return spec;
+    const { selectedRow, pinnedRows, rowStart } = spec.uiState;
+    const focus = selectedRow ?? pinnedRows?.[0]?.pos ?? null;
+    return {
+        ...spec,
+        uiState: {
+            ...spec.uiState,
+            selectedRow: null,
+            selectedLayer: null,
+            pinnedRows: [],
+            rowStart:
+                rowStart ?? (focus != null ? Math.max(0, focus - Math.floor(maxRows / 2)) : null),
+        },
+    };
+}
+
 /** The most heatmap rows a report draws: longer logit lenses show a window
  *  of this many rows, chosen in the embed. 24 rows fit a PDF page legibly
  *  (a 30 px row is about 20 pt there). */
