@@ -151,8 +151,10 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
     );
 
     const shell = cn(
-        "group relative w-full min-w-0 px-3 py-2.5 rounded-md overflow-hidden border border-foreground/30 text-left transition-colors",
-        clickable ? "cursor-pointer hover:border-foreground/45" : "cursor-default",
+        "group relative w-full min-w-0 px-3 py-2.5 rounded-md overflow-hidden border border-foreground/50 text-left shadow-md shadow-blue-950/15 transition-colors dark:border-foreground/45 dark:shadow-black/50",
+        clickable
+            ? "cursor-pointer hover:border-foreground/65 dark:hover:border-foreground/60"
+            : "cursor-default",
         muted && "opacity-70",
     );
 
