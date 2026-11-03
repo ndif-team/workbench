@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { snapshotChart, type ChartSnapshot } from "nnsightful";
+import { snapshotChart, type ChartSnapshot, type ChartSnapshotSpec } from "nnsightful";
 
 import { useIsDark } from "@/hooks/useIsDark";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
@@ -11,7 +11,8 @@ import { chartFigure, type ChartFigureGap } from "@/lib/report/chartFigure";
 
 export type ChartPreview =
     | { status: "loading" }
-    | { status: "ready"; image: ChartSnapshot }
+    /** `surface`: the color the chart is drawn on, or null where it's transparent. */
+    | { status: "ready"; image: ChartSnapshot; surface: string | null }
     | { status: "gap"; gap: ChartFigureGap }
     | { status: "failed" };
 
@@ -43,6 +44,37 @@ class PreviewQueue {
             if (next) next();
             else PreviewQueue.running--;
         }
+    }
+
+    /** Draws `spec` as a preview, with the color it's drawn on (see `surfaceOf`). */
+    static async draw(spec: ChartSnapshotSpec, darkMode: boolean) {
+        return PreviewQueue.run(async () => {
+            const image = await snapshotChart(spec, {
+                width: PreviewQueue.WIDTH,
+                maxRows: PreviewQueue.MAX_ROWS,
+                scale: PreviewQueue.SCALE,
+                darkMode,
+            });
+            return { image, surface: await PreviewQueue.surfaceOf(image.dataUrl) };
+        });
+    }
+
+    /**
+     * The color of the image's top-left pixel, which is the chart's own
+     * background, so a card can fill around the image with it; null when
+     * that pixel is transparent (the card's own color then shows through).
+     */
+    private static async surfaceOf(dataUrl: string): Promise<string | null> {
+        const img = new Image();
+        img.src = dataUrl;
+        await img.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
+        const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+        return a === 255 ? `rgb(${r} ${g} ${b})` : null;
     }
 }
 
@@ -79,15 +111,7 @@ export function useChartPreview(chartId: string, enabled: boolean): ChartPreview
 
     const imageQuery = useQuery({
         queryKey: queryKeys.charts.preview(chartId, version, darkMode),
-        queryFn: () =>
-            PreviewQueue.run(() =>
-                snapshotChart(spec!, {
-                    width: PreviewQueue.WIDTH,
-                    maxRows: PreviewQueue.MAX_ROWS,
-                    scale: PreviewQueue.SCALE,
-                    darkMode,
-                }),
-            ),
+        queryFn: () => PreviewQueue.draw(spec!, darkMode),
         enabled: !!spec,
         staleTime: Infinity,
         gcTime: 30 * 60_000,
@@ -98,7 +122,7 @@ export function useChartPreview(chartId: string, enabled: boolean): ChartPreview
         return { status: "failed" };
     }
     if (figure?.gap) return { status: "gap", gap: figure.gap };
-    if (imageQuery.data) return { status: "ready", image: imageQuery.data };
+    if (imageQuery.data) return { status: "ready", ...imageQuery.data };
     return { status: "loading" };
 }
 

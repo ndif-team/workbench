@@ -160,8 +160,15 @@ function ChartPreviewImage({ item }: { item: LibraryChartItem }) {
     else if (preview.status === "failed") body = note("Couldn't draw a preview");
     else body = <div className="size-full animate-pulse bg-secondary" />;
 
+    // A drawn chart sits inset on its own background color, so the card's
+    // thumbnail reads as one picture whatever the chart's shape.
+    const ready = preview.status === "ready";
     return (
-        <div ref={ref} className="size-full bg-background">
+        <div
+            ref={ref}
+            className={cn("size-full bg-background", ready && "p-2")}
+            style={ready && preview.surface ? { background: preview.surface } : undefined}
+        >
             {body}
         </div>
     );
