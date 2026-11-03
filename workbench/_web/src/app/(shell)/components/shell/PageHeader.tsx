@@ -65,5 +65,5 @@ export function PageHeader({
 
 /** A page title for the header's `start` slot. */
 export function PageTitle({ children }: { children: ReactNode }) {
-    return <h1 className="truncate text-sm font-medium">{children}</h1>;
+    return <h1 className="truncate text-xl font-semibold">{children}</h1>;
 }

@@ -140,7 +140,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                                     validate={(name) =>
                                         workspaceNameError(library, name, workspaceId)
                                     }
-                                    className="h-7 w-64 max-w-full px-2 text-sm font-medium"
+                                    className="h-8 w-64 max-w-full px-2 text-xl font-semibold md:text-xl"
                                     onDone={(name) => {
                                         setRenamingTitle(false);
                                         if (name && name !== folder.name) {
@@ -149,7 +149,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                                     }}
                                 />
                             ) : folder?.isWorkshop ? (
-                                <h1 className="min-w-0 truncate px-1 text-sm font-medium">
+                                <h1 className="min-w-0 truncate px-1 text-xl font-semibold">
                                     {folder.name}
                                 </h1>
                             ) : (
@@ -165,7 +165,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                                                     : undefined
                                             }
                                             aria-describedby={renameHintId}
-                                            className="min-w-0 cursor-text truncate rounded-md px-1 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                            className="min-w-0 cursor-text truncate rounded-md px-1 text-xl font-semibold transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                         >
                                             {folder?.name ?? "\u00a0"}
                                         </button>
@@ -177,7 +177,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                             )}
                         </Breadcrumb>
                         {contents && !renamingTitle && (
-                            <span className="hidden shrink-0 text-xs tabular-nums text-muted-foreground sm:inline">
+                            <span className="hidden shrink-0 text-sm tabular-nums text-muted-foreground sm:inline">
                                 {contents}
                             </span>
                         )}
@@ -349,7 +349,10 @@ function ViewToggle({
 /** "Workspaces ›" leading to the folder's own title. */
 function Breadcrumb({ children }: { children?: React.ReactNode }) {
     return (
-        <nav aria-label="Breadcrumb" className="-ml-1 flex min-w-0 items-center gap-1 text-sm">
+        <nav
+            aria-label="Breadcrumb"
+            className="-ml-1 flex min-w-0 items-center gap-1 text-xl font-semibold"
+        >
             <Link
                 href="/workspaces"
                 className={cn(
@@ -363,7 +366,7 @@ function Breadcrumb({ children }: { children?: React.ReactNode }) {
                 <>
                     <ChevronRight
                         aria-hidden
-                        className="hidden size-3.5 shrink-0 text-muted-foreground sm:block"
+                        className="hidden size-4 shrink-0 text-muted-foreground sm:block"
                     />
                     {children}
                 </>
