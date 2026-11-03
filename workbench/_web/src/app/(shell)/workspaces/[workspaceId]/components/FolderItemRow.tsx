@@ -12,7 +12,8 @@ import { chartName, itemIcon, itemLabel, itemPath } from "../../../components/it
 import { toolMeta } from "../../../components/toolMeta";
 import { useDeployStateOf } from "../../../components/useDeployStateOf";
 
-const DEPLOY_LABEL = {
+/** How a chart whose model isn't hot says so on the workspace page. */
+export const DEPLOY_LABEL = {
     cold: "Not deployed",
     deploying: "Deploying",
     failed: "Deployment failed",

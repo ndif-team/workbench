@@ -151,6 +151,45 @@
         hsl(220 22% 7%);
 }
 
+/* A report card's cover: the aurora's blue, purple and cyan at full
+ * strength, blurred into one another, under a fine powder grain (greyscale
+ * fractal noise, soft-light). Each report places the three blobs itself
+ * through --cover-a/-b/-c, so neighbouring covers differ. */
+.powder-cover {
+    position: relative;
+    isolation: isolate;
+    background:
+        radial-gradient(circle at var(--cover-a, 20% 25%), hsl(217 91% 60%), transparent 60%),
+        radial-gradient(circle at var(--cover-b, 80% 70%), hsl(270 91% 65%), transparent 60%),
+        radial-gradient(
+            circle at var(--cover-c, 50% 100%),
+            hsl(190 90% 60% / 0.9),
+            transparent 55%
+        ),
+        hsl(240 70% 62%);
+}
+.dark .powder-cover {
+    background:
+        radial-gradient(circle at var(--cover-a, 20% 25%), hsl(217 91% 55%), transparent 60%),
+        radial-gradient(circle at var(--cover-b, 80% 70%), hsl(270 85% 58%), transparent 60%),
+        radial-gradient(
+            circle at var(--cover-c, 50% 100%),
+            hsl(190 90% 50% / 0.85),
+            transparent 55%
+        ),
+        hsl(240 55% 40%);
+}
+.powder-cover::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.2' intercept='-0.6'/%3E%3CfeFuncG type='linear' slope='2.2' intercept='-0.6'/%3E%3CfeFuncB type='linear' slope='2.2' intercept='-0.6'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 140px;
+    mix-blend-mode: soft-light;
+    opacity: 0.9;
+}
+
 /* Scrollbars: thin, a muted thumb on a clear track. The standard properties
  * come first: Chromium (Chrome, Dia, Edge, Arc) and Firefox draw them, and
  * once they are set Chromium ignores ::-webkit-scrollbar, so setting them

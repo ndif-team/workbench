@@ -243,6 +243,58 @@ test.describe("app shell", () => {
         await expect(page.getByRole("link", { name: renamed })).toHaveCount(0);
     });
 
+    test("a workspace page shows its items as preview cards, and the list view is remembered", async ({
+        page,
+    }) => {
+        const name = unique("Previews");
+        await page.goto("/workspaces");
+        await page.locator("main header").getByRole("button", { name: "New workspace" }).click();
+        await page.getByRole("dialog", { name: "New workspace" }).getByLabel("Name").fill(name);
+        await page.getByRole("button", { name: "Create workspace" }).click();
+        await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/);
+        const workspaceId = new URL(page.url()).pathname.split("/")[2];
+
+        await page.locator("main header").getByRole("button", { name: "New report" }).click();
+        await page.waitForURL(/\/reports\/[0-9a-f-]{36}$/);
+        const reportId = new URL(page.url()).pathname.split("/")[2];
+        const prompt = unique("The Eiffel Tower is in");
+        await page.goto(
+            `/new?tool=logit-lens&prompt=${encodeURIComponent(prompt)}&workspaceId=${workspaceId}`,
+        );
+        await page.waitForURL(/\/logit-lens\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+        const chartId = new URL(page.url()).pathname.split("/")[2];
+        // The chart runs its prompt as it opens; the canned lens predicts " Paris".
+        await expect(page.locator("main").getByText("Paris").first()).toBeVisible({
+            timeout: 60_000,
+        });
+
+        const card = (href: string) =>
+            page.locator("main li").filter({ has: page.locator(`a[href="${href}"]`) });
+        // Until the run's result is saved, the chart's card says "Not run yet".
+        await expect(async () => {
+            await page.goto(`/workspaces/${workspaceId}`);
+            await expect(card(`/logit-lens/${chartId}`).locator("img")).toBeVisible({
+                timeout: 15_000,
+            });
+        }).toPass({ timeout: 60_000 });
+        await expect(page.getByRole("button", { name: "Grid" })).toHaveAttribute(
+            "aria-pressed",
+            "true",
+        );
+        await expect(card(`/reports/${reportId}`).locator(".powder-cover")).toBeVisible();
+
+        await page.getByRole("button", { name: "List" }).click();
+        await expect(card(`/logit-lens/${chartId}`).locator("img")).toHaveCount(0);
+        await page.reload();
+        await expect(page.getByRole("button", { name: "List" })).toHaveAttribute(
+            "aria-pressed",
+            "true",
+        );
+        await expect(page.locator(`main a[href="/logit-lens/${chartId}"]`)).toBeVisible();
+
+        await deleteWorkspace(page, workspaceId, name);
+    });
+
     test("old /workbench links open the chart-centric pages", async ({ page }) => {
         const workspace = unique("Redirects");
         await page.goto("/workspaces");

@@ -133,7 +133,8 @@ workbench/                          # repo root
         │       ├── reports/[reportId]/          # Lexical report editor
         │       ├── new/            # /new?tool=…&model=…&prompt=…: creates a chart, then opens it
         │       ├── models/         # models grid (paged to fit the page, never scrolled)
-        │       └── workspaces/     # all workspaces (folders); [workspaceId]/ is one folder
+        │       └── workspaces/     # all workspaces (folders); [workspaceId]/ is one folder, its items as
+        │                           #   preview cards (FolderItemCard, useChartPreview) or rows (FolderItemRow)
         │
         ├── components/             # app-wide composed components
         │   ├── ui/                 # shadcn primitives (Button, Card, Popover, PillPopover, ...)
@@ -153,6 +154,7 @@ workbench/                          # repo root
         │   ├── useWorkspace.ts     # selectedModelIdx, jobStatus
         │   ├── useModelDeployment.ts    # cold-model warmups in flight, keyed by model
         │   ├── useSidebarFolders.ts     # how the sidebar was left: open folders, folded sections (persisted)
+        │   ├── useWorkspaceView.ts      # the workspace page's layout, grid or list (persisted)
         │   ├── usePromptFocus.ts        # one-shot: /new asks the chart it opens to focus its prompt
         │   ├── usePatchLensTutorial.ts  # patch-lens tour "completed" flag (localStorage)
         │   └── useProlificTutorial.ts   # guided-tutorial progress + panel UI (persisted; resume UX only)
@@ -269,7 +271,7 @@ Pick the lightest location that does the job:
 | Survives reload, shareable | URL search params | chart launch from the landing page (`/new?tool=…&model=…&prompt=…`) |
 | Server data | React Query | charts, configs, documents, models list, lens runs |
 | Cross-page UI | zustand | `useWorkspace` (selected model; job status, shown as the job badge in the header's model pill), `useModelDeployment` (cold-model warmups in flight) |
-| Survives reload, no server | localStorage via zustand `persist` | `workbench:sidebar-folders` (`useSidebarFolders`), `workbench:prolific-tutorial` (`useProlificTutorial`) |
+| Survives reload, no server | localStorage via zustand `persist` | `workbench:sidebar-folders` (`useSidebarFolders`), `workbench:workspace-view` (`useWorkspaceView`), `workbench:prolific-tutorial` (`useProlificTutorial`) |
 | Survives reload, needed on the server's first render | cookie | `workbench_sidebar_collapsed` and `workbench_sidebar_width`: the shell layout reads them so the sidebar renders at the right width (`shell/sidebarCookie.ts`; no collapsed cookie means the rail). The app-shell e2e tests set the collapsed cookie to `false` so they start expanded |
 | Many descendants need read | React Context | `TutorialEventProvider` (`components/providers/TutorialEventProvider.tsx`), the workspace scope (below) — rare |
 
@@ -407,6 +409,7 @@ Set in `src/components/providers/QueryProvider.tsx`: `staleTime: 5min`, `retry: 
 - **App shell** = the `(shell)` layout: a global sidebar (`AppSidebar`; New chart, Home, Models, Workspaces, the workspace folders and the unfiled charts) beside the page. `/` is the landing page without a session (the shell renders it bare, with no sidebar) and Home with one; Home is also where sign-in lands and where the sidebar's product name leads, and `/workbench`, its old URL, redirects there. Home is the landing page's hero and composer (`LandingComposer`, the same component, on the landing page's `aurora-bg`), which starts a chart through `/new`; the chart runs the prompt as it opens. Keep the two identical: change the composer in `LandingComposer`, not on either page. The sidebar's Workspaces and Charts sections fold under their headers; Workspaces lists the five most recently updated folders (plus the active one) until "Show N more", and a chart row dropped on a folder moves the chart there. New chart goes through `/new`, which reopens an untouched blank chart of that tool rather than adding another (`createChartFromLaunch`) and lands focus in its prompt. The sidebar collapses to a rail, which is how it starts on a first visit; after that it remembers being expanded or collapsed (`workbench_sidebar_collapsed` cookie; the logo mark at the rail's top expands it). It is a drawer on mobile; expanded, its right edge drags to resize it (`SidebarResizeHandle`, `workbench_sidebar_width` cookie). On a workshop workspace's chart, and on every page of a workshop participant, it shows the focused `ChartCardsSidebar` instead (the workshop's tools only, starting as the rail). Every shell page starts with a `PageHeader` (`h-12`; it carries the mobile drawer button); the models page, whose panel carries its title, shows it only on mobile.
 - **Chart pages** = the item header (`ItemPage`: `ModelControl`, the workspace → item breadcrumb, the item's actions) above a `ResizablePanelGroup` of feature panels. The header owns the chart's name and its rename; the tool displays carry no title of their own. A report's header has no model picker. Examples: `logit-lens/[chartId]/page.tsx`, `activation-patching/[chartId]/page.tsx`.
 - **Item actions** = `ItemActionsMenu` everywhere a chart or report is listed (sidebar rows, the item header, the workspace page): Rename, Copy, Move to workspace, Remove from workspace, Delete (confirmed in a popover). A workspace's own Rename and Delete (confirmed in a dialog) are `WorkspaceActionsMenu`, on its page, its card in all workspaces and its sidebar folder row; workshop workspaces get neither.
+- **Workspace page** = one folder's charts and reports in a panel, as a grid of preview cards (the default) or a list of rows, switched in the panel header (`useWorkspaceView`). A chart card's preview is drawn in the browser the way a report embed draws the chart (`chartFigure` + nnsightful's `snapshotChart`, in `useChartPreview`): only once the card is on screen, two at a time, and cached per saved version of the chart and theme, so each visible chart's data is downloaded once per session. A report card shows a `powder-cover` (brand-color blur under a grain, in `globals.css`), placed per report.
 - **Feature panel** = bordered, rounded card (`rounded dark:bg-secondary/50 bg-secondary/80 border`) with the standard panel header pattern (see §4).
 - **Mobile** = the shell's sidebar drawer (opened from the page header), `MobileCollapsibleControls` (collapsible top section). Mirror these when adding mobile paths.
 - **Charts** = each tool's `*Display` component (`LogitLensDisplay`, `JLensDisplay`, `ActivationPatchingDisplay`) renders its nnsightful widget straight from `chart.data`; `PatchLensDisplay` renders `edulogitlens`'s `CausalMediationExplorer`.

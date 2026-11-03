@@ -11,6 +11,9 @@ export const queryKeys = {
         chart: (chartId: string) => ["chart", chartId] as const,
         config: (configId: string) => ["config", configId] as const,
         configByChart: (chartId: string) => ["chartConfig", chartId] as const,
+        // A chart's card preview image, per saved version of the chart and theme.
+        preview: (chartId: string, version: string, darkMode: boolean) =>
+            ["chartPreview", chartId, version, darkMode] as const,
         // Prefix of every workspace's sidebar list.
         sidebarAll: ["chartsForSidebar"] as const,
         sidebar: (workspaceId: string) => ["chartsForSidebar", workspaceId] as const,

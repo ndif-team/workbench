@@ -1,10 +1,10 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, FilePlus, Folder, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, FilePlus, Folder, LayoutGrid, List, Plus } from "lucide-react";
 import {
     DndContext,
     KeyboardSensor,
@@ -17,11 +17,13 @@ import {
 import {
     SortableContext,
     arrayMove,
+    rectSortingStrategy,
     sortableKeyboardCoordinates,
     verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useCreateDocument } from "@/lib/api/documentApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
@@ -33,6 +35,7 @@ import {
 } from "@/lib/api/workspaceApi";
 import { reportPath } from "@/lib/chartRoutes";
 import { cn } from "@/lib/utils";
+import { useWorkspaceView, type WorkspaceView } from "@/stores/useWorkspaceView";
 import type { ToolType } from "@/types/charts";
 import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
 import { PageHeader } from "../../../components/shell/PageHeader";
@@ -44,15 +47,19 @@ import {
     EMPTY_WORKSPACE_TEXT,
     describeContents,
 } from "../../../components/items/workspaceContents";
+import { FolderItemCard, FolderItemCardSkeleton } from "./FolderItemCard";
 import { FolderItemRow, FolderItemRowSkeleton } from "./FolderItemRow";
 
 const itemKey = (item: LibraryItem) => `${item.kind}-${item.id}`;
 
+const CARD_GRID = "grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
+
 /**
  * One workspace (folder): its name (renamed in place), New chart / New
- * report in it, Delete, and its charts and reports in their saved order,
- * reordered by dragging a row's handle (or with the keyboard on the handle).
- * A workshop workspace can't be renamed or deleted.
+ * report in it, Delete, and its charts and reports in their saved order, as
+ * a grid of preview cards or a list of rows (`useWorkspaceView`), reordered
+ * by dragging an item's handle (or with the keyboard on the handle). A
+ * workshop workspace can't be renamed or deleted.
  */
 export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
     const router = useRouter();
@@ -66,6 +73,12 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
     const { mutate: renameChart } = useUpdateChartName();
     const { mutate: reorderItems } = useReorderWorkspaceItems();
     const createReport = useCreateDocument();
+    const { view: savedView, setView } = useWorkspaceView();
+    // The saved view is read from localStorage, so the server and the first
+    // client render both draw the default.
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+    const view = mounted ? savedView : "grid";
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -190,13 +203,22 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                 <section className="rounded border bg-secondary/80 dark:bg-secondary/50">
                     <div className="flex items-center justify-between border-b p-3">
                         <h2 className="pl-2 text-sm font-medium">Charts and reports</h2>
+                        <ViewToggle view={view} onChange={setView} />
                     </div>
                     {isLoading || !folder ? (
-                        <div aria-hidden>
-                            {Array.from({ length: 5 }, (_, i) => (
-                                <FolderItemRowSkeleton key={i} />
-                            ))}
-                        </div>
+                        view === "grid" ? (
+                            <div aria-hidden className={CARD_GRID}>
+                                {Array.from({ length: 4 }, (_, i) => (
+                                    <FolderItemCardSkeleton key={i} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div aria-hidden>
+                                {Array.from({ length: 5 }, (_, i) => (
+                                    <FolderItemRowSkeleton key={i} />
+                                ))}
+                            </div>
+                        )
                     ) : folder.items.length === 0 ? (
                         <EmptyFolder
                             folder={folder}
@@ -212,28 +234,48 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                         >
                             <SortableContext
                                 items={items.map(itemKey)}
-                                strategy={verticalListSortingStrategy}
+                                strategy={
+                                    view === "grid"
+                                        ? rectSortingStrategy
+                                        : verticalListSortingStrategy
+                                }
                             >
-                                <ul className="flex flex-col p-1.5">
-                                    {items.map((item) => (
-                                        <li key={itemKey(item)}>
-                                            <SortableEntry id={itemKey(item)}>
-                                                <FolderItemRow
-                                                    item={item}
-                                                    folder={folder}
-                                                    workspaces={library?.workspaces ?? []}
-                                                    renaming={renamingItemId === item.id}
-                                                    onRenameStart={() => setRenamingItemId(item.id)}
-                                                    onRenameEnd={(name) => {
-                                                        setRenamingItemId(null);
-                                                        if (name) {
-                                                            renameChart({ chartId: item.id, name });
+                                <ul className={view === "grid" ? CARD_GRID : "flex flex-col p-1.5"}>
+                                    {items.map((item) => {
+                                        const Item =
+                                            view === "grid" ? FolderItemCard : FolderItemRow;
+                                        return (
+                                            <li key={itemKey(item)}>
+                                                <SortableEntry
+                                                    id={itemKey(item)}
+                                                    handleClassName={
+                                                        view === "grid"
+                                                            ? "left-1.5 top-1.5 h-6 translate-y-0"
+                                                            : undefined
+                                                    }
+                                                >
+                                                    <Item
+                                                        item={item}
+                                                        folder={folder}
+                                                        workspaces={library?.workspaces ?? []}
+                                                        renaming={renamingItemId === item.id}
+                                                        onRenameStart={() =>
+                                                            setRenamingItemId(item.id)
                                                         }
-                                                    }}
-                                                />
-                                            </SortableEntry>
-                                        </li>
-                                    ))}
+                                                        onRenameEnd={(name) => {
+                                                            setRenamingItemId(null);
+                                                            if (name) {
+                                                                renameChart({
+                                                                    chartId: item.id,
+                                                                    name,
+                                                                });
+                                                            }
+                                                        }}
+                                                    />
+                                                </SortableEntry>
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             </SortableContext>
                         </DndContext>
@@ -245,6 +287,44 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                     </p>
                 )}
             </div>
+        </div>
+    );
+}
+
+/** Grid or list, as a pair of pressed-state icon buttons. */
+function ViewToggle({
+    view,
+    onChange,
+}: {
+    view: WorkspaceView;
+    onChange: (view: WorkspaceView) => void;
+}) {
+    const options = [
+        { value: "grid", label: "Grid", Icon: LayoutGrid },
+        { value: "list", label: "List", Icon: List },
+    ] as const;
+    return (
+        <div role="group" aria-label="Layout" className="flex items-center gap-0.5">
+            {options.map(({ value, label, Icon }) => (
+                <Tooltip key={value}>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={label}
+                            aria-pressed={view === value}
+                            onClick={() => onChange(value)}
+                            className={cn(
+                                "size-7 text-muted-foreground",
+                                view === value && "bg-accent text-foreground dark:bg-accent/50",
+                            )}
+                        >
+                            <Icon />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{label}</TooltipContent>
+                </Tooltip>
+            ))}
         </div>
     );
 }
