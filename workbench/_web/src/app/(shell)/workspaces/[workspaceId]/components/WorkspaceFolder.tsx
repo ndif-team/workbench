@@ -23,6 +23,7 @@ import {
 } from "@dnd-kit/sortable";
 
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useCreateDocument } from "@/lib/api/documentApi";
@@ -107,6 +108,8 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
         });
 
     const tools = workshop?.allowedTools;
+    /** "3 charts and 1 report"; empty while the folder is empty or loading. */
+    const contents = folder ? describeContents(folder) : "";
 
     if (library && !folder) {
         return (
@@ -128,50 +131,67 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
         <div className="flex size-full min-h-0 flex-col">
             <PageHeader
                 start={
-                    <Breadcrumb>
-                        {renamingTitle && folder ? (
-                            <InlineNameInput
-                                initialValue={folder.name}
-                                ariaLabel="Workspace name"
-                                validate={(name) => workspaceNameError(library, name, workspaceId)}
-                                className="h-7 w-64 max-w-full px-2 text-sm font-medium"
-                                onDone={(name) => {
-                                    setRenamingTitle(false);
-                                    if (name && name !== folder.name) {
-                                        renameWorkspace({ workspaceId, name });
+                    <div className="flex min-w-0 items-baseline gap-2">
+                        <Breadcrumb>
+                            {renamingTitle && folder ? (
+                                <InlineNameInput
+                                    initialValue={folder.name}
+                                    ariaLabel="Workspace name"
+                                    validate={(name) =>
+                                        workspaceNameError(library, name, workspaceId)
                                     }
-                                }}
-                            />
-                        ) : folder?.isWorkshop ? (
-                            <h1 className="min-w-0 truncate px-1 text-sm font-medium">
-                                {folder.name}
-                            </h1>
-                        ) : (
-                            <>
-                                <h1 className="flex min-w-0">
-                                    <button
-                                        type="button"
-                                        onClick={() => setRenamingTitle(true)}
-                                        disabled={!folder}
-                                        title={
-                                            folder ? `${folder.name} (click to rename)` : undefined
+                                    className="h-7 w-64 max-w-full px-2 text-sm font-medium"
+                                    onDone={(name) => {
+                                        setRenamingTitle(false);
+                                        if (name && name !== folder.name) {
+                                            renameWorkspace({ workspaceId, name });
                                         }
-                                        aria-describedby={renameHintId}
-                                        className="min-w-0 cursor-text truncate rounded-md px-1 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                    >
-                                        {folder?.name ?? "\u00a0"}
-                                    </button>
+                                    }}
+                                />
+                            ) : folder?.isWorkshop ? (
+                                <h1 className="min-w-0 truncate px-1 text-sm font-medium">
+                                    {folder.name}
                                 </h1>
-                                <span id={renameHintId} className="sr-only">
-                                    Click to rename
-                                </span>
-                            </>
+                            ) : (
+                                <>
+                                    <h1 className="flex min-w-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setRenamingTitle(true)}
+                                            disabled={!folder}
+                                            title={
+                                                folder
+                                                    ? `${folder.name} (click to rename)`
+                                                    : undefined
+                                            }
+                                            aria-describedby={renameHintId}
+                                            className="min-w-0 cursor-text truncate rounded-md px-1 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                        >
+                                            {folder?.name ?? "\u00a0"}
+                                        </button>
+                                    </h1>
+                                    <span id={renameHintId} className="sr-only">
+                                        Click to rename
+                                    </span>
+                                </>
+                            )}
+                        </Breadcrumb>
+                        {contents && !renamingTitle && (
+                            <span className="hidden shrink-0 text-sm tabular-nums text-muted-foreground sm:inline">
+                                {contents}
+                            </span>
                         )}
-                    </Breadcrumb>
+                    </div>
                 }
                 end={
                     folder && (
                         <>
+                            {contents && (
+                                <>
+                                    <ViewToggle view={view} onChange={setView} />
+                                    <Separator orientation="vertical" className="mx-1 h-5" />
+                                </>
+                            )}
                             <NewItemMenu workspaceId={workspaceId} tools={tools} align="end">
                                 <Button variant="outline" size="sm" aria-label="New chart">
                                     <Plus />
@@ -207,14 +227,6 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                     <h2 id={contentsHeadingId} className="sr-only">
                         Charts and reports
                     </h2>
-                    {folder && folder.items.length > 0 && (
-                        <div className="flex items-center justify-between gap-3 pb-2 pl-1">
-                            <p className="min-w-0 truncate text-xs tabular-nums text-muted-foreground">
-                                {describeContents(folder)}
-                            </p>
-                            <ViewToggle view={view} onChange={setView} />
-                        </div>
-                    )}
                     {isLoading || !folder ? (
                         view === "grid" ? (
                             <div aria-hidden className={CARD_GRID}>
