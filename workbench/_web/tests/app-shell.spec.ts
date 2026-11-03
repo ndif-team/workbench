@@ -213,7 +213,13 @@ test.describe("app shell", () => {
 
         await page.goto("/workspaces");
         const card = page.locator("main li").filter({ has: page.getByRole("link", { name }) });
-        await expect(card).toContainText("1 chart");
+        const chartLink = card.locator(`a[href="/logit-lens/${chartId}"]`);
+        const unfold = card.getByRole("button", { name: "1 chart" });
+        await expect(unfold).toHaveAttribute("aria-expanded", "false");
+        await expect(chartLink).toHaveCount(0);
+        await unfold.click();
+        await expect(unfold).toHaveAttribute("aria-expanded", "true");
+        await expect(chartLink).toBeVisible();
         await card.getByRole("link", { name }).click();
         await page.waitForURL(`/workspaces/${workspaceId}`);
         await expect(page.locator(`main a[href="/logit-lens/${chartId}"]`)).toBeVisible();

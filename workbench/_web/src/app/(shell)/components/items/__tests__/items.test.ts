@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import type { LibraryItem, WorkspaceLibrary } from "@/types/workspaces";
+import { coverPlacement, folderCover } from "../covers";
 import { formatUpdated, recencyGroup } from "../formatUpdated";
 import { chartLabel, chartName, itemLabel } from "../itemLabel";
 import { describeContents, neighborInList } from "../workspaceContents";
@@ -111,5 +112,21 @@ describe("workspace contents", () => {
             workspaces: [folder("f1", [item("x", "f1")])],
         };
         expect(neighborInList(lone, item("x", "f1"))).toBeNull();
+    });
+});
+
+describe("covers", () => {
+    const lead = (id: string) => String(folderCover(id).background).split("), ").pop();
+
+    it("gives the same item the same cover every time", () => {
+        expect(coverPlacement("a1b2")).toEqual(coverPlacement("a1b2"));
+        expect(folderCover("a1b2")).toEqual(folderCover("a1b2"));
+    });
+
+    it("leads each folder's cover with one of the NDIF colors, not all the same one", () => {
+        const ndif = ["#B86BC6", "#9C7BD8", "#6E8BE6", "#33A8F5"];
+        const leads = Array.from({ length: 24 }, (_, i) => lead(`workspace-${i}`));
+        for (const color of leads) expect(ndif).toContain(color);
+        expect(new Set(leads).size).toBeGreaterThan(1);
     });
 });

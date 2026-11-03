@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { FileText } from "lucide-react";
 
@@ -11,6 +11,7 @@ import type { LibraryChartItem, LibraryItem, LibraryWorkspace } from "@/types/wo
 import { InlineNameInput } from "../../../components/items/InlineNameInput";
 import { ItemActionsMenu } from "../../../components/items/ItemActionsMenu";
 import { formatTimestamp, formatUpdated } from "../../../components/items/formatUpdated";
+import { coverPlacement } from "../../../components/items/covers";
 import { chartName, itemIcon, itemLabel, itemPath } from "../../../components/items/itemLabel";
 import { toolMeta } from "../../../components/toolMeta";
 import { useDeployStateOf } from "../../../components/useDeployStateOf";
@@ -56,7 +57,7 @@ export function FolderItemCard({
                 "group/card relative flex h-full flex-col overflow-hidden hover:border-foreground/20 hover:bg-secondary dark:hover:bg-secondary/70 has-[[data-state=open]]:border-foreground/20",
             )}
         >
-            <div className="aspect-[16/10] overflow-hidden border-b">
+            <div className="aspect-[2/1] overflow-hidden border-b">
                 {isChart ? <ChartPreviewImage item={item} /> : <ReportCover reportId={item.id} />}
             </div>
             <div className="flex items-center gap-2 py-1.5 pl-3 pr-1.5">
@@ -183,18 +184,6 @@ function PreviewNote({ icon, children }: { icon: ReactNode; children: ReactNode 
     );
 }
 
-/** Where a report's cover puts its three blobs, from the report's id. */
-function coverPlacement(reportId: string): CSSProperties {
-    const unit = (salt: number) => {
-        let hash = 2166136261 ^ salt;
-        for (const ch of reportId) hash = Math.imul(hash ^ ch.charCodeAt(0), 16777619);
-        return (hash >>> 0) / 0xffffffff;
-    };
-    const spot = (salt: number) =>
-        `${Math.round(10 + unit(salt) * 80)}% ${Math.round(5 + unit(salt + 7) * 90)}%`;
-    return { "--cover-a": spot(1), "--cover-b": spot(2), "--cover-c": spot(3) } as CSSProperties;
-}
-
 function ReportCover({ reportId }: { reportId: string }) {
     return (
         <div
@@ -211,7 +200,7 @@ function ReportCover({ reportId }: { reportId: string }) {
 export function FolderItemCardSkeleton() {
     return (
         <div className={cn(CARD, "flex flex-col overflow-hidden")}>
-            <div className="aspect-[16/10] animate-pulse border-b bg-secondary" />
+            <div className="aspect-[2/1] animate-pulse border-b bg-secondary" />
             <div className="flex h-10 items-center gap-2 px-3">
                 <div className="size-4 shrink-0 rounded-sm bg-border animate-pulse" />
                 <div className="h-3 w-1/2 rounded-sm bg-border animate-pulse" />

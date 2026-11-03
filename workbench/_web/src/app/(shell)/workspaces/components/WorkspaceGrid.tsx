@@ -1,8 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import Link from "next/link";
-import { Folder, FolderPlus, GraduationCap } from "lucide-react";
+import {
+    ChartColumn,
+    ChevronRight,
+    FileText,
+    Folder,
+    FolderPlus,
+    GraduationCap,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
@@ -12,21 +19,20 @@ import {
     workspaceNameError,
 } from "@/lib/api/workspaceApi";
 import { workspacePath } from "@/lib/chartRoutes";
+import { cn } from "@/lib/utils";
 import type { LibraryWorkspace } from "@/types/workspaces";
 import { PageHeader, PageTitle } from "../../components/shell/PageHeader";
 import { InlineNameInput } from "../../components/items/InlineNameInput";
 import { formatTimestamp, formatUpdated } from "../../components/items/formatUpdated";
-import { itemIcon, itemLabel } from "../../components/items/itemLabel";
-import { EMPTY_WORKSPACE_TEXT, describeContents } from "../../components/items/workspaceContents";
+import { folderCover } from "../../components/items/covers";
+import { itemIcon, itemLabel, itemPath } from "../../components/items/itemLabel";
+import { countContents, describeContents } from "../../components/items/workspaceContents";
 import { WorkspaceActionsMenu } from "../../components/items/WorkspaceActions";
 import { inFolderOrder } from "../../components/shell/folderOrder";
 
-/** How many of a workspace's items its card previews. */
-const PREVIEW_ITEMS = 3;
-
 /**
- * All workspaces (folders): one card each with a peek at its first items,
- * its chart and report counts and when it last changed, most recent first.
+ * All workspaces (folders), most recent first: one card each with the
+ * folder's cover, its chart and report counts and when it last changed.
  */
 export function WorkspaceGrid() {
     const { data: library, isLoading } = useWorkspaceLibrary();
@@ -87,8 +93,16 @@ export function WorkspaceGrid() {
 
 const GRID = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
 
-const CARD = "rounded border bg-secondary/80 dark:bg-secondary/50 transition-colors duration-100";
+const CARD =
+    "overflow-hidden rounded border bg-secondary/80 dark:bg-secondary/50 transition-colors duration-100";
 
+/**
+ * A workspace's card: its cover (a color of its own in the NDIF palette,
+ * marked with how many charts and reports it holds), then its name and
+ * actions, then its counts, which unfold its items in the cover's place,
+ * scrolling there when they don't fit, so the card keeps its size. The whole
+ * card opens the workspace.
+ */
 function WorkspaceCard({
     workspace,
     nameError,
@@ -98,17 +112,65 @@ function WorkspaceCard({
     nameError: (name: string) => string | null;
 }) {
     const [renaming, setRenaming] = useState(false);
+    const [open, setOpen] = useState(false);
+    const listId = useId();
     const { mutate: rename } = useRenameWorkspace();
     const contents = describeContents(workspace);
-    const preview = workspace.items.slice(0, PREVIEW_ITEMS);
-    const more = workspace.items.length - preview.length;
+    const { charts, reports } = countContents(workspace);
     const FolderIcon = workspace.isWorkshop ? GraduationCap : Folder;
 
     return (
         <div
-            className={`${CARD} group/card relative flex h-full flex-col hover:border-foreground/20 hover:bg-secondary dark:hover:bg-secondary/70`}
+            className={`${CARD} group/card relative flex flex-col hover:border-foreground/20 hover:bg-secondary dark:hover:bg-secondary/70`}
         >
-            <div className="flex items-center gap-2 py-2.5 pl-4 pr-2">
+            <div className="relative aspect-[4/1] overflow-hidden border-b">
+                <div
+                    aria-hidden
+                    className="powder-cover h-full dark:brightness-75"
+                    style={folderCover(workspace.id)}
+                />
+                <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 flex items-center justify-center gap-5 text-sm font-medium tabular-nums text-white"
+                >
+                    {charts > 0 && (
+                        <span className="flex items-center gap-1.5">
+                            <ChartColumn className="size-5" />
+                            {charts}
+                        </span>
+                    )}
+                    {reports > 0 && (
+                        <span className="flex items-center gap-1.5">
+                            <FileText className="size-5" />
+                            {reports}
+                        </span>
+                    )}
+                </div>
+                {open && (
+                    <ul
+                        id={listId}
+                        className="absolute inset-x-0 bottom-0 top-1.5 z-10 flex flex-col overflow-y-auto overscroll-contain bg-secondary/90 p-1.5 animate-in fade-in-0"
+                    >
+                        {workspace.items.map((item) => {
+                            const Icon = itemIcon(item);
+                            const label = itemLabel(item);
+                            return (
+                                <li key={`${item.kind}-${item.id}`}>
+                                    <Link
+                                        href={itemPath(item)}
+                                        title={label.text}
+                                        className="flex min-w-0 items-center gap-2 rounded-sm px-1.5 py-1 text-xs text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                    >
+                                        <Icon className="size-3.5 shrink-0" />
+                                        <span className="truncate">{label.text}</span>
+                                    </Link>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+            </div>
+            <div className="flex h-11 items-center gap-2 pb-1 pl-3 pr-1.5 pt-2">
                 <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
                 {renaming ? (
                     <InlineNameInput
@@ -142,36 +204,26 @@ function WorkspaceCard({
                 )}
             </div>
 
-            <ul className="flex min-h-[4.5rem] flex-1 flex-col gap-1 border-t px-4 py-3">
-                {preview.length === 0 ? (
-                    <li className="text-xs text-muted-foreground">{EMPTY_WORKSPACE_TEXT}</li>
+            <div className="flex items-center gap-3 pb-2 pl-1.5 pr-3 text-xs text-muted-foreground">
+                {contents ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setOpen((o) => !o)}
+                        aria-expanded={open}
+                        aria-controls={open ? listId : undefined}
+                        title={open ? "Hide items" : "Show items"}
+                        className="relative z-10 h-6 min-w-0 gap-1 px-1.5 text-xs font-normal tabular-nums text-muted-foreground hover:text-foreground has-[>svg]:px-1.5"
+                    >
+                        <ChevronRight
+                            className={cn("size-3.5 transition-transform", open && "rotate-90")}
+                        />
+                        <span className="truncate">{contents}</span>
+                    </Button>
                 ) : (
-                    preview.map((item) => {
-                        const Icon = itemIcon(item);
-                        const label = itemLabel(item);
-                        return (
-                            <li
-                                key={`${item.kind}-${item.id}`}
-                                className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground"
-                            >
-                                <Icon className="size-3.5 shrink-0" />
-                                <span className="truncate" title={label.text}>
-                                    {label.text}
-                                </span>
-                            </li>
-                        );
-                    })
+                    <span className="flex h-6 items-center pl-1.5">Empty</span>
                 )}
-                {more > 0 && (
-                    <li className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span aria-hidden className="size-3.5 shrink-0" />
-                        {more} more
-                    </li>
-                )}
-            </ul>
-
-            <div className="flex items-center gap-3 border-t px-4 py-2 text-xs text-muted-foreground">
-                {contents && <span className="min-w-0 truncate tabular-nums">{contents}</span>}
                 <span
                     className="ml-auto shrink-0 whitespace-nowrap"
                     title={formatTimestamp(workspace.updatedAt)}
@@ -186,16 +238,14 @@ function WorkspaceCard({
 function WorkspaceCardSkeleton() {
     return (
         <div className={`${CARD} flex flex-col`}>
-            <div className="flex h-12 items-center gap-2 px-4">
+            <div className="aspect-[4/1] animate-pulse border-b bg-secondary" />
+            <div className="flex h-10 items-center gap-2 px-3">
                 <div className="size-4 rounded-sm bg-border animate-pulse" />
                 <div className="h-3 w-1/2 rounded-sm bg-border animate-pulse" />
             </div>
-            <div className="flex flex-col gap-2 border-t px-4 py-3.5">
-                <div className="h-2.5 w-3/4 rounded-sm bg-border animate-pulse" />
-                <div className="h-2.5 w-2/3 rounded-sm bg-border animate-pulse" />
-                <div className="h-2.5 w-1/2 rounded-sm bg-border animate-pulse" />
+            <div className="px-3 pb-3">
+                <div className="h-2.5 w-1/3 rounded-sm bg-border animate-pulse" />
             </div>
-            <div className="h-8 border-t" />
         </div>
     );
 }
