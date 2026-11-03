@@ -236,6 +236,7 @@ Defined in `src/app/globals.css`:
 - `--radius: 0.375rem` — use `rounded-md` (≈radius), `rounded` (≈radius+1px); avoid `rounded-xl`/`rounded-lg` mixed with these.
 - `--font-sans: Inter`, `--font-mono: JetBrains Mono`, `--font-serif: Source Serif 4`.
 - `--primary: 217 91% 60%` (a blue) — used for the most important CTA and active/selected state.
+- Light mode's greys (`--background`, `--secondary`, `--muted`, `--accent`, `--border`, `--input`) are tinted toward the brand blue (hue 220), so surfaces sit with the blue gradients instead of reading flat. Take greys from these tokens, never a neutral `gray-*` or hand-written grey. Outline buttons fill with `--card` (white).
 - Shadow ramp: `--shadow-xs … --shadow-2xl`. Default cards use `shadow-xs` or `shadow-sm`.
 - Sidebar surfaces use `bg-secondary/80` (light) and `bg-secondary/50` (dark), bordered, with `rounded`.
 

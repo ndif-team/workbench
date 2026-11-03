@@ -4,7 +4,7 @@
 
 @layer base {
     :root {
-        --background: 0 0% 94%; /* Light gray base */
+        --background: 220 20% 95%; /* Cool gray base, tinted toward the brand blue */
         --foreground: 0 0% 9%; /* Dark text for better contrast */
         --card: 0 0% 100%; /* Pure white - highest elevation */
         --card-foreground: 0 0% 9%;
@@ -12,16 +12,16 @@
         --popover-foreground: 0 0% 9%;
         --primary: 217.2193 91.2195% 59.8039%;
         --primary-foreground: 0 0% 100%;
-        --secondary: 0 0% 97%; /* Surface layer - subtly lighter than background */
+        --secondary: 220 30% 98%; /* Surface layer - subtly lighter than background */
         --secondary-foreground: 0 0% 9%;
-        --muted: 0 0% 95%; /* Subtle backgrounds */
-        --muted-foreground: 0 0% 40%;
-        --accent: 0 0% 96%; /* Hover states */
+        --muted: 220 20% 95%; /* Subtle backgrounds */
+        --muted-foreground: 220 9% 40%;
+        --accent: 220 25% 95%; /* Hover states */
         --accent-foreground: 0 0% 9%;
         --destructive: 0 84.2365% 60.1961%;
         --destructive-foreground: 0 0% 100%;
-        --border: 0 0% 82%; /* More visible borders */
-        --input: 0 0% 88%; /* White inputs with border definition */
+        --border: 220 14% 83%; /* More visible borders */
+        --input: 220 14% 88%; /* White inputs with border definition */
         --ring: 217.2193 91.2195% 59.8039%;
         --chart-1: 217.2193 91.2195% 59.8039%;
         --chart-2: 221.2121 83.1933% 53.3333%;
@@ -32,9 +32,9 @@
         --sidebar-foreground: 0 0% 9%;
         --sidebar-primary: 217.2193 91.2195% 59.8039%;
         --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 0 0% 96%; /* Match accent */
+        --sidebar-accent: 220 25% 95%; /* Match accent */
         --sidebar-accent-foreground: 0 0% 9%;
-        --sidebar-border: 0 0% 89%; /* Match border */
+        --sidebar-border: 220 14% 89%; /* Match border */
         --sidebar-ring: 217.2193 91.2195% 59.8039%;
         --font-sans: Inter, sans-serif;
         --font-serif: Source Serif 4, serif;
