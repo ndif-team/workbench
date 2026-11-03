@@ -75,10 +75,10 @@ export function ModelsSectionHeader({
     return (
         <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-baseline gap-3 mr-auto">
-                <h1 className="text-sm font-medium">
+                <h1 className="text-lg font-semibold">
                     Models
                     {!hasError && !isLoading && (
-                        <span className="ml-1.5 font-normal text-muted-foreground tabular-nums">
+                        <span className="ml-1.5 text-sm font-normal text-muted-foreground tabular-nums">
                             ({filtered ? `${filteredTotal} of ${total}` : total})
                         </span>
                     )}
