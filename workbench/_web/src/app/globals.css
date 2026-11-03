@@ -151,6 +151,13 @@
         hsl(220 22% 7%);
 }
 
+/* The expanded sidebar's own surface (the --sidebar tokens), so the page's
+ * cards, set straight on the shell's gradient, don't run into it. */
+.sidebar-surface {
+    background: hsl(var(--sidebar));
+    border-right: 1px solid hsl(var(--sidebar-border));
+}
+
 /* A report card's cover: the aurora's blue, purple and cyan at full
  * strength, blurred into one another, under a fine powder grain (greyscale
  * fractal noise, soft-light). Each report places the three blobs itself

@@ -17,7 +17,8 @@ import { useDeployStateOf } from "../../../components/useDeployStateOf";
 import { DEPLOY_LABEL } from "./FolderItemRow";
 import { useChartPreview, useSeenOnScreen } from "./useChartPreview";
 
-const CARD = "rounded border bg-background transition-colors duration-100";
+/** The cards on all workspaces' page, set straight on the page. */
+const CARD = "rounded border bg-secondary/80 dark:bg-secondary/50 transition-colors duration-100";
 
 /**
  * A chart or report on a workspace page's grid: a preview on top (the chart
@@ -52,7 +53,7 @@ export function FolderItemCard({
         <div
             className={cn(
                 CARD,
-                "group/card relative flex h-full flex-col overflow-hidden hover:border-foreground/20 has-[[data-state=open]]:border-foreground/20",
+                "group/card relative flex h-full flex-col overflow-hidden hover:border-foreground/20 hover:bg-secondary dark:hover:bg-secondary/70 has-[[data-state=open]]:border-foreground/20",
             )}
         >
             <div className="aspect-[16/10] overflow-hidden border-b">

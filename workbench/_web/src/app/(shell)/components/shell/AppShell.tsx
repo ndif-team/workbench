@@ -158,7 +158,7 @@ export function AppShell({
                     style={{ "--sidebar-width": `${width}px` } as CSSProperties}
                     className={cn(
                         "relative hidden shrink-0 md:flex md:flex-col",
-                        effectiveCollapsed ? "w-12" : "w-[var(--sidebar-width)]",
+                        effectiveCollapsed ? "w-12" : "sidebar-surface w-[var(--sidebar-width)]",
                         !mounted && "group-has-[[data-workshop-scope]]/shell:w-12",
                     )}
                 >

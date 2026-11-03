@@ -52,7 +52,9 @@ import { FolderItemRow, FolderItemRowSkeleton } from "./FolderItemRow";
 
 const itemKey = (item: LibraryItem) => `${item.kind}-${item.id}`;
 
-const CARD_GRID = "grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
+const CARD_GRID = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
+/** The rows' own surface in the list view, the cards' surface. */
+const LIST_SURFACE = "flex flex-col rounded border bg-secondary/80 p-1.5 dark:bg-secondary/50";
 
 /**
  * One workspace (folder): its name (renamed in place), New chart / New
@@ -68,6 +70,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
     const { data: workshop } = useWorkspaceWorkshop(folder?.isWorkshop ? workspaceId : undefined);
     const [renamingTitle, setRenamingTitle] = useState(false);
     const renameHintId = useId();
+    const contentsHeadingId = useId();
     const [renamingItemId, setRenamingItemId] = useState<string | null>(null);
     const { mutate: renameWorkspace } = useRenameWorkspace();
     const { mutate: renameChart } = useUpdateChartName();
@@ -199,12 +202,19 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                 }
             />
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-                <section className="rounded border bg-secondary/80 dark:bg-secondary/50">
-                    <div className="flex items-center justify-between border-b p-3">
-                        <h2 className="pl-2 text-sm font-medium">Charts and reports</h2>
-                        <ViewToggle view={view} onChange={setView} />
-                    </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-6">
+                <section aria-labelledby={contentsHeadingId}>
+                    <h2 id={contentsHeadingId} className="sr-only">
+                        Charts and reports
+                    </h2>
+                    {folder && folder.items.length > 0 && (
+                        <div className="flex items-center justify-between gap-3 pb-2 pl-1">
+                            <p className="min-w-0 truncate text-xs tabular-nums text-muted-foreground">
+                                {describeContents(folder)}
+                            </p>
+                            <ViewToggle view={view} onChange={setView} />
+                        </div>
+                    )}
                     {isLoading || !folder ? (
                         view === "grid" ? (
                             <div aria-hidden className={CARD_GRID}>
@@ -213,7 +223,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                                 ))}
                             </div>
                         ) : (
-                            <div aria-hidden>
+                            <div aria-hidden className={LIST_SURFACE}>
                                 {Array.from({ length: 5 }, (_, i) => (
                                     <FolderItemRowSkeleton key={i} />
                                 ))}
@@ -240,7 +250,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                                         : verticalListSortingStrategy
                                 }
                             >
-                                <ul className={view === "grid" ? CARD_GRID : "flex flex-col p-1.5"}>
+                                <ul className={view === "grid" ? CARD_GRID : LIST_SURFACE}>
                                     {items.map((item) => {
                                         const Item =
                                             view === "grid" ? FolderItemCard : FolderItemRow;
@@ -281,11 +291,6 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                         </DndContext>
                     )}
                 </section>
-                {folder && folder.items.length > 0 && (
-                    <p className="px-2 pt-2 text-xs text-muted-foreground">
-                        {describeContents(folder)}
-                    </p>
-                )}
             </div>
         </div>
     );
