@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * The models the backend serves, with filters; a card opens a chart with that
- * model. The grid's header row carries the page's title, so the page header
- * shows only on mobile, for the sidebar drawer's button. A workshop participant goes to their
+ * model, on the NDIF liquid background (`ndif-liquid`). The grid's header row
+ * carries the page's title, so the page header shows only on mobile, for the
+ * sidebar drawer's button. A workshop participant goes to their
  * workshop instead.
  */
 export default async function ModelsPage() {
@@ -20,7 +21,7 @@ export default async function ModelsPage() {
         process.env.NEXT_PUBLIC_DISABLE_AUTH === "true" || (!!user && !user.is_anonymous);
 
     return (
-        <div className="flex size-full min-h-0 flex-col">
+        <div className="ndif-liquid flex size-full min-h-0 flex-col">
             <PageHeader className="md:hidden" />
             <div className="min-h-0 flex-1 px-3 pb-3 md:pl-6 md:pt-4">
                 <ModelsSection isSignedIn={isSignedIn} />
