@@ -59,7 +59,7 @@ export function WorkspaceGrid() {
                 {...props}
                 value={query}
                 onValueChange={setQuery}
-                placeholder="search workspaces and charts…"
+                placeholder="search"
                 aria-label="Search workspaces, charts and reports"
             />
         );
