@@ -155,7 +155,7 @@ function RailButton({
 }) {
     const className = cn(
         "text-muted-foreground hover:text-foreground",
-        active && "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary",
+        active && "bg-accent text-foreground hover:bg-accent hover:text-foreground",
     );
     return (
         <Tooltip>

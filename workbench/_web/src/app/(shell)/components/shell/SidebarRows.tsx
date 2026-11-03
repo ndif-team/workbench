@@ -24,17 +24,17 @@ const CHART_DRAG_TYPE = "application/x-chart";
 /**
  * One look for every sidebar row: a full-width link with the ghost Button's
  * hover and focus ring. The hover lives on the row (`group/row`) so it stays
- * lit while the pointer is on the row's actions button. In dark mode, where
- * the active tint is faint, the active row also gets a primary bar at its
- * left edge.
+ * lit while the pointer is on the row's actions button. The active row takes
+ * the full accent fill (hover a lighter one), medium weight and a dark icon:
+ * neutral, so blue stays for buttons and drop targets.
  */
 const rowLink = (active: boolean, className?: string) =>
     cn(
         "relative flex h-7 w-full min-w-0 items-center gap-2 rounded-md px-2 text-sm whitespace-nowrap outline-none transition-colors group-data-[variant=drawer]/sidebar:h-9",
         "focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         active
-            ? "bg-primary/10 font-medium dark:before:absolute dark:before:inset-y-1.5 dark:before:left-0 dark:before:w-0.5 dark:before:rounded-full dark:before:bg-primary"
-            : "group-hover/row:bg-accent group-has-[[data-state=open]]/row:bg-accent dark:group-hover/row:bg-accent/50 dark:group-has-[[data-state=open]]/row:bg-accent/50",
+            ? "bg-accent font-medium"
+            : "group-hover/row:bg-accent/60 group-has-[[data-state=open]]/row:bg-accent/60 dark:group-hover/row:bg-accent/50 dark:group-has-[[data-state=open]]/row:bg-accent/50",
         className,
     );
 
@@ -57,7 +57,7 @@ export function SidebarNavLink({
                 aria-current={active ? "page" : undefined}
                 className={rowLink(active, "h-8")}
             >
-                <Icon className={cn("text-muted-foreground", active && "text-primary")} />
+                <Icon className={cn("text-muted-foreground", active && "text-foreground")} />
                 {label}
             </Link>
         </div>
@@ -310,7 +310,7 @@ export function SidebarFolderRow({
                     ),
                 )}
             >
-                <FolderIcon className={cn("text-muted-foreground", active && "text-primary")} />
+                <FolderIcon className={cn("text-muted-foreground", active && "text-foreground")} />
                 <span className="min-w-0 flex-1 truncate text-left">{name}</span>
                 <span className="text-xs font-normal tabular-nums text-muted-foreground">
                     {count}
@@ -418,7 +418,7 @@ export function SidebarItemRow({
                 <Icon
                     className={cn(
                         "size-4 shrink-0 text-muted-foreground",
-                        active && "text-primary",
+                        active && "text-foreground",
                     )}
                 />
                 <span
