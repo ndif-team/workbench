@@ -124,6 +124,7 @@ workbench/                          # repo root
         │       │   ├── ChartCardsSidebar.tsx, ChartCard.tsx, ReportCard.tsx  # workshop (workspace-scoped) sidebar
         │       │   ├── MobileCollapsibleControls.tsx
         │       │   ├── ToolPanelHeader.tsx      # title row shared by the tool Controls
+        │       │   ├── ChartExportMenu.tsx      # a chart's Export menu: image, and notebook where a template exists
         │       │   ├── ModelDeployingPanel.tsx, DeployCard.tsx  # cold-model deploy states
         │       │   └── PendingRequestHandler.tsx  # resumes a launch that waited on sign-in
         │       ├── logit-lens/[chartId]/        # logit-lens chart (nnsightful widget)
@@ -147,7 +148,7 @@ workbench/                          # repo root
         │   ├── LandingPage.tsx (signed out), LandingComposer.tsx (its hero + composer, also Home's)
         │   ├── CwLogo.tsx          # the workbench mosaic, self-contained (inline styles); its mark sits beside
         │   │                   #   the product name in the hero and the sidebar, and expands the rail
-        │   ├── UserDropdown.tsx, CreateWorkspaceDialog.tsx, NotebookExporter.tsx
+        │   ├── UserDropdown.tsx, CreateWorkspaceDialog.tsx
         │   └── ...
         │
         ├── stores/                 # zustand stores
@@ -200,7 +201,7 @@ workbench/                          # repo root
         │
         ├── types/                  # shared TS types (charts, logitLens, jlens, patchLens, lensRun, models, ...)
         ├── tutorials/              # Patch Lens tour steps, glossary, guided-tutorial seed content
-        └── notebook-templates/     # .ipynb skeletons that NotebookExporter fills
+        └── notebook-templates/     # .ipynb skeletons that ChartExportMenu's notebook export fills
 ```
 
 ---
@@ -650,6 +651,6 @@ Manual recipe summary (skill has the full version):
 ## Areas this doc may need updating
 
 - **Migration folders** (`pg-migrations/`, `sqlite-migrations/`): gitignored, so there is no committed migration history. If they get committed, document where to find it and how to reset.
-- **NotebookExporter**: only activation patching exports a notebook today (`notebook-templates/activation-patching.ipynb`); `actions/notebook.ts` could justify a sub-section if more tools acquire export support.
+- **Chart export** (`ChartExportMenu`): every chart nnsightful draws (logit lens, j-lens, activation patching) exports as a PNG, snapshotted from its saved view in the current theme without the layer navigator; only activation patching exports a notebook today (`notebook-templates/activation-patching.ipynb`); `actions/notebook.ts` could justify a sub-section if more tools acquire export support.
 - **Modal deployment**: `modal/` (`image.py`, `gpu_image.py`) and `make modal` aren't documented here; document them if they become a hot path for contributors.
 - **Telemetry**: InfluxDB telemetry in `_api/telemetry.py` is currently off (`TelemetryClient.init` is commented out in `state.py`, so `log_request` is a no-op) and not exercised in the frontend; document it if it's re-enabled or frontend telemetry is added.

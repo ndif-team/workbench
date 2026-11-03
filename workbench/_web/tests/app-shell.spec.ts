@@ -301,6 +301,32 @@ test.describe("app shell", () => {
         await deleteWorkspace(page, workspaceId, name);
     });
 
+    test("a chart's Export menu saves it as an image", async ({ page }) => {
+        const prompt = unique("The Eiffel Tower is in");
+        const chartId = await newChart(page, prompt);
+        // The chart runs its prompt as it opens; the canned lens predicts " Paris".
+        await expect(page.locator("main").getByText("Paris").first()).toBeVisible({
+            timeout: 60_000,
+        });
+
+        await page.locator("main").getByRole("button", { name: "Export" }).click();
+        // Only activation patching has a notebook template.
+        await expect(page.getByRole("menuitem", { name: /Jupyter notebook/ })).toHaveCount(0);
+        const downloading = page.waitForEvent("download");
+        await page.getByRole("menuitem", { name: /Image/ }).click();
+        const download = await downloading;
+        expect(download.suggestedFilename()).toBe(`${prompt}.png`);
+        const chunks: Buffer[] = [];
+        for await (const chunk of await download.createReadStream()) chunks.push(chunk as Buffer);
+        const png = Buffer.concat(chunks);
+        expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+
+        await header(page).getByRole("button", { name: "Chart actions" }).click();
+        await page.getByRole("menuitem", { name: "Delete…" }).click();
+        await page.getByRole("button", { name: "Delete", exact: true }).click();
+        await expect(chartRow(page, chartId)).toHaveCount(0);
+    });
+
     test("the workspaces search finds a workspace by its name or by a chart in it", async ({
         page,
     }) => {

@@ -16,6 +16,7 @@ import { useWorkspace } from "@/stores/useWorkspace";
 import { selectedModelIn } from "@/components/model-selector/status";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
+import { ChartExportMenu } from "@/app/(shell)/components/ChartExportMenu";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
 
 interface LogitLensChart {
@@ -135,11 +136,14 @@ export function LogitLensDisplay() {
 
     return (
         <div className="size-full overflow-auto p-4 flex flex-col gap-3">
-            {stale && chartModel && (
-                <div className="flex justify-end">
-                    <ChartModelPill modelName={chartModel} />
-                </div>
-            )}
+            <div className="flex items-center justify-end gap-2">
+                {stale && chartModel && <ChartModelPill modelName={chartModel} />}
+                <ChartExportMenu
+                    chart={logitLensChart}
+                    config={logitLensConfig}
+                    darkMode={isDarkMode}
+                />
+            </div>
             <LogitLensWidget
                 data={logitLensChart.data! as LogitLensData}
                 darkMode={isDarkMode}

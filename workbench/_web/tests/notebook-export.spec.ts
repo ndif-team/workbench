@@ -31,7 +31,7 @@ test.describe("Notebook export (real NDIF)", () => {
             timeout: REAL_NDIF_TIMEOUT_MS * 2,
         });
 
-        // The Export button triggers a server-action that returns a
+        // The Export menu's notebook item triggers a server-action that returns a
         // notebook JSON string and then a client-side anchor download.
         // Align with the rest of the real-NDIF suite — the server action
         // can take noticeably longer under CI load than a fixed 30s.
@@ -39,6 +39,7 @@ test.describe("Notebook export (real NDIF)", () => {
             timeout: REAL_NDIF_TIMEOUT_MS,
         });
         await exportButton.click();
+        await page.getByRole("menuitem", { name: /Jupyter notebook/ }).click();
         const download = await downloadPromise;
 
         const suggested = download.suggestedFilename();

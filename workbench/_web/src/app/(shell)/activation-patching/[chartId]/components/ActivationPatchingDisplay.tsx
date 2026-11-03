@@ -16,8 +16,8 @@ import { Loader2 } from "lucide-react";
 import { ActivationPatchingWidget } from "nnsightful";
 import { useTheme } from "next-themes";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
-import { NotebookExporter } from "@/components/NotebookExporter";
 import { ChartModelPill } from "@/components/charts/ChartModelPill";
+import { ChartExportMenu } from "@/app/(shell)/components/ChartExportMenu";
 import { chartModelFromConfig, isChartStale } from "@/lib/configModelDiff";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspace } from "@/stores/useWorkspace";
@@ -184,13 +184,11 @@ export function ActivationPatchingDisplay() {
         <div className="size-full overflow-auto flex flex-col">
             <div className="flex items-center justify-end gap-2 px-4 pt-4 pb-2">
                 {stale && chartModel && <ChartModelPill modelName={chartModel} />}
-                <NotebookExporter
-                    configType="activation-patching"
-                    configData={(patchingConfig?.data ?? {}) as Record<string, unknown>}
-                    chartData={(patchingChart?.data ?? null) as Record<string, unknown> | null}
-                    chartName={patchingChart?.name ?? undefined}
-                    workspaceName={workspaceName}
+                <ChartExportMenu
+                    chart={patchingChart!}
+                    config={patchingConfig}
                     darkMode={isDarkMode}
+                    workspaceName={workspaceName}
                 />
             </div>
 
