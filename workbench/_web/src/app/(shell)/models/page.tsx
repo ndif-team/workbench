@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * The models the backend serves, with filters; a card opens a chart with that
- * model. The panel carries the page's title, so the page header shows only on
- * mobile, for the sidebar drawer's button. A workshop participant goes to their
+ * model. The grid's header row carries the page's title, so the page header
+ * shows only on mobile, for the sidebar drawer's button. A workshop participant goes to their
  * workshop instead.
  */
 export default async function ModelsPage() {

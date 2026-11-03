@@ -134,8 +134,9 @@ interface ModelsSectionProps {
 }
 
 /**
- * The models the backend serves, as a filterable grid in a panel that fills
- * the page: hottest first, filters (type, status, search) mirrored to the URL.
+ * The models the backend serves, as a filterable grid set straight on the
+ * page and filling it: hottest first, filters (type, status, search) mirrored
+ * to the URL.
  * The grid never scrolls: it shows as many cards as fit and pages through the
  * rest. A card opens the launch dialog (or deploys a cold model).
  */
@@ -306,11 +307,8 @@ export function ModelsSection({
             setDialog({ model: m, mode: m.heat === "cold" ? "deploy" : "launch" }));
 
     return (
-        <section
-            aria-label="Models"
-            className="flex h-full min-h-0 flex-col rounded border bg-secondary/80 dark:bg-secondary/50"
-        >
-            <div className="border-b p-3">
+        <section aria-label="Models" className="flex h-full min-h-0 flex-col">
+            <div className="pb-3 pl-1">
                 <ModelsSectionHeader
                     total={cards.length}
                     filteredTotal={filtered.length}
@@ -334,7 +332,7 @@ export function ModelsSection({
                 />
             </div>
 
-            <div ref={areaRef} className="m-3 min-h-0 flex-1 overflow-hidden">
+            <div ref={areaRef} className="min-h-0 flex-1 overflow-hidden">
                 {isLoading && !rawModels ? (
                     <div className="py-8 text-center text-xs text-muted-foreground">
                         Loading models…
