@@ -23,7 +23,7 @@ export interface JLensConfigData {
     model: string;
     prompt: string;
     topk?: number; // Number of top-k predictions per cell (default: 5)
-    includeEntropy?: boolean; // Whether to include entropy data (default: true)
+    includeEntropy?: boolean; // Whether to include entropy data (default: false)
     // Persisted heatmap UI state (pinned trajectories, selection, layer
     // window, appearance) so the visualization restores across reloads.
     uiState?: LogitLensUIState;

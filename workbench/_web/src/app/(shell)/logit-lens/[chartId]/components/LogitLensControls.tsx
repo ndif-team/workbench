@@ -126,7 +126,7 @@ export function LogitLensControls({
 
     const savedPrompt = initialConfig.data?.prompt || "";
     const savedTopk = initialConfig.data?.topk ?? 5;
-    const savedIncludeEntropy = initialConfig.data?.includeEntropy ?? true;
+    const savedIncludeEntropy = initialConfig.data?.includeEntropy ?? false;
     const savedModel = initialConfig.data?.model ?? "";
 
     const [prompt, setPrompt] = useState(savedPrompt);

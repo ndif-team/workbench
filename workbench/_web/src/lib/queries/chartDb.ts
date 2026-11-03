@@ -249,7 +249,7 @@ export const seedWorkshopChart = async (
         model: workshop.model,
         prompt: workshop.starterPrompt,
         topk: 5,
-        includeEntropy: true,
+        includeEntropy: false,
     });
     return { chart, tool };
 };

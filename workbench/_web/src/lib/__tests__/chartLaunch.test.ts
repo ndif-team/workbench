@@ -27,7 +27,7 @@ describe("chart launch", () => {
                 model: "gpt2",
                 prompt: "The Eiffel Tower is in",
                 topk: 5,
-                includeEntropy: true,
+                includeEntropy: false,
             },
         });
     });
@@ -35,7 +35,7 @@ describe("chart launch", () => {
     it("defaults to a blank logit lens chart", () => {
         expect(planChartLaunch({})).toEqual({
             type: "logit-lens",
-            data: { model: "", prompt: "", topk: 5, includeEntropy: true },
+            data: { model: "", prompt: "", topk: 5, includeEntropy: false },
         });
         expect(planChartLaunch({ tool: "not-a-tool" }).type).toBe("logit-lens");
     });
@@ -78,7 +78,7 @@ describe("chart launch", () => {
             planChartLaunch({ tool: "J-Lens", model: "big/model", prompt: "x", deploy: "true" }),
         ).toEqual({
             type: "jlens",
-            data: { model: "big/model", prompt: "", topk: 5, includeEntropy: true },
+            data: { model: "big/model", prompt: "", topk: 5, includeEntropy: false },
         });
         expect(planChartLaunch({ deploy: "true" }).data).toMatchObject({
             model: "openai-community/gpt2",

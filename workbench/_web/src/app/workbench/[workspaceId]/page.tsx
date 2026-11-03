@@ -47,7 +47,7 @@ export default async function Page({
                 prompt: initialPrompt,
                 model: initialModel,
                 topk: 5,
-                includeEntropy: true,
+                includeEntropy: false,
             };
 
             const { chart } = await createLogitLensChartPair(workspaceId, defaultConfig);

@@ -108,7 +108,7 @@ export function planChartLaunch(request: ChartLaunchRequest): ChartLaunchPlan {
         model,
         prompt: deploy ? "" : (request.prompt ?? ""),
         topk: 5,
-        includeEntropy: true,
+        includeEntropy: false,
     };
     return { type: tool, data };
 }

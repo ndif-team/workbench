@@ -31,7 +31,7 @@ const getLogitLens = async (lensRequest: LogitLensRequest): Promise<LogitLensDat
         model: lensRequest.completion.model,
         prompt: lensRequest.completion.prompt,
         topk: lensRequest.completion.topk ?? 5,
-        include_entropy: lensRequest.completion.includeEntropy ?? true,
+        include_entropy: lensRequest.completion.includeEntropy ?? false,
     };
 
     return await runAndStream<LogitLensData>(config.endpoints.runLogitLens, request, headers);

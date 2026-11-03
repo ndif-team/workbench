@@ -81,7 +81,7 @@ export const useCreateLogitLensChartPair = () => {
         prompt: "",
         model: "",
         topk: 5,
-        includeEntropy: true,
+        includeEntropy: false,
     };
 
     return useMutation({
@@ -108,7 +108,7 @@ export const useCreateJLensChartPair = () => {
         prompt: "",
         model: "",
         topk: 5,
-        includeEntropy: true,
+        includeEntropy: false,
     };
 
     return useMutation({
