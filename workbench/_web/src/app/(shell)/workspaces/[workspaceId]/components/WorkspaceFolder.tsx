@@ -177,7 +177,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                             )}
                         </Breadcrumb>
                         {contents && !renamingTitle && (
-                            <span className="hidden shrink-0 text-sm tabular-nums text-muted-foreground sm:inline">
+                            <span className="hidden shrink-0 text-xs tabular-nums text-muted-foreground sm:inline">
                                 {contents}
                             </span>
                         )}
