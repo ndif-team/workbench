@@ -540,7 +540,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="relative"
             >
-                <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl shadow-2xl overflow-hidden">
+                <div className="relative bg-card/80 backdrop-blur-sm border border-border rounded-2xl shadow-2xl overflow-hidden">
                     {/* Subtle gradient border effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-purple-500/20 to-primary/20 opacity-50 blur-xl" />
 
@@ -554,7 +554,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                                         onChange={(e) => setPrompt(e.target.value)}
                                         onKeyDown={handleKeyDown}
                                         placeholder="Enter a prompt to analyze..."
-                                        className="min-h-[120px] text-lg resize-none bg-background/50 border-border/50 focus:border-primary/50 transition-colors pb-12"
+                                        className="min-h-[120px] text-lg resize-none bg-background/50 border-border focus:border-primary/50 transition-colors pb-12"
                                         disabled={showCaptcha || isSubmitting}
                                     />
 
@@ -721,7 +721,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 ].map((feature, index) => (
                     <div
                         key={index}
-                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/50 border border-border/50 backdrop-blur-sm"
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/50 border border-border backdrop-blur-sm"
                     >
                         <feature.icon className="w-4 h-4 text-primary" />
                         <span className="text-sm text-muted-foreground">

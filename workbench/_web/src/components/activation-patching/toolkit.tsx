@@ -1071,7 +1071,7 @@ export function PatchPromptSection({
                         placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
                         className={cn(
                             isCompact
-                                ? "resize-none bg-background/50 border-border/50 focus:border-primary/50 transition-colors min-h-[80px] text-sm pr-16"
+                                ? "resize-none bg-background/50 border-border focus:border-primary/50 transition-colors min-h-[80px] text-sm pr-16"
                                 : "w-full !text-sm bg-input/30 min-h-24 !leading-5",
                         )}
                         disabled={disabled || loading}
@@ -1083,7 +1083,7 @@ export function PatchPromptSection({
                         onClick={handleContainerClick}
                         className={cn(
                             isCompact
-                                ? "p-2.5 bg-background/50 border border-border/50 rounded-md min-h-[80px] max-h-32 overflow-auto"
+                                ? "p-2.5 bg-background/50 border border-border rounded-md min-h-[80px] max-h-32 overflow-auto"
                                 : "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
                             loading ? "cursor-progress" : "cursor-text",
                         )}

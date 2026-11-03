@@ -32,7 +32,7 @@ const theme = {
     rtl: "rtl",
     placeholder: "text-muted-foreground",
     paragraph: "mb-3",
-    quote: "border-l-4 border-muted pl-4 italic my-2",
+    quote: "border-l-4 border-border pl-4 italic my-2",
     heading: {
         h1: "text-3xl font-bold mb-4 mt-6",
         h2: "text-2xl font-semibold mb-3 mt-5",

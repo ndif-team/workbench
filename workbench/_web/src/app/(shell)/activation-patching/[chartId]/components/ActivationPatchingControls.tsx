@@ -75,7 +75,7 @@ function PatchConfigTable({
     }
 
     return (
-        <div className="border border-border/30 rounded overflow-hidden">
+        <div className="border border-border rounded overflow-hidden">
             {/* Header / Toggle */}
             <div className="flex items-center justify-between px-2 py-1 bg-muted/20">
                 <button
@@ -164,9 +164,7 @@ function PatchConfigTable({
                     {/* Frozen positions section */}
                     {tgtFreeze.length > 0 && (
                         <>
-                            {srcPos.length > 0 && (
-                                <div className="border-t border-border/20 my-1" />
-                            )}
+                            {srcPos.length > 0 && <div className="border-t border-border my-1" />}
                             <div className="flex items-center gap-1 flex-wrap">
                                 {tgtFreeze
                                     .slice()
