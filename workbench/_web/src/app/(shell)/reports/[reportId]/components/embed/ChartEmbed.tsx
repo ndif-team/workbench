@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { toolMeta } from "@/app/(shell)/components/toolMeta";
 import { chartLabel } from "@/app/(shell)/components/items/itemLabel";
 import type { ChartEmbedNode } from "../nodes/ChartEmbedNode";
@@ -150,12 +151,14 @@ export function ChartEmbed({
         >
             <div className="flex items-center gap-2 border-b px-3 py-1.5">
                 {tool && <tool.Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
-                {title && <span className="min-w-0 truncate text-sm font-medium">{title}</span>}
+                {title && (
+                    <TruncatedText className="min-w-0 text-sm font-medium">{title}</TruncatedText>
+                )}
                 {(tool || model) && (
                     <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                         {tool && <span className="shrink-0">{tool.label}</span>}
                         {tool && model && <span aria-hidden="true">·</span>}
-                        {model && <span className="truncate font-mono">{model}</span>}
+                        {model && <TruncatedText className="font-mono">{model}</TruncatedText>}
                     </span>
                 )}
                 <div className="ml-auto flex shrink-0 items-center gap-1">

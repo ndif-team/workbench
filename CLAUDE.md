@@ -230,7 +230,7 @@ Every non-trivial feature has **one container** (knows about URL params, stores,
 
 ### Reusing `components/ui`
 
-Always reach for the existing primitive first. The catalog: `badge, button, card, checkbox, dialog, dropdown-menu, input, label, mode-toggle, pill-popover, popover, resizable, search-input, select, separator, sheet, slider, sonner, textarea, tooltip`. Don't fork them for cosmetic tweaks — pass `className` and merge with `cn()` from `lib/utils`.
+Always reach for the existing primitive first. The catalog: `badge, button, card, checkbox, dialog, dropdown-menu, input, label, mode-toggle, pill-popover, popover, resizable, search-input, select, separator, sheet, slider, sonner, textarea, tooltip, truncated-text`. Don't fork them for cosmetic tweaks — pass `className` and merge with `cn()` from `lib/utils`.
 
 If a primitive is missing (e.g. a Switch), prefer adding a thin wrapper around the existing Radix package (`radix-ui`, already a dep) over hand-rolling.
 
@@ -407,7 +407,7 @@ Set in `src/components/providers/QueryProvider.tsx`: `staleTime: 5min`, `retry: 
 
 ### Existing primitives to prefer
 
-`src/components/ui/`: Badge, Button, Card, Checkbox, Dialog, DropdownMenu, Input, Label, ModeToggle, PillPopover, Popover, Resizable, SearchInput (with `useSearchShortcut`: `/` focuses it, Escape clears it), Select, Separator, Sheet, Slider, Sonner, Textarea, Tooltip.
+`src/components/ui/`: Badge, Button, Card, Checkbox, Dialog, DropdownMenu, Input, Label, ModeToggle, PillPopover, Popover, Resizable, SearchInput (with `useSearchShortcut`: `/` focuses it, Escape clears it), Select, Separator, Sheet, Slider, Sonner, Textarea, Tooltip, TruncatedText (one line ending in "…", with the whole text in a tooltip while it's cut off).
 
 ### Layout patterns the app uses
 
