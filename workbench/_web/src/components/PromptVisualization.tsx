@@ -1,5 +1,9 @@
-import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useEffect } from "react";
+import { motion, useAnimate } from "motion/react";
+
+/** How long each prediction stays on screen, and its fade out and in. */
+const HOLD_MS = 1200;
+const FADE_S = 0.4;
 
 export default function PromptVisualization() {
     const tokens = [
@@ -25,17 +29,30 @@ export default function PromptVisualization() {
         { text: " Berlin", prob: 0.026 },
     ];
 
-    const [index, setIndex] = useState(0);
+    // The predictions sit stacked in one spot; one sequence fades the shown
+    // one out and the next in, then holds it. A change never starts before
+    // the last one finished, so a busy page only delays the cycle (a timer
+    // could fire twice within one fade, skipping a label mid-animation).
+    const [scope, animate] = useAnimate();
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            setIndex((prev) => (prev + 1) % predictions.length);
-        }, 2000);
-
-        return () => clearInterval(interval);
-    }, []);
-
-    const current = predictions[index];
+        let stopped = false;
+        const hold = () => new Promise((resolve) => setTimeout(resolve, HOLD_MS));
+        const label = (i: number) => `[data-label="${i}"]`;
+        (async () => {
+            for (let i = 0; ; i = (i + 1) % predictions.length) {
+                await hold();
+                if (stopped) return;
+                await animate(label(i), { opacity: 0, y: -12 }, { duration: FADE_S });
+                if (stopped) return;
+                const next = (i + 1) % predictions.length;
+                await animate(label(next), { opacity: [0, 1], y: [12, 0] }, { duration: FADE_S });
+            }
+        })();
+        return () => {
+            stopped = true;
+        };
+    }, [animate, predictions.length]);
 
     const attentions = [0.05, 0.78, 0.56, 0.33, 0.88, 0.44, 0.63, 0.17, 0.08, 0.51, 0.15];
 
@@ -58,22 +75,24 @@ export default function PromptVisualization() {
                 </motion.span>
             ))}
 
-            <div className="relative inline-flex w-[80px] sm:w-[110px] md:w-[140px] align-top">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={current.text}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -12 }}
-                        transition={{ duration: 0.4 }}
+            <div
+                ref={scope}
+                aria-hidden
+                className="relative inline-flex w-[80px] sm:w-[110px] md:w-[140px] align-top"
+            >
+                {predictions.map((prediction, i) => (
+                    <div
+                        key={prediction.text}
+                        data-label={i}
+                        style={{ opacity: i === 0 ? 1 : 0 }}
                         className="absolute top-0 left-0 flex flex-col items-end px-2 pr-2 pb-2 rounded-md text-primary font-semibold whitespace-nowrap"
                     >
-                        <span>{current.text}</span>
+                        <span>{prediction.text}</span>
                         <span className="mt-[1px] translate-x-[4px] text-[0.40em] font-bold text-purple-500 leading-none">
-                            {current.prob}
+                            {prediction.prob}
                         </span>
-                    </motion.div>
-                </AnimatePresence>
+                    </div>
+                ))}
             </div>
         </div>
     );
