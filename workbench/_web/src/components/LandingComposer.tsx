@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, type ElementRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, Sparkles, ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown, CornerDownLeft, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
@@ -14,15 +14,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
 import { newChartPath } from "@/lib/chartRoutes";
-import { Select, SelectTrigger } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
-import { defaultModel } from "@/components/model-selector/status";
 import {
-    ToolPill,
-    WorkspacePill,
-    PILL_TRIGGER as SHARED_PILL_TRIGGER,
-} from "@/components/selectors/LaunchSelectors";
+    defaultModel,
+    deriveHeat,
+    MODEL_STATUS,
+    splitRepo,
+} from "@/components/model-selector/status";
+import { LAUNCH_TRIGGER, ToolPill, WorkspacePill } from "@/components/selectors/LaunchSelectors";
 import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
 import { CwLogoMark } from "@/components/CwLogo";
@@ -39,8 +39,6 @@ import {
 } from "@/lib/toolSupport";
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
-
-const PILL_TRIGGER = SHARED_PILL_TRIGGER;
 
 function ModelPillOrSelect({
     modelsLoading,
@@ -65,42 +63,27 @@ function ModelPillOrSelect({
      * shown disabled with a reason. Null → no restriction. */
     toolType: ToolType | null;
 }) {
-    const triggerClass = PILL_TRIGGER;
-
     if (modelsLoading) {
         return (
-            <div className="spinning-border-wrap">
-                <div className="spinning-border-ring">
-                    <div className="spinning-border-gradient" />
-                </div>
-                <div
-                    className="spinning-border-content"
-                    style={{
-                        background:
-                            "linear-gradient(to right, hsl(var(--primary) / 0.05), rgb(168 85 247 / 0.05)), hsl(var(--card))",
-                    }}
-                >
-                    <Select disabled>
-                        <SelectTrigger
-                            className={`${triggerClass} !border-0 !shadow-none [&_svg]:hidden`}
-                        >
-                            <span>Fetching Models...</span>
-                        </SelectTrigger>
-                    </Select>
-                </div>
-            </div>
+            <Button type="button" variant="outline" size="sm" disabled aria-label="Select model">
+                <Loader2 className="animate-spin text-muted-foreground" />
+                Loading models
+            </Button>
         );
     }
 
     if (modelsError || !hasModels) {
         return (
-            <Select disabled>
-                <SelectTrigger
-                    className={`${triggerClass} !from-red-500/10 !to-red-400/15 !border-red-500/25 text-destructive [&_svg]:hidden`}
-                >
-                    <span>Models Unavailable</span>
-                </SelectTrigger>
-            </Select>
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled
+                aria-label="Select model"
+                className="text-destructive"
+            >
+                Models unavailable
+            </Button>
         );
     }
 
@@ -114,7 +97,6 @@ function ModelPillOrSelect({
 
     return (
         <ModelTriggerPopover
-            triggerClass={triggerClass}
             models={hotModels}
             moreCount={moreCount}
             selectedModel={selectedModel}
@@ -127,12 +109,11 @@ function ModelPillOrSelect({
 }
 
 /**
- * Landing-page model picker: keeps the existing tiny inline-pill trigger
- * but opens the same rich Base/Chat/heat-sorted/searchable Popover used in
- * the workspace `ModelControl`. Single source of truth for the picker UI.
+ * Landing-page model picker: an outline button with the model's status dot
+ * and name, opening the same Base/Chat/heat-sorted Popover used in the
+ * workspace `ModelControl`. Single source of truth for the picker UI.
  */
 function ModelTriggerPopover({
-    triggerClass,
     models,
     moreCount,
     selectedModel,
@@ -141,7 +122,6 @@ function ModelTriggerPopover({
     loggedIn,
     toolType,
 }: {
-    triggerClass: string;
     models: Model[];
     moreCount: number;
     selectedModel: string;
@@ -152,7 +132,7 @@ function ModelTriggerPopover({
 }) {
     const [open, setOpen] = useState(false);
 
-    const display = selectedModel || "Select model...";
+    const model = models.find((m) => m.name === selectedModel);
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -160,10 +140,20 @@ function ModelTriggerPopover({
                 <button
                     type="button"
                     disabled={disabled}
-                    className={cn(triggerClass, "max-w-[16rem]")}
+                    className={LAUNCH_TRIGGER}
                     aria-label="Select model"
+                    title={selectedModel || undefined}
                 >
-                    <span className="truncate">{display}</span>
+                    {model && (
+                        <span
+                            aria-hidden
+                            className="size-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: MODEL_STATUS[deriveHeat(model)].color }}
+                        />
+                    )}
+                    <span className="truncate font-mono text-xs">
+                        {selectedModel ? splitRepo(selectedModel).label : "Select model"}
+                    </span>
                     <ChevronDown className="size-3 opacity-50 shrink-0" />
                 </button>
             </PopoverTrigger>
@@ -189,7 +179,6 @@ function ModelTriggerPopover({
                         setOpen(false);
                     }}
                     showSearch={false}
-                    compact
                     isModelDisabled={
                         toolType ? (m) => !isToolSupportedForModel(toolType, m) : undefined
                     }
@@ -533,178 +522,126 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 <PromptVisualization />
             </motion.div>
 
-            {/* Prompt Input Area */}
+            {/* Composer: one box, the prompt over a toolbar of pickers and Run */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
-                className="relative"
+                // On a phone the example above wraps, and its prediction's
+                // probability hangs below it.
+                className="max-sm:pt-6"
             >
-                <div className="relative bg-card/80 backdrop-blur-sm border border-border rounded-2xl shadow-2xl overflow-hidden">
-                    {/* Subtle gradient border effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-purple-500/20 to-primary/20 opacity-50 blur-xl" />
+                <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+                    <div className="rounded-md border bg-card shadow-lg transition-[border-color,box-shadow] has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 dark:bg-secondary">
+                        {selectedTool !== "Activation Patching" ? (
+                            <Textarea
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Enter a prompt to analyze..."
+                                aria-label="Prompt"
+                                className="min-h-24 resize-none border-0 bg-transparent px-4 pt-4 text-base shadow-none focus-visible:ring-0 dark:bg-transparent md:text-base"
+                                disabled={showCaptcha || isSubmitting}
+                            />
+                        ) : (
+                            <div className="px-4 pt-4">
+                                <ActivationPatchingLandingInput
+                                    srcPrompt={srcPrompt}
+                                    setSrcPrompt={setSrcPrompt}
+                                    tgtPrompt={tgtPrompt}
+                                    setTgtPrompt={setTgtPrompt}
+                                    srcTokens={srcTokens}
+                                    setSrcTokens={setSrcTokens}
+                                    tgtTokens={tgtTokens}
+                                    setTgtTokens={setTgtTokens}
+                                    srcPos={srcPos}
+                                    setSrcPos={setSrcPos}
+                                    tgtPos={tgtPos}
+                                    setTgtPos={setTgtPos}
+                                    tgtFreeze={tgtFreeze}
+                                    setTgtFreeze={setTgtFreeze}
+                                    selectedModel={selectedModel}
+                                    disabled={showCaptcha || isSubmitting}
+                                />
+                            </div>
+                        )}
 
-                    <div className="relative p-6 space-y-4">
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            {selectedTool !== "Activation Patching" ? (
-                                /* Logit Lens / J-Lens - Single prompt input */
-                                <div className="relative">
-                                    <Textarea
-                                        value={prompt}
-                                        onChange={(e) => setPrompt(e.target.value)}
-                                        onKeyDown={handleKeyDown}
-                                        placeholder="Enter a prompt to analyze..."
-                                        className="min-h-[120px] text-lg resize-none bg-background/50 border-border focus:border-primary/50 transition-colors pb-12"
-                                        disabled={showCaptcha || isSubmitting}
-                                    />
-
-                                    {/* Model Selector - Bottom Left */}
-                                    <div className="absolute bottom-3 left-[var(--textarea-padding-x,0.75rem)] flex items-center gap-1.5">
-                                        {isSignedInUser &&
-                                            workspacesList &&
-                                            workspacesList.length > 0 && (
-                                                <WorkspacePill
-                                                    value={selectedWorkspace}
-                                                    onChange={setSelectedWorkspace}
-                                                    disabled={showCaptcha || isSubmitting}
-                                                    workspaces={workspacesList}
-                                                    quietDefault
-                                                />
-                                            )}
-                                        <ToolPill
-                                            value={selectedTool}
-                                            onChange={setSelectedTool}
-                                            disabled={showCaptcha || isSubmitting}
-                                        />
-                                        <ModelPillOrSelect
-                                            modelsLoading={modelsLoading}
-                                            modelsError={modelsError}
-                                            hasModels={hasModels}
-                                            modelsToSelect={modelsToSelect}
-                                            selectedModel={selectedModel}
-                                            onModelChange={setSelectedModel}
-                                            disabled={showCaptcha || isSubmitting}
-                                            loggedIn={loggedIn}
-                                            toolType={toolTypeFromDisplay(selectedTool)}
-                                        />
-                                    </div>
-
-                                    {/* Press Enter hint - Bottom Right */}
-                                    {prompt.trim() && !showCaptcha && (
-                                        <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
-                                            Press Enter to submit
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                /* Activation Patching - Dual prompt inputs with token selection */
-                                <div className="space-y-3">
-                                    <ActivationPatchingLandingInput
-                                        srcPrompt={srcPrompt}
-                                        setSrcPrompt={setSrcPrompt}
-                                        tgtPrompt={tgtPrompt}
-                                        setTgtPrompt={setTgtPrompt}
-                                        srcTokens={srcTokens}
-                                        setSrcTokens={setSrcTokens}
-                                        tgtTokens={tgtTokens}
-                                        setTgtTokens={setTgtTokens}
-                                        srcPos={srcPos}
-                                        setSrcPos={setSrcPos}
-                                        tgtPos={tgtPos}
-                                        setTgtPos={setTgtPos}
-                                        tgtFreeze={tgtFreeze}
-                                        setTgtFreeze={setTgtFreeze}
-                                        selectedModel={selectedModel}
-                                        disabled={showCaptcha || isSubmitting}
-                                    />
-
-                                    {/* Tool and Model Selectors */}
-                                    <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                                        {isSignedInUser &&
-                                            workspacesList &&
-                                            workspacesList.length > 0 && (
-                                                <WorkspacePill
-                                                    value={selectedWorkspace}
-                                                    onChange={setSelectedWorkspace}
-                                                    disabled={showCaptcha || isSubmitting}
-                                                    workspaces={workspacesList}
-                                                    quietDefault
-                                                />
-                                            )}
-                                        <ToolPill
-                                            value={selectedTool}
-                                            onChange={setSelectedTool}
-                                            disabled={showCaptcha || isSubmitting}
-                                        />
-                                        <ModelPillOrSelect
-                                            modelsLoading={modelsLoading}
-                                            modelsError={modelsError}
-                                            hasModels={hasModels}
-                                            modelsToSelect={modelsToSelect}
-                                            selectedModel={selectedModel}
-                                            onModelChange={setSelectedModel}
-                                            disabled={showCaptcha || isSubmitting}
-                                            loggedIn={loggedIn}
-                                            toolType={toolTypeFromDisplay(selectedTool)}
-                                        />
-                                    </div>
-                                </div>
+                        <div className="flex flex-wrap items-center gap-1.5 p-2 pl-3">
+                            <ToolPill
+                                value={selectedTool}
+                                onChange={setSelectedTool}
+                                disabled={showCaptcha || isSubmitting}
+                            />
+                            <ModelPillOrSelect
+                                modelsLoading={modelsLoading}
+                                modelsError={modelsError}
+                                hasModels={hasModels}
+                                modelsToSelect={modelsToSelect}
+                                selectedModel={selectedModel}
+                                onModelChange={setSelectedModel}
+                                disabled={showCaptcha || isSubmitting}
+                                loggedIn={loggedIn}
+                                toolType={toolTypeFromDisplay(selectedTool)}
+                            />
+                            {isSignedInUser && workspacesList && workspacesList.length > 0 && (
+                                <WorkspacePill
+                                    value={selectedWorkspace}
+                                    onChange={setSelectedWorkspace}
+                                    disabled={showCaptcha || isSubmitting}
+                                    workspaces={workspacesList}
+                                    quietDefault
+                                />
                             )}
-
-                            {!showCaptcha ? (
-                                <Button
-                                    type="submit"
-                                    size="lg"
-                                    className="w-full text-base h-12 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-lg shadow-primary/25"
-                                    disabled={
-                                        isSubmitting ||
-                                        !hasModels ||
-                                        (selectedTool === "Activation Patching"
-                                            ? !srcPrompt.trim() ||
-                                              !tgtPrompt.trim() ||
-                                              srcPos.length === 0 ||
-                                              srcPos.length !== tgtPos.length
-                                            : !prompt.trim())
-                                    }
-                                >
-                                    <span>Run</span>
-                                    <ArrowRight className="w-5 h-5" />
-                                </Button>
-                            ) : (
-                                <div className="space-y-3">
-                                    <div className="flex justify-center">
-                                        <HCaptcha
-                                            ref={captchaRef}
-                                            sitekey={
-                                                process.env.NEXT_PUBLIC_HCAPTCHA_SITEKEY as string
-                                            }
-                                            onVerify={handleCaptchaVerify}
-                                        />
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowCaptcha(false);
-                                            captchaRef.current?.resetCaptcha();
-                                            pendingLaunchRef.current = null;
-                                        }}
-                                        variant="outline"
-                                        className="w-full"
-                                    >
-                                        Cancel
-                                    </Button>
-                                </div>
-                            )}
-                        </form>
-
-                        {/* <p className="text-xs text-center text-muted-foreground">
-                            No account needed · Start exploring immediately as a guest
-                        </p> */}
-                        <p className="text-xs text-center text-muted-foreground">
-                            Log in to access all our models and features.
-                        </p>
+                            <Button
+                                type="submit"
+                                size="sm"
+                                className="ml-auto"
+                                disabled={
+                                    showCaptcha ||
+                                    isSubmitting ||
+                                    !hasModels ||
+                                    (selectedTool === "Activation Patching"
+                                        ? !srcPrompt.trim() ||
+                                          !tgtPrompt.trim() ||
+                                          srcPos.length === 0 ||
+                                          srcPos.length !== tgtPos.length
+                                        : !prompt.trim())
+                                }
+                            >
+                                Run
+                                <CornerDownLeft className="size-3.5 opacity-70 max-sm:hidden" />
+                            </Button>
+                        </div>
                     </div>
-                </div>
+
+                    {showCaptcha && (
+                        <div className="flex flex-col items-center gap-2">
+                            <HCaptcha
+                                ref={captchaRef}
+                                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITEKEY as string}
+                                onVerify={handleCaptchaVerify}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    setShowCaptcha(false);
+                                    captchaRef.current?.resetCaptcha();
+                                    pendingLaunchRef.current = null;
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    )}
+                </form>
+
+                {(!loggedIn || currentUser?.is_anonymous) && (
+                    <p className="mt-3 text-center text-xs text-muted-foreground">
+                        Log in to access all our models and features.
+                    </p>
+                )}
             </motion.div>
 
             {/* Feature Pills */}

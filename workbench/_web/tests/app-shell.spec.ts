@@ -466,6 +466,7 @@ test.describe("app shell", () => {
             "page",
         );
 
+        await expect(page.getByRole("button", { name: "Select tool" })).toContainText("Logit Lens");
         await expect(page.getByRole("button", { name: "Select model" })).toContainText("gpt2");
         await expect(page.getByRole("button", { name: "Run", exact: true })).toBeDisabled();
         const promptBox = page.getByPlaceholder("Enter a prompt to analyze...");

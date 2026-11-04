@@ -169,7 +169,6 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
                                 onChange={setTool}
                                 disabled={false}
                                 triggerClassName={NEUTRAL_PILL_TRIGGER}
-                                compact={false}
                                 modal
                             />
                         </div>
@@ -183,7 +182,6 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
                                 disabled={false}
                                 workspaces={workspaces ?? []}
                                 triggerClassName={NEUTRAL_PILL_TRIGGER}
-                                compact={false}
                                 modal
                             />
                         </div>
