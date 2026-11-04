@@ -18,8 +18,8 @@ import type { Model } from "@/types/models";
 
 /**
  * Rich model picker body — search field + heat-sorted Base/Chat groups +
- * arrow-key navigation + bottom-fade overflow signal. Designed to be
- * dropped inside any Popover or floating container.
+ * arrow-key navigation + a bottom fade while rows are below the fold.
+ * Designed to be dropped inside any Popover or floating container.
  *
  * Hosted by:
  * - `ModelControl` (workspace header)
@@ -355,12 +355,17 @@ function Group({
     isDisabled: (model: Model) => boolean;
     disabledReason?: string;
 }) {
-    // Visible row budget — keep the popover compact and signal overflow via
-    // a soft bottom mask when there's more below the fold.
-    const VISIBLE_ROWS = compact ? 4 : 5;
-    const hasOverflow = rows.length > VISIBLE_ROWS;
+    // The list keeps the popover compact and signals rows below the fold with a
+    // soft bottom mask, which goes once it's scrolled to the end.
+    const listRef = React.useRef<HTMLDivElement>(null);
+    const [moreBelow, setMoreBelow] = React.useState(false);
+    const measure = React.useCallback(() => {
+        const list = listRef.current;
+        if (list) setMoreBelow(list.scrollHeight - list.scrollTop - list.clientHeight > 1);
+    }, []);
+    React.useLayoutEffect(measure, [measure, rows.length]);
     const maskFade = compact ? 24 : 36;
-    const fadeMask = hasOverflow
+    const fadeMask = moreBelow
         ? `linear-gradient(to bottom, black 0%, black calc(100% - ${maskFade}px), transparent 100%)`
         : undefined;
 
@@ -392,6 +397,8 @@ function Group({
                 </div>
             )}
             <div
+                ref={listRef}
+                onScroll={measure}
                 className={cn("overflow-y-auto pb-1", compact ? "max-h-[140px]" : "max-h-[180px]")}
                 style={fadeMask ? { maskImage: fadeMask, WebkitMaskImage: fadeMask } : undefined}
             >
