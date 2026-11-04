@@ -13,9 +13,10 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
+import { useLaunchChart } from "@/hooks/useLaunchChart";
 import { useCreateDocument } from "@/lib/api/documentApi";
 import { useCapture } from "@/lib/analytics";
-import { newChartPath, reportPath } from "@/lib/chartRoutes";
+import { reportPath } from "@/lib/chartRoutes";
 import { toolTypes, type ToolType } from "@/types/charts";
 import { cn } from "@/lib/utils";
 import { toolMeta } from "../toolMeta";
@@ -47,9 +48,10 @@ export function useNewItemWorkspace(defaultWorkspaceId: string | undefined) {
 
 /**
  * "New chart": the four tools, plus New report when `reportWorkspaceId` is
- * set. A chart is created by `/new` (which files it and opens it, its prompt
- * focused); a report is created here and opened. Picking either keeps focus
- * from returning to the trigger, so it can land on the page being opened.
+ * set. A chart is launched in place (`useLaunchChart`: its page shows at
+ * once, then opens with its prompt focused); a report is created here and
+ * opened. Picking either keeps focus from returning to the trigger, so it can
+ * land on the page being opened.
  */
 export function NewItemMenu({
     children,
@@ -63,12 +65,13 @@ export function NewItemMenu({
     const router = useRouter();
     const capture = useCapture();
     const createReport = useCreateDocument();
+    const launchChart = useLaunchChart();
     const pickedRef = useRef(false);
 
     const newChart = (tool: ToolType) => {
         pickedRef.current = true;
         capture("chart_created", { tool });
-        router.push(newChartPath(workspaceId ? { tool, workspaceId } : { tool }));
+        launchChart(workspaceId ? { tool, workspaceId } : { tool });
     };
 
     const newReport = () => {

@@ -52,7 +52,8 @@ export function chartLaunchFromSearchParams(
     return request;
 }
 
-const launchTool = (tool: string | undefined): ToolType => {
+/** The tool a launch's `tool` names: a picker display name or a tool type, logit lens otherwise. */
+export const launchTool = (tool: string | undefined): ToolType => {
     if (!tool) return "logit-lens";
     const fromDisplay = toolTypeFromDisplay(tool);
     if (fromDisplay) return fromDisplay;

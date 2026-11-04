@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
 import { hasWorkshopClaim } from "@/lib/workshop";
-import { newChartPath } from "@/lib/chartRoutes";
+import { useLaunchChart } from "@/hooks/useLaunchChart";
 import { useModelDeployment } from "@/stores/useModelDeployment";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import {
@@ -57,6 +57,7 @@ interface ModelLaunchDialogProps {
  */
 export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDialogProps) {
     const router = useRouter();
+    const launchChart = useLaunchChart();
     const startDeployment = useModelDeployment((s) => s.start);
 
     const [user, setUser] = useState<CurrentUser | null>(null);
@@ -133,7 +134,7 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
         if (workspace) params.set("workspaceId", workspace);
 
         onOpenChange(false);
-        router.push(newChartPath(params));
+        launchChart(params);
     };
 
     return (

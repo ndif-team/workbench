@@ -18,7 +18,9 @@ import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 import type { WorkshopParticipant } from "@/lib/workshop";
+import { usePendingChart } from "@/stores/usePendingChart";
 import { AppSidebar } from "./AppSidebar";
+import { PendingChartPage } from "./PendingChartPage";
 import { SidebarResizeHandle } from "./SidebarResizeHandle";
 import { writeSidebarCollapsed, writeSidebarWidth } from "./sidebarCookie";
 
@@ -62,6 +64,9 @@ export function useWorkshopParticipant(): WorkshopParticipant | null {
  *
  * Without a session (`signedIn` false), `/` is the landing page, which the
  * shell renders bare: no sidebar, no page frame.
+ *
+ * While a chart launched in the app is being created, the page area shows
+ * that chart's empty page instead (`ShellPage`).
  *
  * The page's scope reaches the shell only once the page has mounted, so the
  * server-rendered paint of a workshop page can't know it yet; there, CSS
@@ -189,9 +194,33 @@ export function AppShell({
                     </SheetContent>
                 </Sheet>
                 <main id="main" className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                    {children}
+                    <ShellPage>{children}</ShellPage>
                 </main>
             </div>
         </ShellSidebarContext.Provider>
+    );
+}
+
+/**
+ * The shell's page area. While a chart launched from the page is being
+ * created (`usePendingChart`), it shows that chart's empty page
+ * (`PendingChartPage`) in the page's place; the page stays mounted underneath,
+ * so a failed launch returns to it as it was. Any page change ends the
+ * launch, and the next page shows from its first render. It subscribes on
+ * its own so a launch doesn't re-render the sidebar.
+ */
+function ShellPage({ children }: { children: ReactNode }) {
+    const pathname = usePathname();
+    const pending = usePendingChart((s) => s.pending);
+    const pendingChart = pending?.from === pathname ? pending : null;
+    useEffect(() => {
+        usePendingChart.getState().clear();
+    }, [pathname]);
+
+    return (
+        <>
+            {pendingChart && <PendingChartPage request={pendingChart.request} />}
+            <div className={pendingChart ? "hidden" : "contents"}>{children}</div>
+        </>
     );
 }

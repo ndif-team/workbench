@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
 import { newChartPath } from "@/lib/chartRoutes";
+import { useLaunchChart } from "@/hooks/useLaunchChart";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
 import {
@@ -217,7 +218,7 @@ function ModelTriggerPopover({
 /**
  * The landing page's hero and chart composer: a prompt, the tool, model and
  * (for a signed-in user with folders) workspace pickers, and Run, which
- * creates the chart through `/new`. A visitor who isn't signed in passes a
+ * launches the chart (`useLaunchChart`). A visitor who isn't signed in passes a
  * captcha and is signed in anonymously first; a gated model sends them to
  * sign in. The app's Home page renders the same component.
  */
@@ -234,6 +235,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     // the prompt form; null → fall back to building params from the form state.
     const pendingLaunchRef = useRef<string | null>(null);
     const router = useRouter();
+    const launchChart = useLaunchChart();
 
     // Activation patching state
     const [srcPrompt, setSrcPrompt] = useState("");
@@ -410,7 +412,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
 
         // If user is logged in (not anonymous), create the chart directly
         if (loggedIn && currentUser && !currentUser.is_anonymous) {
-            router.push(newChartPath(params));
+            launchChart(params);
         } else {
             // Show captcha for anonymous/non-logged-in users
             setShowCaptcha(true);
@@ -419,7 +421,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
 
     // One-click launch of the new J-Lens tool: pick a J-Lens-supported model
     // (the one already selected if it qualifies, else the best available hot
-    // one), then create an empty J-Lens chart through /new — signing in
+    // one), then launch an empty J-Lens chart (`useLaunchChart`) — signing in
     // anonymously first if the visitor isn't authenticated.
     const handleDiscoverJLens = () => {
         // "Usable" = the current user can actually run it: supports j-lens AND
@@ -449,7 +451,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         }
 
         if (loggedIn && currentUser && !currentUser.is_anonymous) {
-            router.push(newChartPath(params));
+            launchChart(params);
         } else {
             // Anonymous / signed-out — sign in via captcha, then resume here.
             pendingLaunchRef.current = params.toString();

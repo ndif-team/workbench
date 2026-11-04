@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 import { db, clearDatabase } from "../client";
 import { chartConfigLinks, charts, configs, lensRuns, workspaces } from "../schema";
 import { createChartFromLaunch, getMostRecentChartForWorkspace } from "@/lib/queries/chartDb";
-import { getConfigForChart } from "@/lib/queries/chartQueries";
+import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import { createWorkspace, getOrCreateDefaultWorkspace, moveChart } from "@/lib/queries/workspaceDb";
 import type { WorkshopTool } from "@/db/schema";
@@ -44,11 +44,9 @@ describe("createChartFromLaunch", () => {
         });
 
         const def = await getOrCreateDefaultWorkspace(USER);
-        expect(launched).toEqual({
-            chartId: launched.chartId,
-            toolType: "logit-lens",
-            workspaceId: def.id,
-        });
+        expect(launched).toMatchObject({ toolType: "logit-lens", workspaceId: def.id });
+        expect(launched.chart).toEqual((await getChartById(launched.chartId))!);
+        expect(launched.config).toEqual((await getConfigForChart(launched.chartId))!);
         const defaults = await db.select().from(workspaces).where(eq(workspaces.userId, USER));
         expect(defaults.length).toBe(1);
         expect((await getConfigForChart(launched.chartId))!.data).toMatchObject({
@@ -151,7 +149,13 @@ describe("createChartFromLaunch", () => {
 
             const again = await createChartFromLaunch(USER, blank);
 
-            expect(again).toEqual(older);
+            expect(again).toMatchObject({
+                chartId: older.chartId,
+                toolType: older.toolType,
+                workspaceId: older.workspaceId,
+            });
+            expect(again.chart).toEqual((await getChartById(older.chartId))!);
+            expect(again.config).toEqual((await getConfigForChart(older.chartId))!);
             expect(await chartCount()).toBe(2);
             const [reopened] = await db.select().from(charts).where(eq(charts.id, older.chartId));
             const [other] = await db.select().from(charts).where(eq(charts.id, newer.chartId));

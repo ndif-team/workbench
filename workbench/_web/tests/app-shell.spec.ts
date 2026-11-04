@@ -104,13 +104,39 @@ test.describe("app shell", () => {
             timeout: 30_000,
         });
 
+        // Picking the tool again focuses the same chart's prompt once the launch is done.
         await page.getByRole("button", { name: "New chart" }).first().click();
-        await Promise.all([
-            page.waitForURL(/\/new\?/),
-            page.getByRole("menuitem", { name: "Logit Lens" }).click(),
-        ]);
-        await page.waitForURL(/\/logit-lens\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+        await page.getByRole("menuitem", { name: "Logit Lens" }).click();
+        await expect(page.getByPlaceholder("Enter your prompt here...")).toBeFocused({
+            timeout: 30_000,
+        });
         expect(new URL(page.url()).pathname).toBe(`/logit-lens/${chartId}`);
+    });
+
+    test("New chart shows the chart's empty page at once, before the chart is created", async ({
+        page,
+    }) => {
+        await page.goto("/workspaces");
+        let slow = false;
+        await page.route("**/*", async (route) => {
+            const request = route.request();
+            if (slow && request.method() === "POST" && request.headers()["next-action"]) {
+                await new Promise((resolve) => setTimeout(resolve, 2_000));
+            }
+            await route.continue();
+        });
+
+        slow = true;
+        await page.getByRole("button", { name: "New chart" }).first().click();
+        await page.getByRole("menuitem", { name: "Activation Patching" }).click();
+        const pending = page.locator("main [aria-busy='true']");
+        await expect(pending).toBeVisible({ timeout: 1_000 });
+        await expect(pending.getByText("Source Prompt", { exact: true })).toBeVisible();
+        await expect(page).toHaveURL(/\/workspaces$/);
+
+        await page.waitForURL(/\/activation-patching\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+        await expect(pending).toHaveCount(0);
+        await expect(page.getByPlaceholder("Enter source prompt...")).toBeVisible();
     });
 
     test("a chart is renamed from its sidebar row and from the page header", async ({ page }) => {

@@ -166,11 +166,12 @@ export async function createActivationPatchingChartPair(
 /**
  * Creates the chart a `/new` launch asks for, in the signed-in user's default
  * workspace or in `request.workspaceId` when it is one of theirs (a workshop
- * participant: only their workshop workspace), and returns where to open it.
+ * participant: only their workshop workspace), and returns where to open it
+ * with the chart's rows.
  */
 export async function createChartFromLaunch(
     request: ChartLaunchRequest,
-): Promise<{ chartId: string; toolType: ToolType; workspaceId: string }> {
+): Promise<chartDb.LaunchedChart> {
     const { userId, creator } = await chartCreator();
     return chartDb.createChartFromLaunch(userId, request, creator);
 }

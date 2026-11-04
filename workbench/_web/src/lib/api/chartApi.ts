@@ -143,18 +143,28 @@ export const useCreatePatchLensChartPair = () => {
 };
 
 /**
- * Creates the chart a `/new` launch describes (see `createChartFromLaunch`)
- * and refreshes the lists it lands in.
+ * Creates the chart a `/new` launch describes (see `createChartFromLaunch`),
+ * caches its chart and config so its page opens without fetching them, and
+ * marks the lists it lands in as stale. They aren't refetched right away: a
+ * server action that finishes while the chart's page is loading makes Next
+ * load that page a second time. They refetch once the page has opened, when
+ * its header mounts the library.
  */
 export const useCreateChartFromLaunch = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: (request: ChartLaunchRequest) => createChartFromLaunch(request),
-        onSuccess: ({ workspaceId }) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
-            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
+        onSuccess: ({ chartId, chart, config, workspaceId }) => {
+            queryClient.setQueryData(queryKeys.charts.chart(chartId), chart);
+            queryClient.setQueryData(queryKeys.charts.configByChart(chartId), config);
+            for (const queryKey of [
+                queryKeys.workspaces.library,
+                queryKeys.workspaces.all,
+                queryKeys.charts.sidebar(workspaceId),
+            ]) {
+                queryClient.invalidateQueries({ queryKey, refetchType: "none" });
+            }
         },
     });
 };

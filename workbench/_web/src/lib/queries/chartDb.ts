@@ -64,28 +64,39 @@ type ConfigPayload =
  * the end of its workspace. `chartData` seeds the chart row's `data`
  * (patch-lens keeps its prompts there, not on the config). Workshop
  * workspaces only allow their configured tools, enforced here because every
- * chart creation goes through this function.
+ * chart creation goes through this function. Steps that don't depend on each
+ * other run together, so creating a chart takes three database round trips.
  */
 export const createChartConfigPair = async (
     workspaceId: string,
     payload: ConfigPayload,
     chartData?: ChartData,
 ): Promise<{ chart: Chart; config: Config }> => {
-    const workshop = await getWorkshopForWorkspace(workspaceId);
+    const [workshop, position] = await Promise.all([
+        getWorkshopForWorkspace(workspaceId),
+        getNextWorkspaceItemPosition(workspaceId),
+    ]);
     if (workshop && !(workshop.allowedTools as string[]).includes(payload.type)) {
         throw new Error(`This workshop does not allow the "${payload.type}" tool`);
     }
-    const position = await getNextWorkspaceItemPosition(workspaceId);
-    const [newChart] = await db
-        .insert(charts)
-        .values({ workspaceId, position, ...(chartData !== undefined ? { data: chartData } : {}) })
-        .returning();
-    const [newConfig] = await db
-        .insert(configs)
-        .values({ workspaceId, type: payload.type, data: payload.data })
-        .returning();
-    await db.insert(chartConfigLinks).values({ chartId: newChart.id, configId: newConfig.id });
-    await touchWorkspace(workspaceId);
+    const [[newChart], [newConfig]] = await Promise.all([
+        db
+            .insert(charts)
+            .values({
+                workspaceId,
+                position,
+                ...(chartData !== undefined ? { data: chartData } : {}),
+            })
+            .returning(),
+        db
+            .insert(configs)
+            .values({ workspaceId, type: payload.type, data: payload.data })
+            .returning(),
+    ]);
+    await Promise.all([
+        db.insert(chartConfigLinks).values({ chartId: newChart.id, configId: newConfig.id }),
+        touchWorkspace(workspaceId),
+    ]);
     return { chart: newChart as Chart, config: newConfig as Config };
 };
 
@@ -142,14 +153,15 @@ const canonicalJson = (value: unknown): string =>
 /**
  * The newest chart in `workspaceId` that launching `plan` again would only
  * duplicate: still unnamed, never run (no result and no lens runs), and with
- * exactly the config the launch would create. Null when there is none.
+ * exactly the config the launch would create, with that config. Null when
+ * there is none.
  */
 const findUntouchedChart = async (
     workspaceId: string,
     plan: ChartLaunchPlan,
-): Promise<string | null> => {
+): Promise<{ chartId: string; config: Config } | null> => {
     const rows = await db
-        .select({ id: charts.id, configData: configs.data })
+        .select({ id: charts.id, config: configs })
         .from(charts)
         .innerJoin(chartConfigLinks, eq(charts.id, chartConfigLinks.chartId))
         .innerJoin(configs, eq(chartConfigLinks.configId, configs.id))
@@ -169,18 +181,27 @@ const findUntouchedChart = async (
         )
         .orderBy(desc(charts.updatedAt));
     const wanted = canonicalJson(plan.data);
-    return (
-        (rows as { id: string; configData: unknown }[]).find(
-            (row) => canonicalJson(row.configData) === wanted,
-        )?.id ?? null
+    const row = (rows as { id: string; config: Config }[]).find(
+        (r) => canonicalJson(r.config.data) === wanted,
     );
+    return row ? { chartId: row.id, config: row.config } : null;
+};
+
+/** Where a launched chart opens, and its rows, as its page reads them. */
+export type LaunchedChart = {
+    chartId: string;
+    toolType: ToolType;
+    workspaceId: string;
+    chart: Chart;
+    config: Config;
 };
 
 /**
  * Creates the chart a `/new` launch asks for: in `request.workspaceId` when
  * that workspace is the user's, else in their default workspace (created on
  * first use). A workshop participant must name their workshop workspace and
- * one of its tools. Returns where to open it.
+ * one of its tools. Returns where to open it, with the chart and config rows
+ * so its page can open without reading them back.
  *
  * A blank launch into the default workspace (New chart: a tool, no prompt)
  * reopens the newest untouched chart it would duplicate (`findUntouchedChart`)
@@ -190,7 +211,7 @@ export const createChartFromLaunch = async (
     userId: string,
     request: ChartLaunchRequest,
     creator: ChartCreator = {},
-): Promise<{ chartId: string; toolType: ToolType; workspaceId: string }> => {
+): Promise<LaunchedChart> => {
     if (creator.workshopParticipant && !request.workspaceId) throw participantOutsideWorkshop();
     const workspaceId = request.workspaceId
         ? await assertChartWorkspace(userId, request.workspaceId, creator)
@@ -200,15 +221,27 @@ export const createChartFromLaunch = async (
     if (!request.workspaceId && isBlankPlan(plan)) {
         const untouched = await findUntouchedChart(workspaceId, plan);
         if (untouched) {
-            await db.update(charts).set({ updatedAt: new Date() }).where(eq(charts.id, untouched));
-            await touchWorkspace(workspaceId);
-            return { chartId: untouched, toolType: plan.type, workspaceId };
+            const [[chart]] = await Promise.all([
+                db
+                    .update(charts)
+                    .set({ updatedAt: new Date() })
+                    .where(eq(charts.id, untouched.chartId))
+                    .returning(),
+                touchWorkspace(workspaceId),
+            ]);
+            return {
+                chartId: chart.id,
+                toolType: plan.type,
+                workspaceId,
+                chart: withCurrentToolType(chart as Chart),
+                config: withCurrentToolType(untouched.config),
+            };
         }
     }
 
     const chartData = plan.type === "patch-lens" ? plan.chartData : undefined;
-    const { chart } = await createChartConfigPair(workspaceId, plan, chartData);
-    return { chartId: chart.id, toolType: plan.type, workspaceId };
+    const { chart, config } = await createChartConfigPair(workspaceId, plan, chartData);
+    return { chartId: chart.id, toolType: plan.type, workspaceId, chart, config };
 };
 
 /**
