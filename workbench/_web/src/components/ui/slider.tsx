@@ -6,10 +6,9 @@ import { Slider as SliderPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 
 /**
- * A range slider, one thumb per value. The filled part of the track carries
- * the brand gradient, as the models pager's progress bar does; the thumb
- * takes the inputs' focus ring, shows it softly on hover, and grows a little
- * while dragged.
+ * A range slider, one thumb per value. The filled part of the track is the
+ * primary blue; the thumb takes the inputs' focus ring, shows it softly on
+ * hover, and grows a little while dragged.
  */
 const Slider = React.forwardRef<
     React.ElementRef<typeof SliderPrimitive.Root>,
@@ -26,7 +25,7 @@ const Slider = React.forwardRef<
             {...props}
         >
             <SliderPrimitive.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-primary/15">
-                <SliderPrimitive.Range className="absolute h-full rounded-full bg-gradient-to-r from-primary to-purple-600" />
+                <SliderPrimitive.Range className="absolute h-full rounded-full bg-primary" />
             </SliderPrimitive.Track>
             {Array.from({ length: thumbs }, (_, i) => (
                 <SliderPrimitive.Thumb
