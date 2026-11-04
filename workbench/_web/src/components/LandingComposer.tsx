@@ -179,6 +179,7 @@ function ModelTriggerPopover({
                         setOpen(false);
                     }}
                     showSearch={false}
+                    groupTabs
                     isModelDisabled={
                         toolType ? (m) => !isToolSupportedForModel(toolType, m) : undefined
                     }
