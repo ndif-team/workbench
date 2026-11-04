@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Lock, LockOpen } from "lucide-react";
+import { ArrowRight, Lock, LockOpen } from "lucide-react";
 import {
     $getNodeByKey,
     COMMAND_PRIORITY_LOW,
@@ -133,12 +134,6 @@ export function ChartEmbed({
         }
     };
 
-    const openChart = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        window.open(chartPath(chartId, toolType, workspaceId), "_blank", "noopener");
-    };
-
     return (
         <Card
             className={cn(
@@ -215,9 +210,15 @@ export function ChartEmbed({
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2 text-muted-foreground"
-                            onClick={openChart}
+                            asChild
                         >
-                            Open <ExternalLink className="h-3 w-3" />
+                            {/* Opens in place (Cmd/Ctrl-click: a new tab) without selecting the embed. */}
+                            <Link
+                                href={chartPath(chartId, toolType, workspaceId)}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                Open <ArrowRight className="h-3 w-3" />
+                            </Link>
                         </Button>
                     )}
                 </div>
