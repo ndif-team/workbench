@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 
 export default function PromptVisualization() {
     const tokens = [
@@ -46,7 +46,7 @@ export default function PromptVisualization() {
     };
 
     return (
-        <div className="flex items-start justify-center text-sm sm:text-lg md:text-2xl font-mono rounded-2xl px-2 sm:px-4 md:px-8 py-4 md:py-6 backdrop-blur-sm flex-wrap">
+        <div className="flex items-start justify-center text-sm sm:text-lg md:text-2xl font-mono rounded-2xl px-2 sm:px-4 md:px-8 py-4 md:py-6 flex-wrap">
             {tokens.map((token, i) => (
                 <motion.span
                     key={i}
