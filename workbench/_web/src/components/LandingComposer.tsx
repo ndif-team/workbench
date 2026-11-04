@@ -530,9 +530,9 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
-                // On a phone the example above wraps, and its prediction's
-                // probability hangs below it.
-                className="max-sm:pt-6"
+                // Narrower than the hero's column. On a phone the example above
+                // wraps, and its prediction's probability hangs below it.
+                className="mx-auto w-full max-w-3xl max-sm:pt-6"
             >
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                     <div className="rounded-md border bg-card shadow-lg transition-[border-color,box-shadow] has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 dark:bg-secondary">
