@@ -464,13 +464,16 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     };
 
     return (
-        <div className="max-w-4xl mx-auto w-full space-y-0 pb-8">
+        // Fills its page's height and sits above center: of the room left,
+        // one part goes above the hero and three below the composer.
+        <div className="max-w-4xl mx-auto w-full flex flex-1 flex-col pb-8">
+            <div aria-hidden className="flex-1" />
             {/* Hero Section */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-center space-y-4 mb-8 md:mb-16"
+                className="text-center space-y-4"
             >
                 {/* J-Lens announcement — the tool's own icon + its name in
                     the hero gradient. Clicking selects it in the composer. */}
@@ -643,6 +646,8 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                     </p>
                 )}
             </motion.div>
+
+            <div aria-hidden className="flex-[3]" />
 
             {/* Feature Pills */}
             {/* <motion.div
