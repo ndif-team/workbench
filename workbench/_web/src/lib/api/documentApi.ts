@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
     getDocumentById,
     getDocumentsForWorkspace,
@@ -12,13 +13,21 @@ import { deriveReportTitle } from "@/lib/reportTitle";
 import type { WorkspaceLibrary } from "@/types/workspaces";
 import { findLibraryItem } from "./workspaceApi";
 
-export const useGetDocument = (documentId: string) => {
-    return useQuery({
-        queryKey: queryKeys.documents.one(documentId),
-        queryFn: () => getDocumentById(documentId),
-        enabled: !!documentId,
-    });
-};
+const documentQuery = (documentId: string) => ({
+    queryKey: queryKeys.documents.one(documentId),
+    queryFn: () => getDocumentById(documentId),
+    enabled: !!documentId,
+});
+
+export const useGetDocument = (documentId: string) => useQuery(documentQuery(documentId));
+
+/**
+ * A report as its editor opens it: read again each time the editor mounts,
+ * because an editor that started from an older cached copy would save that
+ * copy over the newer one with its first edit.
+ */
+export const useReportForEditor = (documentId: string) =>
+    useQuery({ ...documentQuery(documentId), refetchOnMount: "always" });
 
 export const useGetDocumentsForWorkspace = (workspaceId: string) => {
     return useQuery<DocumentListItem[]>({
@@ -59,12 +68,12 @@ export const useSaveDocument = () => {
         }) => {
             return await updateDocument(documentId, content);
         },
-        // The editor initializes from this cache when the report is next
-        // opened. Put the content being saved there now: the save that runs
-        // as the editor unmounts (leaving the report flushes it) would
-        // otherwise only mark the cache stale, and the reopened report would
-        // start from the copy before the edit, and save it back over the edit.
-        onMutate: ({ documentId, content }) => {
+        // Put the content being saved in the cache now, so the report reads
+        // as edited wherever it shows before the save lands. A fetch of the
+        // report already under way would put the copy from before this save
+        // back over it, so it's cancelled first.
+        onMutate: async ({ documentId, content }) => {
+            await queryClient.cancelQueries({ queryKey: queryKeys.documents.one(documentId) });
             queryClient.setQueryData(
                 queryKeys.documents.one(documentId),
                 (old: Awaited<ReturnType<typeof getDocumentById>> | undefined) =>
@@ -102,6 +111,10 @@ export const useSaveDocument = () => {
         },
         onError: (error) => {
             console.error("Error saving document:", error);
+            toast.error("Couldn't save the report", {
+                id: "report-save",
+                description: "Your next edit tries again. Until then, keep the report open.",
+            });
         },
     });
 };

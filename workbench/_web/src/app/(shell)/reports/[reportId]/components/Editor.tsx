@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
-import { useGetDocument, useSaveDocument } from "@/lib/api/documentApi";
+import { useReportForEditor, useSaveDocument } from "@/lib/api/documentApi";
+import { Button } from "@/components/ui/button";
 
 import { EditorState, SerializedEditorState } from "lexical";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
@@ -24,7 +25,7 @@ import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { ChartEmbedNode } from "./nodes/ChartEmbedNode";
 import { DragDropChartPlugin } from "./plugins/DragDropChartPlugin";
 import { ExportPdfButton } from "./ExportPdfButton";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, TriangleAlert } from "lucide-react";
 import { useDebouncedCallback } from "use-debounce";
 
 const theme = {
@@ -67,11 +68,28 @@ function Placeholder() {
     );
 }
 
+/**
+ * The report editor, which saves 3 s after the last edit (and on leaving the
+ * report). It opens only on a copy of the report read since it mounted, never
+ * on a cached one or on nothing: a failed read shows an error to retry, as an
+ * editor opened empty or on an older copy would save that over the report
+ * with its first edit. A save that fails says so; the next edit saves the
+ * whole report again.
+ */
 export function Editor() {
     const { reportId } = useParams<{ reportId: string }>();
     const workspaceId = useScopedWorkspaceId();
-    const { data: document, isLoading } = useGetDocument(reportId);
+    const report = useReportForEditor(reportId);
     const mutation = useSaveDocument();
+
+    // The saved report the editor starts from; later reads (each save sets one
+    // off) don't reset what's being edited.
+    const [initial, setInitial] = useState<{ content: unknown } | null>(null);
+    if (!initial && report.isFetchedAfterMount && report.isSuccess && report.data) {
+        setInitial({ content: report.data.content });
+    }
+    const loadFailed =
+        !report.isFetching && (report.isError || (report.isFetchedAfterMount && !report.data));
 
     const initialConfig = {
         namespace: "LexicalEditor",
@@ -79,7 +97,7 @@ export function Editor() {
         nodes: [HeadingNode, ListNode, ListItemNode, QuoteNode, CodeNode, LinkNode, ChartEmbedNode],
         // Lexical expects either an EditorState instance or a JSON string here.
         // We store a SerializedEditorState object in the DB, so stringify it for Lexical to parse.
-        editorState: document?.content ? JSON.stringify(document.content) : undefined,
+        editorState: initial?.content ? JSON.stringify(initial.content) : undefined,
         onError: (error: Error) => {
             console.error("Lexical error:", error);
         },
@@ -119,16 +137,21 @@ export function Editor() {
         };
     }, [debouncedSave]);
 
-    useEffect(() => {
-        // When the document changes (route change), flush pending save
-        debouncedSave.flush();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [reportId]);
-
-    if (isLoading) {
+    if (!initial) {
         return (
             <div className="h-full w-full flex items-center justify-center p-4">
-                <div className="text-muted-foreground">Loading document...</div>
+                {loadFailed ? (
+                    <div role="alert" className="flex flex-col items-center gap-3 text-center">
+                        <p className="text-sm text-muted-foreground">
+                            Couldn&apos;t load the report.
+                        </p>
+                        <Button variant="outline" size="sm" onClick={() => report.refetch()}>
+                            Try again
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="text-muted-foreground">Loading document...</div>
+                )}
             </div>
         );
     }
@@ -143,6 +166,11 @@ export function Editor() {
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 <span>Saving</span>
                             </>
+                        ) : mutation.isError ? (
+                            <span className="inline-flex items-center gap-2 text-destructive">
+                                <TriangleAlert className="h-3.5 w-3.5" />
+                                Not saved
+                            </span>
                         ) : (
                             <>
                                 <Check className="h-3.5 w-3.5" />

@@ -10,7 +10,8 @@ import {
 /**
  * E2E for the app shell: Home at `/` and its composer, New chart and `/new`, the global
  * sidebar's item actions (rename, move to a workspace and back, delete), the
- * workspaces pages, and the old `/workbench/…` links.
+ * workspaces pages, the old `/workbench/…` links, and how the report editor
+ * handles a failed load or save.
  *
  * No NDIF and no Python backend: the model list is stubbed with one hot
  * model, and a logit-lens run (a chart opened with a prompt runs itself)
@@ -79,6 +80,21 @@ async function newChart(page: Page, prompt: string): Promise<string> {
     return new URL(page.url()).pathname.split("/")[2];
 }
 
+const reportEditor = (page: Page) => page.locator("main [contenteditable='true']");
+
+/** Opens a new report, types `text` into it and waits for the save; returns the text. */
+async function newReportWithText(page: Page, text: string): Promise<string> {
+    await page.goto("/workspaces");
+    await page.getByRole("button", { name: "New chart" }).first().click();
+    await page.getByRole("menuitem", { name: "New report" }).click();
+    await page.waitForURL(/\/reports\/[0-9a-f-]{36}$/);
+    await reportEditor(page).click();
+    await page.keyboard.type(text);
+    await expect(page.getByText("Saving", { exact: true })).toBeVisible();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 15_000 });
+    return text;
+}
+
 /** Deletes a workspace from its own page; the page then shows all workspaces. */
 async function deleteWorkspace(page: Page, workspaceId: string, name: string) {
     await page.goto(`/workspaces/${workspaceId}`);
@@ -123,7 +139,7 @@ test.describe("app shell", () => {
             if (slow && request.method() === "POST" && request.headers()["next-action"]) {
                 await new Promise((resolve) => setTimeout(resolve, 2_000));
             }
-            await route.continue();
+            await route.fallback();
         });
 
         slow = true;
@@ -234,6 +250,49 @@ test.describe("app shell", () => {
         await expect(crumb).toBeVisible();
 
         await deleteWorkspace(page, workspaceId, workspace);
+    });
+
+    test("a report that fails to load offers to try again instead of opening empty", async ({
+        page,
+    }) => {
+        const text = await newReportWithText(page, unique("Findings"));
+
+        let failing = true;
+        await page.route("**/*", (route) =>
+            failing && route.request().headers()["next-action"]
+                ? route.fulfill({ status: 500, body: "" })
+                : route.fallback(),
+        );
+        await page.reload();
+        await expect(page.getByRole("alert").getByText("Couldn't load the report.")).toBeVisible({
+            timeout: 30_000,
+        });
+        await expect(reportEditor(page)).toHaveCount(0);
+
+        failing = false;
+        await page.getByRole("button", { name: "Try again" }).click();
+        await expect(reportEditor(page)).toContainText(text);
+    });
+
+    test("a report says when a save fails, and saves with the next edit", async ({ page }) => {
+        const text = await newReportWithText(page, unique("Findings"));
+
+        let failing = true;
+        await page.route("**/*", (route) => {
+            const request = route.request();
+            const isSave =
+                !!request.headers()["next-action"] && (request.postData() ?? "").includes('"root"');
+            return failing && isSave ? route.fulfill({ status: 500, body: "" }) : route.fallback();
+        });
+        await page.keyboard.type(" more");
+        await expect(page.getByText("Not saved", { exact: true })).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText("Couldn't save the report")).toBeVisible();
+
+        failing = false;
+        await page.keyboard.type("!");
+        await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 15_000 });
+        await page.reload();
+        await expect(reportEditor(page)).toContainText(`${text} more!`);
     });
 
     test("deleting the chart on screen asks first, then opens another item", async ({ page }) => {
