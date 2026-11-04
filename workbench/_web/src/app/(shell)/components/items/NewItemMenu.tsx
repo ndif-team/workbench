@@ -12,6 +12,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 import { useCreateDocument } from "@/lib/api/documentApi";
 import { useCapture } from "@/lib/analytics";
 import { newChartPath, reportPath } from "@/lib/chartRoutes";
@@ -31,6 +32,17 @@ interface NewItemMenuProps {
     side?: "bottom" | "right";
     align?: "start" | "end";
     contentClassName?: string;
+}
+
+/**
+ * Where the sidebar's New chart and New report file what they create: the
+ * folder of the chart or report on screen, else the default workspace
+ * (`defaultWorkspaceId`, which a report is created in by id).
+ */
+export function useNewItemWorkspace(defaultWorkspaceId: string | undefined) {
+    const scope = useWorkspaceScope();
+    const folderId = scope && !scope.isDefault ? scope.workspaceId : undefined;
+    return { workspaceId: folderId, reportWorkspaceId: folderId ?? defaultWorkspaceId };
 }
 
 /**

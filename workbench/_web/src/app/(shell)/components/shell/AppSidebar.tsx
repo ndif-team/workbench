@@ -13,7 +13,7 @@ import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider
 import { useWorkspaceLibrary } from "@/lib/api/workspaceApi";
 import { cn } from "@/lib/utils";
 import ChartCardsSidebar from "../ChartCardsSidebar";
-import { NewItemMenu } from "../items/NewItemMenu";
+import { NewItemMenu, useNewItemWorkspace } from "../items/NewItemMenu";
 import { useShellSidebar, useWorkshopParticipant } from "./AppShell";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { SidebarFooter } from "./SidebarFooter";
@@ -191,13 +191,11 @@ function RailButton({
 function LibraryRail({ pending }: { pending: boolean }) {
     const pathname = usePathname();
     const { data: library } = useWorkspaceLibrary({ enabled: !pending });
+    const newItemWorkspace = useNewItemWorkspace(library?.defaultWorkspaceId ?? undefined);
     return (
         <div className="flex flex-1 flex-col items-center gap-1">
             <Tooltip>
-                <NewItemMenu
-                    reportWorkspaceId={library?.defaultWorkspaceId ?? undefined}
-                    side="right"
-                >
+                <NewItemMenu {...newItemWorkspace} side="right">
                     <TooltipTrigger asChild>
                         <Button
                             variant="outline"

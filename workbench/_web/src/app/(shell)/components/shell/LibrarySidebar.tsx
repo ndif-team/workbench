@@ -12,7 +12,7 @@ import { workspacePath } from "@/lib/chartRoutes";
 import { useSidebarFolders } from "@/stores/useSidebarFolders";
 import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
 import { ItemActionsMenu, useMoveItem } from "../items/ItemActionsMenu";
-import { NewItemMenu } from "../items/NewItemMenu";
+import { NewItemMenu, useNewItemWorkspace } from "../items/NewItemMenu";
 import { WorkspaceActionsMenu } from "../items/WorkspaceActions";
 import { chartName, itemIcon, itemLabel, itemPath } from "../items/itemLabel";
 import { recencyGroup } from "../items/formatUpdated";
@@ -46,7 +46,8 @@ const groupByRecency = (items: LibraryItem[]) => {
 };
 
 /**
- * The global sidebar's body (expanded and in the mobile drawer): New chart,
+ * The global sidebar's body (expanded and in the mobile drawer): New chart
+ * (filed in the folder of the chart or report on screen, if it's in one),
  * the Home, Models and Workspaces pages, the workspace folders with their items,
  * and the charts and reports that aren't in a folder, newest first. While
  * `pending` (the page's workspace isn't known yet) it doesn't read the
@@ -67,6 +68,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const activeItemId = params.chartId ?? params.reportId ?? null;
 
     const { data: library, isLoading, isError } = useWorkspaceLibrary({ enabled: !pending });
+    const newItemWorkspace = useNewItemWorkspace(library?.defaultWorkspaceId ?? undefined);
     const expanded = useSidebarFolders((s) => s.expanded);
     const toggleFolder = useSidebarFolders((s) => s.toggle);
     const expandFolder = useSidebarFolders((s) => s.expand);
@@ -209,7 +211,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
         <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex flex-col gap-0.5 px-2 pb-2">
                 <NewItemMenu
-                    reportWorkspaceId={library?.defaultWorkspaceId ?? undefined}
+                    {...newItemWorkspace}
                     contentClassName="w-[var(--radix-dropdown-menu-trigger-width)]"
                 >
                     <Button variant="outline" className="mb-1.5 w-full justify-start gap-2 px-2">

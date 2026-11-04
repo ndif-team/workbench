@@ -167,6 +167,49 @@ test.describe("app shell", () => {
         await deleteWorkspace(page, workspaceId, workspace);
     });
 
+    test("New chart and New report from a chart in a workspace file the new item there", async ({
+        page,
+    }) => {
+        const workspace = unique("Induction heads");
+        await page.goto("/workspaces");
+        await header(page).getByRole("button", { name: "New workspace" }).click();
+        await page
+            .getByRole("dialog", { name: "New workspace" })
+            .getByLabel("Name")
+            .fill(workspace);
+        await page.getByRole("button", { name: "Create workspace" }).click();
+        await page.waitForURL(/\/workspaces\/[0-9a-f-]{36}$/);
+        const workspaceId = new URL(page.url()).pathname.split("/")[2];
+        await page.goto(`/new?tool=logit-lens&workspaceId=${workspaceId}`);
+        await page.waitForURL(/\/logit-lens\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+        const firstId = new URL(page.url()).pathname.split("/")[2];
+        const crumb = page
+            .getByRole("navigation", { name: "Breadcrumb" })
+            .getByRole("link", { name: workspace });
+        await expect(crumb).toBeVisible();
+        // A blank chart focuses its prompt once loaded, which would close a menu opened before.
+        const prompt = page.getByPlaceholder("Enter your prompt here...");
+        await expect(prompt).toBeFocused({ timeout: 30_000 });
+
+        await page.getByRole("button", { name: "New chart" }).first().click();
+        await page.getByRole("menuitem", { name: "Logit Lens" }).click();
+        await page.waitForURL(
+            (url) =>
+                /^\/logit-lens\/[0-9a-f-]{36}$/.test(url.pathname) &&
+                !url.pathname.endsWith(firstId),
+            { timeout: 60_000 },
+        );
+        await expect(crumb).toBeVisible();
+        await expect(prompt).toBeFocused({ timeout: 30_000 });
+
+        await page.getByRole("button", { name: "New chart" }).first().click();
+        await page.getByRole("menuitem", { name: "New report" }).click();
+        await page.waitForURL(/\/reports\/[0-9a-f-]{36}$/);
+        await expect(crumb).toBeVisible();
+
+        await deleteWorkspace(page, workspaceId, workspace);
+    });
+
     test("deleting the chart on screen asks first, then opens another item", async ({ page }) => {
         const keptId = await newChart(page, unique("Two plus two is"));
         const goneId = await newChart(page, unique("The opposite of hot is"));
