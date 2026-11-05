@@ -46,7 +46,7 @@ The backend speaks `nnsight` to either NDIF (remote model deployments) or local 
 | Database | Drizzle ORM 0.44 with **two backends** chosen at runtime by `NEXT_PUBLIC_LOCAL_DB`: <br>• Postgres via `postgres-js` (Supabase) <br>• SQLite via `better-sqlite3` (local dev) or `bun:sqlite` (under bun test) |
 | Auth | Supabase SSR (`@supabase/ssr`); short-circuited to a stub user when `NEXT_PUBLIC_DISABLE_AUTH=true` |
 | Backend | FastAPI on Python 3.12, nnsight ≥0.8.1 + nnterp (git, pulled in by nnsightful) + transformers ≥5.11, deployed via Docker / Modal |
-| Telemetry | InfluxDB client; PostHog on the frontend |
+| Telemetry | PostHog: product analytics and error tracking, client (`posthog-js`) and server (`posthog-node`); see §7. InfluxDB client in the backend (off) |
 | Toasts | `sonner` |
 | Testing | `bun:test` for DB integration and unit tests (`src/**/__tests__`); Playwright for e2e (`tests/`) |
 
@@ -92,6 +92,7 @@ workbench/                          # repo root
     ├── package.json
     ├── next.config.js              # transpiles nnsightful + edulogitlens; turbopack root expanded for the symlink
     ├── middleware.ts               # next middleware → updateSession (Supabase cookie refresh)
+    ├── instrumentation.ts          # onRequestError: server errors → PostHog (with the request's PostHog id)
     ├── tailwind.config.ts          # tokens (radius, primary, etc.) — see globals.css
     ├── drizzle.config.ts           # picks pg or sqlite by NEXT_PUBLIC_LOCAL_DB
     ├── components.json             # shadcn config
@@ -111,6 +112,7 @@ workbench/                          # repo root
         │   ├── workbench/page.tsx  # the old Home URL: redirects to / (old launch params → /new)
         │   ├── workbench/[workspaceId]/page.tsx   # "open workspace": its most recent chart, or a new one
         │   └── (shell)/            # route group; layout.tsx is the app shell (persists across pages)
+        │       ├── error.tsx       # in-shell error state (sidebar kept); reports the exception
         │       ├── page.tsx        # `/`: the landing page without a session (shown without the shell),
         │       │                   #   else Home: the landing page's composer (LandingComposer)
         │       ├── components/     # UI shared by the routes below
@@ -177,6 +179,11 @@ workbench/                          # repo root
         │   ├── config.ts           # backendUrl + ndifUrl + endpoint paths
         │   ├── runAndStream.ts     # SSE client for the nnsightful tool routes
         │   ├── startAndPoll.ts     # NDIF job polling (causal mediation)
+        │   ├── ndifJob.ts          # NDIFJob: follows one NDIF job's statuses, timed into a run's JobSink
+        │   ├── ndifError.ts        # NDIFJobError: a failed job's Python exception, parsed from its traceback
+        │   ├── analytics.ts        # PostHog event names, useCapture, useTrackRun (run lifecycle)
+        │   ├── errorTracking.ts    # captureError: handled failures → PostHog error tracking
+        │   ├── errorRedaction.ts   # cuts a failed query's bound values out of reported errors
         │   ├── chartRoutes.ts      # chart tool type ↔ its page route (unknown/retired types → workspace root)
         │   ├── toolSupport.ts      # which tools a model supports (j-lens needs `has_jacobian`)
         │   ├── utils.ts            # cn(), resolveThemeCssVars()
@@ -186,7 +193,7 @@ workbench/                          # repo root
         │   ├── auth/user.ts        # requireUser/requireUserId, workshop participant redirect
         │   ├── auth/admin.ts       # ADMIN_EMAILS allowlist, requireAdmin()
         │   ├── supabase/           # client.ts, server.ts, middleware.ts, admin.ts
-        │   └── posthog-server.ts
+        │   └── posthog-server.ts   # PostHogServer: server-side events and exceptions, sent before returning
         │
         ├── actions/                # SERVER actions used as RPCs from the client
         │   ├── auth.ts             # createUserHeadersAction → { "X-User-Email": ... }; magic-link sign-in
@@ -385,7 +392,16 @@ export const useFoo = () =>
 
 A polled route swaps the `runAndStream` call for `startAndPoll<T>(start, body, results, headers)` (see `usePatchLensIntervention` in `src/lib/api/patchLensApi.ts`).
 
-**Where errors are surfaced**: shared mutations toast via `sonner` in `onError`. If a feature renders its own inline error UI, **export the bare async function** alongside the mutation hook so the feature can call it without the toast — see `runPatchLensLogitLens` next to `usePatchLensLogitLens` in `src/lib/api/patchLensApi.ts`. Don't fork the mutation.
+**Where errors are surfaced**: shared mutations toast via `sonner` in `onError`; a run's toast goes through `runErrorMessage(error, copy)` (`src/lib/ndifError.ts`), which gives advice for a known Python exception (a CUDA out-of-memory) and names any other. If a feature renders its own inline error UI, **export the bare async function** alongside the mutation hook so the feature can call it without the toast — see `runPatchLensLogitLens` next to `usePatchLensLogitLens` in `src/lib/api/patchLensApi.ts`. Don't fork the mutation.
+
+### Analytics and error tracking (PostHog)
+
+- **Event names** live only in `src/lib/analytics.ts` (`AnalyticsEvent`). Emit with `useCapture()`, which adds `workspace_id` (from the workspace scope), the route's `chart_id` / `report_id`, and the workshop context (`mode`, `workshop_id`, `tutorial_id`); outside React, `captureEvent`. An event about an item passes that item's ids, and then gets none of the route's (a report deleted from the sidebar on a chart page carries no `chart_id`).
+- **Emit once per completed action, from the mutation hook that performs it**, in its `useMutation`-level `onSuccess`, so every surface offering the action counts the same and the event survives the component unmounting (per-call `mutate(…, { onSuccess })` callbacks don't). Read what the event needs from the cache in `onMutate`, before the mutation changes it (`ItemAnalytics` in `src/lib/api/workspaceApi.ts`). A launch carries its surface as `chart_created`'s `origin` (`ChartOrigins` in `src/lib/chartLaunch.ts`; `/new` links carry `origin=`).
+- **Runs** are tracked only by `useTrackRun()` inside a run mutation's `mutationFn`: `run_submitted`, then `run_completed` / `run_failed`, sharing a `run_id`, with `duration_ms`, the NDIF job ids and queue and job times (a `JobSink` handed to `runAndStream` / `startAndPoll`), and the exception class as `error_type`. Components never emit run events.
+- **Never send user-authored text**: no prompts (send `prompt_length`), no chart, report or workspace names (send `name_length`), no report content, no request paths (`/new?prompt=…`), no Prolific IDs. posthog-js's own URL properties lose their query strings before sending (`EventUrls` in `app/provider.tsx`), and reported errors lose a failed query's bound values (`ErrorRedaction` in `src/lib/errorRedaction.ts`). A server error message must not echo user input, since server errors are reported too.
+- **Errors**: posthog-js captures uncaught errors and unhandled rejections; `app/(shell)/error.tsx` and `app/global-error.tsx` capture what reaches a boundary; `QueryProvider`'s caches capture every failed mutation, and a failed query that has no data to show; `instrumentation.ts` (`onRequestError`) captures server errors with the request's PostHog id and `digest`. A run mutation sets `meta: { reportedAs: "run" }`, since `run_failed` already reports it. Elsewhere, a `catch` that recovers from a real failure (a toast, an inline message) and isn't a mutation calls `captureError(error, { source })` (`src/lib/errorTracking.ts`), which skips cancellations and reports each error once.
+- **Server-side events and handled server errors** go through `PostHogServer.capture` / `captureException` inside `after()` (`next/server`), so the response doesn't wait on PostHog while the event still gets sent before the function ends. Request APIs (`headers()`) can't be read inside `after()` in a server component, so read the distinct id first (`PostHogServer.distinctIdFor`).
 
 ### Query keys
 
@@ -615,7 +631,7 @@ The contract between workbench and nnsightful is: **workbench wires tools to UI;
   ```
   status  an NDIF status update (nnsight's ResponseModel without `data`)
   data    the tool's data; ends the stream
-  error   {"error": "..."}; ends the stream
+  error   {"error": "...", "type": "<Python exception class>"}; ends the stream
   ```
   When `state.remote=True` the tool runs with `ExecMode.REMOTE_ASYNC`, and each update of its `AsyncToolBackend` becomes a `status` event; a `: keepalive` comment goes out every 15 s while waiting so proxies don't close the connection. A local run is a single `data` event. Once streaming, failures are `error` events, not HTTP statuses.
 - **Frontend**: `lib/runAndStream.ts` POSTs, parses the event stream, mirrors `status` into `useWorkspace.jobStatus` (the job badge in the header's model pill, `ModelControl.tsx`), and resolves with the `data` payload as a single `Promise<T>`. `lib/api/*.ts` wraps it per tool. Components consume the resulting `data` directly via the nnsightful widget.
@@ -624,7 +640,7 @@ The contract between workbench and nnsightful is: **workbench wires tools to UI;
 
 1. **One streamed request per run.** The status updates and the result arrive over a single connection that lives as long as the run; a reload loses a run in progress (there is no job id to rejoin). The stream carries status, not partial results — don't add a "streaming results" label/UI.
 2. **Result shape is dictated by `to_data_obj(...)`.** `LogitLensData` and `ActivationPatchingData` are the contract. Don't hand-massage these in workbench code; if the shape needs to change, it changes in nnsightful first and workbench updates its imports.
-3. **Errors arrive as `error` events.** An NDIF `ERROR` status, a failed submit, or a tool error becomes an `error` event, and `runAndStream` throws its message — error UX flows from there (toast + inline). Only failures before the stream opens (e.g. an unknown model) are HTTP errors.
+3. **Errors arrive as `error` events.** An NDIF `ERROR` status, a failed submit, or a tool error becomes an `error` event, and `runAndStream` throws an `NDIFJobError` carrying the Python exception (from the failed status's traceback, or the event's message and `type`) and the job id — error UX flows from there (toast via `runErrorMessage` + inline). Only failures before the stream opens (e.g. an unknown model) are HTTP errors, thrown as plain `Error`s.
 4. **Widgets are self-contained.** `LogitLensWidget` and `ActivationPatchingWidget` render their full UI given `data` and a small UI-state prop. Workbench supplies theme via `next-themes` (`useTheme().resolvedTheme`) and lets the widget handle internal interactions.
 5. **viz/charts.js path is stable.** `actions/notebook.ts` reads `node_modules/nnsightful/src/nnsightful/viz/charts.js` directly. If nnsightful restructures its viz folder, this path needs updating in `notebook.ts` AND in `next.config.js`'s `outputFileTracingIncludes`.
 
@@ -656,4 +672,4 @@ Manual recipe summary (skill has the full version):
 - **Migration folders** (`pg-migrations/`, `sqlite-migrations/`): gitignored, so there is no committed migration history. If they get committed, document where to find it and how to reset.
 - **Chart export** (`ChartExportMenu`, in the chart's page header beside its actions menu, once it has a result): every chart nnsightful draws (logit lens, j-lens, activation patching) exports as a PNG, snapshotted from its saved view in the current theme without the layer navigator; only activation patching exports a notebook today (`notebook-templates/activation-patching.ipynb`); `actions/notebook.ts` could justify a sub-section if more tools acquire export support.
 - **Modal deployment**: `modal/` (`image.py`, `gpu_image.py`) and `make modal` aren't documented here; document them if they become a hot path for contributors.
-- **Telemetry**: InfluxDB telemetry in `_api/telemetry.py` is currently off (`TelemetryClient.init` is commented out in `state.py`, so `log_request` is a no-op) and not exercised in the frontend; document it if it's re-enabled or frontend telemetry is added.
+- **Backend telemetry**: InfluxDB telemetry in `_api/telemetry.py` is currently off (`TelemetryClient.init` is commented out in `state.py`, so `log_request` is a no-op); document it if it's re-enabled. Frontend analytics and error tracking are PostHog (§7).
