@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { after } from "next/server";
+import { PostHogServer } from "@/lib/posthog-server";
 import { hasWorkshopClaim, workshopEmailFor } from "@/lib/workshop";
 
 /**
@@ -64,6 +66,7 @@ async function getCurrentUserEmailAction(): Promise<string | null> {
         return "guest@localhost";
     } catch (error) {
         console.warn("Server: Failed to get user email:", error);
+        after(() => PostHogServer.captureException(error, undefined, { source: "user_headers" }));
         return null;
     }
 }

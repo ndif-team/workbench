@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 // The client you created from the Server-Side Auth instructions
 import { createClient } from "@/lib/supabase/server";
+import { PostHogServer } from "@/lib/posthog-server";
 
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url);
@@ -27,6 +28,12 @@ export async function GET(request: Request) {
                 return NextResponse.redirect(`${origin}${next}`);
             }
         }
+        const distinctId = PostHogServer.distinctIdFromCookies(
+            request.headers.get("cookie") ?? undefined,
+        );
+        after(() =>
+            PostHogServer.captureException(error, distinctId, { source: "oauth_callback" }),
+        );
     }
 
     // return the user to an error page with instructions
