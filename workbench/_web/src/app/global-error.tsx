@@ -1,21 +1,17 @@
 "use client"; // Error boundaries must be Client Components
 
-import posthog from "posthog-js";
 import NextError from "next/error";
 import { useEffect } from "react";
+import { captureError } from "@/lib/errorTracking";
 
-export default function GlobalError({
-    error,
-    reset,
-}: {
-    error: Error & { digest?: string };
-    reset: () => void;
-}) {
+/**
+ * The last-resort boundary, replacing the whole document: for errors in the
+ * root layout and the shell's layout, and on pages outside the shell (admin,
+ * sign-in, workshop joins). Shell pages have their own (`(shell)/error.tsx`).
+ */
+export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
     useEffect(() => {
-        // Only capture exception if PostHog is initialized
-        if (posthog.__loaded) {
-            posthog.captureException(error);
-        }
+        captureError(error, { source: "error_boundary", boundary: "global", digest: error.digest });
     }, [error]);
 
     return (

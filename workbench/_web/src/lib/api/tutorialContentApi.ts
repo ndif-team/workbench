@@ -37,6 +37,7 @@ export const useTutorials = () =>
 export const useCreateTutorial = () => {
     const queryClient = useQueryClient();
     return useMutation({
+        mutationKey: ["createTutorial"],
         mutationFn: (input: Omit<TutorialInput, "createdBy">) => createTutorial(input),
         onError: () => toast.error("Failed to create tutorial"),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.tutorials.all }),
@@ -46,6 +47,7 @@ export const useCreateTutorial = () => {
 export const useUpdateTutorial = () => {
     const queryClient = useQueryClient();
     return useMutation({
+        mutationKey: ["updateTutorial"],
         mutationFn: ({
             id,
             updates,
@@ -66,6 +68,7 @@ export const useUpdateTutorial = () => {
 export const useDeleteTutorial = () => {
     const queryClient = useQueryClient();
     return useMutation({
+        mutationKey: ["deleteTutorial"],
         mutationFn: (id: string) => deleteTutorial(id),
         onError: () => toast.error("Failed to delete tutorial"),
         onSuccess: () => {
@@ -83,6 +86,7 @@ export const useDeleteTutorial = () => {
 export const useEnsureSeedTutorial = () => {
     const queryClient = useQueryClient();
     return useMutation({
+        mutationKey: ["ensureSeedTutorial"],
         mutationFn: () => ensureSeedTutorial(),
         onError: () => toast.error("Failed to seed demo tutorial"),
         onSuccess: () => {

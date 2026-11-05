@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { joinWorkshopAction } from "@/actions/workshop";
+import { captureError } from "@/lib/errorTracking";
 import type { ProlificParams } from "@/lib/prolific";
 
 /**
@@ -46,6 +47,7 @@ export function WorkshopJoin({
                 }
                 setError(result.error);
             } catch (err) {
+                captureError(err, { source: "workshop_join" });
                 setError(err instanceof Error ? err.message : "Failed to join workshop");
             }
         },

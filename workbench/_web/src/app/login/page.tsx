@@ -9,6 +9,7 @@ import { LoginFrame } from "./LoginFrame";
 import styles from "./login.module.css";
 import { ArrowRight, HatGlasses } from "lucide-react";
 import { savePendingRequest } from "@/lib/pendingRequest";
+import { captureError } from "@/lib/errorTracking";
 import { MODEL_STATUS } from "@/components/model-selector/status";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +75,7 @@ function LoginContent() {
 
         if (error) {
             console.error("OAuth error:", error);
+            captureError(error, { source: "oauth_sign_in", provider: "github" });
         } else {
             console.log("OAuth initiated, redirect URL:", data?.url);
         }
@@ -92,6 +94,7 @@ function LoginContent() {
 
         if (error) {
             console.error("OAuth error:", error);
+            captureError(error, { source: "oauth_sign_in", provider: "google" });
         } else {
             console.log("OAuth initiated, redirect URL:", data?.url);
         }
@@ -110,6 +113,7 @@ function LoginContent() {
             });
             if (error) {
                 console.error("Anonymous sign-in error:", error);
+                captureError(error, { source: "anonymous_sign_in" });
                 setShowCaptcha(false);
                 captchaRef.current?.resetCaptcha();
             } else {
@@ -117,6 +121,7 @@ function LoginContent() {
             }
         } catch (err) {
             console.error("Anonymous sign-in error:", err);
+            captureError(err, { source: "anonymous_sign_in" });
             setShowCaptcha(false);
             captchaRef.current?.resetCaptcha();
         }

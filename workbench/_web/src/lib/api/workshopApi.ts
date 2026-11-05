@@ -42,6 +42,7 @@ export const useWorkshopAnalytics = (workshopId: string | undefined) =>
 export const useCreateWorkshop = () => {
     const queryClient = useQueryClient();
     return useMutation({
+        mutationKey: ["createWorkshop"],
         mutationFn: (input: Omit<WorkshopInput, "createdBy">) => createWorkshop(input),
         onError: () => toast.error("Failed to create workshop"),
         onSuccess: () => {
@@ -53,6 +54,7 @@ export const useCreateWorkshop = () => {
 export const useUpdateWorkshop = () => {
     const queryClient = useQueryClient();
     return useMutation({
+        mutationKey: ["updateWorkshop"],
         mutationFn: ({
             id,
             updates,
@@ -73,6 +75,7 @@ export const useUpdateWorkshop = () => {
 export const useDeleteWorkshop = () => {
     const queryClient = useQueryClient();
     return useMutation({
+        mutationKey: ["deleteWorkshop"],
         mutationFn: (id: string) => deleteWorkshop(id),
         onError: () => toast.error("Failed to delete workshop"),
         onSuccess: () => {
