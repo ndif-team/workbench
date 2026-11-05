@@ -1,6 +1,9 @@
-import type { ReactNode } from "react";
+"use client";
+
+import type { MouseEvent, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CwLogo } from "@/components/CwLogo";
 import styles from "./login.module.css";
 
@@ -8,12 +11,42 @@ import styles from "./login.module.css";
  * Keep the artwork and page geometry stable while sign-in options load. The
  * signal-focus rings are drawn over the artwork in its own 1536 × 1024
  * coordinates, so they have to move with the image if it is replaced.
+ *
+ * The logo goes back to the previous page when that page is one of the app's
+ * (the Navigation API's `canGoBack` only counts same-origin entries). Arriving
+ * from another site, from a fresh tab, or in a browser without the Navigation
+ * API, it follows its href home instead. Modified clicks keep the link's
+ * default, so it still opens home in a new tab.
  */
 export function LoginFrame({ children }: { children: ReactNode }) {
+    const router = useRouter();
+
+    const handleBack = (event: MouseEvent<HTMLAnchorElement>) => {
+        if (
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+        ) {
+            return;
+        }
+        const { navigation } = window as Window & { navigation?: { canGoBack: boolean } };
+        if (!navigation?.canGoBack) return;
+        event.preventDefault();
+        router.back();
+    };
+
     return (
         <main className={styles.page}>
             <header className={styles.header}>
-                <Link href="/" className={styles.brand} aria-label="Workbench home">
+                <Link
+                    href="/"
+                    onClick={handleBack}
+                    className={styles.brand}
+                    aria-label="Back"
+                    title="Back"
+                >
                     <CwLogo cell={7} wordmark />
                 </Link>
             </header>
