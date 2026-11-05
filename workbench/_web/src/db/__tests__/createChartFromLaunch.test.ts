@@ -44,7 +44,11 @@ describe("createChartFromLaunch", () => {
         });
 
         const def = await getOrCreateDefaultWorkspace(USER);
-        expect(launched).toMatchObject({ toolType: "logit-lens", workspaceId: def.id });
+        expect(launched).toMatchObject({
+            toolType: "logit-lens",
+            workspaceId: def.id,
+            reused: false,
+        });
         expect(launched.chart).toEqual((await getChartById(launched.chartId))!);
         expect(launched.config).toEqual((await getConfigForChart(launched.chartId))!);
         const defaults = await db.select().from(workspaces).where(eq(workspaces.userId, USER));
@@ -149,10 +153,12 @@ describe("createChartFromLaunch", () => {
 
             const again = await createChartFromLaunch(USER, blank);
 
+            expect(older.reused).toBe(false);
             expect(again).toMatchObject({
                 chartId: older.chartId,
                 toolType: older.toolType,
                 workspaceId: older.workspaceId,
+                reused: true,
             });
             expect(again.chart).toEqual((await getChartById(older.chartId))!);
             expect(again.config).toEqual((await getConfigForChart(older.chartId))!);
@@ -187,6 +193,12 @@ describe("createChartFromLaunch", () => {
             expect([named.chartId, run.chartId, edited.chartId, filed.chartId]).not.toContain(
                 fresh.chartId,
             );
+            expect([run, edited, filed, fresh].map((l) => l.reused)).toEqual([
+                false,
+                false,
+                false,
+                false,
+            ]);
             expect(await chartCount()).toBe(5);
         });
 
@@ -203,6 +215,7 @@ describe("createChartFromLaunch", () => {
             const again = await createChartFromLaunch(USER, { tool: "patch-lens" });
 
             expect(again.chartId).not.toBe(patch.chartId);
+            expect(again.reused).toBe(false);
         });
 
         it("only reuses for blank launches into the default workspace", async () => {
@@ -223,9 +236,11 @@ describe("createChartFromLaunch", () => {
                 (l) => l.chartId,
             );
             expect(new Set(ids).size).toBe(5);
-            expect((await createChartFromLaunch(USER, { ...blank, model: "gpt2" })).chartId).toBe(
-                otherModel.chartId,
-            );
+            expect(againInFolder.reused).toBe(false);
+            expect(await createChartFromLaunch(USER, { ...blank, model: "gpt2" })).toMatchObject({
+                chartId: otherModel.chartId,
+                reused: true,
+            });
         });
     });
 });

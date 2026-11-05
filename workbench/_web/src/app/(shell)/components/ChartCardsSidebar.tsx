@@ -76,12 +76,12 @@ export default function ChartCardsSidebar({
     // Workshop workspaces only offer the tools their workshop allows.
     const { data: workshop } = useWorkspaceWorkshop(workspaceId);
 
-    const { mutate: createLogitLensPair, isPending: isCreatingLogitLens } =
+    const { mutateAsync: createLogitLensPair, isPending: isCreatingLogitLens } =
         useCreateLogitLensChartPair();
-    const { mutate: createJLensPair, isPending: isCreatingJLens } = useCreateJLensChartPair();
-    const { mutate: createPatchLensPair, isPending: isCreatingPatchLens } =
+    const { mutateAsync: createJLensPair, isPending: isCreatingJLens } = useCreateJLensChartPair();
+    const { mutateAsync: createPatchLensPair, isPending: isCreatingPatchLens } =
         useCreatePatchLensChartPair();
-    const { mutate: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
+    const { mutateAsync: createActivationPatchingPair, isPending: isCreatingActivationPatching } =
         useCreateActivationPatchingChartPair();
     const { mutate: deleteChart } = useDeleteChart();
     const { mutate: createDocument, isPending: isCreatingDocument } = useCreateDocument();
@@ -169,43 +169,35 @@ export default function ChartCardsSidebar({
         router.push(reportPath(documentId));
     };
 
+    /**
+     * Creates a blank chart of `toolType` and opens it. `chart_created` follows
+     * the creation's promise, which settles even if the sidebar unmounts first
+     * and drops the per-call `onSuccess` that opens it.
+     */
     const handleCreate = (toolType: ToolType) => {
         // Guard against stale UI / programmatic calls; the buttons below are
         // already filtered. createChartConfigPair re-checks server-side.
         if (workshop && !workshop.allowedTools.includes(toolType as WorkshopTool)) return;
-        capture("chart_created", { tool: toolType });
-        if (toolType === "logit-lens") {
-            createLogitLensPair(
-                { workspaceId: workspaceId },
-                {
-                    onSuccess: ({ chart }) => navigateToChart(chart.id, "logit-lens"),
-                },
-            );
-            return;
-        }
-        if (toolType === "jlens") {
-            createJLensPair(
-                { workspaceId: workspaceId },
-                {
-                    onSuccess: ({ chart }) => navigateToChart(chart.id, "jlens"),
-                },
-            );
-            return;
-        }
-        if (toolType === "patch-lens") {
-            createPatchLensPair(
-                { workspaceId: workspaceId },
-                {
-                    onSuccess: ({ chart }) => navigateToChart(chart.id, "patch-lens"),
-                },
-            );
-            return;
-        }
-        createActivationPatchingPair(
-            { workspaceId: workspaceId },
-            {
-                onSuccess: ({ chart }) => navigateToChart(chart.id, "activation-patching"),
-            },
+        const create = {
+            "logit-lens": createLogitLensPair,
+            jlens: createJLensPair,
+            "patch-lens": createPatchLensPair,
+            "activation-patching": createActivationPatchingPair,
+        }[toolType];
+        create(
+            { workspaceId },
+            { onSuccess: ({ chart }) => navigateToChart(chart.id, toolType) },
+        ).then(
+            ({ chart }) =>
+                capture("chart_created", {
+                    tool: toolType,
+                    origin: "workshop_sidebar",
+                    reused: false,
+                    has_prompt: false,
+                    chart_id: chart.id,
+                    workspace_id: workspaceId,
+                }),
+            () => {}, // reported by the mutation's error handling
         );
     };
 

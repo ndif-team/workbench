@@ -71,7 +71,7 @@ const validWorkspaceName = (name: string): string => {
  */
 const assertWorkspaceNameFree = async (userId: string, name: string, exceptId?: string) => {
     const [taken] = await db
-        .select({ name: workspaces.name })
+        .select({ id: workspaces.id })
         .from(workspaces)
         .where(
             and(
@@ -82,7 +82,7 @@ const assertWorkspaceNameFree = async (userId: string, name: string, exceptId?: 
             ),
         )
         .limit(1);
-    if (taken) throw new Error(`A workspace named "${taken.name}" already exists`);
+    if (taken) throw new Error("A workspace with that name already exists");
 };
 
 /** A workspace by id; null when there is none (or the id isn't a UUID, as from a mistyped URL). */

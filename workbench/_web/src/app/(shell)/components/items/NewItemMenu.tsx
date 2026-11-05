@@ -15,7 +15,7 @@ import {
 import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 import { useLaunchChart } from "@/hooks/useLaunchChart";
 import { useCreateDocument } from "@/lib/api/documentApi";
-import { useCapture } from "@/lib/analytics";
+import type { ChartOrigin } from "@/lib/chartLaunch";
 import { reportPath } from "@/lib/chartRoutes";
 import { toolTypes, type ToolType } from "@/types/charts";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,8 @@ interface NewItemMenuProps {
     reportWorkspaceId?: string;
     /** Limits the tools offered (a workshop's allowed tools). */
     tools?: readonly ToolType[];
+    /** The surface the menu is on, reported as a new chart's `origin`. */
+    origin?: ChartOrigin;
     side?: "bottom" | "right";
     align?: "start" | "end";
     contentClassName?: string;
@@ -58,20 +60,21 @@ export function NewItemMenu({
     workspaceId,
     reportWorkspaceId,
     tools = toolTypes,
+    origin = "sidebar",
     side = "bottom",
     align = "start",
     contentClassName,
 }: NewItemMenuProps) {
     const router = useRouter();
-    const capture = useCapture();
-    const createReport = useCreateDocument();
+    const createReport = useCreateDocument(
+        origin === "workspace_page" ? "workspace_page" : "sidebar",
+    );
     const launchChart = useLaunchChart();
     const pickedRef = useRef(false);
 
     const newChart = (tool: ToolType) => {
         pickedRef.current = true;
-        capture("chart_created", { tool });
-        launchChart(workspaceId ? { tool, workspaceId } : { tool });
+        launchChart(workspaceId ? { tool, workspaceId } : { tool }, origin);
     };
 
     const newReport = () => {

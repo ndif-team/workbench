@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
 import { useReportForEditor, useSaveDocument } from "@/lib/api/documentApi";
+import { captureError } from "@/lib/errorTracking";
 import { Button } from "@/components/ui/button";
 
 import { EditorState, SerializedEditorState } from "lexical";
@@ -100,6 +101,7 @@ export function Editor() {
         editorState: initial?.content ? JSON.stringify(initial.content) : undefined,
         onError: (error: Error) => {
             console.error("Lexical error:", error);
+            captureError(error, { source: "report_editor" });
         },
     };
 
@@ -116,6 +118,7 @@ export function Editor() {
                 setIsQueuedToSave(false);
             } catch (error) {
                 console.error("Failed to serialize editor state:", error);
+                captureError(error, { source: "report_autosave" });
             }
         },
         3000,

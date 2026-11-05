@@ -99,7 +99,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
         draggedChart && !folder.isWorkshop && draggedChart.workspaceId !== folder.id
             ? () => {
                   const from = folders.find((w) => w.id === draggedChart.workspaceId) ?? null;
-                  moveItem(draggedChart, folder, from);
+                  moveItem(draggedChart, folder, from, "drag");
                   expandFolder(folder.id);
                   setDraggedChartId(null);
               }
@@ -336,7 +336,11 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                 )}
             </nav>
 
-            <CreateWorkspaceDialog open={creatingWorkspace} onOpenChange={setCreatingWorkspace} />
+            <CreateWorkspaceDialog
+                open={creatingWorkspace}
+                onOpenChange={setCreatingWorkspace}
+                origin="sidebar"
+            />
         </div>
     );
 }

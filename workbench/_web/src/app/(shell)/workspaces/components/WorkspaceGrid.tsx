@@ -2,6 +2,7 @@
 
 import { useCallback, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useDebouncedCallback } from "use-debounce";
 import {
     ChartColumn,
     ChevronRight,
@@ -19,6 +20,7 @@ import {
     useWorkspaceLibrary,
     workspaceNameError,
 } from "@/lib/api/workspaceApi";
+import { useCapture } from "@/lib/analytics";
 import { workspacePath } from "@/lib/chartRoutes";
 import { cn } from "@/lib/utils";
 import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
@@ -36,7 +38,9 @@ import { searchWorkspaces } from "./workspaceSearch";
  * All workspaces (folders), most recent first: one card each with the
  * folder's cover, its chart and report counts and when it last changed. The
  * search box keeps the folders whose name, or one of whose charts or
- * reports, holds the query; a card found by its items unfolds to those.
+ * reports, holds the query; a card found by its items unfolds to those. A
+ * search is reported once typing pauses, as its length and what it found,
+ * never its text.
  */
 export function WorkspaceGrid() {
     const { data: library, isLoading } = useWorkspaceLibrary();
@@ -53,12 +57,27 @@ export function WorkspaceGrid() {
     );
     const matches = useMemo(() => searchWorkspaces(workspaces, query), [workspaces, query]);
     const searching = query.trim() !== "";
+    const capture = useCapture();
+    const captureSearch = useDebouncedCallback((typed: string) => {
+        const needle = typed.trim();
+        if (!needle) return;
+        const found = searchWorkspaces(workspaces, needle);
+        capture("searched", {
+            surface: "workspaces",
+            query_length: needle.length,
+            result_count: found.length,
+            item_result_count: found.reduce((n, m) => n + m.items.length, 0),
+        });
+    }, 1000);
     const search = (props: { className: string; ref?: typeof searchRef }) =>
         workspaces.length > 0 && (
             <SearchInput
                 {...props}
                 value={query}
-                onValueChange={setQuery}
+                onValueChange={(typed) => {
+                    setQuery(typed);
+                    captureSearch(typed);
+                }}
                 placeholder="search"
                 aria-label="Search workspaces, charts and reports"
             />
@@ -118,7 +137,11 @@ export function WorkspaceGrid() {
                     </ul>
                 )}
             </div>
-            <CreateWorkspaceDialog open={creating} onOpenChange={setCreating} />
+            <CreateWorkspaceDialog
+                open={creating}
+                onOpenChange={setCreating}
+                origin="workspaces_page"
+            />
         </div>
     );
 }

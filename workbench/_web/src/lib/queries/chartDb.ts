@@ -187,13 +187,18 @@ const findUntouchedChart = async (
     return row ? { chartId: row.id, config: row.config } : null;
 };
 
-/** Where a launched chart opens, and its rows, as its page reads them. */
+/**
+ * Where a launched chart opens, and its rows, as its page reads them.
+ * `reused` is set when a blank launch reopened an untouched chart rather than
+ * adding one.
+ */
 export type LaunchedChart = {
     chartId: string;
     toolType: ToolType;
     workspaceId: string;
     chart: Chart;
     config: Config;
+    reused: boolean;
 };
 
 /**
@@ -235,13 +240,14 @@ export const createChartFromLaunch = async (
                 workspaceId,
                 chart: withCurrentToolType(chart as Chart),
                 config: withCurrentToolType(untouched.config),
+                reused: true,
             };
         }
     }
 
     const chartData = plan.type === "patch-lens" ? plan.chartData : undefined;
     const { chart, config } = await createChartConfigPair(workspaceId, plan, chartData);
-    return { chartId: chart.id, toolType: plan.type, workspaceId, chart, config };
+    return { chartId: chart.id, toolType: plan.type, workspaceId, chart, config, reused: false };
 };
 
 /**
