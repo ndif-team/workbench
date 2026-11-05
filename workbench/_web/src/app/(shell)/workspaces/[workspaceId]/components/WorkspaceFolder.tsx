@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCapture } from "@/lib/analytics";
 import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useCreateDocument } from "@/lib/api/documentApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
@@ -76,13 +77,19 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
     const { mutate: renameWorkspace } = useRenameWorkspace();
     const { mutate: renameChart } = useUpdateChartName();
     const { mutate: reorderItems } = useReorderWorkspaceItems();
-    const createReport = useCreateDocument();
+    const createReport = useCreateDocument("workspace_page");
+    const capture = useCapture();
     const { view: savedView, setView } = useWorkspaceView();
     // The saved view is read from localStorage, so the server and the first
     // client render both draw the default.
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
     const view = mounted ? savedView : "grid";
+    const changeView = (next: WorkspaceView) => {
+        if (next === view) return;
+        setView(next);
+        capture("workspace_view_changed", { workspace_id: workspaceId, view: next });
+    };
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -188,11 +195,16 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                         <>
                             {contents && (
                                 <>
-                                    <ViewToggle view={view} onChange={setView} />
+                                    <ViewToggle view={view} onChange={changeView} />
                                     <Separator orientation="vertical" className="mx-1 h-5" />
                                 </>
                             )}
-                            <NewItemMenu workspaceId={workspaceId} tools={tools} align="end">
+                            <NewItemMenu
+                                workspaceId={workspaceId}
+                                tools={tools}
+                                align="end"
+                                origin="workspace_page"
+                            >
                                 <Button variant="outline" size="sm" aria-label="New chart">
                                     <Plus />
                                     <span className="hidden sm:inline">New chart</span>
@@ -397,7 +409,7 @@ function EmptyFolder({
                 <p className="text-sm text-muted-foreground">{EMPTY_WORKSPACE_TEXT}</p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
-                <NewItemMenu workspaceId={folder.id} tools={tools}>
+                <NewItemMenu workspaceId={folder.id} tools={tools} origin="workspace_page">
                     <Button variant="outline" size="sm">
                         <Plus />
                         New chart

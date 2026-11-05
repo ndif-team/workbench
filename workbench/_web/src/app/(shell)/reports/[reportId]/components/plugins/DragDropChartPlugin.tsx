@@ -3,6 +3,9 @@
 import { useEffect, type RefObject } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $getRoot, type LexicalEditor } from "lexical";
+import { useParams } from "next/navigation";
+import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
+import { normalizeTool, useCapture } from "@/lib/analytics";
 import { $createChartEmbedNode, $hoistChartEmbed, ChartEmbedNode } from "../nodes/ChartEmbedNode";
 
 // MIME type must match what the sidebar's ChartCard sets
@@ -42,6 +45,7 @@ function dropIndex(editor: LexicalEditor, clientY: number): { index: number; y: 
  * Drop a chart from the sidebar anywhere over the editor's scroll area to
  * embed it as a block between the nearest blocks, with an insertion line
  * while dragging. Also keeps embeds top-level (see `$hoistChartEmbed`).
+ * Only a drop counts as `chart_embedded`, not the embeds a report loads with.
  */
 export function DragDropChartPlugin({
     dropZoneRef,
@@ -49,6 +53,9 @@ export function DragDropChartPlugin({
     dropZoneRef: RefObject<HTMLElement | null>;
 }) {
     const [editor] = useLexicalComposerContext();
+    const capture = useCapture();
+    const { reportId } = useParams<{ reportId: string }>();
+    const workspaceId = useScopedWorkspaceId();
 
     useEffect(() => editor.registerNodeTransform(ChartEmbedNode, $hoistChartEmbed), [editor]);
 
@@ -58,19 +65,33 @@ export function DragDropChartPlugin({
         let detach = () => {};
         const unregister = editor.registerRootListener((rootElem) => {
             detach();
-            detach = rootElem ? attach(editor, zone, rootElem) : () => {};
+            detach = rootElem
+                ? attach(editor, zone, rootElem, (payload) =>
+                      capture("chart_embedded", {
+                          chart_id: payload.chartId,
+                          report_id: reportId,
+                          workspace_id: workspaceId,
+                          tool: normalizeTool(payload.chartType),
+                      }),
+                  )
+                : () => {};
         });
         return () => {
             unregister();
             detach();
         };
-    }, [editor, dropZoneRef]);
+    }, [editor, dropZoneRef, capture, reportId, workspaceId]);
 
     return null;
 }
 
 /** Wire the drop zone's listeners and insertion line; returns the cleanup. */
-function attach(editor: LexicalEditor, zone: HTMLElement, rootElem: HTMLElement): () => void {
+function attach(
+    editor: LexicalEditor,
+    zone: HTMLElement,
+    rootElem: HTMLElement,
+    onEmbed: (payload: ChartPayload) => void,
+): () => void {
     // The line is positioned within the text column's relative wrapper.
     const column = (rootElem.closest(".relative") as HTMLElement | null) ?? rootElem;
 
@@ -113,6 +134,7 @@ function attach(editor: LexicalEditor, zone: HTMLElement, rootElem: HTMLElement)
             if (before) before.insertBefore(embed);
             else $getRoot().append(embed);
         });
+        onEmbed(payload);
     };
     const onDragLeave = (e: DragEvent) => {
         if (!zone.contains(e.relatedTarget as Node | null)) hide();

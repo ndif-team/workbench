@@ -4,6 +4,9 @@ import { toast } from "sonner";
 
 import type { DeploymentPhase, DeploymentState } from "@/types/deployment";
 import { submitWarmup, pollUntilDeployed, DeploymentError } from "@/lib/api/deployApi";
+import { captureEvent } from "@/lib/analytics";
+import { captureError } from "@/lib/errorTracking";
+import { errorTypeOf } from "@/lib/ndifError";
 
 /** Deploy toasts read a touch lighter than the default — a translucent popover
  * surface with a subtle blur instead of a fully opaque panel. The blur earns
@@ -31,6 +34,11 @@ const DEPLOY_TOAST_STYLE: CSSProperties = {
  * `useModelsQuery` reads this store and overrides the catalog status of a
  * "ready" model to "hot", since neither our backend nor NDIF can be forced to
  * bust their heat caches on demand.
+ *
+ * Each warmup attempt reports `model_warmup_started`, then
+ * `model_warmup_completed` or `model_warmup_failed` with its `duration_ms`
+ * (a failure also goes to error tracking). They're emitted here, where the
+ * warmup lives, so every surface that starts or retries one is counted.
  */
 
 interface ModelDeploymentStore {
@@ -58,13 +66,18 @@ export const useModelDeployment = create<ModelDeploymentStore>()((set, get) => {
             };
         });
 
-    const run = async (model: string) => {
+    const run = async (model: string, retry: boolean) => {
         setPhase(model, { phase: "submitting", error: undefined, jobId: undefined });
+        const startedAt = Date.now();
+        const outcome = () => ({ model, duration_ms: Date.now() - startedAt });
+        let jobId: string | null = null;
+        captureEvent("model_warmup_started", { model, retry });
         try {
-            const jobId = await submitWarmup(model);
+            jobId = await submitWarmup(model);
             if (!jobId) {
                 // Local backend (or non-remote): the model is effectively
                 // available immediately.
+                captureEvent("model_warmup_completed", outcome());
                 setPhase(model, { phase: "ready" });
                 toast.success(`${model.split("/").pop()} is now available`, {
                     style: DEPLOY_TOAST_STYLE,
@@ -73,6 +86,7 @@ export const useModelDeployment = create<ModelDeploymentStore>()((set, get) => {
             }
             setPhase(model, { phase: "deploying", jobId });
             await pollUntilDeployed(jobId);
+            captureEvent("model_warmup_completed", { ...outcome(), ndif_job_id: jobId });
             setPhase(model, { phase: "ready" });
             toast.success(`${model.split("/").pop()} is now available`, {
                 description: "The model is deployed and ready to run.",
@@ -80,6 +94,13 @@ export const useModelDeployment = create<ModelDeploymentStore>()((set, get) => {
             });
         } catch (e) {
             const message = e instanceof DeploymentError ? e.message : "Deployment failed";
+            captureEvent("model_warmup_failed", {
+                ...outcome(),
+                error_type: errorTypeOf(e),
+                error: message,
+                ndif_job_id: jobId ?? undefined,
+            });
+            captureError(e, { source: "model_warmup", model });
             setPhase(model, { phase: "error", error: message });
             toast.error(`Couldn't deploy ${model.split("/").pop()}`, {
                 description: message,
@@ -97,9 +118,9 @@ export const useModelDeployment = create<ModelDeploymentStore>()((set, get) => {
             if (current === "submitting" || current === "deploying" || current === "ready") {
                 return;
             }
-            void run(model);
+            void run(model, false);
         },
-        retry: (model) => void run(model),
+        retry: (model) => void run(model, true),
         statusOf: (model) => get().deployments[model],
         phaseOf: (model) => get().deployments[model]?.phase ?? "idle",
     };

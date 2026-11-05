@@ -19,6 +19,8 @@ import { createClient } from "@/lib/supabase/client";
 import { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
 import { hasWorkshopClaim } from "@/lib/workshop";
 import { useLaunchChart } from "@/hooks/useLaunchChart";
+import { useCapture } from "@/lib/analytics";
+import { launchTool } from "@/lib/chartLaunch";
 import { useModelDeployment } from "@/stores/useModelDeployment";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import {
@@ -54,11 +56,17 @@ interface ModelLaunchDialogProps {
  * the deploying state until it's hot. In "launch" mode the model is already
  * deployed, so it skips the warmup entirely and the chart opens ready to run.
  * Both create an empty chart (no prompt) of the chosen tool.
+ *
+ * A pick is captured as `model_launch` before the sign-in gate, so an attempt
+ * the gate turned away still counts (`signed_in: false`). The chart it opens
+ * never runs by itself, so this may be the only record that the model was
+ * wanted; `deploy` says whether it was cold and a warmup started.
  */
 export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDialogProps) {
     const router = useRouter();
     const launchChart = useLaunchChart();
     const startDeployment = useModelDeployment((s) => s.start);
+    const capture = useCapture();
 
     const [user, setUser] = useState<CurrentUser | null>(null);
     const [tool, setTool] = useState("Logit Lens");
@@ -108,15 +116,20 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
     };
 
     const handleSubmit = () => {
-        if (!model) return;
+        if (!model || !fullModelName) return;
+        capture("model_launch", {
+            model: fullModelName,
+            tool: launchTool(tool),
+            deploy: isDeploy,
+            model_heat: modelObj?.status ?? model.heat,
+            gated: modelObj ? modelObj.gated && !modelObj.allowed : model.heat === "gated",
+            signed_in: isSignedIn,
+            workspace: workspace ? "folder" : "default",
+        });
         if (!isSignedIn) {
             goSignIn();
             return;
         }
-
-        // ModelCardModel.name is the org-stripped label; the backend catalog
-        // is keyed by the full repo id, so reconstruct it for the request.
-        const fullModelName = model.org ? `${model.org}/${model.name}` : model.name;
 
         // Deploy mode only: begin the warmup now so it survives navigation (the
         // store polls independently of the route). The chart's deploying panel
@@ -134,7 +147,7 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
         if (workspace) params.set("workspaceId", workspace);
 
         onOpenChange(false);
-        launchChart(params);
+        launchChart(params, "model_launch");
     };
 
     return (
@@ -208,7 +221,7 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
                             {isDeploy ? "Deploy + New Chart" : "New"}
                         </Button>
                     ) : (
-                        <Button type="button" onClick={goSignIn}>
+                        <Button type="button" onClick={handleSubmit}>
                             {isDeploy ? "Sign in to deploy" : "Sign in to continue"}
                         </Button>
                     )}

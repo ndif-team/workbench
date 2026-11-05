@@ -21,7 +21,10 @@ import { createUserHeadersAction } from "@/actions/auth";
 const DEPLOY_POLL_TIMEOUT_MS = 20 * 60 * 1000;
 const DEPLOY_POLL_INTERVAL_MS = 2000;
 
-export class DeploymentError extends Error {}
+/** A warmup that failed in a way the UI explains; its message is app copy, never user text. */
+export class DeploymentError extends Error {
+    name = "DeploymentError";
+}
 
 /** Fire the warmup request. Returns the NDIF job id (remote) or null (local,
  * where the model is effectively already available). */

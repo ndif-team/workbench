@@ -13,12 +13,15 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { normalizeTool, useCapture } from "@/lib/analytics";
+import { captureError } from "@/lib/errorTracking";
 import { chartFigure, chartPrompt } from "@/lib/report/chartFigure";
 import { chartLabel } from "./items/itemLabel";
 import { toolMeta } from "./toolMeta";
 
 type ChartRow = { name?: string | null; type?: string | null; data?: unknown };
 type ConfigRow = { type?: string | null; data?: unknown };
+type ExportFormat = keyof typeof ChartExport.FORMATS;
 
 /** A chart's exports, and saving them as files. */
 class ChartExport {
@@ -31,6 +34,11 @@ class ChartExport {
     static readonly SCALE = 2;
     /** Tools with a notebook template (`src/notebook-templates`). */
     static readonly NOTEBOOK_TOOLS = new Set(["activation-patching"]);
+    /** Each export's file extension, and how its failure names it. */
+    static readonly FORMATS = {
+        png: { extension: "png", what: "image" },
+        notebook: { extension: "ipynb", what: "notebook" },
+    } as const;
 
     /** The chart as a PNG: its saved view in the current theme, drawn as a
      *  report draws it, without the logit lens's layer navigator. */
@@ -104,15 +112,20 @@ interface ChartExportMenuProps {
  */
 export function ChartExportMenu({ chart, config, darkMode, workspaceName }: ChartExportMenuProps) {
     const [exporting, setExporting] = useState(false);
+    const capture = useCapture();
     const notebookConfig =
         config && ChartExport.NOTEBOOK_TOOLS.has(config.type ?? "") ? config : null;
 
-    const run = async (make: () => Promise<Blob>, extension: string, what: string) => {
+    const run = async (format: ExportFormat, make: () => Promise<Blob>) => {
+        const { extension, what } = ChartExport.FORMATS[format];
+        const tool = normalizeTool(config?.type ?? chart.type);
         setExporting(true);
         try {
             ChartExport.save(await make(), ChartExport.fileName(chart, config, extension));
+            capture("chart_exported", { tool, format });
         } catch (error) {
             console.error(`Failed to export the ${what}:`, error);
+            captureError(error, { source: "chart_export", tool, format });
             toast.error(`Failed to export the ${what}.`);
         } finally {
             setExporting(false);
@@ -130,9 +143,7 @@ export function ChartExportMenu({ chart, config, darkMode, workspaceName }: Char
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem
-                    onSelect={() =>
-                        run(() => ChartExport.image(chart, config, darkMode), "png", "image")
-                    }
+                    onSelect={() => run("png", () => ChartExport.image(chart, config, darkMode))}
                 >
                     <ImageDown className="text-muted-foreground" />
                     Image (.png)
@@ -140,10 +151,8 @@ export function ChartExportMenu({ chart, config, darkMode, workspaceName }: Char
                 {notebookConfig && (
                     <DropdownMenuItem
                         onSelect={() =>
-                            run(
-                                () => ChartExport.notebook(chart, notebookConfig, workspaceName),
-                                "ipynb",
-                                "notebook",
+                            run("notebook", () =>
+                                ChartExport.notebook(chart, notebookConfig, workspaceName),
                             )
                         }
                     >

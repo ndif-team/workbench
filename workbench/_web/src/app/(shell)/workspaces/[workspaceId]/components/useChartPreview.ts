@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { snapshotChart, type ChartSnapshot, type ChartSnapshotSpec } from "nnsightful";
 
 import { useIsDark } from "@/hooks/useIsDark";
+import { captureError } from "@/lib/errorTracking";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { chartFigure, type ChartFigureGap, withoutLinePlot } from "@/lib/report/chartFigure";
@@ -116,7 +117,11 @@ export function useChartPreview(chartId: string, enabled: boolean): ChartPreview
 
     const imageQuery = useQuery({
         queryKey: queryKeys.charts.preview(chartId, version, darkMode),
-        queryFn: () => PreviewQueue.draw(spec!, darkMode),
+        queryFn: () =>
+            PreviewQueue.draw(spec!, darkMode).catch((error) => {
+                captureError(error, { source: "chart_preview", chart_id: chartId });
+                throw error;
+            }),
         enabled: !!spec,
         staleTime: Infinity,
         gcTime: 30 * 60_000,

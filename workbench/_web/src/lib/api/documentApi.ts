@@ -8,10 +8,11 @@ import {
 import { updateDocument, deleteDocument } from "@/lib/queries/documentQueries";
 import { SerializedEditorState } from "lexical";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
+import { useCapture } from "@/lib/analytics";
 import { queryKeys } from "@/lib/queryKeys";
 import { deriveReportTitle } from "@/lib/reportTitle";
 import type { WorkspaceLibrary } from "@/types/workspaces";
-import { findLibraryItem } from "./workspaceApi";
+import { findLibraryItem, ItemAnalytics } from "./workspaceApi";
 
 const documentQuery = (documentId: string) => ({
     queryKey: queryKeys.documents.one(documentId),
@@ -57,6 +58,7 @@ export const useSaveDocument = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
+        mutationKey: ["saveDocument"],
         mutationFn: async ({
             workspaceId,
             documentId,
@@ -119,14 +121,21 @@ export const useSaveDocument = () => {
     });
 };
 
-export const useCreateDocument = () => {
+/** Where a report was created from; the workshop sidebar counts as the sidebar. */
+type ReportOrigin = "sidebar" | "workspace_page";
+
+/** Creates a report in a workspace; `origin` says which surface offered it. */
+export const useCreateDocument = (origin: ReportOrigin = "sidebar") => {
     const queryClient = useQueryClient();
+    const capture = useCapture();
 
     return useMutation({
+        mutationKey: ["createDocument"],
         mutationFn: async (workspaceId: string) => {
             return await createDocument(workspaceId);
         },
-        onSuccess: (_, workspaceId) => {
+        onSuccess: (report, workspaceId) => {
+            capture("report_created", { report_id: report.id, workspace_id: workspaceId, origin });
             queryClient.invalidateQueries({
                 queryKey: queryKeys.documents.byWorkspace(workspaceId),
             });
@@ -138,9 +147,12 @@ export const useCreateDocument = () => {
     });
 };
 
+/** Deletes a report; `had_text` on `report_deleted` tells a written report from a blank one. */
 export const useDeleteDocument = () => {
     const queryClient = useQueryClient();
+    const capture = useCapture();
     return useMutation({
+        mutationKey: ["deleteDocument"],
         mutationFn: async ({
             workspaceId,
             documentId,
@@ -150,7 +162,13 @@ export const useDeleteDocument = () => {
         }) => {
             await deleteDocument(documentId);
         },
-        onSuccess: (_, variables) => {
+        onMutate: ({ documentId }) => ItemAnalytics.report(queryClient, documentId),
+        onSuccess: (_, variables, report) => {
+            capture("report_deleted", {
+                report_id: variables.documentId,
+                workspace_id: variables.workspaceId,
+                had_text: report.had_text,
+            });
             queryClient.invalidateQueries({
                 queryKey: queryKeys.documents.byWorkspace(variables.workspaceId),
             });

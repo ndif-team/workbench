@@ -20,6 +20,7 @@ import {
     useCreateWorkspace,
     useWorkspaceLibrary,
     workspaceNameError,
+    type WorkspaceOrigin,
 } from "@/lib/api/workspaceApi";
 import { workspacePath } from "@/lib/chartRoutes";
 import type { Workspace } from "@/db/schema";
@@ -33,6 +34,8 @@ interface CreateWorkspaceDialogProps {
     onCreated?: (workspace: Workspace) => void;
     /** The dialog's primary button label. */
     submitLabel?: string;
+    /** The surface that opened it, reported on `workspace_created`. */
+    origin: WorkspaceOrigin;
 }
 
 /**
@@ -46,6 +49,7 @@ export function CreateWorkspaceDialog({
     onOpenChange,
     onCreated,
     submitLabel = "Create workspace",
+    origin,
 }: CreateWorkspaceDialogProps) {
     const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
     const open = controlledOpen ?? uncontrolledOpen;
@@ -67,7 +71,7 @@ export function CreateWorkspaceDialog({
         const trimmed = name.trim();
         if (!trimmed || nameError) return;
         try {
-            const workspace = await createWorkspace.mutateAsync({ name: trimmed });
+            const workspace = await createWorkspace.mutateAsync({ name: trimmed, origin });
             setOpen(false);
             if (onCreated) onCreated(workspace);
             else router.push(workspacePath(workspace.id));

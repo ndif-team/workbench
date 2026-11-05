@@ -307,7 +307,7 @@ describe("workspace names", () => {
         const other = await createWorkspace(USER, "Induction heads");
 
         await expect(createWorkspace(USER, " ioi CIRCUIT ")).rejects.toThrow(
-            'A workspace named "IOI circuit" already exists',
+            "A workspace with that name already exists",
         );
         await expect(renameWorkspace(USER, other.id, "IOI Circuit")).rejects.toThrow(
             "already exists",

@@ -7,6 +7,8 @@ import { FileDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { snapshotChart } from "nnsightful";
 import { Button } from "@/components/ui/button";
+import { useCapture } from "@/lib/analytics";
+import { captureError } from "@/lib/errorTracking";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import {
@@ -58,6 +60,7 @@ async function pdfChart(
     } catch (error) {
         // One chart failing to load shouldn't fail the whole export.
         console.error(`Failed to load chart ${chartId}:`, error);
+        captureError(error, { source: "report_pdf_chart_load", chart_id: chartId });
         return { title: "Chart", note: "This chart couldn't be loaded." };
     }
     const tool = toolMeta(config?.type ?? chart?.type);
@@ -90,6 +93,7 @@ async function pdfChart(
         };
     } catch (error) {
         console.error(`Failed to snapshot chart ${chartId}:`, error);
+        captureError(error, { source: "report_pdf_chart_snapshot", chart_id: chartId });
         return { title, subtitle, note: "This chart couldn't be drawn." };
     }
 }
@@ -99,6 +103,7 @@ async function pdfChart(
 export function ExportPdfButton() {
     const [editor] = useLexicalComposerContext();
     const queryClient = useQueryClient();
+    const capture = useCapture();
     const [exporting, setExporting] = useState(false);
 
     const exportPdf = async () => {
@@ -118,8 +123,10 @@ export function ExportPdfButton() {
                 reportPdfDefinition(state, { title, charts }),
                 reportPdfFileName(title),
             );
+            capture("report_exported", { format: "pdf", chart_count: charts.size });
         } catch (error) {
             console.error("Failed to export the report:", error);
+            captureError(error, { source: "report_pdf_export" });
             toast.error("Failed to export the PDF.");
         } finally {
             setExporting(false);

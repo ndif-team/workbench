@@ -14,8 +14,11 @@ import type { ChartLaunchRequest } from "@/lib/chartLaunch";
 import { LogitLensConfigData } from "@/types/logitLens";
 import { JLensConfigData } from "@/types/jlens";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
+import { DEFAULT_CHART_NAME } from "@/types/charts";
 import { queryKeys } from "../queryKeys";
+import { useCapture } from "../analytics";
 import type { WorkspaceLibrary } from "@/types/workspaces";
+import { ItemAnalytics } from "./workspaceApi";
 
 /** The library with one chart renamed, so the sidebar shows a rename before the refetch lands. */
 const renameInLibrary = (library: WorkspaceLibrary, chartId: string, name: string) => {
@@ -28,19 +31,33 @@ const renameInLibrary = (library: WorkspaceLibrary, chartId: string, name: strin
     };
 };
 
+/**
+ * Renames a chart. Clearing a name saves the default one, reported as a
+ * `name_length` of 0.
+ */
 export const useUpdateChartName = () => {
     const queryClient = useQueryClient();
+    const capture = useCapture();
 
     return useMutation({
+        mutationKey: ["updateChartName"],
         mutationFn: async ({ chartId, name }: { chartId: string; name: string }) => {
             return await updateChartName(chartId, name);
         },
         onMutate: ({ chartId, name }) => {
+            const facts = ItemAnalytics.chart(queryClient, chartId);
             queryClient.setQueryData<WorkspaceLibrary>(queryKeys.workspaces.library, (library) =>
                 library ? renameInLibrary(library, chartId, name) : library,
             );
+            return facts;
         },
-        onSuccess: (data, variables) => {
+        onSuccess: (data, variables, facts) => {
+            capture("chart_renamed", {
+                chart_id: variables.chartId,
+                workspace_id: facts.workspace_id,
+                tool: facts.tool,
+                name_length: variables.name === DEFAULT_CHART_NAME ? 0 : variables.name.length,
+            });
             const chartKey = queryKeys.charts.chart(variables.chartId);
             queryClient.invalidateQueries({ queryKey: chartKey });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
@@ -62,12 +79,25 @@ export const useUpdateChartName = () => {
     });
 };
 
+/**
+ * Deletes a chart. `had_data` on `chart_deleted` tells discarding a result
+ * from tidying away an empty chart.
+ */
 export const useDeleteChart = () => {
     const queryClient = useQueryClient();
+    const capture = useCapture();
 
     return useMutation({
+        mutationKey: ["deleteChart"],
         mutationFn: ({ chartId }: { chartId: string; workspaceId: string }) => deleteChart(chartId),
-        onSuccess: (_, { workspaceId }) => {
+        onMutate: ({ chartId }) => ItemAnalytics.chart(queryClient, chartId),
+        onSuccess: (_, { chartId, workspaceId }, chart) => {
+            capture("chart_deleted", {
+                chart_id: chartId,
+                workspace_id: workspaceId,
+                tool: chart.tool,
+                had_data: chart.had_data,
+            });
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.sidebar(workspaceId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
@@ -85,6 +115,7 @@ export const useCreateLogitLensChartPair = () => {
     };
 
     return useMutation({
+        mutationKey: ["createLogitLensChartPair"],
         mutationFn: async ({
             workspaceId,
             config = defaultConfig,
@@ -112,6 +143,7 @@ export const useCreateJLensChartPair = () => {
     };
 
     return useMutation({
+        mutationKey: ["createJLensChartPair"],
         mutationFn: async ({
             workspaceId,
             config = defaultConfig,
@@ -132,6 +164,7 @@ export const useCreatePatchLensChartPair = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
+        mutationKey: ["createPatchLensChartPair"],
         mutationFn: async ({ workspaceId }: { workspaceId: string }) => {
             return await createPatchLensChartPair(workspaceId);
         },
@@ -154,6 +187,7 @@ export const useCreateChartFromLaunch = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
+        mutationKey: ["createChartFromLaunch"],
         mutationFn: (request: ChartLaunchRequest) => createChartFromLaunch(request),
         onSuccess: ({ chartId, chart, config, workspaceId }) => {
             queryClient.setQueryData(queryKeys.charts.chart(chartId), chart);
@@ -169,12 +203,23 @@ export const useCreateChartFromLaunch = () => {
     });
 };
 
+/** Copies a chart; `chart_copied` names the copy as `chart_id`, so its later events join it. */
 export const useCopyChart = () => {
     const queryClient = useQueryClient();
+    const capture = useCapture();
 
     return useMutation({
+        mutationKey: ["copyChart"],
         mutationFn: (chartId: string) => copyChart(chartId),
-        onSuccess: (newChart) => {
+        onMutate: (chartId) => ItemAnalytics.chart(queryClient, chartId),
+        onSuccess: (newChart, chartId, chart) => {
+            capture("chart_copied", {
+                chart_id: newChart.id,
+                copied_from: chartId,
+                workspace_id: newChart.workspaceId,
+                tool: chart.tool,
+                had_data: chart.had_data,
+            });
             queryClient.invalidateQueries({
                 queryKey: queryKeys.charts.sidebar(newChart.workspaceId),
             });
@@ -195,6 +240,7 @@ export const useCreateActivationPatchingChartPair = () => {
     };
 
     return useMutation({
+        mutationKey: ["createActivationPatchingChartPair"],
         mutationFn: async ({
             workspaceId,
             config = defaultConfig,

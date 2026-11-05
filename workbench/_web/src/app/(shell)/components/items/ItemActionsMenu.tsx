@@ -30,7 +30,7 @@ import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
 import { useCopyChart, useDeleteChart } from "@/lib/api/chartApi";
 import { useDeleteDocument } from "@/lib/api/documentApi";
-import { useMoveChart, useMoveReport } from "@/lib/api/workspaceApi";
+import { useMoveChart, useMoveReport, type MoveVia } from "@/lib/api/workspaceApi";
 import { chartPath, workspacePath } from "@/lib/chartRoutes";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
@@ -58,7 +58,7 @@ interface ItemActionsMenuProps {
 /**
  * Moves a chart or report to a folder (null: back to the default workspace)
  * and says where it went. Shared by the actions menu and dropping a chart on
- * a sidebar folder.
+ * a sidebar folder (`via`).
  */
 export function useMoveItem() {
     const moveChart = useMoveChart();
@@ -67,19 +67,15 @@ export function useMoveItem() {
         item: LibraryItem,
         target: { id: string; name: string } | null,
         from: { name: string } | null,
+        via: MoveVia,
     ) => {
         const onSuccess = () =>
             toast.success(target ? `Moved to ${target.name}` : `Removed from ${from?.name}`);
+        const targetWorkspaceId = target?.id ?? null;
         if (item.kind === "chart") {
-            moveChart.mutate(
-                { chartId: item.id, targetWorkspaceId: target?.id ?? null },
-                { onSuccess },
-            );
+            moveChart.mutate({ chartId: item.id, targetWorkspaceId, via }, { onSuccess });
         } else {
-            moveReport.mutate(
-                { documentId: item.id, targetWorkspaceId: target?.id ?? null },
-                { onSuccess },
-            );
+            moveReport.mutate({ documentId: item.id, targetWorkspaceId, via }, { onSuccess });
         }
     };
 }
@@ -122,7 +118,8 @@ export function ItemActionsMenu({
     const label = itemLabel(item).text;
     const moveTargets = workspaces.filter((w) => !w.isWorkshop && w.id !== item.workspaceId);
 
-    const move = (target: { id: string; name: string } | null) => moveItem(item, target, folder);
+    const move = (target: { id: string; name: string } | null) =>
+        moveItem(item, target, folder, "menu");
 
     const copy = () => {
         if (item.kind !== "chart") return;
@@ -278,6 +275,7 @@ export function ItemActionsMenu({
                 open={creatingWorkspace}
                 onOpenChange={setCreatingWorkspace}
                 submitLabel={`Create and move ${noun}`}
+                origin="move_menu"
                 onCreated={(workspace) => move({ id: workspace.id, name: workspace.name })}
             />
         </>

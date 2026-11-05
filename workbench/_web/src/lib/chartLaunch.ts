@@ -39,6 +39,45 @@ export type ChartLaunchPlan =
     | { type: "activation-patching"; data: ActivationPatchingConfigData }
     | { type: "patch-lens"; data: Record<string, never>; chartData?: PatchLensChartData };
 
+/**
+ * Where a chart launch started, reported as `chart_created`'s `origin`: New
+ * chart in the sidebar or on a workspace page, Home's or the landing page's
+ * composer, Discover J-Lens, the models page's launch dialog, the workshop
+ * sidebar, a `/new` link, a launch resumed after sign-in, and the charts the
+ * server creates: opening an empty workspace, and joining a workshop.
+ */
+export type ChartOrigin = (typeof ChartOrigins.ALL)[number];
+
+/** The `ChartOrigin` values, and how a `/new` URL carries one (`origin=…`). */
+export class ChartOrigins {
+    static readonly ALL = [
+        "sidebar",
+        "workspace_page",
+        "home",
+        "landing",
+        "jlens_discovery",
+        "model_launch",
+        "workshop_sidebar",
+        "new_link",
+        "resumed",
+        "workspace_open",
+        "workshop_join",
+    ] as const;
+
+    private static readonly PARAM = "origin";
+
+    /** `path`, a `/new` URL, carrying `origin`. */
+    static tag(path: string, origin: ChartOrigin): string {
+        return `${path}${path.includes("?") ? "&" : "?"}${ChartOrigins.PARAM}=${origin}`;
+    }
+
+    /** The origin a `/new` page's search params name; a plain link when they name none. */
+    static fromSearchParams(params: Record<string, string | string[] | undefined>): ChartOrigin {
+        const value = params[ChartOrigins.PARAM];
+        return ChartOrigins.ALL.find((origin) => origin === value) ?? "new_link";
+    }
+}
+
 /** The launch parameters present in a page's search params; other keys are dropped. */
 export function chartLaunchFromSearchParams(
     params: Record<string, string | string[] | undefined>,

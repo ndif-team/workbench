@@ -14,6 +14,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
 import { newChartPath } from "@/lib/chartRoutes";
+import { ChartOrigins, launchTool, type ChartOrigin } from "@/lib/chartLaunch";
+import { useCapture } from "@/lib/analytics";
+import { captureError } from "@/lib/errorTracking";
 import { useLaunchChart } from "@/hooks/useLaunchChart";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
@@ -220,7 +223,14 @@ function ModelTriggerPopover({
  * (for a signed-in user with folders) workspace pickers, and Run, which
  * launches the chart (`useLaunchChart`). A visitor who isn't signed in passes a
  * captcha and is signed in anonymously first; a gated model sends them to
- * sign in. The app's Home page renders the same component.
+ * sign in. The app's Home page renders the same component; `loggedIn` (a
+ * session) tells the two apart in analytics, as `surface`.
+ *
+ * `landing_submission` and `jlens_discovery` are captured at intent, before
+ * the captcha and sign-in gates, so the drop-off between asking for a chart
+ * and reaching one is visible; `chart_created` follows once it exists. The
+ * Discover J-Lens chart is empty and never runs by itself, so its event may be
+ * the only record that J-Lens was asked for.
  */
 export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     const [prompt, setPrompt] = useState("");
@@ -233,9 +243,11 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     // A prebuilt `/new?…` query to redirect to after anonymous sign-in.
     // Set by the one-click launches (e.g. Discover J-Lens) that don't go through
     // the prompt form; null → fall back to building params from the form state.
-    const pendingLaunchRef = useRef<string | null>(null);
+    const pendingLaunchRef = useRef<{ query: string; origin: ChartOrigin } | null>(null);
     const router = useRouter();
     const launchChart = useLaunchChart();
+    const capture = useCapture();
+    const surface = loggedIn ? "home" : "landing";
 
     // Activation patching state
     const [srcPrompt, setSrcPrompt] = useState("");
@@ -299,6 +311,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
 
             if (error) {
                 console.error("Anonymous sign-in error:", error);
+                captureError(error, { source: "anonymous_sign_in" });
                 setShowCaptcha(false);
                 captchaRef.current?.resetCaptcha();
                 setIsSubmitting(false);
@@ -306,7 +319,8 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             } else {
                 // A one-click launch (Discover J-Lens) prebuilt its target;
                 // otherwise build from the prompt-form state.
-                let qs = pendingLaunchRef.current;
+                let qs = pendingLaunchRef.current?.query;
+                const origin = pendingLaunchRef.current?.origin ?? surface;
                 if (!qs) {
                     const params = new URLSearchParams({
                         model: selectedModel,
@@ -331,10 +345,11 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                     qs = params.toString();
                 }
                 pendingLaunchRef.current = null;
-                window.location.href = newChartPath(qs);
+                window.location.href = ChartOrigins.tag(newChartPath(qs), origin);
             }
         } catch (err) {
             console.error("Anonymous sign-in error:", err);
+            captureError(err, { source: "anonymous_sign_in" });
             setShowCaptcha(false);
             captchaRef.current?.resetCaptcha();
             setIsSubmitting(false);
@@ -347,6 +362,16 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         const model = modelsToSelect.find((m) => m.name === selectedModel);
         return model?.gated === true && model?.allowed === false;
     };
+
+    // The launch's own selection, as the composer's events report it.
+    const launchProperties = (model: Model | undefined) => ({
+        surface,
+        signed_in: !!isSignedInUser,
+        model: model?.name,
+        model_heat: model?.status,
+        gated: model?.gated === true && model?.allowed === false,
+        workspace: selectedWorkspace ? "folder" : "default",
+    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -364,6 +389,13 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         } else {
             if (!prompt.trim()) return;
         }
+
+        capture("landing_submission", {
+            ...launchProperties(modelsToSelect.find((m) => m.name === selectedModel)),
+            tool: launchTool(selectedTool),
+            prompt_length:
+                selectedTool === "Activation Patching" ? srcPrompt.length : prompt.length,
+        });
 
         // Check if user is trying to use a gated model without being logged in
         if (isSelectedModelGated() && (!loggedIn || !currentUser || currentUser.is_anonymous)) {
@@ -412,7 +444,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
 
         // If user is logged in (not anonymous), create the chart directly
         if (loggedIn && currentUser && !currentUser.is_anonymous) {
-            launchChart(params);
+            launchChart(params, surface);
         } else {
             // Show captcha for anonymous/non-logged-in users
             setShowCaptcha(true);
@@ -444,6 +476,8 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         // the composer shows it; nothing to launch.
         if (!model) return;
 
+        capture("jlens_discovery", { ...launchProperties(model), tool: "jlens" });
+
         // Empty chart (no prompt), mirroring the model launch dialog's deploy flow.
         const params = new URLSearchParams({ model: model.name, tool: "J-Lens", deploy: "true" });
         if (selectedWorkspace) {
@@ -451,10 +485,10 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         }
 
         if (loggedIn && currentUser && !currentUser.is_anonymous) {
-            launchChart(params);
+            launchChart(params, "jlens_discovery");
         } else {
             // Anonymous / signed-out — sign in via captcha, then resume here.
-            pendingLaunchRef.current = params.toString();
+            pendingLaunchRef.current = { query: params.toString(), origin: "jlens_discovery" };
             setShowCaptcha(true);
         }
     };

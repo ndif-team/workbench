@@ -10,6 +10,7 @@ import {
     renameUserWorkspace,
     reorderWorkspaceItems,
 } from "@/lib/queries/workspaceQueries";
+import { normalizeTool, useCapture } from "@/lib/analytics";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ChartMetadata } from "@/types/charts";
 import type { DocumentListItem } from "@/lib/queries/documentQueries";
@@ -55,6 +56,94 @@ export const workspaceNameError = (
     return taken ? `A workspace named "${taken.name}" already exists.` : null;
 };
 
+/**
+ * An item's analytics properties, read from the cached lists in a mutation's
+ * `onMutate`, before the mutation changes them. The library holds the global
+ * sidebar's items; a workshop sidebar has only its workspace's lists.
+ */
+export class ItemAnalytics {
+    private static library(queryClient: QueryClient) {
+        return queryClient.getQueryData<WorkspaceLibrary>(queryKeys.workspaces.library);
+    }
+
+    /** A chart's workspace, tool, and whether it has a result. */
+    static chart(
+        queryClient: QueryClient,
+        chartId: string,
+    ): { workspace_id?: string; tool?: string; had_data?: boolean } {
+        const library = ItemAnalytics.library(queryClient);
+        const listed = library && findLibraryItem(library, "chart", chartId);
+        if (listed?.kind === "chart") {
+            return {
+                workspace_id: listed.workspaceId,
+                tool: normalizeTool(listed.toolType),
+                had_data: listed.hasData,
+            };
+        }
+        const lists = queryClient.getQueriesData<ChartMetadata[]>({
+            queryKey: queryKeys.charts.sidebarAll,
+        });
+        for (const [[, workspaceId], charts] of lists) {
+            const card = charts?.find((c) => c.id === chartId);
+            if (card) {
+                return {
+                    workspace_id: workspaceId as string,
+                    tool: normalizeTool(card.toolType ?? card.chartType),
+                    had_data: !!card.hasData,
+                };
+            }
+        }
+        return {};
+    }
+
+    /** A report's workspace, and whether it has any text (an untitled report has none). */
+    static report(
+        queryClient: QueryClient,
+        reportId: string,
+    ): { workspace_id?: string; had_text?: boolean } {
+        const library = ItemAnalytics.library(queryClient);
+        const listed = library && findLibraryItem(library, "report", reportId);
+        if (listed?.kind === "report") {
+            return { workspace_id: listed.workspaceId, had_text: listed.title !== "" };
+        }
+        const lists = queryClient.getQueriesData<DocumentListItem[]>({
+            queryKey: queryKeys.documents.byWorkspaceAll,
+        });
+        for (const [[, workspaceId], reports] of lists) {
+            const row = reports?.find((r) => r.id === reportId);
+            if (row)
+                return { workspace_id: workspaceId as string, had_text: row.derivedTitle !== "" };
+        }
+        return {};
+    }
+
+    /** Where a move takes an item; a null target is the default workspace. */
+    static move(queryClient: QueryClient, from: string | undefined, to: string | null) {
+        const defaultId = ItemAnalytics.library(queryClient)?.defaultWorkspaceId ?? undefined;
+        return {
+            workspace_id: to ?? defaultId,
+            from_workspace_id: from,
+            to_default: to === null,
+            from_default: !!from && from === defaultId,
+        };
+    }
+
+    /** How many charts and reports a workspace holds. */
+    static contents(queryClient: QueryClient, workspaceId: string) {
+        const items =
+            ItemAnalytics.library(queryClient)?.workspaces.find((w) => w.id === workspaceId)
+                ?.items ?? [];
+        const charts = items.filter((i) => i.kind === "chart").length;
+        return { chart_count: charts, report_count: items.length - charts };
+    }
+}
+
+/** How a move was started: an item's actions menu, or dropping a sidebar row on a folder. */
+export type MoveVia = "menu" | "drag";
+
+/** Where a workspace was created from. */
+export type WorkspaceOrigin = "sidebar" | "workspaces_page" | "move_menu";
+
 /** Refetches every list an item can appear in after it changes workspace. */
 const invalidateItemLists = (queryClient: QueryClient) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
@@ -71,16 +160,26 @@ const invalidateItemLists = (queryClient: QueryClient) => {
 export const useMoveChart = () => {
     const queryClient = useQueryClient();
     const router = useRouter();
+    const capture = useCapture();
 
     return useMutation({
+        mutationKey: ["moveChart"],
         mutationFn: ({
             chartId,
             targetWorkspaceId,
         }: {
             chartId: string;
             targetWorkspaceId: string | null;
+            via: MoveVia;
         }) => moveChart(chartId, targetWorkspaceId),
-        onSuccess: (_, { chartId }) => {
+        onMutate: ({ chartId }) => ItemAnalytics.chart(queryClient, chartId),
+        onSuccess: (_, { chartId, targetWorkspaceId, via }, chart) => {
+            capture("chart_moved", {
+                chart_id: chartId,
+                tool: chart.tool,
+                via,
+                ...ItemAnalytics.move(queryClient, chart.workspace_id, targetWorkspaceId),
+            });
             invalidateItemLists(queryClient);
             queryClient.invalidateQueries({ queryKey: queryKeys.charts.chart(chartId) });
             router.refresh();
@@ -93,16 +192,25 @@ export const useMoveChart = () => {
 export const useMoveReport = () => {
     const queryClient = useQueryClient();
     const router = useRouter();
+    const capture = useCapture();
 
     return useMutation({
+        mutationKey: ["moveReport"],
         mutationFn: ({
             documentId,
             targetWorkspaceId,
         }: {
             documentId: string;
             targetWorkspaceId: string | null;
+            via: MoveVia;
         }) => moveReport(documentId, targetWorkspaceId),
-        onSuccess: (_, { documentId }) => {
+        onMutate: ({ documentId }) => ItemAnalytics.report(queryClient, documentId),
+        onSuccess: (_, { documentId, targetWorkspaceId, via }, report) => {
+            capture("report_moved", {
+                report_id: documentId,
+                via,
+                ...ItemAnalytics.move(queryClient, report.workspace_id, targetWorkspaceId),
+            });
             invalidateItemLists(queryClient);
             queryClient.invalidateQueries({ queryKey: queryKeys.documents.one(documentId) });
             router.refresh();
@@ -111,13 +219,24 @@ export const useMoveReport = () => {
     });
 };
 
-/** Creates a workspace (folder) for the signed-in user. */
+/**
+ * Creates a workspace (folder) for the signed-in user. Its name is user text,
+ * so only its length is reported.
+ */
 export const useCreateWorkspace = () => {
     const queryClient = useQueryClient();
+    const capture = useCapture();
 
     return useMutation({
-        mutationFn: ({ name }: { name: string }) => createUserWorkspace(name),
-        onSuccess: () => {
+        mutationKey: ["createWorkspace"],
+        mutationFn: ({ name }: { name: string; origin: WorkspaceOrigin }) =>
+            createUserWorkspace(name),
+        onSuccess: (workspace, { name, origin }) => {
+            capture("workspace_created", {
+                workspace_id: workspace.id,
+                name_length: name.length,
+                origin,
+            });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
         },
@@ -127,13 +246,23 @@ export const useCreateWorkspace = () => {
     });
 };
 
-/** Deletes one of the signed-in user's workspaces, and its contents with it. */
+/**
+ * Deletes one of the signed-in user's workspaces, and its contents with it.
+ * Its charts and reports are counted on `workspace_deleted` rather than as
+ * deletions of their own.
+ */
 export const useDeleteWorkspace = () => {
     const queryClient = useQueryClient();
+    const capture = useCapture();
 
     return useMutation({
+        mutationKey: ["deleteWorkspace"],
         mutationFn: ({ workspaceId }: { workspaceId: string }) => deleteUserWorkspace(workspaceId),
-        onSuccess: () => invalidateItemLists(queryClient),
+        onMutate: ({ workspaceId }) => ItemAnalytics.contents(queryClient, workspaceId),
+        onSuccess: (_, { workspaceId }, contents) => {
+            capture("workspace_deleted", { workspace_id: workspaceId, ...contents });
+            invalidateItemLists(queryClient);
+        },
         onError: () => toast.error("Couldn't delete the workspace"),
     });
 };
@@ -243,11 +372,14 @@ export const useReorderWorkspaceItems = () => {
 /** Renames one of the signed-in user's workspaces. */
 export const useRenameWorkspace = () => {
     const queryClient = useQueryClient();
+    const capture = useCapture();
 
     return useMutation({
+        mutationKey: ["renameWorkspace"],
         mutationFn: ({ workspaceId, name }: { workspaceId: string; name: string }) =>
             renameUserWorkspace(workspaceId, name),
-        onSuccess: (_, { workspaceId }) => {
+        onSuccess: (_, { workspaceId, name }) => {
+            capture("workspace_renamed", { workspace_id: workspaceId, name_length: name.length });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
             queryClient.invalidateQueries({
                 queryKey: queryKeys.workspaces.workspace(workspaceId),
