@@ -1,5 +1,7 @@
 import config from "./config";
 import { useWorkspace } from "@/stores/useWorkspace";
+import { NDIFJobError, parseJobError, type ParsedJobError } from "./ndifError";
+import { NDIFJob, type JobSink } from "./ndifJob";
 
 /**
  * Runs a tool through one POST whose response is a stream of Server-Sent Events.
@@ -48,8 +50,11 @@ export async function* parseSSE(body: ReadableStream<Uint8Array>): AsyncGenerato
     }
 }
 
+/** A `status` event: nnsight's `ResponseModel` without its data. */
+type StatusUpdate = { id?: string; status?: string; description?: string };
+
 /** The status pill's text for an NDIF status update, or null to leave it as is. */
-function statusLabel(update: { status?: string; description?: string }): string | null {
+function statusLabel(update: StatusUpdate): string | null {
     if (!update?.status || update.status === "LOG") return null;
     if (update.status === "QUEUED") {
         const position = update.description?.match(/\d+/)?.[0];
@@ -70,16 +75,78 @@ async function failureMessage(response: Response): Promise<string> {
 }
 
 /**
+ * What one run's stream has said about its NDIF job: each job id is followed
+ * from its first status (`NDIFJob`, timed into the sink), and a failure
+ * status's traceback is kept for the error the run ends with.
+ */
+class StreamedRun {
+    private readonly followed = new Map<string, NDIFJob>();
+    private jobId: string | null = null;
+    private failure: StatusUpdate | null = null;
+
+    constructor(private readonly jobs?: JobSink) {}
+
+    observe(update: StatusUpdate): void {
+        if (update.id) {
+            this.jobId = update.id;
+            let job = this.followed.get(update.id);
+            if (!job) this.followed.set(update.id, (job = new NDIFJob(update.id, this.jobs)));
+            job.observe(update.status);
+        }
+        if (NDIFJob.isFailure(update.status)) this.failure = update;
+    }
+
+    complete(): void {
+        for (const job of this.followed.values()) job.complete();
+    }
+
+    /**
+     * The error an `error` event ends the run with. The traceback of the job's
+     * failure status is preferred, since the event's message is the backend's
+     * own exception around the job's; otherwise the event's message is parsed,
+     * taking its `type` (the exception class) as the name when the message
+     * isn't a traceback.
+     */
+    fail(data: string): NDIFJobError {
+        const event = StreamedRun.parse(data);
+        const fromStatus = parseJobError(this.failure?.description);
+        const parsed = fromStatus.name
+            ? fromStatus
+            : StreamedRun.named(parseJobError(event.error ?? data), event.type);
+        const error = new NDIFJobError(parsed, this.jobId, this.failure?.status ?? "ERROR");
+        error.log(this.failure ?? event);
+        return error;
+    }
+
+    private static parse(data: string): { error?: unknown; type?: unknown } {
+        try {
+            const event = JSON.parse(data);
+            return event && typeof event === "object" ? event : {};
+        } catch {
+            return {};
+        }
+    }
+
+    private static named(parsed: ParsedJobError, type: unknown): ParsedJobError {
+        if (parsed.name || typeof type !== "string" || !type) return parsed;
+        return { ...parsed, name: type, qualifiedName: type };
+    }
+}
+
+/**
  * POST to a tool's streaming endpoint and resolve with the tool's data.
  *
- * Mirrors each status update into `useWorkspace.jobStatus` for the status pill.
- * Throws on an `error` event, on a response that failed before streaming (e.g.
- * an unknown model), or on a stream that closed without data.
+ * Mirrors each status update into `useWorkspace.jobStatus` for the status pill,
+ * and records the NDIF job it reports in `jobs` with its queue and total times.
+ * An `error` event throws an `NDIFJobError` carrying the job's id and the
+ * Python exception; a response that failed before streaming (e.g. an unknown
+ * model) or a stream that closed without data throws a plain `Error`.
  */
 export async function runAndStream<T>(
     endpoint: string,
     body: unknown,
     headers?: Record<string, string>,
+    jobs?: JobSink,
 ): Promise<T> {
     const { setJobStatus } = useWorkspace.getState();
 
@@ -100,16 +167,20 @@ export async function runAndStream<T>(
         throw new Error(await failureMessage(response));
     }
 
+    const run = new StreamedRun(jobs);
     for await (const { event, data } of parseSSE(response.body)) {
         if (event === "status") {
-            const label = statusLabel(JSON.parse(data));
+            const update: StatusUpdate = JSON.parse(data);
+            run.observe(update);
+            const label = statusLabel(update);
             if (label) setJobStatus(label);
         } else if (event === "data") {
+            run.complete();
             setJobStatus("Idle");
             return JSON.parse(data) as T;
         } else if (event === "error") {
             setJobStatus("Error");
-            throw new Error(JSON.parse(data).error ?? data);
+            throw run.fail(data);
         }
     }
 

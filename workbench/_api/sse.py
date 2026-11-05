@@ -9,11 +9,14 @@ Every tool route sends the same three events:
 
     status  an NDIF status update: nnsight's ``ResponseModel`` without ``data``
     data    the tool's data; ends the stream
-    error   ``{"error": "..."}``; ends the stream
+    error   ``{"error": "...", "type": "..."}``; ends the stream
 
 Once the stream is open, a failure is an ``error`` event rather than an HTTP
 status, since the status line went out with the headers. A route can still
 fail the ordinary way before it starts streaming, e.g. for an unknown model.
+The event's ``error`` is the exception's message and ``type`` its class name
+(e.g. ``ValueError``), which names the failure when the message is not a
+traceback that names it; a client that predates ``type`` reads ``error`` alone.
 
 A local run (``REMOTE=false``) is a single ``data`` event, so the client has
 one path for both modes.
@@ -88,7 +91,7 @@ class ToolEventStream:
             yield self.event("data", data)
         except Exception as error:
             logger.exception("%s run failed", type(self.tool).__name__)
-            yield self.event("error", {"error": str(error)})
+            yield self.event("error", {"error": str(error), "type": type(error).__name__})
 
     async def heartbeat(self, updates: AsyncGenerator[Any, None]) -> AsyncIterator[Any]:
         """``updates``, with a ``None`` for every ``HEARTBEAT`` seconds that nothing arrives.

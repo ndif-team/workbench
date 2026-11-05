@@ -23,6 +23,7 @@ import { useFocusNewChartPrompt } from "@/hooks/useFocusNewChartPrompt";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/(shell)/components/ToolPanelHeader";
+import { useCapture } from "@/lib/analytics";
 
 interface JLensConfig {
     id: string;
@@ -97,6 +98,14 @@ export function JLensControls({
 }: JLensControlsProps) {
     const { chartId } = useParams<{ chartId: string }>();
     const workspaceId = useScopedWorkspaceId();
+    const capture = useCapture();
+
+    const openedRef = useRef(false);
+    useEffect(() => {
+        if (openedRef.current) return;
+        openedRef.current = true;
+        capture("tool_opened", { tool: "jlens" });
+    }, [capture]);
 
     const savedPrompt = initialConfig.data?.prompt || "";
     const savedTopk = initialConfig.data?.topk ?? 5;
@@ -240,6 +249,7 @@ export function JLensControls({
                 await computeJLens({
                     lensRequest: { completion: config, chartId },
                     configId: initialConfig.id,
+                    trigger: "launch",
                 });
                 if (isCancelled) return;
                 await updateConfig({
@@ -250,7 +260,7 @@ export function JLensControls({
                 if (isCancelled) return;
                 lastSyncedPromptRef.current = trimmedPrompt;
             } catch {
-                /* one-shot auto-run; swallow */
+                /* one-shot auto-run; the mutations toast and report their failures */
             }
         };
         const timer = setTimeout(autoRunJLens, 800);
@@ -363,15 +373,21 @@ export function JLensControls({
             includeEntropy,
         };
 
-        await computeJLens({
-            lensRequest: { completion: config, chartId },
-            configId: initialConfig.id,
-        });
-        await updateConfig({
-            configId: initialConfig.id,
-            chartId,
-            config: { data: config, workspaceId, type: "jlens" },
-        });
+        try {
+            await computeJLens({
+                lensRequest: { completion: config, chartId },
+                configId: initialConfig.id,
+                trigger: "run",
+            });
+            await updateConfig({
+                configId: initialConfig.id,
+                chartId,
+                config: { data: config, workspaceId, type: "jlens" },
+            });
+        } catch {
+            // The mutations toast; a failed run must not save its config.
+            return;
+        }
         // Land draftModel on the model that just persisted so the banner
         // doesn't flash between the run completing and the refetch arriving.
         setDraftModel(selectedModel);
@@ -602,7 +618,14 @@ export function JLensControls({
                         max={10}
                         step={1}
                         value={[topk]}
-                        onValueChange={([value]) => setTopk(value)}
+                        onValueChange={([value]) => {
+                            setTopk(value);
+                            capture("param_changed", {
+                                tool: "jlens",
+                                param: "topk",
+                                value,
+                            });
+                        }}
                         disabled={!interactive}
                         className="w-full"
                     />
@@ -612,7 +635,14 @@ export function JLensControls({
                     <Checkbox
                         id="entropy"
                         checked={includeEntropy}
-                        onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
+                        onCheckedChange={(checked) => {
+                            setIncludeEntropy(checked === true);
+                            capture("param_changed", {
+                                tool: "jlens",
+                                param: "include_entropy",
+                                value: checked === true,
+                            });
+                        }}
                         disabled={!interactive}
                     />
                     <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">

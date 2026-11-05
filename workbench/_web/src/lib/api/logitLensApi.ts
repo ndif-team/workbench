@@ -11,6 +11,8 @@ import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
 import { runAndStream } from "../runAndStream";
 import { createUserHeadersAction } from "@/actions/auth";
+import { useTrackRun, type RunTrigger } from "@/lib/analytics";
+import { runErrorMessage } from "@/lib/ndifError";
 
 /**
  * API request for the logit lens endpoint
@@ -20,32 +22,33 @@ interface LogitLensRequest {
     chartId: string;
 }
 
-/**
- * Fetch logit lens data from the backend
- */
-const getLogitLens = async (lensRequest: LogitLensRequest): Promise<LogitLensData> => {
-    const headers = await createUserHeadersAction();
+interface LogitLensVariables {
+    lensRequest: LogitLensRequest;
+    configId: string;
+    trigger: RunTrigger;
+}
 
-    // Transform to backend request format
-    const request = {
-        model: lensRequest.completion.model,
-        prompt: lensRequest.completion.prompt,
-        topk: lensRequest.completion.topk ?? 5,
-        include_entropy: lensRequest.completion.includeEntropy ?? false,
-    };
-
-    return await runAndStream<LogitLensData>(config.endpoints.runLogitLens, request, headers);
-};
+/** The backend request for a logit lens config. */
+const toRequest = ({ model, prompt, topk, includeEntropy }: LogitLensConfigData) => ({
+    model,
+    prompt,
+    topk: topk ?? 5,
+    include_entropy: includeEntropy ?? false,
+});
 
 /**
- * React Query mutation hook for logit lens visualization
+ * React Query mutation hook for logit lens visualization. Each call is one
+ * tracked run (`useTrackRun`); `meta.reportedAs` keeps its failures out of
+ * exception capture, since `run_failed` reports them.
  */
 export const useLogitLens = () => {
     const queryClient = useQueryClient();
+    const trackRun = useTrackRun();
 
     return useMutation({
         mutationKey: ["logit-lens"],
-        onMutate: async ({ lensRequest }: { lensRequest: LogitLensRequest; configId: string }) => {
+        meta: { reportedAs: "run" },
+        onMutate: async ({ lensRequest }: LogitLensVariables) => {
             const chartKey = queryKeys.charts.chart(lensRequest.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
@@ -58,22 +61,36 @@ export const useLogitLens = () => {
                 chartKey: ReturnType<typeof queryKeys.charts.chart>;
             };
         },
-        mutationFn: async ({
-            lensRequest,
-        }: {
-            lensRequest: LogitLensRequest;
-            configId: string;
-        }) => {
-            const response = await getLogitLens(lensRequest);
-            // Store the logit lens data as chart data (in V2 format)
-            await setChartData(lensRequest.chartId, response, "logit-lens");
-            return response;
+        mutationFn: ({ lensRequest, trigger }: LogitLensVariables) => {
+            const request = toRequest(lensRequest.completion);
+            return trackRun(
+                {
+                    tool: "logit-lens",
+                    trigger,
+                    model: request.model,
+                    prompt_length: request.prompt.length,
+                    topk: request.topk,
+                    include_entropy: request.include_entropy,
+                },
+                async (jobs) => {
+                    const headers = await createUserHeadersAction();
+                    const response = await runAndStream<LogitLensData>(
+                        config.endpoints.runLogitLens,
+                        request,
+                        headers,
+                        jobs,
+                    );
+                    // Store the logit lens data as chart data (in V2 format)
+                    await setChartData(lensRequest.chartId, response, "logit-lens");
+                    return response;
+                },
+            );
         },
         onError: (error, variables, context) => {
             if (context?.previousChart) {
                 queryClient.setQueryData(context.chartKey, context.previousChart);
             }
-            toast.error("Failed to compute logit lens visualization");
+            toast.error(runErrorMessage(error, "Failed to compute logit lens visualization"));
         },
         onSuccess: async (data, variables) => {
             const chartKey = queryKeys.charts.chart(variables.lensRequest.chartId);
