@@ -13,9 +13,13 @@ name: Preview Deploy
 #   - Fork PR: a maintainer adds the `preview-deploy` label. From that
 #     point, pushes to the PR redeploy automatically while the label is
 #     present. Removing the label tears down (see preview-teardown.yml).
+#
+# Previews are additionally gated behind oauth2-proxy (GitHub, ndif-team
+# org-only) by default. A maintainer can add the `preview-public` label
+# to drop that gate for a single PR — see the `auth_gate` output below.
 on:
   pull_request_target:
-    types: [opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
     branches: [main, dev]
   workflow_dispatch:
     inputs:
@@ -27,6 +31,11 @@ on:
         description: "Git ref to build (branch, tag, or SHA). Defaults to the branch the workflow is dispatched from."
         required: false
         default: ""
+      public:
+        description: "Expose the preview without the oauth2-proxy login gate. Anyone with the URL can reach it."
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: preview-${{ github.event.pull_request.number || inputs.preview_id }}
@@ -73,10 +82,17 @@ jobs:
     # PRs (head.repo == base repo) always run; fork PRs require the
     # `preview-deploy` label. Manual workflow_dispatch is always allowed
     # (maintainer-initiated).
+    #
+    # `unlabeled` is in the trigger list only so that removing
+    # `preview-public` redeploys with the auth gate back on. Every other
+    # label removal is filtered out here — otherwise unrelated label
+    # churn would kick off a full rebuild.
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event.pull_request.head.repo.full_name == github.repository ||
-      contains(github.event.pull_request.labels.*.name, 'preview-deploy')
+      ((github.event.action != 'unlabeled' || github.event.label.name == 'preview-public') && (
+        github.event.pull_request.head.repo.full_name == github.repository ||
+        contains(github.event.pull_request.labels.*.name, 'preview-deploy')
+      ))
     # Org-level self-hosted runner in arc-runners-ndif-team. The
     # ramdisk variant mounts a 32 GiB tmpfs at the runner workspace so
     # bun install / uv sync / next build / docker layer extraction run
@@ -95,14 +111,21 @@ jobs:
             # SHA is fetchable in the base-repo context that
             # pull_request_target runs in.
             ref="${{ github.event.pull_request.head.sha }}"
+            public="${{ contains(github.event.pull_request.labels.*.name, 'preview-public') }}"
           else
             preview_id="${{ inputs.preview_id }}"
             ref="${{ inputs.ref }}"
             [ -z "$ref" ] && ref="${{ github.ref_name }}"
+            public="${{ inputs.public }}"
           fi
+          # The chart's ingress.authGate.enabled is the inverse: public
+          # preview => no gate.
+          auth_gate=true
+          [ "$public" = "true" ] && auth_gate=false
           {
             echo "preview_id=${preview_id}"
             echo "ref=${ref}"
+            echo "auth_gate=${auth_gate}"
           } | tee -a "$GITHUB_OUTPUT"
 
       # Explicitly check out the PR head — pull_request_target defaults
@@ -286,6 +309,7 @@ jobs:
           HOST: ${{ steps.meta.outputs.host }}
           API_HOST: ${{ steps.meta.outputs.api_host }}
           TAG: ${{ steps.meta.outputs.tag }}
+          AUTH_GATE: ${{ steps.pre.outputs.auth_gate }}
         run: |
           # --atomic: if the upgrade fails before --timeout, helm rolls
           #   back to the prior revision in the same shell invocation,
@@ -305,6 +329,7 @@ jobs:
             --set commitSha="${SHA}" \
             --set ingress.host="${HOST}" \
             --set ingress.className="${INGRESS_CLASS}" \
+            --set ingress.authGate.enabled="${AUTH_GATE}" \
             --atomic --cleanup-on-fail \
             --wait --timeout 20m
 
@@ -318,6 +343,11 @@ jobs:
             echo "- Web image: \`${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}\`"
             echo "- API image: \`${{ env.IMAGE_NAME_API }}:${{ steps.meta.outputs.tag }}\`"
             echo "- Namespace: \`${{ steps.meta.outputs.namespace }}\`"
+            if [ "${{ steps.pre.outputs.auth_gate }}" = "false" ]; then
+              echo "- Access: **public** (no login gate — \`preview-public\`)"
+            else
+              echo "- Access: ndif-team GitHub login required"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Comment preview URL on PR
@@ -333,3 +363,4 @@ jobs:
             - Web image: `${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}`
             - API image: `${{ env.IMAGE_NAME_API }}:${{ steps.meta.outputs.tag }}`
             - Namespace: `${{ steps.meta.outputs.namespace }}`
+            - Access: ${{ steps.pre.outputs.auth_gate == 'false' && '🌐 **public** — anyone with the URL can reach this preview (`preview-public` label). Remove the label to re-gate.' || '🔒 ndif-team GitHub login required' }}
