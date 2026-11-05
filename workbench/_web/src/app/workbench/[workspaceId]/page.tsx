@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { after } from "next/server";
 import { redirectWorkshopParticipant, requireUser } from "@/lib/auth/user";
 import {
     createLogitLensChartPair,
@@ -8,6 +9,7 @@ import {
 import { getWorkshopForWorkspace } from "@/lib/queries/workshopDb";
 import { getWorkspaceById } from "@/lib/queries/workspaceDb";
 import { toolChartPath } from "@/lib/chartRoutes";
+import { PostHogServer } from "@/lib/posthog-server";
 import { LogitLensConfigData } from "@/types/logitLens";
 
 /**
@@ -53,6 +55,20 @@ export default async function Page({
             const { chart } = await createLogitLensChartPair(workspaceId, defaultConfig);
             recent = { chart, toolType: "logit-lens" };
         }
+        const created = { chartId: recent.chart.id, tool: recent.toolType };
+        const distinctId = await PostHogServer.distinctIdFor(user);
+        after(() =>
+            PostHogServer.capture(distinctId, "chart_created", {
+                tool: created.tool,
+                origin: "workspace_open",
+                reused: false,
+                has_prompt: !workshop && !!initialPrompt,
+                chart_id: created.chartId,
+                workspace_id: workspaceId,
+                workshop_id: workshop?.id,
+                mode: workshop ? "workshop" : "main",
+            }),
+        );
     }
 
     redirect(toolChartPath(recent.chart.id, recent.toolType));

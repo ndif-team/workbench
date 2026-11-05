@@ -11,7 +11,8 @@ import {
 import { createWorkspace, setWorkspaceProlificIfEmpty } from "@/lib/queries/workspaceDb";
 import { isWorkshopExpired } from "@/lib/workshop";
 import { openWorkspacePath, toolChartPath } from "@/lib/chartRoutes";
-import { getPostHogServer } from "@/lib/posthog-server";
+import { after } from "next/server";
+import { PostHogServer } from "@/lib/posthog-server";
 import type { ProlificParams } from "@/lib/prolific";
 
 type JoinWorkshopResult =
@@ -57,6 +58,11 @@ export async function joinWorkshopAction(
             if (message.toLowerCase().includes("captcha")) {
                 return { ok: false, error: message, captchaRequired: true };
             }
+            after(() =>
+                PostHogServer.captureException(error ?? new Error(message), undefined, {
+                    source: "workshop_sign_in",
+                }),
+            );
             return { ok: false, error: message };
         }
         user = data.user;
@@ -82,6 +88,10 @@ export async function joinWorkshopAction(
         });
         if (error) {
             console.error("Failed to stamp workshop claim:", error.message);
+            const userId = user.id;
+            after(() =>
+                PostHogServer.captureException(error, userId, { source: "workshop_claim" }),
+            );
             return { ok: false, error: "Could not grant workshop access" };
         }
     }
@@ -112,13 +122,17 @@ export async function joinWorkshopAction(
     }
     const { chart, tool } = await seedWorkshopChart(workspace.id, workshop);
 
-    // Server-truth join event (the funnel entry point). Keyed by the Supabase
-    // user id — the only identifier PostHog holds; Prolific correlation is an
-    // offline DB join on this id, so no study params are sent here.
-    getPostHogServer()?.capture({
-        distinctId: user.id,
-        event: "workshop_joined",
-        properties: { tool },
+    // Keyed by the user id, the only identifier PostHog holds; no Prolific params.
+    after(async () => {
+        const context = { workspace_id: workspace.id, workshop_id: workshop.id, mode: "workshop" };
+        await PostHogServer.capture(user.id, "workshop_joined", { tool, ...context });
+        await PostHogServer.capture(user.id, "chart_created", {
+            tool,
+            origin: "workshop_join",
+            reused: false,
+            chart_id: chart.id,
+            ...context,
+        });
     });
 
     return { ok: true, redirectTo: toolChartPath(chart.id, tool) };
