@@ -14,6 +14,13 @@ export default {
     ],
     theme: {
         extend: {
+            screens: {
+                // Desktop monitors; most laptops are 1536px wide or narrower.
+                // `wide` is the 2560px class (1440p, 5K at 2x, 4K at 150%).
+                // Plain widths, so the `max-*` variants keep working.
+                monitor: "1600px",
+                wide: "2200px",
+            },
             colors: {
                 background: "hsl(var(--background))",
                 foreground: "hsl(var(--foreground))",

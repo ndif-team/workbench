@@ -469,7 +469,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     return (
         // Fills its page's height and sits above center: of the room left,
         // one part goes above the hero and five below the composer.
-        <div className="max-w-4xl mx-auto w-full flex flex-1 flex-col pb-8">
+        <div className="max-w-4xl monitor:max-w-5xl wide:max-w-6xl mx-auto w-full flex flex-1 flex-col pb-8">
             <div aria-hidden className="flex-1" />
             {/* Hero Section */}
             <motion.div
@@ -494,7 +494,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                     <span>tool</span>
                 </button>
 
-                <h1 className="flex items-center justify-center gap-3 text-5xl lg:gap-4 lg:text-7xl font-bold tracking-tight pt-2">
+                <h1 className="flex items-center justify-center gap-3 text-5xl lg:gap-4 lg:text-7xl monitor:gap-5 monitor:text-8xl wide:gap-6 wide:text-9xl font-bold tracking-tight pt-2">
                     {/* <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/80 bg-clip-text text-transparent">
                         Explore the Inner
                     </span>
@@ -502,15 +502,21 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                     <span className="lg:hidden">
                         <CwLogoMark cell={10} />
                     </span>
-                    <span className="hidden lg:block">
+                    <span className="hidden lg:block monitor:hidden">
                         <CwLogoMark cell={15} />
+                    </span>
+                    <span className="hidden monitor:block wide:hidden">
+                        <CwLogoMark cell={20} />
+                    </span>
+                    <span className="hidden wide:block">
+                        <CwLogoMark cell={26} />
                     </span>
                     <span className="bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
                         workbench
                     </span>
                 </h1>
 
-                <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed pt-0">
+                <p className="text-base sm:text-lg md:text-xl monitor:text-2xl wide:text-3xl text-muted-foreground max-w-2xl monitor:max-w-3xl wide:max-w-5xl mx-auto leading-relaxed pt-0">
                     Explore LLM internals and build your experiments interactively.
                 </p>
 
@@ -535,7 +541,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 // Narrower than the hero's column. On a phone the example above
                 // wraps, and its prediction's probability hangs below it.
-                className="mx-auto w-full max-w-3xl max-sm:pt-6"
+                className="mx-auto w-full max-w-3xl monitor:max-w-4xl wide:max-w-5xl max-sm:pt-6"
             >
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                     <div className="rounded-md border bg-card shadow-lg transition-[border-color,box-shadow] has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 dark:bg-secondary">
@@ -546,7 +552,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                                 onKeyDown={handleKeyDown}
                                 placeholder="Enter a prompt to analyze..."
                                 aria-label="Prompt"
-                                className="min-h-24 resize-none border-0 bg-transparent px-4 pt-4 text-base shadow-none focus-visible:ring-0 dark:bg-transparent md:text-base"
+                                className="min-h-24 resize-none border-0 bg-transparent px-4 pt-4 text-base shadow-none focus-visible:ring-0 dark:bg-transparent md:text-base monitor:min-h-28 monitor:text-lg wide:min-h-32 wide:text-xl"
                                 disabled={showCaptcha || isSubmitting}
                             />
                         ) : (
