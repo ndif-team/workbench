@@ -305,6 +305,8 @@
         // A value is read from the layer just below its reader.
         const recall = v.layer - 1;
         for (const a of v.args) {
+          // A Position ID reads every special token before it; arrows would cross the grid.
+          if (a.t !== undefined && v.fn === "position_id") continue;
           let p0;
           let start = null; // where a token's rise up its column begins
           let tone = "tok";

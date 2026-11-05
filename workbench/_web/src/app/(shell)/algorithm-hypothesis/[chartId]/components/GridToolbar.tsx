@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -22,12 +22,18 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import type {
+    AlgorithmGrid,
     AlgorithmHypothesisMode,
     AlgorithmView,
     ArrowMode,
     ChipLabel,
 } from "@/types/algorithmHypothesis";
-import { EXAMPLE_PROMPTS, GRID_OPTIONS } from "@/lib/algorithmHypothesis/grids";
+import {
+    EXAMPLE_PROMPTS,
+    GRID_OPTIONS,
+    gridLabel,
+    gridOptionId,
+} from "@/lib/algorithmHypothesis/grids";
 import { ModeTabs } from "./ModeTabs";
 
 interface GridToolbarProps {
@@ -40,8 +46,13 @@ interface GridToolbarProps {
     /** Prompts saved with the algorithm. */
     savedInputs: string[];
     onSaveInput: (prompt: string) => void;
-    gridId: string;
+    grid: AlgorithmGrid;
     onGridChange: (gridId: string) => void;
+    /** Abstract grids only. */
+    onAddLayer: () => void;
+    /** Why no layer can go, if so. */
+    removeLayerBlocked: string | null;
+    onRemoveLayer: () => void;
     view: AlgorithmView;
     onViewChange: (view: Partial<AlgorithmView>) => void;
 }
@@ -55,8 +66,11 @@ export function GridToolbar({
     onPromptChange,
     savedInputs,
     onSaveInput,
-    gridId,
+    grid,
     onGridChange,
+    onAddLayer,
+    removeLayerBlocked,
+    onRemoveLayer,
     view,
     onViewChange,
 }: GridToolbarProps) {
@@ -67,6 +81,7 @@ export function GridToolbar({
         if (text !== prompt) onPromptChange(text);
     };
 
+    const gridId = gridOptionId(grid);
     return (
         <div className="flex flex-col border-b">
             <div className="p-3 border-b flex items-center justify-between">
@@ -83,6 +98,9 @@ export function GridToolbar({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent align="end">
+                            {!GRID_OPTIONS.some((o) => o.id === gridId) && (
+                                <SelectItem value={gridId}>{gridLabel(grid)}</SelectItem>
+                            )}
                             {GRID_OPTIONS.map((o) => (
                                 <SelectItem key={o.id} value={o.id}>
                                     {o.label}
@@ -90,6 +108,31 @@ export function GridToolbar({
                             ))}
                         </SelectContent>
                     </Select>
+                    {grid.kind === "abstract" && (
+                        <div className="flex items-center gap-0.5" role="group" aria-label="Layers">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="size-8"
+                                aria-label="Remove a layer"
+                                title={removeLayerBlocked ?? "Remove an empty layer"}
+                                disabled={!!removeLayerBlocked}
+                                onClick={onRemoveLayer}
+                            >
+                                <Minus />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="size-8"
+                                aria-label="Add a layer"
+                                title="Add a layer"
+                                onClick={onAddLayer}
+                            >
+                                <Plus />
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 px-3 pt-2">

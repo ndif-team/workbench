@@ -813,6 +813,46 @@ export function newVariableId(def: AlgorithmDefinition, base: string): string {
     return id;
 }
 
+/** One more layer at the top. The output moves up with it, since it has to
+ * sit at the last layer. */
+export function addLayer(def: AlgorithmDefinition): AlgorithmDefinition {
+    const top = def.grid.layers;
+    return {
+        ...def,
+        grid: { ...def.grid, layers: top + 1 },
+        variables: def.variables.map((v) =>
+            v.id === def.output ? { ...v, cell: { ...v.cell, layer: top } } : v,
+        ),
+    };
+}
+
+/** The topmost layer no variable sits on, or null if every layer has one. */
+function emptyLayer(def: AlgorithmDefinition): number | null {
+    const used = new Set(def.variables.map((v) => v.cell.layer));
+    for (let layer = def.grid.layers - 1; layer >= 0; layer--) if (!used.has(layer)) return layer;
+    return null;
+}
+
+/** Whether a layer can go: the grid keeps at least one, and only an empty
+ * layer can be removed. */
+export function canRemoveLayer(def: AlgorithmDefinition): boolean {
+    return def.grid.layers > 1 && emptyLayer(def) !== null;
+}
+
+/** One layer fewer: the topmost empty layer goes and those above it move down,
+ * which keeps every argument on a lower layer than its reader. */
+export function removeLayer(def: AlgorithmDefinition): AlgorithmDefinition {
+    const gone = emptyLayer(def);
+    if (gone === null || def.grid.layers <= 1) return def;
+    return {
+        ...def,
+        grid: { ...def.grid, layers: def.grid.layers - 1 },
+        variables: def.variables.map((v) =>
+            v.cell.layer > gone ? { ...v, cell: { ...v.cell, layer: v.cell.layer - 1 } } : v,
+        ),
+    };
+}
+
 /** Remove variable `id` and every reference to it. */
 export function removeVariable(def: AlgorithmDefinition, id: string): AlgorithmDefinition {
     return {

@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode,
+} from "react";
 import { ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -30,6 +38,7 @@ import { useComparedAlgorithms, type ComparedAlgorithm } from "./comparison";
 import { GridHeading, InputRow, useTokens, type Role } from "./inputs";
 import { AlgorithmGrid, rowOf, tokenLabel, type CellMark } from "./AlgorithmGrid";
 import { ModeTabs } from "./ModeTabs";
+import { CompareMenu } from "./CompareMenu";
 
 /**
  * Visualizer 1 (design doc §6): drag a cell of the source grid onto a cell of
@@ -53,6 +62,9 @@ interface InterventionViewProps {
     state: InterventionState;
     onStateChange: (state: InterventionState) => void;
     onSaveInput: (text: string) => void;
+    /** Which saved algorithms run alongside this one; all when unset. */
+    comparedAlgorithms?: string[];
+    onComparedAlgorithmsChange: (ids: string[]) => void;
     onModeChange: (mode: AlgorithmHypothesisMode) => void;
     walkthroughOpen: boolean;
     onWalkthrough: () => void;
@@ -89,6 +101,8 @@ export default function InterventionView({
     state,
     onStateChange,
     onSaveInput,
+    comparedAlgorithms,
+    onComparedAlgorithmsChange,
     onModeChange,
     walkthroughOpen,
     onWalkthrough,
@@ -109,13 +123,13 @@ export default function InterventionView({
     );
     const spec = state.spec;
     const cells = spec ? specCells(spec) : null;
-    const compared = useComparedAlgorithms({
+    const { compared, options: comparisonOptions } = useComparedAlgorithms({
         workspaceId,
         algorithmId,
         definition,
         savedDefinition,
         templateTokens,
-        enabled: !!spec,
+        shown: comparedAlgorithms,
     });
     const sourceRun = useMemo(
         () => evaluate(definition, source.tokens, options),
@@ -477,6 +491,13 @@ export default function InterventionView({
     const summary = (
         <InterventionSummary
             compared={compared}
+            compareMenu={
+                <CompareMenu
+                    options={comparisonOptions}
+                    shown={comparedAlgorithms}
+                    onChange={onComparedAlgorithmsChange}
+                />
+            }
             definition={definition}
             sourceTokens={source.tokens}
             targetTokens={target.tokens}
@@ -538,6 +559,7 @@ const GROUP_LABEL: Record<ComparedAlgorithm["group"], string | null> = {
 
 function InterventionSummary({
     compared,
+    compareMenu,
     definition,
     sourceTokens,
     targetTokens,
@@ -548,6 +570,7 @@ function InterventionSummary({
     onClear,
 }: {
     compared: ComparedAlgorithm[];
+    compareMenu: ReactNode;
     definition: AlgorithmDefinition;
     sourceTokens: string[];
     targetTokens: string[];
@@ -600,11 +623,14 @@ function InterventionSummary({
         <div className="flex h-full min-h-0 flex-col">
             <div className="p-3 border-b flex items-center justify-between">
                 <h2 className="text-sm pl-2 font-medium">Intervention</h2>
-                {spec && (
-                    <Button variant="ghost" size="sm" onClick={onClear}>
-                        Clear
-                    </Button>
-                )}
+                <div className="flex items-center gap-2">
+                    {compareMenu}
+                    {spec && (
+                        <Button variant="ghost" size="sm" onClick={onClear}>
+                            Clear
+                        </Button>
+                    )}
+                </div>
             </div>
             <div
                 className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4 text-sm"

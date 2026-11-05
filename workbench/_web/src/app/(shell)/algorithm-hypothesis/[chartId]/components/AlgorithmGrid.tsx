@@ -27,8 +27,10 @@ import { arrowColor, chipColor, TypeGlyph } from "./glyphs";
 /**
  * The layers × tokens grid, in Figure 1's orientation: tokens across, layers
  * going up. Each variable sits in its cell; dashed copies above it show the
- * layers it is carried through (its span). Arrows show what each variable reads,
- * leaving from where the value is recalled: the copy just below the reader.
+ * layers it is carried through (its span). Arrows show each variable's
+ * arguments, leaving from where the value is recalled: the copy just below the
+ * reader. A Position ID's tokens get none: it reads every special token before
+ * it, so they would cross the whole grid.
  * Glyphs show each variable's type; color is the variable's own (black by
  * default), unless the grid is plain. In the editor, drag a variable to move it; its definition stays the
  * same. In "view" mode (the intervention view) the grid is read-only and its
@@ -302,10 +304,13 @@ export function AlgorithmGrid({
             for (const v of definition.variables) {
                 const target = bornChip(v.id);
                 if (!target) continue;
+                const positionId =
+                    v.function.kind === "primitive" && v.function.name === "position_id";
                 // A value is read from the layer just below the reader.
                 const recall = v.cell.layer - 1;
                 refsOf(v).forEach((r, i) => {
                     const isToken = !("variable" in r);
+                    if (isToken && positionId) return;
                     if (
                         isToken &&
                         view.arrows === "nearby" &&
@@ -671,7 +676,6 @@ export function AlgorithmGrid({
                                     className={cn("fill-none", c.stroke)}
                                     style={"strokeStyle" in c ? c.strokeStyle : undefined}
                                     strokeWidth={p.strong ? 2 : 1.4}
-                                    strokeDasharray={p.token ? "3 3" : undefined}
                                 />
                                 <path
                                     d={p.head}

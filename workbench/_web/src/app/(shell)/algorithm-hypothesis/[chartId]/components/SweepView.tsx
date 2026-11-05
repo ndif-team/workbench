@@ -25,6 +25,7 @@ import { useComparedAlgorithms, type ComparedAlgorithm } from "./comparison";
 import { InputRow, ROLE_DOT, useTokens, type Role } from "./inputs";
 import { layerLabel, tokenLabel } from "./AlgorithmGrid";
 import { ModeTabs } from "./ModeTabs";
+import { CompareMenu } from "./CompareMenu";
 
 /**
  * Visualizer 2 (design doc §7): pick a token, and for every layer from the
@@ -45,6 +46,9 @@ interface SweepViewProps {
     state: SweepState;
     onStateChange: (state: SweepState) => void;
     onSaveInput: (text: string) => void;
+    /** Which saved algorithms run alongside this one; all when unset. */
+    comparedAlgorithms?: string[];
+    onComparedAlgorithmsChange: (ids: string[]) => void;
     onModeChange: (mode: AlgorithmHypothesisMode) => void;
     walkthroughOpen: boolean;
     onWalkthrough: () => void;
@@ -159,6 +163,8 @@ export default function SweepView({
     state,
     onStateChange,
     onSaveInput,
+    comparedAlgorithms,
+    onComparedAlgorithmsChange,
     onModeChange,
     walkthroughOpen,
     onWalkthrough,
@@ -172,12 +178,13 @@ export default function SweepView({
         () => ({ python: pythonResolver(py.version) }),
         [py.version],
     );
-    const compared = useComparedAlgorithms({
+    const { compared, options: comparisonOptions } = useComparedAlgorithms({
         workspaceId,
         algorithmId,
         definition,
         savedDefinition,
         templateTokens,
+        shown: comparedAlgorithms,
     });
 
     const sameLength = source.tokens.length === target.tokens.length;
@@ -485,6 +492,11 @@ export default function SweepView({
         <div className="flex h-full min-h-0 flex-col">
             <div className="p-3 border-b flex items-center justify-between">
                 <h2 className="text-sm pl-2 font-medium">Sweep</h2>
+                <CompareMenu
+                    options={comparisonOptions}
+                    shown={comparedAlgorithms}
+                    onChange={onComparedAlgorithmsChange}
+                />
             </div>
             <div
                 className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 text-sm"

@@ -11,6 +11,8 @@ import { describe, it, expect } from "bun:test";
 import type { AlgorithmDefinition } from "@/types/algorithmHypothesis";
 import golden from "./golden.entity_binding.json";
 import {
+    addLayer,
+    canRemoveLayer,
     evaluate,
     fullSweep,
     type PythonResolver,
@@ -20,6 +22,7 @@ import {
     outputOf,
     parseAlgorithmFile,
     problems,
+    removeLayer,
     removeVariable,
     tokenSweep,
     upgradeDefinition,
@@ -475,6 +478,40 @@ describe("mixture", () => {
     it("the default special tokens are the prompt's names", () => {
         expect(nameTokens(TARGET)).toEqual([0, 4, 8, 12, 18]);
         expect(nameTokens(tokenizeAbstract("The cat sat on the mat."))).toEqual([]);
+    });
+});
+
+describe("layers", () => {
+    const eightLayers = example("lexical");
+
+    it("adding one lifts the output, so it stays at the last layer", () => {
+        const next = addLayer(eightLayers);
+        expect(next.grid.layers).toBe(9);
+        expect(problems(next, TARGET.length)).toEqual([]);
+        expect(next.variables.find((v) => v.id === next.output)!.cell.layer).toBe(8);
+    });
+
+    it("removing one drops the topmost empty layer and keeps the algorithm valid", () => {
+        let next = eightLayers;
+        while (canRemoveLayer(next)) {
+            next = removeLayer(next);
+            expect(problems(next, TARGET.length)).toEqual([]);
+            expect(show(outputOf(next, evaluate(next, TARGET)))).toBe("tea");
+        }
+        // The bindings, q_key, L and the answer each need their own layer.
+        expect(next.grid.layers).toBe(4);
+        expect(new Set(next.variables.map((v) => v.cell.layer)).size).toBe(4);
+        expect(removeLayer(next)).toEqual(next);
+    });
+
+    it("a grid keeps at least one layer", () => {
+        const blank = {
+            ...eightLayers,
+            variables: [],
+            output: null,
+            grid: { kind: "abstract" as const, layers: 1 },
+        };
+        expect(canRemoveLayer(blank)).toBe(false);
     });
 });
 

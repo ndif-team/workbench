@@ -7,7 +7,7 @@
 
 <div class="page">
   <header class="doc-header">
-    <div class="eyebrow"><span>Workbench</span><span aria-hidden="true">·</span><span>Design doc</span><span class="pill">Draft 0.7</span></div>
+    <div class="eyebrow"><span>Workbench</span><span aria-hidden="true">·</span><span>Design doc</span><span class="pill">Draft 0.8</span></div>
     <h1>Algorithm Hypothesis</h1>
     <p class="lede">Draw a hypothesized algorithm on a transformer's layers × tokens grid, then run interchange interventions on it with the same gestures Patch Lens uses on the network.</p>
     <div class="meta">
@@ -46,7 +46,7 @@
     <main>
       <section class="doc" id="status">
         <div class="callout status">
-          <span class="field-label">Status, 5 October 2026</span>
+          <span class="field-label">Status, 5 November 2026</span>
           <p><b>Code:</b> <a href="https://github.com/AmirZur/workbench/tree/feat/algorithm-hypothesis">AmirZur/workbench</a>, branch <span class="mono">feat/algorithm-hypothesis</span> (a fork of ndif-team/workbench). The README's “Algorithm Hypothesis” section has the steps to run it locally; the Python package, golden files and this doc live in <span class="mono">algorithm-hypothesis/</span>.</p>
           <p><b>P0–P2 done; P3–P6 built, ready to play-test.</b> One chart, three modes: <em>Edit</em>, <em>Intervene</em>, <em>Sweep</em>.</p>
           <ul>
@@ -57,6 +57,10 @@
             <li><b>P4, cell intervention</b> (§6).</li>
             <li><b>P5, token sweep</b> (§7): one token at every layer, or every position at once, for every algorithm; same position only (Q16).</li>
             <li><b>P6, paper demo</b> (§10): a docked walkthrough of the paper's Figure 1 task on the abstract grid. It loads the positional, lexical, reflexive and mixed algorithms one by one, then intervenes and sweeps. The paper's examples now live only there. Mixed is the exact union of the other three, with their answers combined linearly at the last token.</li>
+            <li><b>Upstream merge</b>: the tool now lives in workbench's new shell at <span class="mono">/algorithm-hypothesis/[chartId]</span>, is listed under New chart, and checks the user on every server action. Old links redirect.</li>
+            <li><b>Per-chart comparison</b>: <em>Compare</em>, on the Intervene and Sweep panels, chooses which saved algorithms a chart runs alongside its own, so one workspace can hold several experiments.</li>
+            <li><b>Layers</b>: − and + beside an abstract grid remove an empty layer or add one on top.</li>
+            <li><b>Arrows</b> are all solid and show arguments only; a Position ID's tokens get none.</li>
             <li><b>Defaults</b>: on the paper's prompts, the names are marked as special tokens from the start. Intervene draws every variable black; colors are for editing.</li>
             <li>Earlier this week: types, glyphs, color and tags, special tokens, and the primitives Position ID, Copy, Pair, Retrieve, Index, KeyOf, ValueOf, Mixture, Constant and Custom (§4).</li>
           </ul>
@@ -367,7 +371,7 @@
           <p><strong>Design notes.</strong></p>
           <ul>
             <li><strong>The glyph follows the type</strong> (§4.2), so a position : string binding reads ◇ : ● wherever it appears: in the grid, the argument slots and the variable list. Color is the variable's own.</li>
-            <li><strong>Arrow density.</strong> Drawing every read gets cluttered fast; the positional algorithm alone has 27. The editor always draws variable-to-variable arrows, and draws token reads only when the token is within two positions or the variable is selected. “All arrows” and “No arrows” are one click away.</li>
+            <li><strong>Arrow density.</strong> Drawing every read gets cluttered fast; the positional algorithm alone has 27. The editor always draws variable-to-variable arrows, and draws token reads only when the token is within two positions or the variable is selected. A Position ID's tokens never get arrows, because it reads every special token before it. “All arrows” and “No arrows” are one click away.</li>
             <li><strong>Dashed copies show spans</strong>, so you can see where a variable can be intervened on before opening a visualizer.</li>
             <li><strong>Workbench patterns only</strong>: a docked panel with the standard header, the shared Select, Input, Checkbox, Popover and DropdownMenu primitives, toasts for refused moves, and destructive actions confirmed in a popover.</li>
           </ul>
@@ -466,7 +470,7 @@
         <h3 class="sub"><span class="num">9.1</span>In workbench (P2–P4, built)</h3>
         <div class="prose">
           <ul>
-            <li><strong>Route.</strong> A chart type, <code>algorithm-hypothesis</code>, at <code>app/workbench/[workspaceId]/algorithm-hypothesis/[chartId]/</code>. <code>AlgorithmHypothesisArea</code> is the container: it reads the route, loads the chart and its algorithm, autosaves, and routes grid clicks. In <em>Intervene</em> mode it hands over to <code>InterventionView</code>, a second container that tokenizes the inputs and runs the interventions. <code>AlgorithmGrid</code> (an editing mode and a read-only mode), <code>VariablePanel</code>, <code>AlgorithmPanel</code> and <code>GridToolbar</code> are presentational.</li>
+            <li><strong>Route.</strong> A chart type, <code>algorithm-hypothesis</code>, at <code>app/(shell)/algorithm-hypothesis/[chartId]/</code>. <code>AlgorithmHypothesisArea</code> is the container: it reads the route, loads the chart and its algorithm, autosaves, and routes grid clicks. In <em>Intervene</em> mode it hands over to <code>InterventionView</code>, a second container that tokenizes the inputs and runs the interventions. <code>AlgorithmGrid</code> (an editing mode and a read-only mode), <code>VariablePanel</code>, <code>AlgorithmPanel</code> and <code>GridToolbar</code> are presentational.</li>
             <li><strong>Engine.</strong> <code>lib/algorithmHypothesis/</code> holds the TypeScript engine: types and their inference, primitives (with their Python sources, generated from the golden file), spans, evaluation, validation, moves and interchange interventions. It evaluates on every edit and runs in microseconds. A golden test keeps it in line with the Python package cell for cell.</li>
             <li><strong>Python.</strong> <code>python.ts</code> runs custom functions in a Pyodide worker started from a Blob URL, so neither the bundler nor a static file is involved. The engine stays synchronous: a Python variable is a cached result, or “pending” while its call is queued, and components evaluate again when results arrive (§9.2).</li>
             <li><strong>State.</strong> The algorithm is server data, edited as a local working copy that autosaves half a second after each change. The prompt, view settings, mode and intervention autosave to the chart row, like Patch Lens's prompts and patch.</li>

@@ -17,9 +17,16 @@ export interface ComparedAlgorithm {
     templateTokens: string[];
 }
 
+/** A saved algorithm the chart can compare with. */
+export interface ComparisonOption {
+    id: string;
+    name: string;
+}
+
 /**
- * This algorithm (its working copy) and the saved version of every other saved
- * algorithm in the workspace on the same grid.
+ * This algorithm (its working copy) and the saved version of the workspace's
+ * other saved algorithms on the same grid: all of them, or those in `shown`.
+ * `options` lists all of them, for choosing.
  */
 export function useComparedAlgorithms({
     workspaceId,
@@ -27,16 +34,16 @@ export function useComparedAlgorithms({
     definition,
     savedDefinition,
     templateTokens,
-    enabled = true,
+    shown,
 }: {
     workspaceId: string;
     algorithmId: string;
     definition: AlgorithmDefinition;
     savedDefinition: AlgorithmDefinition | null;
     templateTokens: string[];
-    enabled?: boolean;
-}): ComparedAlgorithm[] {
-    const { data: saved } = useSavedAlgorithms(workspaceId, enabled);
+    shown?: string[];
+}): { compared: ComparedAlgorithm[]; options: ComparisonOption[] } {
+    const { data: saved } = useSavedAlgorithms(workspaceId);
     return useMemo(() => {
         const sameGrid = (d: AlgorithmDefinition) =>
             d.grid.kind === definition.grid.kind &&
@@ -47,7 +54,8 @@ export function useComparedAlgorithms({
             : sameDefinition(savedDefinition, definition)
               ? "this algorithm"
               : "this algorithm, unsaved changes";
-        const out: ComparedAlgorithm[] = [
+        const options: ComparisonOption[] = [];
+        const compared: ComparedAlgorithm[] = [
             {
                 key: "this",
                 name: definition.name,
@@ -61,11 +69,13 @@ export function useComparedAlgorithms({
             if (row.id === algorithmId) continue;
             const d = upgradeDefinition(row.definition);
             if (!sameGrid(d) || !d.output) continue;
+            options.push({ id: row.id, name: d.name });
+            if (shown && !shown.includes(row.id)) continue;
             // Abstract templates tokenize here; a model grid's other templates
             // would need the tokenizer, so they reuse this one's.
             const template =
                 d.grid.kind === "abstract" ? tokenizeAbstract(d.template) : templateTokens;
-            out.push({
+            compared.push({
                 key: row.id,
                 name: d.name,
                 group: "saved",
@@ -73,6 +83,6 @@ export function useComparedAlgorithms({
                 templateTokens: template,
             });
         }
-        return out;
-    }, [saved, algorithmId, definition, savedDefinition, templateTokens]);
+        return { compared, options };
+    }, [saved, algorithmId, definition, savedDefinition, templateTokens, shown]);
 }

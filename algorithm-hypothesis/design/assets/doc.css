@@ -349,7 +349,7 @@ path.arrow.c-emerald { stroke: var(--lex); } path.arrowhead.c-emerald { fill: va
 path.arrow.c-amber { stroke: var(--ref); } path.arrowhead.c-amber { fill: var(--ref); }
 path.arrow.c-red { stroke: hsl(0 72% 50%); } path.arrowhead.c-red { fill: hsl(0 72% 50%); }
 path.arrow.tok { stroke: var(--faint); } path.arrowhead.tok { fill: var(--faint); }
-path.arrow.from-token { stroke-dasharray: 3 3; stroke-width: 1.1; }
+path.arrow.from-token { stroke-width: 1.1; }
 path.dimmed { opacity: 0.12; }
 path.arrow.strong { opacity: 1; stroke-width: 2; }
 path.arrowhead.strong { opacity: 1; }

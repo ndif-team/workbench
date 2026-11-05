@@ -149,4 +149,7 @@ export interface AlgorithmHypothesisChartData {
         full: boolean;
     };
     walkthrough?: WalkthroughState;
+    /** Saved algorithms this chart's Intervene and Sweep run alongside its own;
+     * every saved algorithm on the same grid when unset. */
+    comparedAlgorithms?: string[];
 }

@@ -30,12 +30,15 @@ import type {
     WalkthroughState,
 } from "@/types/algorithmHypothesis";
 import {
+    addLayer,
+    canRemoveLayer,
     evaluate,
     inferTypes,
     moveProblem,
     outputOf,
     parseAlgorithmFile,
     problems as algorithmProblems,
+    removeLayer,
     removeVariable,
     sameDefinition,
     upgradeDefinition,
@@ -56,7 +59,6 @@ import {
     GRID_OPTIONS,
     blankAlgorithm,
     gridLabel,
-    gridOptionId,
     tokenizeAbstract,
 } from "@/lib/algorithmHypothesis/grids";
 import { AlgorithmGrid } from "./AlgorithmGrid";
@@ -136,6 +138,7 @@ export default function AlgorithmHypothesisArea({ mobile = false }: { mobile?: b
     const [mode, setMode] = useState<AlgorithmHypothesisMode>("edit");
     const [intervention, setIntervention] = useState<InterventionState | null>(null);
     const [sweep, setSweep] = useState<SweepState | null>(null);
+    const [comparedAlgorithms, setComparedAlgorithms] = useState<string[] | undefined>(undefined);
     const [walkthrough, setWalkthrough] = useState<WalkthroughState | null>(null);
     const hydratedChart = useRef<string | null>(null);
     useEffect(() => {
@@ -146,6 +149,7 @@ export default function AlgorithmHypothesisArea({ mobile = false }: { mobile?: b
         setMode(d?.mode === "intervene" || d?.mode === "sweep" ? d.mode : "edit");
         setIntervention(d?.intervention ?? null);
         setSweep(d?.sweep ?? null);
+        setComparedAlgorithms(d?.comparedAlgorithms);
         // Progress through an earlier version of the walkthrough restarts.
         const w = d?.walkthrough;
         setWalkthrough(
@@ -179,8 +183,9 @@ export default function AlgorithmHypothesisArea({ mobile = false }: { mobile?: b
             ...(intervention ? { intervention } : {}),
             ...(sweep ? { sweep } : {}),
             ...(walkthrough ? { walkthrough } : {}),
+            ...(comparedAlgorithms ? { comparedAlgorithms } : {}),
         }),
-        [prompt, view, mode, intervention, sweep, walkthrough],
+        [prompt, view, mode, intervention, sweep, walkthrough, comparedAlgorithms],
     );
 
     useEffect(() => {
@@ -550,9 +555,27 @@ export default function AlgorithmHypothesisArea({ mobile = false }: { mobile?: b
         if (!definition) return;
         const option = GRID_OPTIONS.find((o) => o.id === id);
         if (!option) return;
-        commit({ ...definition, grid: { ...option.grid } });
+        // Growing an abstract grid keeps the output at the last layer.
+        let next = definition;
+        while (next.grid.kind === "abstract" && next.grid.layers < option.grid.layers)
+            next = addLayer(next);
+        commit({ ...next, grid: { ...option.grid } });
         setDraft(null);
         capture("param_changed", { tool: "algorithm-hypothesis", param: "grid", value: id });
+    };
+
+    const onAddLayer = () => {
+        if (!definition) return;
+        commit(addLayer(definition));
+        setDraft(null);
+        capture("param_changed", { tool: "algorithm-hypothesis", param: "layer_added" });
+    };
+
+    const onRemoveLayer = () => {
+        if (!definition) return;
+        commit(removeLayer(definition));
+        setDraft(null);
+        capture("param_changed", { tool: "algorithm-hypothesis", param: "layer_removed" });
     };
 
     const onSaveInput = (text: string) => {
@@ -569,6 +592,11 @@ export default function AlgorithmHypothesisArea({ mobile = false }: { mobile?: b
             action: { label: "Undo", onClick: () => commit(before) },
         });
     };
+
+    /** The choice lists the other algorithms, and keeps this one, so that it
+     * still holds once the chart opens one of the others. */
+    const onComparedAlgorithmsChange = (ids: string[]) =>
+        setComparedAlgorithms(algorithmId ? [...new Set([...ids, algorithmId])] : ids);
 
     const onModeChange = (next: AlgorithmHypothesisMode) => {
         if (next === mode) return;
@@ -848,6 +876,8 @@ export default function AlgorithmHypothesisArea({ mobile = false }: { mobile?: b
                 state={intervention}
                 onStateChange={setIntervention}
                 onSaveInput={onSaveInput}
+                comparedAlgorithms={comparedAlgorithms}
+                onComparedAlgorithmsChange={onComparedAlgorithmsChange}
                 onModeChange={onModeChange}
                 walkthroughOpen={!!walkthrough?.open}
                 onWalkthrough={toggleWalkthrough}
@@ -866,6 +896,8 @@ export default function AlgorithmHypothesisArea({ mobile = false }: { mobile?: b
                 state={sweep}
                 onStateChange={setSweep}
                 onSaveInput={onSaveInput}
+                comparedAlgorithms={comparedAlgorithms}
+                onComparedAlgorithmsChange={onComparedAlgorithmsChange}
                 onModeChange={onModeChange}
                 walkthroughOpen={!!walkthrough?.open}
                 onWalkthrough={toggleWalkthrough}
@@ -884,8 +916,15 @@ export default function AlgorithmHypothesisArea({ mobile = false }: { mobile?: b
                 onPromptChange={setPrompt}
                 savedInputs={definition.inputs ?? []}
                 onSaveInput={onSaveInput}
-                gridId={gridOptionId(definition.grid)}
+                grid={definition.grid}
                 onGridChange={onGridChange}
+                onAddLayer={onAddLayer}
+                removeLayerBlocked={
+                    canRemoveLayer(definition)
+                        ? null
+                        : "Every layer holds a variable. Move one to free a layer."
+                }
+                onRemoveLayer={onRemoveLayer}
                 view={view}
                 onViewChange={(v) => setView((prev) => ({ ...prev, ...v }))}
             />

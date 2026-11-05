@@ -43,11 +43,11 @@ export const useWorkspaceAlgorithms = (workspaceId: string | undefined) =>
     });
 
 /** Saved versions of the workspace's saved algorithms (intervention and sweep views). */
-export const useSavedAlgorithms = (workspaceId: string | undefined, enabled = true) =>
+export const useSavedAlgorithms = (workspaceId: string | undefined) =>
     useQuery({
         queryKey: queryKeys.algorithms.saved(workspaceId ?? ""),
         queryFn: () => getSavedAlgorithmsForWorkspace(workspaceId as string),
-        enabled: !!workspaceId && enabled,
+        enabled: !!workspaceId,
     });
 
 /** Save the working copy as the algorithm's saved version. */
