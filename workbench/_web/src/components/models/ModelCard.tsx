@@ -81,23 +81,23 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
         : `color-mix(in srgb, ${accent} 35%, hsl(var(--border)))`;
 
     const content = (
-        <div className="flex flex-col gap-1.5 h-full">
+        <div className="flex flex-col gap-2 h-full">
             <div className="flex items-center justify-between gap-2">
                 {deploying ? (
                     <span
-                        className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium"
+                        className="inline-flex min-w-0 items-center gap-2 text-sm font-medium"
                         style={{ color: MODEL_STATUS.deploying.color }}
                     >
-                        <Loader2 className="w-3 h-3 shrink-0 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
                         <span className="truncate">deploying</span>
                     </span>
                 ) : (
                     <span
-                        className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium"
+                        className="inline-flex min-w-0 items-center gap-2 text-sm font-medium"
                         style={{ color: heat.color }}
                     >
                         <span
-                            className="w-1.5 h-1.5 shrink-0 rounded-full"
+                            className="w-2 h-2 shrink-0 rounded-full"
                             style={{
                                 background: heat.color,
                                 boxShadow: `0 0 0 3px ${heat.color}26`,
@@ -107,7 +107,7 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
                     </span>
                 )}
                 <span
-                    className="shrink-0 whitespace-nowrap text-xs font-medium px-1.5 py-0.5 rounded border"
+                    className="shrink-0 whitespace-nowrap text-sm font-medium px-2 py-0.5 rounded border"
                     style={{
                         color: pillText,
                         background: pillBg,
@@ -118,17 +118,17 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
                 </span>
             </div>
 
-            <div className={cn("flex flex-col", m.has_jacobian && "pr-12 sm:pr-14")}>
-                <span className="text-xs text-muted-foreground truncate leading-tight">
+            <div className={cn("flex flex-col", m.has_jacobian && "pr-16")}>
+                <span className="text-sm text-muted-foreground truncate leading-tight">
                     {m.org}
                 </span>
-                <span className="font-mono text-sm font-semibold truncate leading-tight">
+                <span className="font-mono text-lg font-semibold truncate leading-tight">
                     {m.name}
                 </span>
             </div>
 
             <div
-                className="flex items-center gap-3 -mx-3 -mb-2.5 mt-auto px-3 pb-1.5 pt-1 border-t font-mono text-xs text-muted-foreground"
+                className="flex items-center gap-3 -mx-4 -mb-3.5 mt-auto px-4 py-2 border-t font-mono text-sm text-muted-foreground"
                 style={{ background: footerBg, borderColor: footerBorder }}
             >
                 <span>{m.params}</span>
@@ -141,9 +141,9 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                         aria-label={`View ${m.org}/${m.name} on Hugging Face`}
-                        className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:text-foreground hover:bg-foreground/10"
+                        className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:text-foreground hover:bg-foreground/10"
                     >
-                        <Info className="h-3.5 w-3.5" />
+                        <Info className="h-4 w-4" />
                     </a>
                 )}
             </div>
@@ -151,7 +151,7 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
     );
 
     const shell = cn(
-        "group relative w-full min-w-0 px-3 py-2.5 rounded-md overflow-hidden border border-foreground/50 text-left shadow-md shadow-blue-950/15 transition-colors dark:border-foreground/45 dark:shadow-black/50",
+        "group relative w-full min-w-0 px-4 py-3.5 rounded-md overflow-hidden border border-foreground/50 text-left shadow-md shadow-blue-950/15 transition-colors dark:border-foreground/45 dark:shadow-black/50",
         clickable
             ? "cursor-pointer hover:border-foreground/65 dark:hover:border-foreground/60"
             : "cursor-default",
@@ -199,7 +199,7 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
                 <SparkBadge
                     text="J-Lens"
                     label="Supports J-Lens"
-                    className="pointer-events-none absolute right-2 top-10 z-10 h-7 w-11 rotate-12 drop-shadow-sm sm:h-9 sm:w-14"
+                    className="pointer-events-none absolute right-3 top-12 z-10 h-11 w-16 rotate-12 drop-shadow-sm"
                 />
             )}
         </div>

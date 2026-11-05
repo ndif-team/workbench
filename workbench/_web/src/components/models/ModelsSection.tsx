@@ -81,9 +81,9 @@ const toCardModel = (m: Model, isSignedIn: boolean): ModelCardModel => {
     };
 };
 
-/** The card grid's geometry: `grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3`. */
-const CARD_MIN_WIDTH = 256;
-const GRID_GAP = 12;
+/** The card grid's geometry: `grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-4`. */
+const CARD_MIN_WIDTH = 320;
+const GRID_GAP = 16;
 
 /**
  * How many cards fit in the grid's area without scrolling: as many columns as
@@ -348,7 +348,7 @@ export function ModelsSection({
                         No models match the current filters.
                     </div>
                 ) : (
-                    <ul className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3">
+                    <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-4">
                         {pageModels.map((m, i) => (
                             <li
                                 key={`${m.org}/${m.name}`}
