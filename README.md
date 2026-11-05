@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./workbench_logo.png" alt="Workbench" width="300">
+  <img src="./workbench_logo.svg" alt="Workbench" width="360">
 </p>
 
 <h3 align="center">
