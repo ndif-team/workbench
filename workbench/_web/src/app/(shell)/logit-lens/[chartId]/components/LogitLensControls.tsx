@@ -261,20 +261,12 @@ export function LogitLensControls({
                     topk: savedTopk,
                     includeEntropy: savedIncludeEntropy,
                 };
-                capture("run_submitted", {
-                    tool: "logit-lens",
-                    model: selectedModel,
-                    prompt_length: trimmedPrompt.length,
-                    topk: savedTopk,
-                    include_entropy: savedIncludeEntropy,
-                    auto: true,
-                });
                 await computeLogitLens({
                     lensRequest: { completion: config, chartId },
                     configId: initialConfig.id,
+                    trigger: "launch",
                 });
                 if (isCancelled) return;
-                capture("run_completed", { tool: "logit-lens", model: selectedModel });
                 await updateConfig({
                     configId: initialConfig.id,
                     chartId,
@@ -282,9 +274,8 @@ export function LogitLensControls({
                 });
                 if (isCancelled) return;
                 lastSyncedPromptRef.current = trimmedPrompt;
-            } catch (err) {
-                /* one-shot auto-run; swallow, but record the failure */
-                if (!isCancelled) capture("run_failed", { tool: "logit-lens", error: String(err) });
+            } catch {
+                /* one-shot auto-run; the mutations toast and report their failures */
             }
         };
         const timer = setTimeout(autoRunLogitLens, 800);
@@ -303,7 +294,6 @@ export function LogitLensControls({
         workspaceId,
         computeLogitLens,
         updateConfig,
-        capture,
     ]);
 
     const autoResizeTextarea = useCallback(() => {
@@ -398,29 +388,21 @@ export function LogitLensControls({
             includeEntropy,
         };
 
-        capture("run_submitted", {
-            tool: "logit-lens",
-            model: selectedModel,
-            prompt_length: trimmedPrompt.length,
-            topk,
-            include_entropy: includeEntropy,
-            auto: false,
-        });
         try {
             await computeLogitLens({
                 lensRequest: { completion: config, chartId },
                 configId: initialConfig.id,
+                trigger: "run",
             });
-            capture("run_completed", { tool: "logit-lens", model: selectedModel });
-        } catch (err) {
-            capture("run_failed", { tool: "logit-lens", error: String(err) });
-            throw err;
+            await updateConfig({
+                configId: initialConfig.id,
+                chartId,
+                config: { data: config, workspaceId, type: "logit-lens" },
+            });
+        } catch {
+            // The mutations toast; a failed run must not save its config.
+            return;
         }
-        await updateConfig({
-            configId: initialConfig.id,
-            chartId,
-            config: { data: config, workspaceId, type: "logit-lens" },
-        });
         // Land draftModel on the model that just persisted so the banner
         // doesn't flash between the run completing and the refetch arriving.
         setDraftModel(selectedModel);
@@ -436,7 +418,6 @@ export function LogitLensControls({
         workspaceId,
         computeLogitLens,
         updateConfig,
-        capture,
     ]);
 
     const handlePromptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {

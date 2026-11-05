@@ -14,6 +14,9 @@ import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
 import { runAndStream } from "../runAndStream";
 import { createUserHeadersAction } from "@/actions/auth";
+import { useTrackRun, type RunTrigger } from "@/lib/analytics";
+import { runErrorMessage } from "@/lib/ndifError";
+import type { JobSink } from "@/lib/ndifJob";
 
 /**
  * Internal request format for the mutation
@@ -23,11 +26,18 @@ interface ActivationPatchingRequest {
     chartId: string;
 }
 
+interface ActivationPatchingVariables {
+    request: ActivationPatchingRequest;
+    configId: string;
+    trigger: RunTrigger;
+}
+
 /**
- * Fetch activation patching data from the backend
+ * Fetch activation patching data from the backend, recording its NDIF job in `jobs`
  */
 const getActivationPatching = async (
     request: ActivationPatchingRequest,
+    jobs: JobSink,
 ): Promise<ActivationPatchingData> => {
     const headers = await createUserHeadersAction();
 
@@ -46,18 +56,23 @@ const getActivationPatching = async (
         config.endpoints.runActivationPatching,
         apiRequest,
         headers,
+        jobs,
     );
 };
 
 /**
- * React Query mutation hook for activation patching visualization
+ * React Query mutation hook for activation patching visualization. Each call
+ * is one tracked run (`useTrackRun`); `meta.reportedAs` keeps its failures out
+ * of exception capture, since `run_failed` reports them.
  */
 export const useActivationPatching = () => {
     const queryClient = useQueryClient();
+    const trackRun = useTrackRun();
 
     return useMutation({
         mutationKey: ["activationPatching"],
-        onMutate: async ({ request }: { request: ActivationPatchingRequest; configId: string }) => {
+        meta: { reportedAs: "run" },
+        onMutate: async ({ request }: ActivationPatchingVariables) => {
             const chartKey = queryKeys.charts.chart(request.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
@@ -70,22 +85,34 @@ export const useActivationPatching = () => {
                 chartKey: ReturnType<typeof queryKeys.charts.chart>;
             };
         },
-        mutationFn: async ({
-            request,
-        }: {
-            request: ActivationPatchingRequest;
-            configId: string;
-        }) => {
-            const response = await getActivationPatching(request);
-            // Store the activation patching data as chart data
-            await setChartData(request.chartId, response, "activation-patching");
-            return response;
+        mutationFn: ({ request, trigger }: ActivationPatchingVariables) => {
+            const { completion } = request;
+            return trackRun(
+                {
+                    tool: "activation-patching",
+                    trigger,
+                    model: completion.model,
+                    source_prompt_length: completion.srcPrompt.length,
+                    target_prompt_length: completion.tgtPrompt.length,
+                    src_pos_count: completion.srcPos?.length ?? 0,
+                    tgt_pos_count: completion.tgtPos?.length ?? 0,
+                    tgt_freeze_count: completion.tgtFreeze?.length ?? 0,
+                },
+                async (jobs) => {
+                    const response = await getActivationPatching(request, jobs);
+                    // Store the activation patching data as chart data
+                    await setChartData(request.chartId, response, "activation-patching");
+                    return response;
+                },
+            );
         },
         onError: (error, variables, context) => {
             if (context?.previousChart) {
                 queryClient.setQueryData(context.chartKey, context.previousChart);
             }
-            toast.error("Failed to compute activation patching visualization");
+            toast.error(
+                runErrorMessage(error, "Failed to compute activation patching visualization"),
+            );
         },
         onSuccess: async (data, variables) => {
             const chartKey = queryKeys.charts.chart(variables.request.chartId);

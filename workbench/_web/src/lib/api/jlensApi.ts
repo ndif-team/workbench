@@ -10,6 +10,8 @@ import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
 import { runAndStream } from "../runAndStream";
 import { createUserHeadersAction } from "@/actions/auth";
+import { useTrackRun, type RunTrigger } from "@/lib/analytics";
+import { runErrorMessage } from "@/lib/ndifError";
 
 /**
  * API request for j-lens endpoint
@@ -19,32 +21,33 @@ interface JLensRequest {
     chartId: string;
 }
 
-/**
- * Fetch j-lens data from the backend
- */
-const getJLens = async (lensRequest: JLensRequest): Promise<JLensData> => {
-    const headers = await createUserHeadersAction();
+interface JLensVariables {
+    lensRequest: JLensRequest;
+    configId: string;
+    trigger: RunTrigger;
+}
 
-    // Transform to backend request format
-    const request = {
-        model: lensRequest.completion.model,
-        prompt: lensRequest.completion.prompt,
-        topk: lensRequest.completion.topk ?? 5,
-        include_entropy: lensRequest.completion.includeEntropy ?? false,
-    };
-
-    return await runAndStream<JLensData>(config.endpoints.runJLens, request, headers);
-};
+/** The backend request for a j-lens config. */
+const toRequest = ({ model, prompt, topk, includeEntropy }: JLensConfigData) => ({
+    model,
+    prompt,
+    topk: topk ?? 5,
+    include_entropy: includeEntropy ?? false,
+});
 
 /**
- * React Query mutation hook for j-lens visualization
+ * React Query mutation hook for j-lens visualization. Each call is one tracked
+ * run (`useTrackRun`); `meta.reportedAs` keeps its failures out of exception
+ * capture, since `run_failed` reports them.
  */
 export const useJLens = () => {
     const queryClient = useQueryClient();
+    const trackRun = useTrackRun();
 
     return useMutation({
         mutationKey: ["jlens"],
-        onMutate: async ({ lensRequest }: { lensRequest: JLensRequest; configId: string }) => {
+        meta: { reportedAs: "run" },
+        onMutate: async ({ lensRequest }: JLensVariables) => {
             const chartKey = queryKeys.charts.chart(lensRequest.chartId);
             await queryClient.cancelQueries({ queryKey: chartKey });
             const previousChart = queryClient.getQueryData(chartKey);
@@ -57,17 +60,36 @@ export const useJLens = () => {
                 chartKey: ReturnType<typeof queryKeys.charts.chart>;
             };
         },
-        mutationFn: async ({ lensRequest }: { lensRequest: JLensRequest; configId: string }) => {
-            const response = await getJLens(lensRequest);
-            // Store the j-lens data as chart data (in LogitLens V2 format)
-            await setChartData(lensRequest.chartId, response, "jlens");
-            return response;
+        mutationFn: ({ lensRequest, trigger }: JLensVariables) => {
+            const request = toRequest(lensRequest.completion);
+            return trackRun(
+                {
+                    tool: "jlens",
+                    trigger,
+                    model: request.model,
+                    prompt_length: request.prompt.length,
+                    topk: request.topk,
+                    include_entropy: request.include_entropy,
+                },
+                async (jobs) => {
+                    const headers = await createUserHeadersAction();
+                    const response = await runAndStream<JLensData>(
+                        config.endpoints.runJLens,
+                        request,
+                        headers,
+                        jobs,
+                    );
+                    // Store the j-lens data as chart data (in LogitLens V2 format)
+                    await setChartData(lensRequest.chartId, response, "jlens");
+                    return response;
+                },
+            );
         },
         onError: (error, variables, context) => {
             if (context?.previousChart) {
                 queryClient.setQueryData(context.chartKey, context.previousChart);
             }
-            toast.error("Failed to compute j-lens visualization");
+            toast.error(runErrorMessage(error, "Failed to compute j-lens visualization"));
         },
         onSuccess: async (data, variables) => {
             const chartKey = queryKeys.charts.chart(variables.lensRequest.chartId);
