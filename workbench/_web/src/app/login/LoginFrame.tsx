@@ -4,7 +4,11 @@ import Link from "next/link";
 import { CwLogo } from "@/components/CwLogo";
 import styles from "./login.module.css";
 
-/** Keep the artwork and page geometry stable while sign-in options load. */
+/**
+ * Keep the artwork and page geometry stable while sign-in options load. The
+ * signal-focus rings are drawn over the artwork in its own 1536 × 1024
+ * coordinates, so they have to move with the image if it is replaced.
+ */
 export function LoginFrame({ children }: { children: ReactNode }) {
     return (
         <main className={styles.page}>
@@ -17,7 +21,7 @@ export function LoginFrame({ children }: { children: ReactNode }) {
                 <section className={styles.access} aria-labelledby="login-heading">
                     <div className={styles.intro}>
                         <h1 id="login-heading">Look beneath the surface.</h1>
-                        <p>Log in to access LLMs hosted on NDIF, up to Llama 405B.</p>
+                        <p>Sign in to access LLMs hosted on NDIF, up to Llama 405B.</p>
                     </div>
                     <div className={styles.form}>{children}</div>
                 </section>
