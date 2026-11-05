@@ -26,6 +26,7 @@ export const useUpdateChartConfig = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
+        mutationKey: ["updateChartConfig"],
         mutationFn: async ({
             configId,
             config,

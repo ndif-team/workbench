@@ -13,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { captureError } from "@/lib/errorTracking";
 import Link from "next/link";
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
@@ -60,6 +61,7 @@ export function UserDropdown({
 
         if (error) {
             console.error("Logout error:", error);
+            captureError(error, { source: "sign_out" });
             setIsLoggingOut(false);
         } else {
             router.push("/");

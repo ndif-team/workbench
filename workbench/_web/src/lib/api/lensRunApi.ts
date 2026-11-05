@@ -40,6 +40,7 @@ export const useLensRunHeatmaps = (ids: string[]) => {
 export const useClearLensRuns = (chartId: string | undefined) => {
     const queryClient = useQueryClient();
     return useMutation({
+        mutationKey: ["clearLensRuns"],
         mutationFn: async () => {
             if (!chartId) return;
             await clearLensRunsForChart(chartId);
