@@ -5,9 +5,10 @@ import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { useModelsQuery } from "@/lib/api/modelsApi";
-import { isModelRunnable } from "@/components/model-selector/status";
+import { defaultModel, isModelRunnable, selectedModelIn } from "@/components/model-selector/status";
 import { isToolSupportedForModel } from "@/lib/toolSupport";
 import type { ToolType } from "@/types/charts";
+import type { Model } from "@/types/models";
 
 interface ConfigWithModel {
     id: string;
@@ -51,7 +52,10 @@ interface UseToolAreaResult<TConfig extends ConfigWithModel, TChart extends Char
  *
  * Loads the chart and its config, the workspace model list, then syncs the
  * workspace's selected model to the chart's saved model on chart change so
- * the header pill matches the loaded chart by default.
+ * the header pill matches the loaded chart by default. A chart with no model
+ * of its own (a blank one) keeps the header's pick when that can run the
+ * chart's tool, and otherwise starts on the default model (`defaultModel`):
+ * never a cold one while a hot or warm model can run the tool.
  *
  * Each tool's Area is now a thin shell around this hook + the tool-specific
  * Controls component.
@@ -74,7 +78,7 @@ export function useToolArea<
         enabled: !!chartId,
     });
 
-    const { selectedModelIdx, setSelectedModelIdx } = useWorkspace();
+    const { selectedModel, setSelectedModel } = useWorkspace();
 
     const { data: models, isFetching: modelsFetching } = useModelsQuery();
 
@@ -89,24 +93,30 @@ export function useToolArea<
     // the whole config object) so the effect only re-runs on real changes.
     const configId = typedConfig?.id;
     const configModel = typedConfig?.data?.model;
+    const configTool = typedConfig?.type as ToolType | undefined;
     const syncedChartIdRef = useRef<string | undefined>(undefined);
     useEffect(() => {
-        if (!configId || !configModel || !models || models.length === 0) return;
+        if (!configId || !models || models.length === 0) return;
         if (syncedChartIdRef.current === configId) return;
-        const idx = models.findIndex((m) => m.name === configModel);
-        if (idx !== -1) {
-            setSelectedModelIdx(idx);
-            syncedChartIdRef.current = configId;
+        if (configModel) {
+            if (!models.some((m) => m.name === configModel)) return;
+            setSelectedModel(configModel);
+        } else {
+            const supports = (m: Model) => !configTool || isToolSupportedForModel(configTool, m);
+            const current = models.find((m) => m.name === selectedModel);
+            if (!current || !isModelRunnable(current) || !supports(current)) {
+                const fallback = defaultModel(models, supports);
+                if (fallback) setSelectedModel(fallback.name);
+            }
         }
-    }, [configId, configModel, models, setSelectedModelIdx]);
+        syncedChartIdRef.current = configId;
+    }, [configId, configModel, configTool, models, selectedModel, setSelectedModel]);
 
     const modelsAvailable = !!models && models.length > 0;
     const effectiveModel = useMemo(() => {
-        if (modelsAvailable) {
-            return models![selectedModelIdx]?.name ?? models![0].name;
-        }
+        if (modelsAvailable) return selectedModelIn(models, selectedModel)?.name ?? "";
         return typedConfig?.data?.model ?? "";
-    }, [modelsAvailable, models, selectedModelIdx, typedConfig?.data?.model]);
+    }, [modelsAvailable, models, selectedModel, typedConfig?.data?.model]);
 
     const hasExistingData = !!typedChart?.data;
 

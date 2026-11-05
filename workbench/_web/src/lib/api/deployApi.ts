@@ -11,9 +11,9 @@ import { createUserHeadersAction } from "@/actions/auth";
  * warmup generation actually ran end-to-end, which proves the model is loaded
  * and serving. (RUNNING is a weaker signal: NDIF can report it at dispatch
  * time, before the replica finishes loading the weights, so we don't treat it
- * as deployed.) Unlike normal tool requests (`startAndPoll`, 60s hard
- * timeout), cold deploys can take minutes, so the poll uses a generous ceiling
- * and never fails early on slowness alone.
+ * as deployed.) Unlike normal tool requests (`startAndPoll`, 5-minute
+ * polling timeout), cold deploys can take minutes, so the poll uses a
+ * generous ceiling and never fails early on slowness alone.
  */
 
 // Generous safety ceiling — cold deploys are slow, but we don't want a truly

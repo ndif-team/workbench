@@ -11,7 +11,7 @@ const nextConfig = {
     transpilePackages: ["nnsightful", "edulogitlens"],
     turbopack: {
         // Expand root so Turbopack can resolve the symlinked nnsightful package
-        // which lives at ../../nnsightful (outside the default _web/ root)
+        // which lives at ../../../nnsightful (outside the default _web/ root)
         root: path.join(__dirname, "..", "..", ".."),
     },
     images: {
@@ -40,10 +40,32 @@ const nextConfig = {
         },
     },
     outputFileTracingIncludes: {
-        "/workbench/**": [
+        // Notebook export (actions/notebook.ts) runs from the chart pages.
+        "/(logit-lens|j-lens|activation-patching|patch-lens)/**": [
             "./src/notebook-templates/**/*.ipynb",
             "./node_modules/nnsightful/src/nnsightful/viz/charts.js",
         ],
+    },
+    async redirects() {
+        return [
+            // Chart and report pages moved out from under /workbench/<workspaceId>/;
+            // keep old links working. The logit lens route was also renamed from `lens2`.
+            {
+                source: "/workbench/:workspaceId/lens2/:chartId",
+                destination: "/logit-lens/:chartId",
+                permanent: true,
+            },
+            {
+                source: "/workbench/:workspaceId/:tool(logit-lens|j-lens|activation-patching|patch-lens|algorithm-hypothesis)/:chartId",
+                destination: "/:tool/:chartId",
+                permanent: true,
+            },
+            {
+                source: "/workbench/:workspaceId/overview/:reportId",
+                destination: "/reports/:reportId",
+                permanent: true,
+            },
+        ];
     },
     webpack: (config) => {
         // Fallbacks for @huggingface/transformers package

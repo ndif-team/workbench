@@ -32,16 +32,15 @@ import {
  * view, and the prompt history (rail + compare overlay).
  */
 
-const WS = "11111111-1111-4111-8111-111111111111";
 const CHART = "22222222-2222-4222-8222-222222222222";
 const PATCHED_CHART = "22222222-2222-4222-8222-222222222223";
 // F1 restores a history strip, which PERSISTS onto the chart row — the
 // mutating test gets its own seeded clone so the other specs stay
 // deterministic under parallel workers.
 const HISTORY_CHART = "22222222-2222-4222-8222-222222222224";
-const URL = `/workbench/${WS}/patch-lens/${CHART}`;
-const PATCHED_URL = `/workbench/${WS}/patch-lens/${PATCHED_CHART}`;
-const HISTORY_URL = `/workbench/${WS}/patch-lens/${HISTORY_CHART}`;
+const URL = `/patch-lens/${CHART}`;
+const PATCHED_URL = `/patch-lens/${PATCHED_CHART}`;
+const HISTORY_URL = `/patch-lens/${HISTORY_CHART}`;
 
 // Keep in sync with stores/usePatchLensTutorial.ts.
 const TUTORIAL_KEY = "workbench:patch-lens-tutorial-completed:v2";

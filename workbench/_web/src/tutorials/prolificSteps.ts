@@ -52,9 +52,6 @@ export const TUTORIAL_STEP_ORDER: readonly TutorialStepId[] = [
     TUTORIAL_STEP_IDS.finalChallenge,
 ];
 
-/** The seed's last unit. A workshop's gate is the last unit of *its* content. */
-export const TUTORIAL_FINAL_STEP_ID = TUTORIAL_STEP_IDS.finalChallenge;
-
 /** Label fallback for the funnel / participant table (content titles win). */
 export const TUTORIAL_STEP_LABELS: Record<TutorialStepId, string> = {
     "u0-orientation": "Read one prediction",

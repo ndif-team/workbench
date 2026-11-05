@@ -21,7 +21,7 @@
  *    and the negative case: no verdict element may appear.
  *  - `u4` / `u5` run-scored (`topToken` / `secondToken`) with verdicts. Their
  *    keys come from the participant's own run, which the spec supplies by
- *    stubbing `/logit_lens/start` (see `buildLensData` in TestingUtils).
+ *    stubbing `/logit_lens/run` (see `buildLensData` in TestingUtils).
  *  - `u6` a *typed* neutral check, so the submit affordance can be read: the
  *    button says "Check" when a verdict is coming and "Submit" when one is not.
  *

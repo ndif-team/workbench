@@ -6,26 +6,6 @@ type ClickTrigger = {
     target: string;
 };
 
-type TextInputTrigger = {
-    type: "textInput";
-    expectedValue: string;
-};
-
-type TokenSelectionTrigger = {
-    type: "tokenSelection";
-    expectedTokenIndex: number;
-};
-
-type TokenHighlightTrigger = {
-    type: "tokenHighlight";
-    expectedTokenIndex: number;
-};
-
-type TokenClickTrigger = {
-    type: "tokenClick";
-    expectedTokenIndex: number;
-};
-
 // Advance when a lens run completes. Optional predicate gates on the result
 // (e.g. unit 3's "top prediction ≠ 10"); a failed predicate is a hint "attempt".
 type RunCompletedTrigger = {
@@ -38,14 +18,7 @@ type PatchAppliedTrigger = {
     type: "patchApplied";
 };
 
-type TutorialStepTrigger =
-    | ClickTrigger
-    | TextInputTrigger
-    | TokenSelectionTrigger
-    | TokenHighlightTrigger
-    | TokenClickTrigger
-    | RunCompletedTrigger
-    | PatchAppliedTrigger;
+type TutorialStepTrigger = ClickTrigger | RunCompletedTrigger | PatchAppliedTrigger;
 
 interface ExtendedStepType extends StepType {
     trigger?: TutorialStepTrigger;
@@ -69,16 +42,4 @@ interface TutorialProgress {
     currentChapter?: number;
 }
 
-export type {
-    ExtendedStepType,
-    TutorialStepTrigger,
-    ClickTrigger,
-    TextInputTrigger,
-    TokenSelectionTrigger,
-    TokenHighlightTrigger,
-    TokenClickTrigger,
-    RunCompletedTrigger,
-    PatchAppliedTrigger,
-    TutorialChapterProgress,
-    TutorialProgress,
-};
+export type { ExtendedStepType, TutorialChapterProgress, TutorialProgress };

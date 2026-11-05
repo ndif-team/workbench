@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach, mock } from "bun:test";
 
 import { clearDatabase } from "@/db/client";
 import { deriveLatestNotes, getTutorialEventsForWorkspace } from "@/lib/queries/tutorialEventsDb";
+import { createWorkspace } from "@/lib/queries/workspaceDb";
 import { useProlificTutorial } from "@/stores/useProlificTutorial";
 import type { TutorialUnit } from "@/types/tutorial-content";
 
@@ -225,12 +226,22 @@ describe("useProlificTutorial completion", () => {
 });
 
 describe("useProlificTutorial telemetry", () => {
-    // The store mirrors every action to tutorial_events; these assertions read the
-    // rows back rather than trusting the call.
-    const workspaceId = "ws-telemetry";
+    // The store mirrors every action to tutorial_events through the real server
+    // action; these assertions read the rows back rather than trusting the call.
+    // The action records only into the signed-in user's workspace, so the
+    // Supabase client stands in for a participant's session and the workspace is
+    // theirs.
+    const participant = "telemetry-participant";
+    mock.module("@/lib/supabase/server", () => ({
+        createClient: async () => ({
+            auth: { getUser: async () => ({ data: { user: { id: participant } } }) },
+        }),
+    }));
+    let workspaceId: string;
 
     beforeEach(async () => {
         await clearDatabase();
+        workspaceId = (await createWorkspace(participant, "Pilot")).id;
         store().reset();
         store().setWorkspace(workspaceId);
         store().setUnits(units);

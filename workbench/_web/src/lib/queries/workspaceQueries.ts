@@ -1,141 +1,72 @@
 "use server";
 
-import { db } from "@/db/client";
-import { workspaces, charts, documents } from "@/db/schema";
-import { eq, and, sql, desc, isNull } from "drizzle-orm";
-import type { ProlificParams } from "@/lib/prolific";
+import type { Workspace } from "@/db/schema";
+import { requireUser, requireUserId } from "@/lib/auth/user";
+import { hasWorkshopClaim } from "@/lib/workshop";
+import * as workspaceDb from "@/lib/queries/workspaceDb";
+import type { WorkspaceItemKind, WorkspaceLibrary } from "@/types/workspaces";
 
-export async function getWorkspaceById(workspaceId: string) {
-    const [workspace] = await db
-        .select()
-        .from(workspaces)
-        .where(eq(workspaces.id, workspaceId))
-        .limit(1);
+/**
+ * The workspace RPC surface. Every export is a public endpoint, so each one
+ * resolves the signed-in user itself and acts only on that user's
+ * workspaces; the unguarded internals live in workspaceDb.ts.
+ */
 
-    return workspace || null;
+/**
+ * The signed-in user's workspaces and their charts and reports, for the global
+ * sidebar. A workshop participant's read never creates a default workspace.
+ */
+export async function getWorkspaceLibrary(): Promise<WorkspaceLibrary> {
+    const user = await requireUser();
+    return workspaceDb.getWorkspaceLibrary(user.id, { createDefault: !hasWorkshopClaim(user) });
 }
 
-export async function updateWorkspace(
-    workspaceId: string,
-    updates: { name?: string; public?: boolean },
-    userId: string,
-) {
-    const [updatedWorkspace] = await db
-        .update(workspaces)
-        .set(updates)
-        .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
-        .returning();
-
-    if (!updatedWorkspace) {
-        throw new Error("Workspace not found or access denied");
-    }
-
-    return updatedWorkspace;
+/** The signed-in user's workspaces (folders) with item counts, for workspace pickers. */
+export async function getUserWorkspaces() {
+    return workspaceDb.getWorkspaces(await requireUserId());
 }
 
-export const getWorkspaces = async (userId: string) => {
-    const workspaceList = await db
-        .select({
-            id: workspaces.id,
-            userId: workspaces.userId,
-            name: workspaces.name,
-            public: workspaces.public,
-            updatedAt: workspaces.updatedAt,
-            chartCount: sql<number>`cast(count(distinct ${charts.id}) as integer)`,
-            documentCount: sql<number>`cast(count(distinct ${documents.id}) as integer)`,
-        })
-        .from(workspaces)
-        .leftJoin(charts, eq(workspaces.id, charts.workspaceId))
-        .leftJoin(documents, eq(workspaces.id, documents.workspaceId))
-        .where(eq(workspaces.userId, userId))
-        .groupBy(workspaces.id)
-        .orderBy(desc(workspaces.updatedAt));
-
-    return workspaceList;
-};
-
-export const deleteWorkspace = async (userId: string, workspaceId: string) => {
-    await db
-        .delete(workspaces)
-        .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)));
-};
-
-export const touchWorkspace = async (workspaceId: string) => {
-    await db
-        .update(workspaces)
-        .set({ updatedAt: new Date() })
-        .where(eq(workspaces.id, workspaceId));
-};
-
-export const getNextWorkspaceItemPosition = async (workspaceId: string): Promise<number> => {
-    const [chartRows, docRows] = await Promise.all([
-        db
-            .select({ max: sql<number | null>`max(${charts.position})` })
-            .from(charts)
-            .where(eq(charts.workspaceId, workspaceId)),
-        db
-            .select({ max: sql<number | null>`max(${documents.position})` })
-            .from(documents)
-            .where(eq(documents.workspaceId, workspaceId)),
+/** One of the signed-in user's workspaces, or null when it isn't theirs. */
+export async function getUserWorkspace(workspaceId: string): Promise<Workspace | null> {
+    const [userId, workspace] = await Promise.all([
+        requireUserId(),
+        workspaceDb.getWorkspaceById(workspaceId),
     ]);
-    const maxPos = Math.max(Number(chartRows[0]?.max ?? -1), Number(docRows[0]?.max ?? -1));
-    return maxPos + 1;
-};
+    return workspace && workspace.userId === userId ? workspace : null;
+}
 
-export type WorkspaceItemKind = "chart" | "report";
+/** Creates a workspace (folder) for the signed-in user. */
+export async function createUserWorkspace(name: string): Promise<Workspace> {
+    return workspaceDb.createWorkspace(await requireUserId(), name);
+}
 
-export const reorderWorkspaceItems = async (
+/** Renames one of the signed-in user's workspaces (never the default one). */
+export async function renameUserWorkspace(workspaceId: string, name: string): Promise<Workspace> {
+    return workspaceDb.renameWorkspace(await requireUserId(), workspaceId, name);
+}
+
+/** Deletes one of the signed-in user's workspaces and its contents (never the default one). */
+export async function deleteUserWorkspace(workspaceId: string): Promise<void> {
+    return workspaceDb.deleteWorkspace(await requireUserId(), workspaceId);
+}
+
+/** Saves the order of the charts and reports in one of the signed-in user's workspaces. */
+export async function reorderWorkspaceItems(
     workspaceId: string,
     items: { kind: WorkspaceItemKind; id: string }[],
-): Promise<void> => {
-    await db.transaction(async (tx: typeof db) => {
-        for (let i = 0; i < items.length; i++) {
-            const { kind, id } = items[i];
-            if (kind === "chart") {
-                await tx
-                    .update(charts)
-                    .set({ position: i, updatedAt: sql`${charts.updatedAt}` })
-                    .where(and(eq(charts.id, id), eq(charts.workspaceId, workspaceId)));
-            } else {
-                await tx
-                    .update(documents)
-                    .set({ position: i, updatedAt: sql`${documents.updatedAt}` })
-                    .where(and(eq(documents.id, id), eq(documents.workspaceId, workspaceId)));
-            }
-        }
-    });
-};
+): Promise<void> {
+    return workspaceDb.reorderWorkspaceItems(await requireUserId(), workspaceId, items);
+}
 
-// Wrapped versions for use with server actions/components that use withAuth
-export const createWorkspace = async (
-    userId: string,
-    name: string,
-    workshopId?: string,
-    prolific?: ProlificParams | null,
-) => {
-    const [workspace] = await db
-        .insert(workspaces)
-        .values({
-            userId,
-            name,
-            workshopId: workshopId ?? null,
-            prolific: prolific ?? null,
-        })
-        .returning();
+/** Moves a chart, with its config and lens runs, to a workspace (null: the default workspace). */
+export async function moveChart(chartId: string, targetWorkspaceId: string | null): Promise<void> {
+    return workspaceDb.moveChart(await requireUserId(), chartId, targetWorkspaceId);
+}
 
-    return workspace;
-};
-
-// Backfills Prolific identifiers onto an existing workspace, but only if none
-// were captured before — first-touch wins, so a re-join carrying a fresh
-// Prolific session doesn't clobber the original attribution. No-op when the
-// workspace already has params.
-export const setWorkspaceProlificIfEmpty = async (
-    workspaceId: string,
-    prolific: ProlificParams,
-) => {
-    await db
-        .update(workspaces)
-        .set({ prolific })
-        .where(and(eq(workspaces.id, workspaceId), isNull(workspaces.prolific)));
-};
+/** Moves a report to a workspace (null: the default workspace). */
+export async function moveReport(
+    documentId: string,
+    targetWorkspaceId: string | null,
+): Promise<void> {
+    return workspaceDb.moveReport(await requireUserId(), documentId, targetWorkspaceId);
+}

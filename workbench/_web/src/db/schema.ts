@@ -1,9 +1,9 @@
+import { sql, type AnyColumn } from "drizzle-orm";
 import {
     workspaces as sqliteWorkspaces,
     charts as sqliteCharts,
     configs as sqliteConfigs,
     chartConfigLinks as sqliteChartConfigLinks,
-    views as sqliteViews,
     documents as sqliteDocuments,
     lensRuns as sqliteLensRuns,
     workshops as sqliteWorkshops,
@@ -16,7 +16,6 @@ import {
     charts as pgCharts,
     configs as pgConfigs,
     chartConfigLinks as pgChartConfigLinks,
-    views as pgViews,
     documents as pgDocuments,
     lensRuns as pgLensRuns,
     workshops as pgWorkshops,
@@ -24,8 +23,6 @@ import {
     tutorialEvents as pgTutorialEvents,
     algorithms as pgAlgorithms,
 } from "./schema.pg";
-import type { LensConfigData } from "@/types/lens";
-import type { HeatmapRow, HeatmapViewData, LineViewData, Line } from "@/types/charts";
 
 // Conditionally export the appropriate schema based on environment
 const isLocal = process.env.NEXT_PUBLIC_LOCAL_DB === "true";
@@ -35,12 +32,25 @@ export const charts = isLocal ? sqliteCharts : pgCharts;
 export const configs = isLocal ? sqliteConfigs : pgConfigs;
 export const chartConfigLinks = isLocal ? sqliteChartConfigLinks : pgChartConfigLinks;
 export const documents = isLocal ? sqliteDocuments : pgDocuments;
-export const views = isLocal ? sqliteViews : pgViews;
 export const lensRuns = isLocal ? sqliteLensRuns : pgLensRuns;
 export const workshops = isLocal ? sqliteWorkshops : pgWorkshops;
 export const tutorials = isLocal ? sqliteTutorials : pgTutorials;
 export const tutorialEvents = isLocal ? sqliteTutorialEvents : pgTutorialEvents;
 export const algorithms = isLocal ? sqliteAlgorithms : pgAlgorithms;
+
+/** A top-level string field of a JSON column as text: `->>` on Postgres jsonb, `json_extract` on SQLite's JSON text. */
+export const jsonTextField = (column: AnyColumn, key: string) =>
+    isLocal
+        ? sql<string | null>`json_extract(${column}, ${`$.${key}`})`
+        : sql<string | null>`${column}->>${key}`;
+
+/**
+ * Whether `id` has the shape of a row id (a UUID, in both schemas). Postgres
+ * answers a malformed uuid with an error (22P02) rather than no row, so check
+ * an id taken from a URL before querying by it.
+ */
+export const isUuid = (id: string): boolean =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
 // Identical in both schema files; re-exported from one for a single import site.
 export { workshopTools } from "./schema.pg";
@@ -51,6 +61,7 @@ export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
 
 export type Chart = typeof charts.$inferSelect;
+export type AlgorithmRow = typeof algorithms.$inferSelect;
 export type NewChart = typeof charts.$inferInsert;
 
 export type Config = typeof configs.$inferSelect;
@@ -61,9 +72,6 @@ export type NewChartConfigLink = typeof chartConfigLinks.$inferInsert;
 
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
-
-export type View = typeof views.$inferSelect;
-export type NewView = typeof views.$inferInsert;
 
 export type LensRun = typeof lensRuns.$inferSelect;
 export type NewLensRun = typeof lensRuns.$inferInsert;
@@ -76,26 +84,3 @@ export type NewTutorial = typeof tutorials.$inferInsert;
 
 export type TutorialEvent = typeof tutorialEvents.$inferSelect;
 export type NewTutorialEvent = typeof tutorialEvents.$inferInsert;
-
-export type AlgorithmRow = typeof algorithms.$inferSelect;
-
-export type HeatmapView = Omit<View, "data"> & {
-    data: HeatmapViewData;
-};
-
-export type LineView = Omit<View, "data"> & {
-    data: LineViewData;
-};
-
-export type HeatmapChart = Omit<Chart, "data"> & {
-    data: HeatmapRow[];
-};
-
-export type LineChart = Omit<Chart, "data"> & {
-    data: Line[];
-};
-
-// Specific chart config types
-export type LensConfig = Omit<Config, "data"> & {
-    data: LensConfigData;
-};

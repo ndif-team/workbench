@@ -1,104 +1,59 @@
-import { LensConfigData } from "./lens";
-import { Lens2ConfigData, Lens2Data } from "./lens2";
+import type { LogitLensData } from "nnsightful";
+import { LogitLensConfigData } from "./logitLens";
 import { JLensConfigData, JLensData } from "./jlens";
 import { PatchLensChartData } from "./patchLens";
-import { AlgorithmHypothesisChartData } from "./algorithmHypothesis";
-import { PatchingConfig } from "./patching";
 import { ActivationPatchingConfigData, ActivationPatchingData } from "./activationPatching";
-
-// Heatmap Data Types
-
-export interface HeatmapCell {
-    x: string | number;
-    y: number | null;
-    label?: string;
-}
-
-export interface HeatmapRow {
-    id: string;
-    data: HeatmapCell[];
-    right_axis_label?: string;
-}
-
-// Heatmap View Types
-
-export interface HeatmapBounds {
-    minRow: number;
-    maxRow: number;
-    minCol: number;
-    maxCol: number;
-}
-
-export interface HeatmapViewData {
-    bounds?: HeatmapBounds;
-    xStep?: number;
-    annotation?: HeatmapBounds;
-}
-
-export type Range = [number, number];
-
-// Line Data Types
-
-export interface Position {
-    x: number;
-    y: number;
-}
-
-export interface Line {
-    id: string;
-    data: Position[];
-}
-
-// Line View Types
-
-export interface SelectionBounds {
-    xMin: number;
-    xMax: number;
-    yMin: number;
-    yMax: number;
-}
-
-export interface LineViewData {
-    bounds?: SelectionBounds;
-    selectedLineIds?: string[];
-    annotation?: SelectionBounds;
-}
-
-// Combined Types
+import type { AlgorithmHypothesisChartData } from "./algorithmHypothesis";
 
 export type ChartData =
-    | Line[]
-    | HeatmapRow[]
-    | Lens2Data
+    | LogitLensData
     | JLensData
     | ActivationPatchingData
     | PatchLensChartData
     | AlgorithmHypothesisChartData;
-export type ChartView = HeatmapViewData | LineViewData;
 export type ConfigData =
-    | LensConfigData
-    | Lens2ConfigData
+    | LogitLensConfigData
     | JLensConfigData
-    | PatchingConfig
     | ActivationPatchingConfigData
     | Record<string, never>; // patch-lens and algorithm-hypothesis store no config payload
 
 export type ChartType =
-    | "line"
-    | "heatmap"
-    | "lens2"
+    | "logit-lens"
     | "jlens"
     | "activation-patching"
     | "patch-lens"
     | "algorithm-hypothesis";
-export type ToolType =
-    | "lens"
-    | "lens2"
-    | "jlens"
-    | "patch"
-    | "activation-patching"
-    | "patch-lens"
-    | "algorithm-hypothesis";
+
+/** The name a chart is stored with until it is renamed (the column's default). */
+export const DEFAULT_CHART_NAME = "Untitled Chart";
+
+/** Every tool a chart can be created with. Config rows of any other type are
+ * from retired tools and have no chart page. */
+export const toolTypes = [
+    "logit-lens",
+    "jlens",
+    "activation-patching",
+    "patch-lens",
+    "algorithm-hypothesis",
+] as const;
+export type ToolType = (typeof toolTypes)[number];
+
+/** Former tool type names that stored rows may still hold, mapped to their
+ * current name. Writes always use the current name.
+ *
+ * Temporary: only until the stored rows are migrated from "lens2" to
+ * "logit-lens". Then remove this and `normalizeToolType` with its call sites,
+ * `normalizeWorkshopTools` and its callers (`withCurrentTools`, `validateTools`),
+ * the legacy key in `getMostRecentChartForWorkspace`'s `IN` list, and the alias tests. */
+export const LEGACY_TOOL_ALIASES: Readonly<Record<string, ToolType>> = { lens2: "logit-lens" };
+
+/** A stored tool type under its current name. Other values, including retired
+ * tools and null, pass through unchanged. */
+export function normalizeToolType<T extends string | null | undefined>(type: T): T | ToolType {
+    return type != null && Object.hasOwn(LEGACY_TOOL_ALIASES, type)
+        ? LEGACY_TOOL_ALIASES[type]
+        : type;
+}
 
 export type ChartMetadata = {
     id: string;
@@ -108,7 +63,6 @@ export type ChartMetadata = {
     position: number;
     createdAt: Date;
     updatedAt: Date;
-    thumbnailUrl?: string | null;
     /** The chart's saved model (from its config). Lets the sidebar decide
      * whether the chart's model is still deploying. */
     model?: string | null;

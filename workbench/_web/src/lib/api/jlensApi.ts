@@ -8,7 +8,7 @@ import { setChartData } from "@/lib/queries/chartQueries";
 import { JLensConfigData, JLensData } from "@/types/jlens";
 import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
-import { startAndPoll } from "../startAndPoll";
+import { runAndStream } from "../runAndStream";
 import { createUserHeadersAction } from "@/actions/auth";
 
 /**
@@ -30,15 +30,10 @@ const getJLens = async (lensRequest: JLensRequest): Promise<JLensData> => {
         model: lensRequest.completion.model,
         prompt: lensRequest.completion.prompt,
         topk: lensRequest.completion.topk ?? 5,
-        include_entropy: lensRequest.completion.includeEntropy ?? true,
+        include_entropy: lensRequest.completion.includeEntropy ?? false,
     };
 
-    return await startAndPoll<JLensData>(
-        config.endpoints.startJLens,
-        request,
-        config.endpoints.resultsJLens,
-        headers,
-    );
+    return await runAndStream<JLensData>(config.endpoints.runJLens, request, headers);
 };
 
 /**
@@ -90,6 +85,7 @@ export const useJLens = () => {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
+                queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
             }
         },
     });

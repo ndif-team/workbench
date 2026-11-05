@@ -4,7 +4,7 @@
 
 @layer base {
     :root {
-        --background: 0 0% 94%; /* Light gray base */
+        --background: 220 20% 95%; /* Cool gray base, tinted toward the brand blue */
         --foreground: 0 0% 9%; /* Dark text for better contrast */
         --card: 0 0% 100%; /* Pure white - highest elevation */
         --card-foreground: 0 0% 9%;
@@ -12,16 +12,16 @@
         --popover-foreground: 0 0% 9%;
         --primary: 217.2193 91.2195% 59.8039%;
         --primary-foreground: 0 0% 100%;
-        --secondary: 0 0% 97%; /* Surface layer - subtly lighter than background */
+        --secondary: 220 30% 98%; /* Surface layer - subtly lighter than background */
         --secondary-foreground: 0 0% 9%;
-        --muted: 0 0% 95%; /* Subtle backgrounds */
-        --muted-foreground: 0 0% 40%;
-        --accent: 0 0% 96%; /* Hover states */
+        --muted: 220 20% 95%; /* Subtle backgrounds */
+        --muted-foreground: 220 9% 40%;
+        --accent: 220 25% 95%; /* Hover states */
         --accent-foreground: 0 0% 9%;
         --destructive: 0 84.2365% 60.1961%;
         --destructive-foreground: 0 0% 100%;
-        --border: 0 0% 82%; /* More visible borders */
-        --input: 0 0% 88%; /* White inputs with border definition */
+        --border: 220 14% 83%; /* More visible borders */
+        --input: 220 14% 88%; /* White inputs with border definition */
         --ring: 217.2193 91.2195% 59.8039%;
         --chart-1: 217.2193 91.2195% 59.8039%;
         --chart-2: 221.2121 83.1933% 53.3333%;
@@ -32,9 +32,9 @@
         --sidebar-foreground: 0 0% 9%;
         --sidebar-primary: 217.2193 91.2195% 59.8039%;
         --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 0 0% 96%; /* Match accent */
+        --sidebar-accent: 220 25% 95%; /* Match accent */
         --sidebar-accent-foreground: 0 0% 9%;
-        --sidebar-border: 0 0% 89%; /* Match border */
+        --sidebar-border: 220 14% 83%; /* Match border */
         --sidebar-ring: 217.2193 91.2195% 59.8039%;
         --font-sans: Inter, sans-serif;
         --font-serif: Source Serif 4, serif;
@@ -149,6 +149,120 @@
         radial-gradient(ellipse 540px 420px at 92% 68%, hsl(270 91% 65% / 0.13), transparent 60%),
         radial-gradient(ellipse 700px 420px at 30% 100%, hsl(190 90% 60% / 0.1), transparent 60%),
         hsl(220 22% 7%);
+}
+
+/* The expanded sidebar's own surface (the --sidebar tokens), so the page's
+ * cards, set straight on the shell's gradient, don't run into it. */
+.sidebar-surface {
+    background: hsl(var(--sidebar));
+    border-right: 1px solid hsl(var(--sidebar-border));
+}
+
+/* Fine powder grain (greyscale fractal noise, contrast raised), laid over a
+ * surface with mix-blend-mode: soft-light. Shared by the report covers and
+ * the models page. */
+:root {
+    --powder-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.2' intercept='-0.6'/%3E%3CfeFuncG type='linear' slope='2.2' intercept='-0.6'/%3E%3CfeFuncB type='linear' slope='2.2' intercept='-0.6'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* A report card's cover: the aurora's blue, purple and cyan at full
+ * strength, blurred into one another, under a fine powder grain (greyscale
+ * fractal noise, soft-light). Each report places the three blobs itself
+ * through --cover-a/-b/-c, so neighbouring covers differ. */
+.powder-cover {
+    position: relative;
+    isolation: isolate;
+    background:
+        radial-gradient(circle at var(--cover-a, 20% 25%), hsl(217 91% 60%), transparent 60%),
+        radial-gradient(circle at var(--cover-b, 80% 70%), hsl(270 91% 65%), transparent 60%),
+        radial-gradient(
+            circle at var(--cover-c, 50% 100%),
+            hsl(190 90% 60% / 0.9),
+            transparent 55%
+        ),
+        hsl(240 70% 62%);
+}
+.dark .powder-cover {
+    background:
+        radial-gradient(circle at var(--cover-a, 20% 25%), hsl(217 91% 55%), transparent 60%),
+        radial-gradient(circle at var(--cover-b, 80% 70%), hsl(270 85% 58%), transparent 60%),
+        radial-gradient(
+            circle at var(--cover-c, 50% 100%),
+            hsl(190 90% 50% / 0.85),
+            transparent 55%
+        ),
+        hsl(240 55% 40%);
+}
+.powder-cover::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: var(--powder-grain);
+    background-size: 140px;
+    mix-blend-mode: soft-light;
+    opacity: 0.9;
+}
+
+/* The models page's background: the NDIF logo's orchid, violet, periwinkle
+ * and sky blue, poured into a striped gradient and twisted twice with
+ * turbulence (a broad flow, then sharper turns) into liquid marbling, under
+ * a veil that keeps the cards and header readable, and the powder grain. */
+.ndif-liquid {
+    --ndif-liquid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000' preserveAspectRatio='xMidYMid slice'%3E %3Cdefs%3E%3ClinearGradient id='g' gradientUnits='userSpaceOnUse' x1='0' y1='0' x2='260' y2='143' spreadMethod='reflect'%3E%3Cstop offset='0' stop-color='%23B86BC6'/%3E%3Cstop offset='0.34' stop-color='%239C7BD8'/%3E%3Cstop offset='0.67' stop-color='%236E8BE6'/%3E%3Cstop offset='1' stop-color='%2333A8F5'/%3E%3C/linearGradient%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25' color-interpolation-filters='sRGB'%3E %3CfeTurbulence type='fractalNoise' baseFrequency='0.0016 0.0024' numOctaves='2' seed='7' result='n1'/%3E %3CfeDisplacementMap in='SourceGraphic' in2='n1' scale='900' xChannelSelector='R' yChannelSelector='G' result='d1'/%3E %3CfeTurbulence type='turbulence' baseFrequency='0.0045 0.0060' numOctaves='2' seed='11' result='n2'/%3E %3CfeDisplacementMap in='d1' in2='n2' scale='240' xChannelSelector='G' yChannelSelector='R' result='d2'/%3E %3CfeGaussianBlur in='d2' stdDeviation='5'/%3E %3C/filter%3E%3C/defs%3E %3Crect x='-400' y='-400' width='2400' height='1800' fill='url(%23g)' filter='url(%23w)'/%3E %3C/svg%3E");
+    position: relative;
+    isolation: isolate;
+    background-image:
+        linear-gradient(hsl(220 40% 98% / 0.5), hsl(220 40% 98% / 0.5)), var(--ndif-liquid);
+    background-size: cover;
+    background-position: center;
+}
+.dark .ndif-liquid {
+    background-image:
+        linear-gradient(hsl(230 35% 7% / 0.66), hsl(230 35% 7% / 0.66)), var(--ndif-liquid);
+}
+.ndif-liquid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--powder-grain);
+    background-size: 160px;
+    mix-blend-mode: soft-light;
+    opacity: 0.55;
+}
+
+/* Scrollbars: thin, a muted thumb on a clear track. The standard properties
+ * come first: Chromium (Chrome, Dia, Edge, Arc) and Firefox draw them, and
+ * once they are set Chromium ignores ::-webkit-scrollbar, so setting them
+ * here also overrides a browser's own scrollbar styling. The
+ * ::-webkit-scrollbar pill is for engines without them (older Safari).
+ * `--scrollbar-thumb` is the thumb's color and inherits: set it to
+ * transparent to hide the thumbs inside an element (the sidebar does, until
+ * it's hovered). `.scrollbar-hide` below still hides one where it's set. */
+:root {
+    --scrollbar-thumb: hsl(var(--muted-foreground) / 0.35);
+}
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+@supports not (scrollbar-color: auto) {
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        border: 3px solid transparent;
+        border-radius: 9999px;
+        background-clip: padding-box;
+        background-color: var(--scrollbar-thumb);
+    }
 }
 
 .scrollbar-hide {

@@ -1,19 +1,23 @@
 "use client";
 
-import { Layers, Plus } from "lucide-react";
+import { Folder } from "lucide-react";
 
+import { toolMeta } from "@/app/(shell)/components/toolMeta";
+import { buttonVariants } from "@/components/ui/button";
 import { PillPopover, type PillPopoverOption } from "@/components/ui/pill-popover";
 import { cn } from "@/lib/utils";
-import type { getWorkspaces } from "@/lib/queries/workspaceQueries";
+import type { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
+import { toolTypeFromDisplay } from "@/lib/toolSupport";
 
 /**
  * Tool + workspace pickers used to launch a chart. Shared between the landing
  * page and the cold-model Deploy dialog so the selection flow is identical in
- * both places — both produce a tool name and a workspace id ("new" for a
- * fresh workspace) that feed the same `/workbench?...` chart-creation route.
+ * both places — both produce a tool name and a workspace id ("" for no
+ * workspace, i.e. the default one) that feed the same `/new?...` chart-creation
+ * route.
  */
 
-export type WorkspaceListItem = Awaited<ReturnType<typeof getWorkspaces>>[number];
+type WorkspaceListItem = Awaited<ReturnType<typeof getUserWorkspaces>>[number];
 
 /** "New" badge marking a recently added tool in the picker. */
 const NewBadge = () => (
@@ -22,18 +26,26 @@ const NewBadge = () => (
     </span>
 );
 
+/** A launch tool's icon, by its display name. */
+function ToolIcon({ tool }: { tool: string }) {
+    const meta = toolMeta(toolTypeFromDisplay(tool));
+    return meta ? <meta.Icon className="size-4 shrink-0 text-muted-foreground" /> : null;
+}
+
 /** The tool values the chart-creation flow understands. */
-export const TOOL_OPTIONS: PillPopoverOption[] = [
+const TOOL_OPTIONS: PillPopoverOption[] = [
     { value: "Logit Lens", label: "Logit Lens", group: "Tools" },
     { value: "J-Lens", label: "J-Lens", group: "Tools", trailing: <NewBadge /> },
     { value: "Activation Patching", label: "Activation Patching", group: "Tools" },
-];
+].map((option) => ({ ...option, icon: <ToolIcon tool={option.value} /> }));
 
-/** Inline-pill trigger chrome shared by every launch selector so they render
- * at identical height. Brand-gradient wash, full-round, visible focus ring.
- * This is the landing-page look. */
-export const PILL_TRIGGER =
-    "inline-flex items-center h-8 w-fit text-[11px] bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:from-primary/10 hover:to-purple-500/10 hover:border-primary/20 transition-all gap-1 rounded-full px-2.5 disabled:opacity-50 disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background";
+/** Trigger chrome of the launch selectors on the composer: an outline button,
+ * like the app's other menu buttons ("New chart"), narrower on a phone so the
+ * composer's toolbar fits in two rows. */
+export const LAUNCH_TRIGGER = cn(
+    buttonVariants({ variant: "outline", size: "sm" }),
+    "max-w-[10rem] sm:max-w-[16rem]",
+);
 
 /** Neutral trigger that mirrors the shadcn `SelectTrigger` — `rounded-md`,
  * `border-input`, no gradient. For surfaces (dialogs) where the brand-gradient
@@ -45,16 +57,13 @@ export function ToolPill({
     value,
     onChange,
     disabled,
-    triggerClassName = PILL_TRIGGER,
-    compact = true,
+    triggerClassName = LAUNCH_TRIGGER,
     modal = false,
 }: {
     value: string;
     onChange: (v: string) => void;
     disabled: boolean;
     triggerClassName?: string;
-    /** `false` = neutral menu shell (shadcn vibe); `true` = brand landing look. */
-    compact?: boolean;
     /** Set when used inside a Dialog so the menu list can scroll. */
     modal?: boolean;
 }) {
@@ -65,41 +74,50 @@ export function ToolPill({
             disabled={disabled}
             ariaLabel="Select tool"
             triggerClassName={triggerClassName}
-            compact={compact}
+            compact={false}
             modal={modal}
-            trigger={<span className="truncate">{value}</span>}
+            trigger={
+                <>
+                    <ToolIcon tool={value} />
+                    <span className="truncate">{value}</span>
+                </>
+            }
             showSearch={false}
             options={TOOL_OPTIONS}
         />
     );
 }
 
+/**
+ * Workspace picker: "No workspace" (value "", the default workspace) or one of
+ * `workspaces`. With `quietDefault`, the pill shows only its icon until a
+ * folder is picked, for surfaces with no label beside it (the composer).
+ */
 export function WorkspacePill({
     value,
     onChange,
     disabled,
     workspaces,
-    triggerClassName = PILL_TRIGGER,
-    compact = true,
+    triggerClassName = LAUNCH_TRIGGER,
     modal = false,
+    quietDefault = false,
 }: {
     value: string;
     onChange: (v: string) => void;
     disabled: boolean;
     workspaces: WorkspaceListItem[];
     triggerClassName?: string;
-    /** `false` = neutral menu shell (shadcn vibe); `true` = brand landing look. */
-    compact?: boolean;
     /** Set when used inside a Dialog so the menu list can scroll. */
     modal?: boolean;
+    quietDefault?: boolean;
 }) {
-    const currentLabel =
-        value === "new"
-            ? "New Workspace"
-            : (workspaces.find((ws) => ws.id === value)?.name ?? "Workspace");
+    // The menu needs a non-empty value for its "No workspace" row.
+    const noWorkspace = "default";
+    const folderName = value ? workspaces.find((ws) => ws.id === value)?.name : undefined;
+    const currentLabel = folderName ?? (quietDefault ? null : "No workspace");
 
     const options: PillPopoverOption[] = [
-        { value: "new", label: "New Workspace", icon: <Plus />, tone: "primary" },
+        { value: noWorkspace, label: "No workspace" },
         ...workspaces.map((ws) => ({
             value: ws.id,
             label: ws.name,
@@ -109,18 +127,18 @@ export function WorkspacePill({
 
     return (
         <PillPopover
-            value={value}
-            onChange={onChange}
+            value={value || noWorkspace}
+            onChange={(v) => onChange(v === noWorkspace ? "" : v)}
             disabled={disabled}
             ariaLabel="Select workspace"
             triggerClassName={cn(triggerClassName, "max-w-[180px]")}
-            compact={compact}
+            compact={false}
             modal={modal}
             trigger={
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                    <Layers className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{currentLabel}</span>
-                </span>
+                <>
+                    <Folder className="size-4 shrink-0 text-muted-foreground" />
+                    {currentLabel && <span className="truncate">{currentLabel}</span>}
+                </>
             }
             options={options}
         />

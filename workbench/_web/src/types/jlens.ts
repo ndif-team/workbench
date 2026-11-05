@@ -17,13 +17,13 @@ export type JLensUIState = LogitLensUIState;
 export type JLensMeta = LogitLensData["meta"];
 
 /**
- * J-Lens configuration data (mirrors Lens2 — same prompt/top-k/entropy knobs)
+ * J-Lens configuration data (mirrors the logit lens — same prompt/top-k/entropy knobs)
  */
 export interface JLensConfigData {
     model: string;
     prompt: string;
     topk?: number; // Number of top-k predictions per cell (default: 5)
-    includeEntropy?: boolean; // Whether to include entropy data (default: true)
+    includeEntropy?: boolean; // Whether to include entropy data (default: false)
     // Persisted heatmap UI state (pinned trajectories, selection, layer
     // window, appearance) so the visualization restores across reloads.
     uiState?: LogitLensUIState;

@@ -2,7 +2,7 @@ import {
     test,
     expect,
     argosScreenshot,
-    gotoFreshLensWorkspace,
+    gotoFreshLensChart,
     REAL_NDIF_TIMEOUT_MS,
 } from "./fixtures";
 import { createTestUser, loginAsUser, type TestingUser } from "./TestingUtils";
@@ -20,8 +20,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 /**
- * Lens2 UI primer (what these tests anchor on — see
- * src/app/workbench/[workspaceId]/lens2/[chartId]/components/Lens2*.tsx):
+ * Logit Lens UI primer (what these tests anchor on — see
+ * src/app/(shell)/logit-lens/[chartId]/components/LogitLens*.tsx):
  *
  *   Controls panel:
  *     - <textarea placeholder="Enter your prompt here...">
@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
  *     - "Run Logit Lens" Button (turns into "Computing..." while running)
  *     - Submit shortcut is Cmd/Ctrl + Enter (plain Enter just inserts a newline)
  *
- *   Display panel (Lens2Display.tsx):
+ *   Display panel (LogitLensDisplay.tsx):
  *     - Empty state: "No visualization data"
  *     - Running state: "Computing logit lens visualization..."
  *     - Result: a nnsightful <LogitLensWidget /> (we don't poke inside it)
@@ -71,7 +71,7 @@ test.describe("Logit Lens (real NDIF)", () => {
     test.setTimeout(REAL_NDIF_TIMEOUT_MS * 4);
 
     test("enter prompt and run, widget renders", async ({ workbenchPage: page }) => {
-        await gotoFreshLensWorkspace(page);
+        await gotoFreshLensChart(page);
 
         const textarea = page.getByPlaceholder(/Enter your prompt here/);
         await expect(textarea).toBeVisible({ timeout: 15_000 });
@@ -83,7 +83,7 @@ test.describe("Logit Lens (real NDIF)", () => {
     });
 
     test("run with higher Top-K", async ({ workbenchPage: page }) => {
-        await gotoFreshLensWorkspace(page);
+        await gotoFreshLensChart(page);
 
         const textarea = page.getByPlaceholder(/Enter your prompt here/);
         await expect(textarea).toBeVisible({ timeout: 15_000 });
@@ -103,7 +103,7 @@ test.describe("Logit Lens (real NDIF)", () => {
     });
 
     test("run with Include Entropy enabled", async ({ workbenchPage: page }) => {
-        await gotoFreshLensWorkspace(page);
+        await gotoFreshLensChart(page);
 
         const textarea = page.getByPlaceholder(/Enter your prompt here/);
         await expect(textarea).toBeVisible({ timeout: 15_000 });

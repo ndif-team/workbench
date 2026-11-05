@@ -1,23 +1,25 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteConfig, setConfig } from "@/lib/queries/configQueries";
+import { setConfig } from "@/lib/queries/configQueries";
 import { NewConfig } from "@/db/schema";
 import { toast } from "sonner";
 import { queryKeys } from "../queryKeys";
+import { findLibraryItem } from "./workspaceApi";
+import type { WorkspaceLibrary } from "@/types/workspaces";
 
-export const useDeleteChartConfig = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async ({ configId }: { configId: string }) => {
-            await deleteConfig(configId);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.charts.all });
-        },
-        onError: (error) => {
-            toast.error("Error deleting config");
-        },
-    });
+/**
+ * Whether a config save changes what the sidebar library shows for its chart
+ * (the prompt it is labelled by, the model). UI-state saves (a widget's view)
+ * change neither, so they don't refetch the library.
+ */
+const labelChanged = (
+    library: WorkspaceLibrary | undefined,
+    { chartId, config }: { chartId?: string; config: NewConfig },
+): boolean => {
+    const item = library && chartId ? findLibraryItem(library, "chart", chartId) : undefined;
+    if (item?.kind !== "chart") return true;
+    const data = config.data as { model?: string; prompt?: string; srcPrompt?: string };
+    const prompt = (data.prompt || data.srcPrompt)?.trim() || null;
+    return item.model !== (data.model || null) || item.prompt !== prompt;
 };
 
 export const useUpdateChartConfig = () => {
@@ -42,6 +44,9 @@ export const useUpdateChartConfig = () => {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.configByChart(variables.chartId),
                 });
+            }
+            if (labelChanged(queryClient.getQueryData(queryKeys.workspaces.library), variables)) {
+                queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
             }
             // toast.success("Config updated");
         },

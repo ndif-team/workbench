@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,24 +12,20 @@ import { useModelsQuery } from "@/lib/api/modelsApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import type { ModelStatus } from "@/types/models";
 import type { ToolType } from "@/types/charts";
-import { MODEL_STATUS, deriveHeat, splitRepo } from "@/components/model-selector/status";
+import {
+    MODEL_STATUS,
+    deriveHeat,
+    selectedModelIn,
+    splitRepo,
+} from "@/components/model-selector/status";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
 import {
     isToolModelRestricted,
     isToolSupportedForModel,
     unsupportedReasonFor,
 } from "@/lib/toolSupport";
-
-/** Workspace route segment (`/workbench/[id]/<segment>/[chartId]`) → the tool
- * whose chart lives there. Used to gate the model picker to models the active
- * tool supports. Segments not listed here (e.g. the legacy lens route, overview)
- * impose no restriction. */
-const ROUTE_SEGMENT_TO_TOOL: Record<string, ToolType> = {
-    lens2: "lens2",
-    "j-lens": "jlens",
-    "activation-patching": "activation-patching",
-    "patch-lens": "patch-lens",
-};
+import { toolForRouteSegment } from "@/lib/chartRoutes";
+import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 
 // ----- status vocabularies ----------------------------------------------------------
 
@@ -81,15 +77,27 @@ const BADGE_CLASSES = cn(
     "text-xs font-semibold uppercase tracking-wide",
 );
 
+/**
+ * The model's name in the pill. Clamped to one line that breaks anywhere,
+ * rather than `truncate`d, so it adds nothing to the pill's minimum width:
+ * when a page header runs short (a job badge widens the pill), the name ends
+ * in "…" while the badges keep their room and push the header's title aside
+ * instead of running under it.
+ */
+const NAME_CLASSES = "font-mono text-xs px-0.5 min-w-0 break-all line-clamp-1 text-foreground";
+
 // ----- component ------------------------------------------------------------------
 
 interface ModelControlProps {
     className?: string;
+    /** Below `md`, shrink the pill to its status dot so a page header's title has room. */
+    compact?: boolean;
 }
 
-export function ModelControl({ className }: ModelControlProps) {
-    const { selectedModelIdx, setSelectedModelIdx, jobStatus } = useWorkspace();
-    const { workspaceId } = useParams<{ workspaceId?: string }>();
+export function ModelControl({ className, compact = false }: ModelControlProps) {
+    const hideCompact = compact && "max-md:hidden";
+    const { selectedModel: selectedName, setSelectedModel, jobStatus } = useWorkspace();
+    const workspaceId = useWorkspaceScope()?.workspaceId;
 
     const { data: models, isLoading: modelsLoading, isError: modelsError } = useModelsQuery();
 
@@ -106,8 +114,8 @@ export function ModelControl({ className }: ModelControlProps) {
     // tools → no gating.
     const pathname = usePathname();
     const activeTool = React.useMemo<ToolType | null>(() => {
-        const segment = pathname.split("/").filter(Boolean)[2];
-        const tool = segment ? ROUTE_SEGMENT_TO_TOOL[segment] : undefined;
+        const segment = pathname.split("/").filter(Boolean)[0];
+        const tool = segment ? toolForRouteSegment(segment) : undefined;
         return tool && isToolModelRestricted(tool) ? tool : null;
     }, [pathname]);
 
@@ -128,19 +136,16 @@ export function ModelControl({ className }: ModelControlProps) {
     const defaultAppliedRef = React.useRef(false);
     React.useEffect(() => {
         if (!workshop || !models || models.length === 0) return;
-        const idx = models.findIndex((m) => m.name === workshop.model);
-        if (idx === -1) return;
+        if (!models.some((m) => m.name === workshop.model)) return;
         if (workshop.allowModelChange) {
             if (defaultAppliedRef.current) return;
             defaultAppliedRef.current = true;
         }
-        if (idx !== selectedModelIdx) setSelectedModelIdx(idx);
-    }, [workshop, models, selectedModelIdx, setSelectedModelIdx]);
+        if (workshop.model !== selectedName) setSelectedModel(workshop.model);
+    }, [workshop, models, selectedName, setSelectedModel]);
 
     const handleSelect = (name: string) => {
-        if (!models) return;
-        const idx = models.findIndex((m) => m.name === name);
-        if (idx !== -1) setSelectedModelIdx(idx);
+        if (models?.some((m) => m.name === name)) setSelectedModel(name);
         setOpen(false);
     };
 
@@ -160,7 +165,7 @@ export function ModelControl({ className }: ModelControlProps) {
                 )}
             >
                 <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" aria-hidden />
-                <span>Fetching models…</span>
+                <span className={cn(hideCompact)}>Fetching models…</span>
             </div>
         );
     }
@@ -182,8 +187,10 @@ export function ModelControl({ className }: ModelControlProps) {
                             className,
                         )}
                     >
-                        <HeatBadge heat="unavailable" />
-                        <span className="text-xs px-1 text-muted-foreground">no model</span>
+                        <HeatBadge heat="unavailable" compact={compact} />
+                        <span className={cn("text-xs px-1 text-muted-foreground", hideCompact)}>
+                            no model
+                        </span>
                     </div>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">{reason}</TooltipContent>
@@ -191,7 +198,7 @@ export function ModelControl({ className }: ModelControlProps) {
         );
     }
 
-    const selectedModel = models[selectedModelIdx] ?? models[0];
+    const selectedModel = selectedModelIn(models, selectedName) ?? models[0];
     const heat = deriveHeat(selectedModel);
     const display = splitRepo(selectedModel.name);
 
@@ -208,11 +215,8 @@ export function ModelControl({ className }: ModelControlProps) {
                         aria-label="Model is set by the workshop"
                         className={cn(TRIGGER_CLASSES, "max-w-[28rem] cursor-default", className)}
                     >
-                        <HeatBadge heat={heat} />
-                        <span
-                            className="font-mono text-xs px-0.5 truncate min-w-0 text-foreground"
-                            title={selectedModel.name}
-                        >
+                        <HeatBadge heat={heat} compact={compact} />
+                        <span className={cn(NAME_CLASSES, hideCompact)} title={selectedModel.name}>
                             {display.label}
                         </span>
                         {job && (
@@ -242,11 +246,8 @@ export function ModelControl({ className }: ModelControlProps) {
                     disabled={isJobActive}
                     className={cn(TRIGGER_CLASSES, "max-w-[28rem]", className)}
                 >
-                    <HeatBadge heat={heat} />
-                    <span
-                        className="font-mono text-xs px-0.5 truncate min-w-0 text-foreground"
-                        title={selectedModel.name}
-                    >
+                    <HeatBadge heat={heat} compact={compact} />
+                    <span className={cn(NAME_CLASSES, hideCompact)} title={selectedModel.name}>
                         {display.label}
                     </span>
                     <ChevronDown className="w-3 h-3 opacity-50 shrink-0" />
@@ -288,13 +289,13 @@ export function ModelControl({ className }: ModelControlProps) {
 
 // ----- badges ---------------------------------------------------------------------
 
-function HeatBadge({ heat }: { heat: ModelStatus }) {
+function HeatBadge({ heat, compact = false }: { heat: ModelStatus; compact?: boolean }) {
     const m = MODEL_STATUS[heat];
     return (
         <Tooltip>
             <TooltipTrigger asChild>
                 <span
-                    className={BADGE_CLASSES}
+                    className={cn(BADGE_CLASSES, compact && "max-md:px-1.5")}
                     style={{
                         backgroundColor: `color-mix(in oklab, ${m.color} 12%, transparent)`,
                         color: m.color,
@@ -304,7 +305,7 @@ function HeatBadge({ heat }: { heat: ModelStatus }) {
                         className="w-1.5 h-1.5 rounded-full shrink-0"
                         style={{ backgroundColor: m.color }}
                     />
-                    {m.label}
+                    <span className={cn(compact && "max-md:sr-only")}>{m.label}</span>
                 </span>
             </TooltipTrigger>
             <TooltipContent side="bottom">{m.detail}</TooltipContent>

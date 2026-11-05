@@ -1,12 +1,20 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { redirectWorkshopParticipant, requireUser } from "@/lib/auth/user";
 import {
+    createLogitLensChartPair,
     getMostRecentChartForWorkspace,
-    createLens2ChartPair,
-    getConfigForChart,
-} from "@/lib/queries/chartQueries";
-import { getWorkshopForWorkspace, seedWorkshopChart } from "@/lib/queries/workshopQueries";
-import { Lens2ConfigData } from "@/types/lens2";
+    seedWorkshopChart,
+} from "@/lib/queries/chartDb";
+import { getWorkshopForWorkspace } from "@/lib/queries/workshopDb";
+import { getWorkspaceById } from "@/lib/queries/workspaceDb";
+import { toolChartPath } from "@/lib/chartRoutes";
+import { LogitLensConfigData } from "@/types/logitLens";
 
+/**
+ * Opens one of the user's workspaces on its most recent live chart, creating
+ * one when it has none. Another user's (or a missing) workspace is a 404, and
+ * a workshop participant can only open a workshop workspace.
+ */
 export default async function Page({
     params,
     searchParams,
@@ -15,50 +23,37 @@ export default async function Page({
     searchParams: Promise<{ prompt?: string; model?: string }>;
 }) {
     const { workspaceId } = await params;
+    const [user, workspace] = await Promise.all([requireUser(), getWorkspaceById(workspaceId)]);
+    if (!workspace || workspace.userId !== user.id) notFound();
+    if (!workspace.workshopId) await redirectWorkshopParticipant(user);
+
     const urlParams = await searchParams;
     const initialPrompt = urlParams?.prompt || "";
     const initialModel = urlParams?.model || "";
 
-    // Check if there's an existing chart
-    let chart = await getMostRecentChartForWorkspace(workspaceId);
+    // Open the most recent chart of a live tool
+    let recent = await getMostRecentChartForWorkspace(workspaceId);
 
-    // If no chart exists, create a new Logit Lens chart pair with default
+    // If there is none, create a new Logit Lens chart pair with default
     // config — except in workshop workspaces, which seed their workshop's
     // first allowed tool with its pinned model and starter prompt.
-    if (!chart) {
+    if (!recent) {
         const workshop = await getWorkshopForWorkspace(workspaceId);
         if (workshop) {
-            const result = await seedWorkshopChart(workspaceId, workshop);
-            chart = result.chart;
+            const { chart, tool } = await seedWorkshopChart(workspaceId, workshop);
+            recent = { chart, toolType: tool };
         } else {
-            const defaultConfig: Lens2ConfigData = {
+            const defaultConfig: LogitLensConfigData = {
                 prompt: initialPrompt,
                 model: initialModel,
                 topk: 5,
-                includeEntropy: true,
+                includeEntropy: false,
             };
 
-            const result = await createLens2ChartPair(workspaceId, defaultConfig);
-            chart = result.chart;
+            const { chart } = await createLogitLensChartPair(workspaceId, defaultConfig);
+            recent = { chart, toolType: "logit-lens" };
         }
     }
 
-    // Check the chart/config type to determine the route
-    const config = await getConfigForChart(chart.id);
-    const chartType = config?.type || chart.type;
-
-    // Redirect to the appropriate chart route based on type
-    if (chartType === "lens2") {
-        redirect(`/workbench/${workspaceId}/lens2/${chart.id}`);
-    } else if (chartType === "jlens") {
-        redirect(`/workbench/${workspaceId}/j-lens/${chart.id}`);
-    } else if (chartType === "activation-patching") {
-        redirect(`/workbench/${workspaceId}/activation-patching/${chart.id}`);
-    } else if (chartType === "patch-lens") {
-        redirect(`/workbench/${workspaceId}/patch-lens/${chart.id}`);
-    } else if (chartType === "algorithm-hypothesis") {
-        redirect(`/workbench/${workspaceId}/algorithm-hypothesis/${chart.id}`);
-    } else {
-        redirect(`/workbench/${workspaceId}/${chart.id}`);
-    }
+    redirect(toolChartPath(recent.chart.id, recent.toolType));
 }

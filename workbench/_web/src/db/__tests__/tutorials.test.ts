@@ -20,7 +20,7 @@ import {
     validateTutorialContent,
 } from "@/lib/queries/tutorialContentDb";
 import { createWorkshop, getWorkshopById } from "@/lib/queries/workshopDb";
-import { createWorkspace } from "@/lib/queries/workspaceQueries";
+import { createWorkspace } from "@/lib/queries/workspaceDb";
 import { PROLIFIC_TUTORIAL_SEED, PROLIFIC_TUTORIAL_SLUG } from "@/tutorials/prolificSeed";
 import type { HintRung, TutorialContent, TutorialUnit, UnitCheck } from "@/types/tutorial-content";
 import type { WorkshopTool } from "@/db/schema";

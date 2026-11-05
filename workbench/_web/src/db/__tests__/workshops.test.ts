@@ -5,22 +5,27 @@
  * requireAdmin-wrapped RPCs in workshopQueries.ts need a Supabase session and
  * are just thin guards over these). Covers create/getBySlug, slug uniqueness
  * and shape, the workspace→workshop join, the idempotent-rejoin lookup,
- * updates, and delete nulling participant workspaces' workshopId.
+ * updates, legacy tool names (including the chart-creation allowlist), and
+ * delete nulling participant workspaces' workshopId.
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
-import { clearDatabase } from "../client";
+import { eq } from "drizzle-orm";
+import { db, clearDatabase } from "../client";
+import { workshops, workspaces } from "../schema";
 import {
     generateWorkshopSlug,
     getWorkshopBySlug,
     getWorkshopForWorkspace,
     getWorkshopWorkspaceForUser,
+    getParticipantWorkspace,
     listWorkshops,
     createWorkshop,
     updateWorkshop,
     deleteWorkshop,
 } from "@/lib/queries/workshopDb";
-import { createWorkspace, getWorkspaceById } from "@/lib/queries/workspaceQueries";
+import { createWorkspace, getWorkspaceById } from "@/lib/queries/workspaceDb";
+import { createLogitLensChartPair, createPatchLensChartPair } from "@/lib/queries/chartDb";
 import type { WorkshopTool } from "@/db/schema";
 
 const USER = "anon-user-1";
@@ -77,7 +82,7 @@ describe("workshops", () => {
 
     it("rejects unknown tool values instead of silently dropping them", async () => {
         await expect(
-            createWorkshop(input({ allowedTools: ["lens2", "not-a-tool" as WorkshopTool] })),
+            createWorkshop(input({ allowedTools: ["logit-lens", "not-a-tool" as WorkshopTool] })),
         ).rejects.toThrow("Unknown workshop tool");
     });
 
@@ -139,14 +144,54 @@ describe("workshops", () => {
         const newExpiry = new Date(Date.now() - 1000);
 
         const updated = await updateWorkshop(workshop.id, {
-            allowedTools: ["lens2", "activation-patching"],
+            allowedTools: ["logit-lens", "activation-patching"],
             expiresAt: newExpiry,
         });
 
-        expect(updated.allowedTools).toEqual(["lens2", "activation-patching"]);
+        expect(updated.allowedTools).toEqual(["logit-lens", "activation-patching"]);
         // sqlite timestamps are second precision
         expect(Math.abs(updated.expiresAt.getTime() - newExpiry.getTime())).toBeLessThan(1000);
         expect(updated.slug).toBe(workshop.slug);
+    });
+
+    it("reads and rewrites the legacy lens2 tool name as logit-lens", async () => {
+        const workshop = await createWorkshop(input());
+        await db
+            .update(workshops)
+            .set({ allowedTools: ["lens2", "patch-lens"] as unknown as WorkshopTool[] })
+            .where(eq(workshops.id, workshop.id));
+        const ws = await createWorkspace(USER, "Faculty Pilot", workshop.id);
+
+        const current: WorkshopTool[] = ["logit-lens", "patch-lens"];
+        expect((await getWorkshopBySlug(workshop.slug))!.allowedTools).toEqual(current);
+        expect((await getWorkshopForWorkspace(ws.id))!.allowedTools).toEqual(current);
+        expect((await listWorkshops())[0].allowedTools).toEqual(current);
+
+        const created = await createWorkshop(
+            input({ allowedTools: ["lens2"] as unknown as WorkshopTool[] }),
+        );
+        expect(created.allowedTools).toEqual(["logit-lens"]);
+    });
+
+    it("allows logit-lens charts, and only those, under a stored legacy lens2 allowlist", async () => {
+        const workshop = await createWorkshop(input());
+        await db
+            .update(workshops)
+            .set({ allowedTools: ["lens2"] as unknown as WorkshopTool[] })
+            .where(eq(workshops.id, workshop.id));
+        const ws = await createWorkspace(USER, "Faculty Pilot", workshop.id);
+
+        const { config } = await createLogitLensChartPair(ws.id, {
+            prompt: "The Eiffel Tower is in",
+            model: "gpt2",
+            topk: 5,
+            includeEntropy: true,
+        });
+        expect(config.type).toBe("logit-lens");
+
+        await expect(createPatchLensChartPair(ws.id)).rejects.toThrow(
+            'does not allow the "patch-lens" tool',
+        );
     });
 
     it("delete nulls participant workspaces' workshopId (workspace survives)", async () => {
@@ -160,5 +205,29 @@ describe("workshops", () => {
         expect(survivor).not.toBeNull();
         expect(survivor!.workshopId).toBeNull();
         expect(await getWorkshopForWorkspace(ws.id)).toBeNull();
+    });
+
+    it("keeps a participant in the workspace of the workshop their claim names", async () => {
+        const first = await createWorkshop(input({ name: "First" }));
+        const second = await createWorkshop(input({ name: "Second" }));
+        const other = await createWorkshop(input({ name: "Other" }));
+        const firstWs = await createWorkspace(USER, "First", first.id);
+        const secondWs = await createWorkspace(USER, "Second", second.id);
+        await createWorkspace(USER, "Folder");
+        await createWorkspace("someone-else", "Other", other.id);
+
+        expect((await getParticipantWorkspace(USER, second.slug))!.id).toBe(secondWs.id);
+        expect((await getParticipantWorkspace(USER, first.slug))!.id).toBe(firstWs.id);
+
+        // A claim whose workshop they never joined (or that is gone) falls back
+        // to their most recently updated workshop workspace.
+        await db
+            .update(workspaces)
+            .set({ updatedAt: new Date(Date.now() + 60_000) })
+            .where(eq(workspaces.id, firstWs.id));
+        expect((await getParticipantWorkspace(USER, other.slug))!.id).toBe(firstWs.id);
+        expect((await getParticipantWorkspace(USER, "gone"))!.id).toBe(firstWs.id);
+
+        expect(await getParticipantWorkspace("no-workshops", second.slug)).toBeNull();
     });
 });

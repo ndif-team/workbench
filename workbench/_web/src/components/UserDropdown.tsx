@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useEffect, useState } from "react";
-import { User } from "lucide-react";
+import { LogIn, User } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import {
     DropdownMenu,
@@ -17,10 +17,26 @@ import Link from "next/link";
 
 type CurrentUser = SupabaseUser & { is_anonymous?: boolean | null };
 
-export function UserDropdown() {
+interface UserDropdownProps {
+    /** Where a guest's "Log In" button goes. */
+    loginHref?: string;
+    /** Placement of the account menu relative to its button. */
+    menuSide?: "top" | "right" | "bottom" | "left";
+    menuAlign?: "start" | "center" | "end";
+    /** Icon-only "Log in" for guests, for narrow places such as the sidebar rail. */
+    compact?: boolean;
+}
+
+export function UserDropdown({
+    loginHref = "/login",
+    menuSide = "bottom",
+    menuAlign = "end",
+    compact = false,
+}: UserDropdownProps) {
     const router = useRouter();
     // const posthog = usePostHog();
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+    const [userLoaded, setUserLoaded] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     useEffect(() => {
@@ -30,6 +46,7 @@ export function UserDropdown() {
                 data: { user },
             } = await supabase.auth.getUser();
             setCurrentUser(user);
+            setUserLoaded(true);
         };
 
         fetchUser();
@@ -57,9 +74,27 @@ export function UserDropdown() {
     // Show login button for guests/anonymous users
     const isGuest = currentUser?.is_anonymous || !currentUser?.email;
 
+    if (!userLoaded) {
+        return (
+            <Button variant="ghost" size="icon" aria-label="Account" disabled>
+                <User size={14} />
+            </Button>
+        );
+    }
+
+    if (isGuest && compact) {
+        return (
+            <Button variant="ghost" size="icon" aria-label="Log in" title="Log in" asChild>
+                <Link href={loginHref}>
+                    <LogIn />
+                </Link>
+            </Button>
+        );
+    }
+
     if (isGuest) {
         return (
-            <Link href="/login">
+            <Link href={loginHref}>
                 <Button
                     variant="outline"
                     size="default"
@@ -90,12 +125,13 @@ export function UserDropdown() {
                 <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="Account"
                     className="bg-transparent hover:!white/10 border-0"
                 >
                     <User size={14} />
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent side={menuSide} align={menuAlign} className="w-48">
                 <div className="flex flex-col border-b py-2.5 px-1">
                     <span className="px-1 text-sm font-semibold">Account</span>
                     <span className="px-1 text-sm">{currentUser?.email}</span>

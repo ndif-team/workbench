@@ -57,7 +57,9 @@ bun run dev                                    # http://localhost:3000
 ```
 
 After pulling new commits, run `bunx drizzle-kit push` again in `workbench/_web` in case the
-database schema changed (it only adds tables and columns).
+database schema changed. If your `local.db` predates the November 2026 upstream merge, run
+`bun scripts/migrate-local-db.ts` first: on those databases, `push` alone empties the
+`workspaces` table.
 
 Open the workspace, then choose **Algorithm Hypothesis** in the left sidebar. The header shows
 the model backend as unavailable; Algorithm Hypothesis doesn't use it.

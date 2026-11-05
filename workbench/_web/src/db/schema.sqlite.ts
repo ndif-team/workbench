@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
-import type { LensConfigData } from "@/types/lens";
+import { sql } from "drizzle-orm";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
@@ -15,7 +15,7 @@ const generateUUID = () => {
     });
 };
 
-export const workshopTools = ["lens2", "activation-patching", "patch-lens"] as const;
+export const workshopTools = ["logit-lens", "activation-patching", "patch-lens"] as const;
 export type WorkshopTool = (typeof workshopTools)[number];
 
 // Tutorial content (guided-activity units). Mirrors the pg table; see schema.pg.ts.
@@ -78,6 +78,8 @@ export const workspaces = sqliteTable(
         // Mirrors pg: Prolific study identifiers captured from the join link,
         // null when absent. See schema.pg.ts.
         prolific: text("prolific", { mode: "json" }).$type<ProlificParams>(),
+        // Mirrors pg: the user's home for unfiled charts and reports.
+        isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
         createdAt: integer("created_at", { mode: "timestamp" })
             .$defaultFn(() => new Date())
             .notNull(),
@@ -86,12 +88,24 @@ export const workspaces = sqliteTable(
             .notNull()
             .$onUpdate(() => new Date()),
     },
-    // Mirrors the pg unique index: one workspace per (participant, workshop);
-    // NULL workshopId rows are unconstrained (NULLs are distinct).
-    (table) => [uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId)],
+    (table) => [
+        // Mirrors the pg unique index: one workspace per (participant, workshop);
+        // NULL workshopId rows are unconstrained (NULLs are distinct).
+        uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId),
+        // Mirrors pg: one default workspace per user.
+        uniqueIndex("workspaces_user_default_unique")
+            .on(table.userId)
+            .where(sql`${table.isDefault} = 1`),
+    ],
 );
 
-export const chartTypes = ["line", "heatmap"] as const;
+export const chartTypes = [
+    "logit-lens",
+    "jlens",
+    "activation-patching",
+    "patch-lens",
+    "algorithm-hypothesis",
+] as const;
 
 export const charts = sqliteTable("charts", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
@@ -111,7 +125,13 @@ export const charts = sqliteTable("charts", {
         .$onUpdate(() => new Date()),
 });
 
-export const configTypes = ["lens", "patch"] as const;
+export const configTypes = [
+    "logit-lens",
+    "jlens",
+    "activation-patching",
+    "patch-lens",
+    "algorithm-hypothesis",
+] as const;
 
 export const configs = sqliteTable("configs", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
@@ -127,12 +147,6 @@ export const chartConfigLinks = sqliteTable("chart_config_links", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
     chartId: text("chart_id").notNull(),
     configId: text("config_id").notNull(),
-});
-
-export const views = sqliteTable("views", {
-    id: text("id").primaryKey().$defaultFn(generateUUID),
-    chartId: text("chart_id").notNull(),
-    data: text("data", { mode: "json" }).notNull(), // JSON stored as text in SQLite
 });
 
 export const documents = sqliteTable("documents", {
@@ -226,9 +240,6 @@ export type NewConfig = typeof configs.$inferInsert;
 
 export type ChartConfigLink = typeof chartConfigLinks.$inferSelect;
 export type NewChartConfigLink = typeof chartConfigLinks.$inferInsert;
-
-export type View = typeof views.$inferSelect;
-export type NewView = typeof views.$inferInsert;
 
 export type LensRun = typeof lensRuns.$inferSelect;
 export type NewLensRun = typeof lensRuns.$inferInsert;

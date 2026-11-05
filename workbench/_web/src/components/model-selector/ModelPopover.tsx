@@ -4,6 +4,7 @@ import * as React from "react";
 import { Check, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { popoverMenuShellClass, popoverMenuShellStyle } from "@/components/ui/pill-popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -17,8 +18,8 @@ import type { Model } from "@/types/models";
 
 /**
  * Rich model picker body — search field + heat-sorted Base/Chat groups +
- * arrow-key navigation + bottom-fade overflow signal. Designed to be
- * dropped inside any Popover or floating container.
+ * arrow-key navigation + a bottom fade while rows are below the fold.
+ * Designed to be dropped inside any Popover or floating container.
  *
  * Hosted by:
  * - `ModelControl` (workspace header)
@@ -55,7 +56,12 @@ interface ModelPopoverProps {
     isModelDisabled?: (model: Model) => boolean;
     /** Tooltip text shown on a disabled row. */
     disabledReason?: string;
+    /** Show Base and Chat as tabs, one group at a time, instead of stacked.
+     * Opens on the selected model's group; ← and → switch tabs. */
+    groupTabs?: boolean;
 }
+
+type ModelGroup = "base" | "chat";
 
 export function ModelPopover({
     models,
@@ -67,6 +73,7 @@ export function ModelPopover({
     selectableOnly = false,
     isModelDisabled,
     disabledReason,
+    groupTabs = false,
 }: ModelPopoverProps) {
     const isDisabled = React.useCallback(
         (m: Model) => (isModelDisabled ? isModelDisabled(m) : false),
@@ -80,7 +87,7 @@ export function ModelPopover({
     // within each group — hot first, then warm, cold, etc. The currently
     // selected model is pinned to the top of its group so users always see
     // where they are. Ties broken alphabetically.
-    const { base, chat, flat } = React.useMemo(() => {
+    const { base, chat } = React.useMemo(() => {
         const q = query.trim().toLowerCase();
         const matches = (m: Model) => {
             // Hide non-runnable (cold) models when the host asks for
@@ -108,8 +115,17 @@ export function ModelPopover({
         };
         const base = models.filter((m) => !m.is_chat && matches(m)).sort(compare);
         const chat = models.filter((m) => m.is_chat && matches(m)).sort(compare);
-        return { base, chat, flat: [...base, ...chat] };
+        return { base, chat };
     }, [models, query, selectedName, selectableOnly, isDisabled]);
+
+    const [tab, setTab] = React.useState<ModelGroup>(() =>
+        models.find((m) => m.name === selectedName)?.is_chat ? "chat" : "base",
+    );
+    // With tabs, keyboard navigation and Enter stay within the open group.
+    const flat = React.useMemo(
+        () => (groupTabs ? (tab === "chat" ? chat : base) : [...base, ...chat]),
+        [groupTabs, tab, base, chat],
+    );
 
     // Track the highlighted row by model NAME, not index. When the list
     // re-sorts (e.g. selecting a model pins it to the top), the index of the
@@ -131,9 +147,9 @@ export function ModelPopover({
         }
         const selected = flat.find((m) => m.name === selectedName);
         setActiveName((selected ?? flat[0]).name);
-        // Intentionally only resets on query change.
+        // Intentionally only resets on a query or tab change.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [query]);
+    }, [query, tab]);
 
     React.useEffect(() => {
         const name = flat[active]?.name;
@@ -159,6 +175,9 @@ export function ModelPopover({
         } else if (e.key === "ArrowUp") {
             e.preventDefault();
             moveActive(-1);
+        } else if (groupTabs && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+            e.preventDefault();
+            setTab((t) => (t === "base" ? "chat" : "base"));
         } else if (e.key === "Enter") {
             e.preventDefault();
             const target = flat[active];
@@ -207,21 +226,72 @@ export function ModelPopover({
                 </div>
             )}
 
+            {groupTabs && (
+                <div
+                    role="tablist"
+                    aria-label="Model type"
+                    className="flex shrink-0 items-center gap-0.5 border-b px-2 py-1"
+                >
+                    {(
+                        [
+                            ["base", "Base", base.length],
+                            ["chat", "Chat", chat.length],
+                        ] as const
+                    ).map(([value, label, count]) => (
+                        <Button
+                            key={value}
+                            type="button"
+                            role="tab"
+                            aria-selected={tab === value}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setTab(value)}
+                            className={cn(
+                                "h-6 gap-1 px-2 text-xs text-muted-foreground",
+                                tab === value && "bg-accent text-foreground dark:bg-accent/50",
+                            )}
+                        >
+                            {label}
+                            <span className="tabular-nums text-muted-foreground">{count}</span>
+                        </Button>
+                    ))}
+                </div>
+            )}
+
             {/* Groups — each scrolls independently inside its own per-section
                 cap, sized to content. A short group doesn't claim space the
                 long group could use; a long group scrolls within its own cap
-                without pushing the other below the fold. */}
-            <div role="menu" className="flex min-h-0 flex-auto flex-col overflow-y-auto">
+                without pushing the other below the fold. With tabs, the open
+                group alone, without its heading. */}
+            <div
+                role={groupTabs ? "tabpanel" : "menu"}
+                className="flex min-h-0 flex-auto flex-col overflow-y-auto"
+            >
                 {flat.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground text-sm px-3">
-                        No models match &ldquo;{query}&rdquo;.
+                        {query ? (
+                            <>No models match &ldquo;{query}&rdquo;.</>
+                        ) : (
+                            `No ${tab === "chat" ? "chat" : "base"} models are available right now.`
+                        )}
                     </div>
+                ) : groupTabs ? (
+                    <Group
+                        rows={flat}
+                        selectedName={selectedName}
+                        activeName={flat[active]?.name}
+                        onSelect={onSelect}
+                        onHover={setActiveName}
+                        rowRefs={rowRefs}
+                        compact={compact}
+                        isDisabled={isDisabled}
+                        disabledReason={disabledReason}
+                    />
                 ) : (
                     <>
                         {base.length > 0 && (
                             <Group
                                 title="Base"
-                                count={base.length}
                                 rows={base}
                                 selectedName={selectedName}
                                 activeName={flat[active]?.name}
@@ -236,7 +306,6 @@ export function ModelPopover({
                         {chat.length > 0 && (
                             <Group
                                 title="Chat"
-                                count={chat.length}
                                 rows={chat}
                                 selectedName={selectedName}
                                 activeName={flat[active]?.name}
@@ -261,9 +330,10 @@ export function ModelPopover({
     );
 }
 
+/** One model group: its heading (`title`, with its count; none under a tab)
+ *  over its rows. */
 function Group({
     title,
-    count,
     rows,
     selectedName,
     activeName,
@@ -274,8 +344,7 @@ function Group({
     isDisabled,
     disabledReason,
 }: {
-    title: string;
-    count: number;
+    title?: string;
     rows: Model[];
     selectedName: string;
     activeName: string | undefined;
@@ -286,41 +355,50 @@ function Group({
     isDisabled: (model: Model) => boolean;
     disabledReason?: string;
 }) {
-    // Visible row budget — keep the popover compact and signal overflow via
-    // a soft bottom mask when there's more below the fold.
-    const VISIBLE_ROWS = compact ? 4 : 5;
-    const hasOverflow = rows.length > VISIBLE_ROWS;
+    // The list keeps the popover compact and signals rows below the fold with a
+    // soft bottom mask, which goes once it's scrolled to the end.
+    const listRef = React.useRef<HTMLDivElement>(null);
+    const [moreBelow, setMoreBelow] = React.useState(false);
+    const measure = React.useCallback(() => {
+        const list = listRef.current;
+        if (list) setMoreBelow(list.scrollHeight - list.scrollTop - list.clientHeight > 1);
+    }, []);
+    React.useLayoutEffect(measure, [measure, rows.length]);
     const maskFade = compact ? 24 : 36;
-    const fadeMask = hasOverflow
+    const fadeMask = moreBelow
         ? `linear-gradient(to bottom, black 0%, black calc(100% - ${maskFade}px), transparent 100%)`
         : undefined;
 
     return (
-        <section className="flex flex-col">
-            <div
-                className={cn(
-                    "flex items-baseline gap-1.5 shrink-0",
-                    compact ? "pt-1.5 pb-0.5 px-2" : "pt-2.5 pb-1 px-3",
-                )}
-            >
-                <span
+        <section className={cn("flex flex-col", !title && "pt-1")}>
+            {title && (
+                <div
                     className={cn(
-                        "font-medium text-muted-foreground",
-                        compact ? "text-[10px] uppercase tracking-wide" : "text-xs",
+                        "flex items-baseline gap-1.5 shrink-0",
+                        compact ? "pt-1.5 pb-0.5 px-2" : "pt-2.5 pb-1 px-3",
                     )}
                 >
-                    {title}
-                </span>
-                <span
-                    className={cn(
-                        "text-muted-foreground/70 tabular-nums",
-                        compact ? "text-[10px]" : "text-xs",
-                    )}
-                >
-                    {count}
-                </span>
-            </div>
+                    <span
+                        className={cn(
+                            "font-medium text-muted-foreground",
+                            compact ? "text-[10px] uppercase tracking-wide" : "text-xs",
+                        )}
+                    >
+                        {title}
+                    </span>
+                    <span
+                        className={cn(
+                            "text-muted-foreground/70 tabular-nums",
+                            compact ? "text-[10px]" : "text-xs",
+                        )}
+                    >
+                        {rows.length}
+                    </span>
+                </div>
+            )}
             <div
+                ref={listRef}
+                onScroll={measure}
                 className={cn("overflow-y-auto pb-1", compact ? "max-h-[140px]" : "max-h-[180px]")}
                 style={fadeMask ? { maskImage: fadeMask, WebkitMaskImage: fadeMask } : undefined}
             >

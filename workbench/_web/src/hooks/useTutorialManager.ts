@@ -8,21 +8,6 @@ type ClickEvent = {
     target: string;
 };
 
-type TextInputEvent = {
-    type: "textInput";
-    value: string;
-};
-
-type TokenHighlightEvent = {
-    type: "tokenHighlight";
-    tokenIndex: number;
-};
-
-type TokenClickEvent = {
-    type: "tokenClick";
-    tokenIndex: number;
-};
-
 // A lens run finished; `result` is passed to a runCompleted trigger's predicate.
 type RunCompletedEvent = {
     type: "runCompleted";
@@ -34,13 +19,7 @@ type PatchAppliedEvent = {
     type: "patchApplied";
 };
 
-type TutorialEventData =
-    | ClickEvent
-    | TextInputEvent
-    | TokenHighlightEvent
-    | TokenClickEvent
-    | RunCompletedEvent
-    | PatchAppliedEvent;
+type TutorialEventData = ClickEvent | RunCompletedEvent | PatchAppliedEvent;
 
 export function useTutorialManager() {
     const { setCurrentStep, currentStep, isOpen, steps } = useTour();
@@ -60,23 +39,6 @@ export function useTutorialManager() {
                 case "click":
                     shouldAdvance =
                         eventData.type === "click" && eventData.target === trigger.target;
-                    break;
-
-                case "textInput":
-                    shouldAdvance =
-                        eventData.type === "textInput" && eventData.value === trigger.expectedValue;
-                    break;
-
-                case "tokenHighlight":
-                    shouldAdvance =
-                        eventData.type === "tokenHighlight" &&
-                        eventData.tokenIndex === trigger.expectedTokenIndex;
-                    break;
-
-                case "tokenClick":
-                    shouldAdvance =
-                        eventData.type === "tokenClick" &&
-                        eventData.tokenIndex === trigger.expectedTokenIndex;
                     break;
 
                 case "runCompleted":
@@ -111,43 +73,10 @@ export function useTutorialManager() {
         [checkStepCompletion],
     );
 
-    const handleTextInput = useCallback(
-        (value: string) => {
-            checkStepCompletion({
-                type: "textInput",
-                value,
-            });
-        },
-        [checkStepCompletion],
-    );
-
-    const handleTokenHighlight = useCallback(
-        (tokenIndex: number) => {
-            checkStepCompletion({
-                type: "tokenHighlight",
-                tokenIndex,
-            });
-        },
-        [checkStepCompletion],
-    );
-
-    const handleTokenClick = useCallback(
-        (tokenIndex: number) => {
-            checkStepCompletion({
-                type: "tokenClick",
-                tokenIndex,
-            });
-        },
-        [checkStepCompletion],
-    );
-
     return {
         isOpen,
         currentStep,
         handleClick,
-        handleTextInput,
-        handleTokenHighlight,
-        handleTokenClick,
         // Generic dispatch — lets an event-bus provider forward any event without
         // knowing which handler maps to it.
         emit: checkStepCompletion,

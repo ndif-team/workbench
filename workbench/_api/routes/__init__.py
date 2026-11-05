@@ -1,5 +1,3 @@
-from .lens import router as lens
-from .patch import router as patch
 from .models import router as models
 from .logit_lens import router as logit_lens
 from .j_lens import router as j_lens
@@ -11,8 +9,6 @@ import nnsightful
 ndif.register(nnsightful)
 
 __all__ = [
-    "lens",
-    "patch",
     "models",
     "logit_lens",
     "j_lens",

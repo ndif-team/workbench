@@ -67,21 +67,7 @@ const baseTheme = {
     },
 };
 
-export const heatmapMargin = { top: 50, right: 100, bottom: 90, left: 60 };
-export const lineMargin = { top: 15, right: 30, bottom: 70, left: 75 };
-
 export const lineTheme = baseTheme;
-
-export const heatmapTheme = {
-    ...baseTheme,
-    labels: {
-        text: {
-            fontSize: 10,
-            fontFamily: fontFamily,
-            outlineColor: "transparent",
-        },
-    },
-};
 
 // Line color palette (Set1-like)
 export const lineColors = [

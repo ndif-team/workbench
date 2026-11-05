@@ -8,23 +8,19 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { LensRunListItem } from "@/lib/queries/lensRunDb";
 import {
     clearLensRunsForChart,
     getLensRunsByChart,
     getLensRunHeatmapsByIds,
-    type LensRunListItem,
 } from "@/lib/queries/lensRunQueries";
 import { queryKeys } from "@/lib/queryKeys";
 
-export const useLensRuns = (
-    workspaceId: string | undefined,
-    chartId: string | undefined,
-    model?: string,
-) =>
+export const useLensRuns = (chartId: string | undefined, model?: string) =>
     useQuery<LensRunListItem[]>({
         queryKey: queryKeys.lensRuns.byChart(chartId ?? "", model),
-        queryFn: () => getLensRunsByChart(workspaceId as string, chartId as string, model),
-        enabled: !!chartId && !!workspaceId,
+        queryFn: () => getLensRunsByChart(chartId as string, model),
+        enabled: !!chartId,
     });
 
 /**
@@ -41,12 +37,12 @@ export const useLensRunHeatmaps = (ids: string[]) => {
     });
 };
 
-export const useClearLensRuns = (workspaceId: string | undefined, chartId: string | undefined) => {
+export const useClearLensRuns = (chartId: string | undefined) => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async () => {
-            if (!chartId || !workspaceId) return;
-            await clearLensRunsForChart(workspaceId, chartId);
+            if (!chartId) return;
+            await clearLensRunsForChart(chartId);
         },
         onSuccess: () => {
             if (!chartId) return;

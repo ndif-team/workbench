@@ -4,7 +4,7 @@ import logging
 import os
 import anyio
 
-from .routes import lens, patch, models, logit_lens, j_lens, activation_patching, causal_mediation
+from .routes import models, logit_lens, j_lens, activation_patching, causal_mediation
 from .state import AppState
 
 from dotenv import load_dotenv; load_dotenv()
@@ -55,12 +55,10 @@ def fastapi_app():
             max_age=3600,
         )
 
-    app.include_router(lens, prefix="/lens")
     app.include_router(logit_lens, prefix="/logit_lens")
     app.include_router(j_lens, prefix="/j_lens")
     app.include_router(activation_patching, prefix="/activation_patching")
     app.include_router(causal_mediation, prefix="/causal_mediation", tags=["causal_mediation"])
-    app.include_router(patch, prefix="/patch")
     app.include_router(models, prefix="/models")
 
     app.state.m = AppState()

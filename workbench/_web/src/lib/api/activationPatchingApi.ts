@@ -12,7 +12,7 @@ import {
 } from "@/types/activationPatching";
 import { queryKeys } from "../queryKeys";
 import { toast } from "sonner";
-import { startAndPoll } from "../startAndPoll";
+import { runAndStream } from "../runAndStream";
 import { createUserHeadersAction } from "@/actions/auth";
 
 /**
@@ -42,10 +42,9 @@ const getActivationPatching = async (
         token_ids: [], // Backend will use src_pred and clean_pred from results
     };
 
-    return await startAndPoll<ActivationPatchingData>(
-        config.endpoints.startActivationPatching,
+    return await runAndStream<ActivationPatchingData>(
+        config.endpoints.runActivationPatching,
         apiRequest,
-        config.endpoints.resultsActivationPatching,
         headers,
     );
 };
@@ -99,6 +98,7 @@ export const useActivationPatching = () => {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.charts.sidebar(chart.workspaceId),
                 });
+                queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
                 // Note: We do NOT invalidate the config query here to avoid race conditions.
                 // The config is invalidated by updateConfig after the new prompts are saved.
             }

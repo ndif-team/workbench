@@ -7,6 +7,7 @@
 import config from "@/lib/config";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { startAndPoll } from "../startAndPoll";
+import { runAndStream } from "../runAndStream";
 import { createUserHeadersAction } from "@/actions/auth";
 import { setChartData, getChartById } from "@/lib/queries/chartQueries";
 import { createLensRun, updateLensRunIntervention } from "@/lib/queries/lensRunQueries";
@@ -34,16 +35,11 @@ const toPromptSummary = (prompt: string, data: LogitLensIntroData): LensRunPromp
     };
 };
 
-export interface PatchLensRequest {
+interface PatchLensRequest {
     sourcePrompt: string;
     targetPrompt: string;
     model: string;
     chartId: string;
-    // Sourced from the route, not re-fetched from the chart row. Lets the
-    // prompt-history write stand on its own even if the chart row is briefly
-    // missing (e.g. a preview pod whose ephemeral DB was just reset), instead
-    // of silently skipping.
-    workspaceId: string;
     topk?: number;
     includeEntropy?: boolean;
 }
@@ -60,7 +56,7 @@ export interface PatchLensResult {
     summary?: LensRunSummary;
 }
 
-export interface PatchLensInterventionRequest {
+interface PatchLensInterventionRequest {
     model: string;
     srcPrompt: string;
     tgtPrompt: string;
@@ -82,22 +78,21 @@ const runLogitLens = async (
     includeEntropy: boolean,
     headers: Record<string, string>,
 ): Promise<LogitLensIntroData> => {
-    return await startAndPoll<LogitLensIntroData>(
-        config.endpoints.startLens2,
+    return await runAndStream<LogitLensIntroData>(
+        config.endpoints.runLogitLens,
         {
             model,
             prompt,
             topk,
             include_entropy: includeEntropy,
         },
-        config.endpoints.resultsLens2,
         headers,
     );
 };
 
 // Bare async executor, exported alongside the hook so a feature can run the
 // CM-intro lens pair without the hook's toast/invalidation wiring (per the
-// repo convention; see generateCompletion in modelsApi.ts).
+// repo convention of exporting the bare function next to its mutation hook).
 export const runPatchLensLogitLens = async (
     request: PatchLensRequest,
 ): Promise<PatchLensResult> => {
@@ -135,13 +130,12 @@ export const runPatchLensLogitLens = async (
           }
         : undefined;
     try {
-        if (request.workspaceId && summary) {
+        if (summary) {
             const heatmaps: LensRunHeatmaps = {
                 source,
                 ...(target ? { target } : {}),
             };
             const created = await createLensRun({
-                workspaceId: request.workspaceId,
                 chartId: request.chartId,
                 model: request.model,
                 summary,
@@ -194,6 +188,8 @@ export const usePatchLensLogitLens = () => {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.lensRuns.byChart(variables.chartId),
                 }),
+                // The run saved the chart's prompts and result, which the sidebar labels it by.
+                queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library }),
             ]);
             // Seed the heatmap cache for the just-created run so restoring this
             // entry (or revisiting after the chart-row invalidation) is a cache
@@ -308,6 +304,7 @@ export const usePatchLensIntervention = () => {
                 queryClient.invalidateQueries({
                     queryKey: queryKeys.lensRuns.byChart(variables.chartId),
                 }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library }),
             ]);
         },
     });

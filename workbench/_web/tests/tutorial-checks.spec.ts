@@ -29,9 +29,9 @@ import {
  * one to be on screen: the panel withholds a step's check and note box until the
  * step's action is done (`hasDoneUnitAction`), so anything but a `manual` unit
  * has to be run first — see `openCheck` and the fixture's `needsRun`. Runs get a
- * stubbed `/logit_lens/start` returning `{ job_id: null, data }`, the shape
- * `startAndPoll` short-circuits on — while `createLensRun` still writes a real
- * `lens_runs` row, which is what makes the reload tests mean something.
+ * stubbed `/logit_lens/run` answering with a single SSE `data` event, the stream
+ * a local run sends — while `createLensRun` still writes a real `lens_runs` row,
+ * which is what makes the reload tests mean something.
  *
  * The high-value cases, in rough order:
  *   - per check: correct → data-correct="true"/state="fresh"; wrong → "false"
@@ -87,7 +87,7 @@ test.beforeAll(async ({}, workerInfo) => {
         checksSlot(workerInfo.workerIndex),
     );
     checksWorkspaceId = seeded.workspaceId;
-    checksUrl = `/workbench/${seeded.workspaceId}/patch-lens/${seeded.chartId}`;
+    checksUrl = `/patch-lens/${seeded.chartId}`;
 });
 
 // ---------------------------------------------------------------------------
@@ -136,8 +136,11 @@ async function stubBackend(page: Page): Promise<{ finalToken: string }> {
             ],
         }),
     );
-    await page.route("**/logit_lens/start", (route) =>
-        route.fulfill({ json: { job_id: null, data: buildLensData(state.finalToken) } }),
+    await page.route("**/logit_lens/run", (route) =>
+        route.fulfill({
+            contentType: "text/event-stream",
+            body: `event: data\ndata: ${JSON.stringify(buildLensData(state.finalToken))}\n\n`,
+        }),
     );
     return state;
 }
@@ -682,7 +685,7 @@ test.describe("guided tutorial notes", () => {
             TUTORIAL_CHECK_CONTENT,
             notesSlot(testInfo.workerIndex),
         );
-        const url = `/workbench/${seeded.workspaceId}/patch-lens/${seeded.chartId}`;
+        const url = `/patch-lens/${seeded.chartId}`;
         const nonce = Math.random().toString(36).slice(2, 8);
         const firstIdx = unitIndex("u0-top1");
         const secondIdx = unitIndex("u1-layer");
@@ -828,7 +831,7 @@ test.describe("guided tutorial notes", () => {
             TUTORIAL_CHECK_CONTENT,
             notesSlot(testInfo.workerIndex),
         );
-        const url = `/workbench/${seeded.workspaceId}/patch-lens/${seeded.chartId}`;
+        const url = `/patch-lens/${seeded.chartId}`;
         const nonce = Math.random().toString(36).slice(2, 8);
         const firstIdx = unitIndex("u0-top1");
         const secondIdx = unitIndex("u1-layer");

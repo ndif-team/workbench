@@ -18,9 +18,8 @@ import { createTestUser, loginAsUser, seedPatchLensChart, type TestingUser } fro
  * does a real model run against NDIF (same pattern as logit-lens.spec.ts).
  */
 
-const WS = "11111111-1111-4111-8111-111111111111";
 const CHART = "22222222-2222-4222-8222-222222222222";
-const URL = `/workbench/${WS}/patch-lens/${CHART}`;
+const URL = `/patch-lens/${CHART}`;
 
 const SOURCE = "#patch-lens-source-prompt";
 const PROMPT_WITH_SPACE = "The Eiffel Tower is in the city of ";

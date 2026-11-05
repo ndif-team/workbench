@@ -10,7 +10,7 @@
  * legacy branch to fold.
  */
 
-import type { LensRunListItem } from "@/lib/queries/lensRunQueries";
+import type { LensRunListItem } from "@/lib/queries/lensRunDb";
 import type { LensRunParams, LensRunPromptSummary } from "@/types/lensRun";
 import type { PatchLensInterventionSpec } from "@/types/patchLens";
 

@@ -1,10 +1,4 @@
-import {
-    test,
-    expect,
-    argosScreenshot,
-    gotoFreshAPWorkspace,
-    REAL_NDIF_TIMEOUT_MS,
-} from "./fixtures";
+import { test, expect, argosScreenshot, gotoFreshAPChart, REAL_NDIF_TIMEOUT_MS } from "./fixtures";
 import { createTestUser, loginAsUser, type TestingUser } from "./TestingUtils";
 
 const SRC_PROMPT = "The Eiffel Tower is in the city of";
@@ -23,21 +17,21 @@ test.describe("Notebook export (real NDIF)", () => {
     test.setTimeout(REAL_NDIF_TIMEOUT_MS * 5);
 
     test("export an activation patching chart to .ipynb", async ({ workbenchPage: page }) => {
-        await gotoFreshAPWorkspace(page, {
+        await gotoFreshAPChart(page, {
             srcPrompt: SRC_PROMPT,
             tgtPrompt: TGT_PROMPT,
             srcPos: [4],
             tgtPos: [4],
         });
 
-        // Wait for the AP chart to finish rendering — the Export button
-        // is only mounted in the chart display once `patchingChart` exists.
+        // Wait for the AP chart to finish running — the Export menu is only
+        // mounted in the chart's page header once the chart has a result.
         const exportButton = page.getByRole("button", { name: /Export/i });
         await expect(exportButton).toBeVisible({
             timeout: REAL_NDIF_TIMEOUT_MS * 2,
         });
 
-        // The Export button triggers a server-action that returns a
+        // The Export menu's notebook item triggers a server-action that returns a
         // notebook JSON string and then a client-side anchor download.
         // Align with the rest of the real-NDIF suite — the server action
         // can take noticeably longer under CI load than a fixed 30s.
@@ -45,6 +39,7 @@ test.describe("Notebook export (real NDIF)", () => {
             timeout: REAL_NDIF_TIMEOUT_MS,
         });
         await exportButton.click();
+        await page.getByRole("menuitem", { name: /Jupyter notebook/ }).click();
         const download = await downloadPromise;
 
         const suggested = download.suggestedFilename();

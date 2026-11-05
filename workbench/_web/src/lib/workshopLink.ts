@@ -5,7 +5,7 @@ import { toast } from "sonner";
  * (window/navigator); kept out of lib/workshop.ts, which server actions import.
  */
 
-export const workshopJoinUrl = (slug: string): string => `${window.location.origin}/w/${slug}`;
+const workshopJoinUrl = (slug: string): string => `${window.location.origin}/w/${slug}`;
 
 export async function copyWorkshopJoinLink(
     slug: string,

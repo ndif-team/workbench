@@ -1,0 +1,82 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import LogitLensArea from "./components/LogitLensArea";
+import { LogitLensDisplay } from "./components/LogitLensDisplay";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { MobileCollapsibleControls } from "../../components/MobileCollapsibleControls";
+import { ModelDeployingPanel } from "../../components/ModelDeployingPanel";
+import { useChartModelReady } from "@/hooks/useChartModelReady";
+import { Layers } from "lucide-react";
+import { useIsMutating } from "@tanstack/react-query";
+
+export default function LogitLensChartPage() {
+    const isMobile = useIsMobile();
+    const isRunning = useIsMutating({ mutationKey: ["logit-lens"] }) > 0;
+    const { chartId } = useParams<{ chartId: string }>();
+    const readiness = useChartModelReady(chartId);
+
+    if (isMobile === undefined) return null;
+
+    // Model not yet deployed AND no saved result → show the deploying panel in
+    // place of the controls/visualization. The shell's sidebar stays available
+    // so the user can navigate to other charts while this model deploys.
+    const deploying = readiness.state === "deploying";
+
+    if (isMobile) {
+        return (
+            <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pt-0 gap-2">
+                {deploying ? (
+                    <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
+                        <ModelDeployingPanel
+                            modelName={readiness.modelName}
+                            phase={readiness.phase}
+                        />
+                    </div>
+                ) : (
+                    <>
+                        <MobileCollapsibleControls
+                            label="Logit Lens"
+                            icon={Layers}
+                            isRunning={isRunning}
+                        >
+                            <LogitLensArea />
+                        </MobileCollapsibleControls>
+                        <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
+                            <LogitLensDisplay />
+                        </div>
+                    </>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div className="size-full flex min-h-0">
+            <div className="flex-1 min-h-0 pb-3 px-3">
+                {deploying ? (
+                    <div className="size-full rounded dark:bg-secondary/50 bg-secondary/80 border">
+                        <ModelDeployingPanel
+                            modelName={readiness.modelName}
+                            phase={readiness.phase}
+                        />
+                    </div>
+                ) : (
+                    <ResizablePanelGroup
+                        direction="horizontal"
+                        className="flex size-full rounded dark:bg-secondary/50 bg-secondary/80 border"
+                    >
+                        <ResizablePanel className="h-full" defaultSize={25} minSize={20}>
+                            <LogitLensArea />
+                        </ResizablePanel>
+                        <ResizableHandle className="w-[0.8px]" />
+                        <ResizablePanel defaultSize={75} minSize={40}>
+                            <LogitLensDisplay />
+                        </ResizablePanel>
+                    </ResizablePanelGroup>
+                )}
+            </div>
+        </div>
+    );
+}

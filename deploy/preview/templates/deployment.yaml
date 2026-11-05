@@ -31,11 +31,11 @@ spec:
             - name: PORT
               value: "{{ .Values.service.targetPort }}"
             {{- if .Values.api.secretName }}
-            # The Next.js server-side renderer fetches HF tokenizers when
-            # rendering /workbench/[workspaceId]/[chartId]; gated repos
-            # need HF_TOKEN. Pull just that key from the shared api
-            # secret — don't envFrom the whole secret, which would also
-            # expose NDIF_API_KEY inside the web container.
+            # The tool pages tokenize prompts server-side, fetching HF
+            # tokenizers; gated repos need HF_TOKEN. Pull just that key
+            # from the shared api secret — don't envFrom the whole
+            # secret, which would also expose NDIF_API_KEY inside the
+            # web container.
             - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:

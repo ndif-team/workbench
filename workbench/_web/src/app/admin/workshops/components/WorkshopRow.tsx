@@ -12,7 +12,7 @@ import { copyWorkshopJoinLink } from "@/lib/workshopLink";
 import { splitRepo } from "@/components/model-selector/status";
 
 export const WORKSHOP_TOOL_LABELS: Record<WorkshopTool, string> = {
-    lens2: "Logit Lens",
+    "logit-lens": "Logit Lens",
     "activation-patching": "Activation Patching",
     "patch-lens": "Patch Lens",
 };

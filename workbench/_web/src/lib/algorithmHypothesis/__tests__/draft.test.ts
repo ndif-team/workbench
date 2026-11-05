@@ -14,7 +14,7 @@ import {
     withDefaultName,
     withFunction,
     draftProblems,
-} from "@/app/workbench/[workspaceId]/algorithm-hypothesis/[chartId]/components/draft";
+} from "@/app/(shell)/algorithm-hypothesis/[chartId]/components/draft";
 
 const G = golden as unknown as {
     prompts: Record<string, string>;

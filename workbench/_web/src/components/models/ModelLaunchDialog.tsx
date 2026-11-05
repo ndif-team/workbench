@@ -16,8 +16,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { getWorkspaces } from "@/lib/queries/workspaceQueries";
+import { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
 import { hasWorkshopClaim } from "@/lib/workshop";
+import { useLaunchChart } from "@/hooks/useLaunchChart";
 import { useModelDeployment } from "@/stores/useModelDeployment";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import {
@@ -56,11 +57,12 @@ interface ModelLaunchDialogProps {
  */
 export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDialogProps) {
     const router = useRouter();
+    const launchChart = useLaunchChart();
     const startDeployment = useModelDeployment((s) => s.start);
 
     const [user, setUser] = useState<CurrentUser | null>(null);
     const [tool, setTool] = useState("Logit Lens");
-    const [workspace, setWorkspace] = useState("new");
+    const [workspace, setWorkspace] = useState("");
 
     const open = model !== null;
     const isDeploy = mode === "deploy";
@@ -96,7 +98,7 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
 
     const { data: workspaces } = useQuery({
         queryKey: ["workspaces", user?.id],
-        queryFn: () => getWorkspaces(user!.id),
+        queryFn: () => getUserWorkspaces(),
         enabled: open && isSignedIn && !!user?.id,
     });
 
@@ -129,11 +131,10 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
             tool,
             deploy: "true",
         });
-        if (workspace && workspace !== "new") params.set("workspaceId", workspace);
-        else params.set("createNew", "true");
+        if (workspace) params.set("workspaceId", workspace);
 
         onOpenChange(false);
-        router.push(`/workbench?${params.toString()}`);
+        launchChart(params);
     };
 
     return (
@@ -152,8 +153,8 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
                         </DialogDescription>
                     ) : (
                         <DialogDescription>
-                            Create a chart with this model. Pick a tool and a workspace to open it
-                            in.
+                            Create a chart with this model. Pick a tool, and a workspace if you want
+                            it filed in one.
                         </DialogDescription>
                     )}
                 </DialogHeader>
@@ -169,7 +170,6 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
                                 onChange={setTool}
                                 disabled={false}
                                 triggerClassName={NEUTRAL_PILL_TRIGGER}
-                                compact={false}
                                 modal
                             />
                         </div>
@@ -183,7 +183,6 @@ export function ModelLaunchDialog({ model, mode, onOpenChange }: ModelLaunchDial
                                 disabled={false}
                                 workspaces={workspaces ?? []}
                                 triggerClassName={NEUTRAL_PILL_TRIGGER}
-                                compact={false}
                                 modal
                             />
                         </div>

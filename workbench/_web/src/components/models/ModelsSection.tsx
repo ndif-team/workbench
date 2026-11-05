@@ -6,7 +6,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getModels, useModelsQuery } from "@/lib/api/modelsApi";
 import { queryKeys } from "@/lib/queryKeys";
 import type { Model } from "@/types/models";
-import { cn } from "@/lib/utils";
 import {
     deriveHeat,
     FILTERABLE_HEAT,
@@ -14,13 +13,12 @@ import {
     type ModelGroup,
     type ModelHeat,
 } from "@/components/model-selector/status";
-import { useModelsSection } from "@/stores/useModelsSection";
 import { useModelDeployment } from "@/stores/useModelDeployment";
-import { ModelRowCarousel, useCarouselScroll, CarouselControls } from "./ModelRowCarousel";
 import { ModelsSectionHeader } from "./ModelsSectionHeader";
 import { ModelsFetchErrorBanner } from "./ModelsFetchErrorBanner";
 import { ModelLaunchDialog, type ModelLaunchMode } from "./ModelLaunchDialog";
-import type { ModelCardModel } from "./ModelCard";
+import { ModelCard, type ModelCardModel } from "./ModelCard";
+import { ModelsPager } from "./ModelsPager";
 
 const URL_STATUS = "models_status";
 const URL_GROUP = "models_group";
@@ -83,6 +81,50 @@ const toCardModel = (m: Model, isSignedIn: boolean): ModelCardModel => {
     };
 };
 
+/** The card grid's geometry: `grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3`. */
+const CARD_MIN_WIDTH = 256;
+const GRID_GAP = 12;
+
+/**
+ * How many cards fit in the grid's area without scrolling: as many columns as
+ * the grid fits at its minimum card width, times as many card rows as fit in
+ * its height. Null until both the area and a card have been measured. Attach
+ * `areaRef` to the box the grid fills and `cardRef` to one card's cell.
+ */
+function useGridPageSize() {
+    const [pageSize, setPageSize] = useState<number | null>(null);
+    const area = useRef<HTMLElement | null>(null);
+    const card = useRef<HTMLElement | null>(null);
+    const observer = useRef<ResizeObserver | null>(null);
+
+    const measure = useCallback(() => {
+        if (!area.current || !card.current) return;
+        const cols = Math.floor(
+            (area.current.clientWidth + GRID_GAP) / (CARD_MIN_WIDTH + GRID_GAP),
+        );
+        const rows = Math.floor(
+            (area.current.clientHeight + GRID_GAP) / (card.current.offsetHeight + GRID_GAP),
+        );
+        setPageSize(Math.max(1, cols) * Math.max(1, rows));
+    }, []);
+
+    const track = useCallback(
+        (slot: typeof area) => (el: HTMLElement | null) => {
+            observer.current ??= new ResizeObserver(measure);
+            if (slot.current) observer.current.unobserve(slot.current);
+            slot.current = el;
+            if (el) observer.current.observe(el);
+        },
+        [measure],
+    );
+    const areaRef = useMemo(() => track(area), [track]);
+    const cardRef = useMemo(() => track(card), [track]);
+
+    useEffect(() => () => observer.current?.disconnect(), []);
+
+    return { pageSize, areaRef, cardRef };
+}
+
 interface ModelsSectionProps {
     cardHref?: (m: ModelCardModel) => string | undefined;
     onCardClick?: (m: ModelCardModel) => void;
@@ -91,19 +133,22 @@ interface ModelsSectionProps {
     isSignedIn?: boolean;
 }
 
+/**
+ * The models the backend serves, as a filterable grid set straight on the
+ * page and filling it: hottest first, filters (type, status, search) mirrored
+ * to the URL.
+ * The grid never scrolls: it shows as many cards as fit and pages through the
+ * rest. A card opens the launch dialog (or deploys a cold model).
+ */
 export function ModelsSection({
     cardHref = (m) => `https://huggingface.co/${m.org}/${m.name}`,
-    onCardClick,
+    onCardClick: onCardClickProp,
     isSignedIn = true,
 }: ModelsSectionProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
     const deployments = useModelDeployment((s) => s.deployments);
-
-    const collapsed = useModelsSection((s) => s.collapsed);
-    const setCollapsed = useModelsSection((s) => s.setCollapsed);
-    const hasHydrated = useModelsSection((s) => s._hasHydrated);
 
     const initialStatus = useMemo(() => {
         const raw = searchParams.get(URL_STATUS);
@@ -224,24 +269,6 @@ export function ModelsSection({
             .sort(byHeat);
     }, [cards, query, statusFilters, groupFilters]);
 
-    // Carousel scroll state lives here so its nav controls can render up in the
-    // section header (next to the filters) rather than above the row. Re-measure
-    // whenever the visible list changes.
-    const { scrollRef, progress, hasOverflow, scrollByPage } = useCarouselScroll(filtered);
-
-    const groupPreviews = useMemo(() => {
-        const previewFor = (list: ModelCardModel[]) => {
-            const hot = list.filter((m) => m.heat === "hot");
-            return hot.length > 0 ? hot.slice(0, 2) : list.slice(0, 2);
-        };
-        const allBase = cards.filter((m) => m.group === "base");
-        const allChat = cards.filter((m) => m.group === "chat");
-        return {
-            base: { total: allBase.length, preview: previewFor(allBase) },
-            chat: { total: allChat.length, preview: previewFor(allChat) },
-        };
-    }, [cards]);
-
     // Local retry-in-flight flag. Drives the banner spinner reliably, since
     // `useModelsQuery` has `enabled: false` and its observer's `isFetching`
     // doesn't track manual `queryClient.fetchQuery` calls cleanly.
@@ -266,50 +293,25 @@ export function ModelsSection({
             .finally(() => setIsRetrying(false));
     }, [queryClient]);
 
+    const { pageSize, areaRef, cardRef } = useGridPageSize();
+    const [page, setPage] = useState(0);
+    useEffect(() => setPage(0), [query, statusFilters, groupFilters]);
+    const perPage = pageSize ?? filtered.length;
+    const pageCount = Math.max(1, Math.ceil(filtered.length / Math.max(1, perPage)));
+    const currentPage = Math.min(page, pageCount - 1);
+    const pageModels = filtered.slice(currentPage * perPage, (currentPage + 1) * perPage);
+
+    const onCardClick =
+        onCardClickProp ??
+        ((m: ModelCardModel) =>
+            setDialog({ model: m, mode: m.heat === "cold" ? "deploy" : "launch" }));
+
     return (
-        <section
-            className={cn(
-                "group/section relative mb-6 rounded-xl border-2 overflow-hidden transition-all duration-200",
-                // Hide until the persisted `collapsed` value has hydrated from
-                // localStorage — otherwise users who saved `collapsed: true`
-                // would see a brief flash of the expanded layout on every
-                // page load. Layout space is still reserved via `mb-6`.
-                !hasHydrated && "invisible",
-                collapsed
-                    ? [
-                          "bg-card/35 dark:bg-card/25 border-border/40 shadow-none",
-                          "cursor-pointer",
-                          "hover:bg-card/65 dark:hover:bg-card/55 hover:border-border/70",
-                          "hover:shadow-[0_16px_40px_-14px_hsl(var(--primary)/0.18),0_4px_12px_-2px_hsl(0_0%_0%/0.05)]",
-                          "dark:hover:shadow-[0_18px_44px_-14px_hsl(var(--primary)/0.28),0_4px_16px_hsl(0_0%_0%/0.35)]",
-                      ]
-                    : [
-                          "bg-card/65 dark:bg-card/55 border-border/75",
-                          "shadow-[0_16px_40px_-14px_hsl(var(--primary)/0.18),0_4px_12px_-2px_hsl(0_0%_0%/0.05)]",
-                          "dark:shadow-[0_18px_44px_-14px_hsl(var(--primary)/0.28),0_4px_16px_hsl(0_0%_0%/0.35)]",
-                      ],
-            )}
-            aria-label="Models"
-            // Mouse "click anywhere" affordance when collapsed. NOT a button:
-            // the chevron <Button> inside is the canonical (and keyboard-
-            // accessible) toggle, and having both role="button" on the
-            // section AND a real <button> inside is an ARIA hierarchy
-            // violation. Mouse users still get expand-on-click here; keyboard
-            // / screen-reader users use the chevron.
-            onClick={collapsed ? () => setCollapsed(false) : undefined}
-        >
-            <div
-                className={cn(
-                    "px-4 transition-[padding] duration-200",
-                    collapsed ? "pt-4 pb-10" : "py-4",
-                )}
-            >
+        <section aria-label="Models" className="flex h-full min-h-0 flex-col">
+            <div className="pb-3 pl-1">
                 <ModelsSectionHeader
-                    collapsed={collapsed}
-                    onToggle={() => setCollapsed(!collapsed)}
                     total={cards.length}
                     filteredTotal={filtered.length}
-                    groupPreviews={groupPreviews}
                     hasError={!!error}
                     isLoading={isLoading && !rawModels}
                     query={query}
@@ -318,53 +320,51 @@ export function ModelsSection({
                     onToggleStatus={onToggleStatus}
                     groupFilters={groupFilters}
                     onToggleGroup={onToggleGroup}
-                    scrollControls={
-                        hasOverflow ? (
-                            <CarouselControls progress={progress} scrollByPage={scrollByPage} />
+                    pager={
+                        pageCount > 1 ? (
+                            <ModelsPager
+                                page={currentPage}
+                                pageCount={pageCount}
+                                onPage={setPage}
+                            />
                         ) : null
                     }
                 />
             </div>
 
-            {!collapsed && (
-                <div className="p-3 pt-1">
-                    {isLoading && !rawModels ? (
-                        <div className="py-8 text-center text-xs text-muted-foreground">
-                            Loading models…
-                        </div>
-                    ) : error ? (
-                        <ModelsFetchErrorBanner onRetry={onRetry} isRetrying={isRetrying} />
-                    ) : cards.length === 0 ? (
-                        <div className="py-8 text-center text-xs text-muted-foreground">
-                            No models available
-                        </div>
-                    ) : filtered.length === 0 ? (
-                        <div className="py-8 text-center text-xs text-muted-foreground">
-                            No models match the current filters.
-                        </div>
-                    ) : (
-                        // Base and chat share one scroller now — the card's
-                        // group pill already signals the family, so a hard
-                        // section split isn't needed. Three rows deep.
-                        <ModelRowCarousel
-                            models={filtered}
-                            rows={3}
-                            scrollRef={scrollRef}
-                            progress={progress}
-                            hasOverflow={hasOverflow}
-                            cardHref={cardHref}
-                            onCardClick={
-                                onCardClick ??
-                                ((m) =>
-                                    setDialog({
-                                        model: m,
-                                        mode: m.heat === "cold" ? "deploy" : "launch",
-                                    }))
-                            }
-                        />
-                    )}
-                </div>
-            )}
+            <div ref={areaRef} className="min-h-0 flex-1 overflow-hidden">
+                {isLoading && !rawModels ? (
+                    <div className="py-8 text-center text-xs text-muted-foreground">
+                        Loading models…
+                    </div>
+                ) : error ? (
+                    <ModelsFetchErrorBanner onRetry={onRetry} isRetrying={isRetrying} />
+                ) : cards.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-muted-foreground">
+                        No models available
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-muted-foreground">
+                        No models match the current filters.
+                    </div>
+                ) : (
+                    <ul className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3">
+                        {pageModels.map((m, i) => (
+                            <li
+                                key={`${m.org}/${m.name}`}
+                                ref={i === 0 ? cardRef : undefined}
+                                className="flex"
+                            >
+                                <ModelCard
+                                    m={m}
+                                    onClick={() => onCardClick(m)}
+                                    href={cardHref(m)}
+                                />
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
 
             <ModelLaunchDialog
                 model={dialog?.model ?? null}

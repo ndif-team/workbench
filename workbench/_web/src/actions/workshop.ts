@@ -2,18 +2,19 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { seedWorkshopChart } from "@/lib/queries/chartDb";
 import {
     getWorkshopBySlug,
     getWorkshopWorkspaceForUser,
-    seedWorkshopChart,
-} from "@/lib/queries/workshopQueries";
-import { createWorkspace, setWorkspaceProlificIfEmpty } from "@/lib/queries/workspaceQueries";
-import { isUniqueViolation } from "@/lib/queries/workshopDb";
+    isUniqueViolation,
+} from "@/lib/queries/workshopDb";
+import { createWorkspace, setWorkspaceProlificIfEmpty } from "@/lib/queries/workspaceDb";
 import { isWorkshopExpired } from "@/lib/workshop";
+import { openWorkspacePath, toolChartPath } from "@/lib/chartRoutes";
 import { getPostHogServer } from "@/lib/posthog-server";
 import type { ProlificParams } from "@/lib/prolific";
 
-export type JoinWorkshopResult =
+type JoinWorkshopResult =
     | { ok: true; redirectTo: string }
     | { ok: false; error: string; captchaRequired?: boolean };
 
@@ -94,7 +95,7 @@ export async function joinWorkshopAction(
         if (prolific) {
             await setWorkspaceProlificIfEmpty(existing.id, prolific);
         }
-        return { ok: true, redirectTo: `/workbench/${existing.id}` };
+        return { ok: true, redirectTo: openWorkspacePath(existing.id) };
     }
 
     // The lookup above is check-then-act; the unique index on
@@ -107,7 +108,7 @@ export async function joinWorkshopAction(
         if (!isUniqueViolation(err)) throw err;
         const winner = await getWorkshopWorkspaceForUser(user.id, workshop.id);
         if (!winner) throw err;
-        return { ok: true, redirectTo: `/workbench/${winner.id}` };
+        return { ok: true, redirectTo: openWorkspacePath(winner.id) };
     }
     const { chart, tool } = await seedWorkshopChart(workspace.id, workshop);
 
@@ -120,5 +121,5 @@ export async function joinWorkshopAction(
         properties: { tool },
     });
 
-    return { ok: true, redirectTo: `/workbench/${workspace.id}/${tool}/${chart.id}` };
+    return { ok: true, redirectTo: toolChartPath(chart.id, tool) };
 }

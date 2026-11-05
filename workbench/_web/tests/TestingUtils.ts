@@ -180,11 +180,14 @@ export async function loginAsUser(page: Page, user: TestingUser, retries = 4): P
             } else {
                 await page.goto(`/auth/magic-link?token_hash=${encodeURIComponent(tokenHash)}`);
                 await page.getByRole("button", { name: /sign in with magic link/i }).click();
-                // Success = the verifyOtp server action redirected us into the
-                // workbench. On failure it bounces back to /auth/magic-link with
-                // an ?error, so record that (or the current URL) and retry.
+                // Success = the verifyOtp server action redirected us out of
+                // /auth (to /, Home). On failure it
+                // bounces back to /auth/magic-link with an ?error, so record
+                // that (or the current URL) and retry.
                 try {
-                    await page.waitForURL(/\/workbench(\/|$|\?)/, { timeout: 15_000 });
+                    await page.waitForURL((url) => !url.pathname.startsWith("/auth/"), {
+                        timeout: 15_000,
+                    });
                     return;
                 } catch {
                     const errText = await page
@@ -284,7 +287,7 @@ export async function seedWorkshops(): Promise<void> {
     const inAWeek = new Date(now.getTime() + 7 * 24 * 3600 * 1000).toISOString();
     const anHourAgo = new Date(now.getTime() - 3600 * 1000).toISOString();
     const base = {
-        allowed_tools: ["lens2"],
+        allowed_tools: ["logit-lens"],
         model: MODEL,
         starter_prompt: WORKSHOP_STARTER_PROMPT,
         created_by: "e2e@seed.local",
@@ -351,7 +354,7 @@ const PL_INTERVENTION = { srcTokenPos: 7, srcLayer: 8, tgtTokenPos: 7, tgtLayer:
  * Exported because that makes it the answer key for the guided tutorial's
  * run-scored checks: PatchLensArea feeds `finalPrediction(source)` and
  * `finalTopKTokens(source, 2)[1]` into the store, so a spec that fulfils
- * `/logit_lens/start` with this knows, deterministically, what "correct" is.
+ * `/logit_lens/run` with this knows, deterministically, what "correct" is.
  */
 export function buildLensData(finalToken: string, tokens: string[] = PL_TOKENS) {
     const input = tokens.slice();

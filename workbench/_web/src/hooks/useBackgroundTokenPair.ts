@@ -13,7 +13,7 @@ import type { Token } from "@/types/models";
  * `null` (callers treat that as "no comparison needed").
  *
  * Each tool that wants a tokenization-differs comparison instantiates one of
- * these per prompt (lens2 once, AP twice for src/tgt). The cancellation
+ * these per prompt (logit lens once, AP twice for src/tgt). The cancellation
  * scheme handles fast prompt/model changes without leaking stale promises
  * back into state.
  */

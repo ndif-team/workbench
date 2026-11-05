@@ -9,15 +9,15 @@ import {
     uniqueIndex,
     index,
 } from "drizzle-orm/pg-core";
-import type { ConfigData, ChartData, ChartView } from "@/types/charts";
-import type { LensConfigData } from "@/types/lens";
+import { sql } from "drizzle-orm";
+import type { ConfigData, ChartData } from "@/types/charts";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
 import type { TutorialContent } from "@/types/tutorial-content";
 import type { AlgorithmDefinition } from "@/types/algorithmHypothesis";
 
-export const workshopTools = ["lens2", "activation-patching", "patch-lens"] as const;
+export const workshopTools = ["logit-lens", "activation-patching", "patch-lens"] as const;
 export type WorkshopTool = (typeof workshopTools)[number];
 
 // Tutorial = the guided-activity content a workshop runs (the 7-unit Prolific
@@ -83,20 +83,35 @@ export const workspaces = pgTable(
         // first arrival, retained for matching runs back to the study. Null for
         // normal (non-workshop) workspaces and workshop joins without Prolific.
         prolific: jsonb("prolific").$type<ProlificParams>(),
+        // The user's home for charts and reports not filed in a workspace. Never
+        // shown as a folder; created lazily by getOrCreateDefaultWorkspace.
+        isDefault: boolean("is_default").notNull().default(false),
         createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
         updatedAt: timestamp("updated_at", { mode: "date" })
             .defaultNow()
             .notNull()
             .$onUpdate(() => new Date()),
     },
-    // One workspace per (participant, workshop): makes concurrent join-link
-    // clicks converge on a single workspace instead of racing check-then-act.
-    // NULL workshopId rows (normal workspaces) are unconstrained — both pg and
-    // sqlite treat NULLs as distinct in unique indexes.
-    (table) => [uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId)],
+    (table) => [
+        // One workspace per (participant, workshop): makes concurrent join-link
+        // clicks converge on a single workspace instead of racing check-then-act.
+        // NULL workshopId rows (normal workspaces) are unconstrained — both pg and
+        // sqlite treat NULLs as distinct in unique indexes.
+        uniqueIndex("workspaces_user_workshop_unique").on(table.userId, table.workshopId),
+        // One default workspace per user, so concurrent first creations converge.
+        uniqueIndex("workspaces_user_default_unique")
+            .on(table.userId)
+            .where(sql`${table.isDefault}`),
+    ],
 );
 
-export const chartTypes = ["line", "heatmap"] as const;
+export const chartTypes = [
+    "logit-lens",
+    "jlens",
+    "activation-patching",
+    "patch-lens",
+    "algorithm-hypothesis",
+] as const;
 
 export const charts = pgTable("charts", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -116,7 +131,13 @@ export const charts = pgTable("charts", {
         .$onUpdate(() => new Date()),
 });
 
-export const configTypes = ["lens", "patch"] as const;
+export const configTypes = [
+    "logit-lens",
+    "jlens",
+    "activation-patching",
+    "patch-lens",
+    "algorithm-hypothesis",
+] as const;
 
 export const configs = pgTable("configs", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -140,15 +161,6 @@ export const chartConfigLinks = pgTable("chart_config_links", {
         .references(() => configs.id, { onDelete: "cascade" })
         .notNull()
         .unique(),
-});
-
-export const views = pgTable("views", {
-    id: uuid("id").primaryKey().defaultRandom(),
-    chartId: uuid("chart_id")
-        .references(() => charts.id, { onDelete: "cascade" })
-        .notNull()
-        .unique(),
-    data: jsonb("data").$type<ChartView>().notNull(),
 });
 
 export const documents = pgTable("documents", {
@@ -244,9 +256,6 @@ export type NewConfig = typeof configs.$inferInsert;
 
 export type ChartConfigLink = typeof chartConfigLinks.$inferSelect;
 export type NewChartConfigLink = typeof chartConfigLinks.$inferInsert;
-
-export type View = typeof views.$inferSelect;
-export type NewView = typeof views.$inferInsert;
 
 export type LensRun = typeof lensRuns.$inferSelect;
 export type NewLensRun = typeof lensRuns.$inferInsert;

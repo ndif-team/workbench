@@ -41,14 +41,14 @@ test.describe("workshop admin CRUD", () => {
         // Create
         await page.getByRole("button", { name: "New workshop" }).click();
         // Visual snapshot of the pristine create dialog (deterministic: empty
-        // name, lens2 pre-checked, model unselected), once the model combobox
+        // name, Logit Lens pre-checked, model unselected), once the model combobox
         // has swapped in from its loading fallback.
         await expect(page.getByRole("combobox", { name: "Model" })).toBeVisible({
             timeout: 15_000,
         });
         await argosScreenshot(page, "workshop-admin-create-dialog", { fullPage: false });
         await page.getByLabel("Name").fill(NAME);
-        // lens2 is pre-checked; add Patch Lens.
+        // Logit Lens is pre-checked; add Patch Lens.
         await page.getByRole("checkbox").nth(2).check();
         // Model select is populated from the live backend catalog; until the
         // query resolves the field is a plain-Input fallback, so wait for the
