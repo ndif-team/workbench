@@ -9,6 +9,7 @@ import {
     workshops as sqliteWorkshops,
     tutorials as sqliteTutorials,
     tutorialEvents as sqliteTutorialEvents,
+    algorithms as sqliteAlgorithms,
 } from "./schema.sqlite";
 import {
     workspaces as pgWorkspaces,
@@ -20,6 +21,7 @@ import {
     workshops as pgWorkshops,
     tutorials as pgTutorials,
     tutorialEvents as pgTutorialEvents,
+    algorithms as pgAlgorithms,
 } from "./schema.pg";
 
 // Conditionally export the appropriate schema based on environment
@@ -34,6 +36,7 @@ export const lensRuns = isLocal ? sqliteLensRuns : pgLensRuns;
 export const workshops = isLocal ? sqliteWorkshops : pgWorkshops;
 export const tutorials = isLocal ? sqliteTutorials : pgTutorials;
 export const tutorialEvents = isLocal ? sqliteTutorialEvents : pgTutorialEvents;
+export const algorithms = isLocal ? sqliteAlgorithms : pgAlgorithms;
 
 /** A top-level string field of a JSON column as text: `->>` on Postgres jsonb, `json_extract` on SQLite's JSON text. */
 export const jsonTextField = (column: AnyColumn, key: string) =>
@@ -58,6 +61,7 @@ export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
 
 export type Chart = typeof charts.$inferSelect;
+export type AlgorithmRow = typeof algorithms.$inferSelect;
 export type NewChart = typeof charts.$inferInsert;
 
 export type Config = typeof configs.$inferSelect;

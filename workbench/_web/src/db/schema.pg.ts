@@ -15,6 +15,7 @@ import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
 import type { TutorialContent } from "@/types/tutorial-content";
+import type { AlgorithmDefinition } from "@/types/algorithmHypothesis";
 
 export const workshopTools = ["logit-lens", "activation-patching", "patch-lens"] as const;
 export type WorkshopTool = (typeof workshopTools)[number];
@@ -104,7 +105,13 @@ export const workspaces = pgTable(
     ],
 );
 
-export const chartTypes = ["logit-lens", "jlens", "activation-patching", "patch-lens"] as const;
+export const chartTypes = [
+    "logit-lens",
+    "jlens",
+    "activation-patching",
+    "patch-lens",
+    "algorithm-hypothesis",
+] as const;
 
 export const charts = pgTable("charts", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -124,7 +131,13 @@ export const charts = pgTable("charts", {
         .$onUpdate(() => new Date()),
 });
 
-export const configTypes = ["logit-lens", "jlens", "activation-patching", "patch-lens"] as const;
+export const configTypes = [
+    "logit-lens",
+    "jlens",
+    "activation-patching",
+    "patch-lens",
+    "algorithm-hypothesis",
+] as const;
 
 export const configs = pgTable("configs", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -158,6 +171,28 @@ export const documents = pgTable("documents", {
 
     content: jsonb("content").notNull(),
     position: real("position").default(0).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+        .defaultNow()
+        .notNull()
+        .$onUpdate(() => new Date()),
+});
+
+// Algorithm Hypothesis: an algorithm placed on a layers × tokens grid (schema
+// v1, see types/algorithmHypothesis.ts). Workspace-scoped rather than per chart
+// so several charts can share one algorithm (the editor now, the intervention
+// visualizers later). `name` mirrors definition.name for cheap listing.
+export const algorithms = pgTable("algorithms", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+        .references(() => workspaces.id, { onDelete: "cascade" })
+        .notNull(),
+    name: varchar("name", { length: 256 }).notNull().default("Untitled algorithm"),
+    /** The working copy, autosaved on every edit. */
+    definition: jsonb("definition").$type<AlgorithmDefinition>().notNull(),
+    /** The version the researcher last saved as complete; null for a draft. */
+    savedDefinition: jsonb("saved_definition").$type<AlgorithmDefinition>(),
+    savedAt: timestamp("saved_at", { mode: "date" }),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: "date" })
         .defaultNow()

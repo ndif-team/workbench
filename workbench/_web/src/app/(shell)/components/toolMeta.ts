@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { GitBranch, Grid3X3 } from "lucide-react";
+import { GitBranch, Grid3X3, Workflow } from "lucide-react";
 import { JLensIcon } from "@/components/JLensIcon";
 import { PatchLensIcon } from "@/components/PatchLensIcon";
 import { normalizeToolType, toolTypes, type ToolType } from "@/types/charts";
@@ -20,6 +20,11 @@ const TOOL_META: Record<ToolType, ToolMeta> = {
         Icon: GitBranch,
     },
     "patch-lens": { label: "Patch Lens", Icon: PatchLensIcon },
+    "algorithm-hypothesis": {
+        label: "Algorithm Hypothesis",
+        shortLabel: "Algorithm",
+        Icon: Workflow,
+    },
 };
 
 /**

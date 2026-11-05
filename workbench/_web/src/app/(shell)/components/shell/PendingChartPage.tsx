@@ -30,6 +30,7 @@ const LAYOUTS: Record<ToolType, { controls: number; fields: PromptField[] }> = {
         ],
     },
     "patch-lens": { controls: 27, fields: [] },
+    "algorithm-hypothesis": { controls: 30, fields: [] },
 };
 
 /**

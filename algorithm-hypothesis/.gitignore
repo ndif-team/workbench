@@ -1,0 +1,7 @@
+# Local environments and build output
+python/.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
+spikes/pyodide/node_modules/
+design/dist/

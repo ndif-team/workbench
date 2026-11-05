@@ -6,6 +6,7 @@ const TOOL_ROUTE_SEGMENT: Record<ToolType, string> = {
     jlens: "j-lens",
     "activation-patching": "activation-patching",
     "patch-lens": "patch-lens",
+    "algorithm-hypothesis": "algorithm-hypothesis",
 };
 
 /** Whether a stored chart/config type belongs to a live tool. */

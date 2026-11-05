@@ -56,7 +56,7 @@ const nextConfig = {
                 permanent: true,
             },
             {
-                source: "/workbench/:workspaceId/:tool(logit-lens|j-lens|activation-patching|patch-lens)/:chartId",
+                source: "/workbench/:workspaceId/:tool(logit-lens|j-lens|activation-patching|patch-lens|algorithm-hypothesis)/:chartId",
                 destination: "/:tool/:chartId",
                 permanent: true,
             },

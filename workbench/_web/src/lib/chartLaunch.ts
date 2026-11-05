@@ -37,7 +37,8 @@ export type ChartLaunchPlan =
     | { type: "logit-lens"; data: LogitLensConfigData }
     | { type: "jlens"; data: JLensConfigData }
     | { type: "activation-patching"; data: ActivationPatchingConfigData }
-    | { type: "patch-lens"; data: Record<string, never>; chartData?: PatchLensChartData };
+    | { type: "patch-lens"; data: Record<string, never>; chartData?: PatchLensChartData }
+    | { type: "algorithm-hypothesis"; data: Record<string, never> };
 
 /** The launch parameters present in a page's search params; other keys are dropped. */
 export function chartLaunchFromSearchParams(
@@ -105,6 +106,9 @@ export function planChartLaunch(request: ChartLaunchRequest): ChartLaunchPlan {
         };
     }
 
+    // Its chart data points at a new algorithm, created with the chart (chartDb).
+    if (tool === "algorithm-hypothesis") return { type: tool, data: {} };
+
     const data = {
         model,
         prompt: deploy ? "" : (request.prompt ?? ""),
@@ -131,6 +135,8 @@ export function isBlankPlan(plan: ChartLaunchPlan): boolean {
             );
         case "patch-lens":
             return !plan.chartData;
+        case "algorithm-hypothesis":
+            return true;
         default:
             return !plan.data.prompt;
     }

@@ -3,22 +3,39 @@ import { LogitLensConfigData } from "./logitLens";
 import { JLensConfigData, JLensData } from "./jlens";
 import { PatchLensChartData } from "./patchLens";
 import { ActivationPatchingConfigData, ActivationPatchingData } from "./activationPatching";
+import type { AlgorithmHypothesisChartData } from "./algorithmHypothesis";
 
-export type ChartData = LogitLensData | JLensData | ActivationPatchingData | PatchLensChartData;
+export type ChartData =
+    | LogitLensData
+    | JLensData
+    | ActivationPatchingData
+    | PatchLensChartData
+    | AlgorithmHypothesisChartData;
 export type ConfigData =
     | LogitLensConfigData
     | JLensConfigData
     | ActivationPatchingConfigData
-    | Record<string, never>; // patch-lens stores no config payload
+    | Record<string, never>; // patch-lens and algorithm-hypothesis store no config payload
 
-export type ChartType = "logit-lens" | "jlens" | "activation-patching" | "patch-lens";
+export type ChartType =
+    | "logit-lens"
+    | "jlens"
+    | "activation-patching"
+    | "patch-lens"
+    | "algorithm-hypothesis";
 
 /** The name a chart is stored with until it is renamed (the column's default). */
 export const DEFAULT_CHART_NAME = "Untitled Chart";
 
 /** Every tool a chart can be created with. Config rows of any other type are
  * from retired tools and have no chart page. */
-export const toolTypes = ["logit-lens", "jlens", "activation-patching", "patch-lens"] as const;
+export const toolTypes = [
+    "logit-lens",
+    "jlens",
+    "activation-patching",
+    "patch-lens",
+    "algorithm-hypothesis",
+] as const;
 export type ToolType = (typeof toolTypes)[number];
 
 /** Former tool type names that stored rows may still hold, mapped to their

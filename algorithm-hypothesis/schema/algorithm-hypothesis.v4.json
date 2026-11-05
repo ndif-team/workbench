@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "algorithm-hypothesis/v4",
+  "title": "Algorithm Hypothesis algorithm",
+  "description": "An algorithm whose typed variables are placed on a transformer's layers × tokens grid. Saved by workbench; compiled to causalab by the algorithm_hypothesis package. Version 4: Mixture is a linear combination of answers (version 3 had the paper's Eq. 2). Position ID returns a position ID : token pair from the designated special tokens; the primitives are position_id, copy, pair, retrieve, index, key_of, value_of, mixture and constant.",
+  "type": "object",
+  "required": [
+    "schema",
+    "name",
+    "grid",
+    "template",
+    "variables",
+    "output"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "algorithm-hypothesis/v4"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "grid": {
+      "type": "object",
+      "required": [
+        "kind",
+        "layers"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "abstract",
+            "model"
+          ]
+        },
+        "layers": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "model": {
+          "type": "string",
+          "description": "Hugging Face id, for kind = model"
+        }
+      }
+    },
+    "template": {
+      "type": "string",
+      "description": "The prompt the algorithm was placed on. Position IDs are read from it."
+    },
+    "output": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "id of the output variable (last layer, last token)"
+    },
+    "variables": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/variable"
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Saved prompts to run the algorithm on, such as sources and targets for interventions."
+    },
+    "specialTokens": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "description": "Positions of designated special tokens (such as names) in the template. Position ID numbers them in order of first appearance."
+    }
+  },
+  "$defs": {
+    "ref": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "token"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "token": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "variable"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "variable": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "arg": {
+      "type": "object",
+      "required": [
+        "name",
+        "refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ref"
+          }
+        }
+      }
+    },
+    "function": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "name"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "primitive"
+            },
+            "name": {
+              "enum": [
+                "position_id",
+                "copy",
+                "pair",
+                "retrieve",
+                "index",
+                "key_of",
+                "value_of",
+                "mixture",
+                "constant"
+              ]
+            },
+            "options": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "source"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "python"
+            },
+            "source": {
+              "type": "string",
+              "description": "Defines compute(<argument names>)"
+            }
+          }
+        }
+      ]
+    },
+    "variable": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "cell",
+        "type",
+        "function",
+        "args"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "cell": {
+          "type": "object",
+          "required": [
+            "layer",
+            "token"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "layer": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "token": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "function": {
+          "$ref": "#/$defs/function"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/arg"
+          }
+        },
+        "type": {
+          "description": "Inferred for primitives (null until the arguments are filled); declared for Python functions.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/type"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Display color: a palette name (indigo, emerald, amber, red, lime, slate) or #rrggbb. Absent or null: the default (black)."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Free-form labels, such as the algorithm a variable serves."
+        }
+      }
+    },
+    "type": {
+      "description": "A variable type: string, int, position ID, or a key : value pair of types.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "string",
+                "int",
+                "position"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "key",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "pair"
+            },
+            "key": {
+              "$ref": "#/$defs/type"
+            },
+            "value": {
+              "$ref": "#/$defs/type"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "algorithm-hypothesis-pyodide-spike",
+  "private": true,
+  "description": "P1 spike: run causalab + algorithm_hypothesis inside Pyodide and time it.",
+  "scripts": { "spike": "node spike.mjs" },
+  "dependencies": { "pyodide": "0.27.7" }
+}

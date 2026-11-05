@@ -29,6 +29,8 @@ const TOOL_SUPPORT: Record<ToolType, ToolSupport> = {
     "logit-lens": { supportsAll: true },
     "activation-patching": { supportsAll: true },
     "patch-lens": { supportsAll: true },
+    // Runs no model: it only borrows a model's tokenizer and layer count.
+    "algorithm-hypothesis": { supportsAll: true },
     jlens: {
         supportsAll: false,
         // `has_jacobian` is optional; a missing value means the backend couldn't

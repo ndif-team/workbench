@@ -9,6 +9,8 @@ import {
     type ChartLaunchPlan,
     type ChartLaunchRequest,
 } from "@/lib/chartLaunch";
+import { blankAlgorithm, DEFAULT_PROMPT } from "@/lib/algorithmHypothesis/grids";
+import { insertAlgorithm, copyAlgorithm } from "@/lib/queries/algorithmDb";
 import { getWorkshopForWorkspace } from "@/lib/queries/workshopDb";
 import {
     getNextWorkspaceItemPosition,
@@ -17,6 +19,7 @@ import {
     touchWorkspace,
 } from "@/lib/queries/workspaceDb";
 import type { ActivationPatchingConfigData } from "@/types/activationPatching";
+import type { AlgorithmHypothesisChartData } from "@/types/algorithmHypothesis";
 import {
     DEFAULT_CHART_NAME,
     LEGACY_TOOL_ALIASES,
@@ -57,7 +60,8 @@ type ConfigPayload =
     | { type: "logit-lens"; data: LogitLensConfigData }
     | { type: "jlens"; data: JLensConfigData }
     | { type: "activation-patching"; data: ActivationPatchingConfigData }
-    | { type: "patch-lens"; data: Record<string, never> };
+    | { type: "patch-lens"; data: Record<string, never> }
+    | { type: "algorithm-hypothesis"; data: Record<string, never> };
 
 /**
  * Creates a chart, its config and the link between them, with the chart at
@@ -112,6 +116,20 @@ export const createPatchLensChartPair = async (
     workspaceId: string,
     chartData?: PatchLensChartData,
 ) => createChartConfigPair(workspaceId, { type: "patch-lens", data: {} }, chartData);
+
+/** A new Algorithm Hypothesis chart, pointing at a new blank algorithm. */
+export const createAlgorithmHypothesisChartPair = async (workspaceId: string) => {
+    const algorithm = await insertAlgorithm(workspaceId, blankAlgorithm());
+    const chartData: AlgorithmHypothesisChartData = {
+        algorithmId: algorithm.id,
+        prompt: DEFAULT_PROMPT,
+    };
+    return createChartConfigPair(
+        workspaceId,
+        { type: "algorithm-hypothesis", data: {} },
+        chartData,
+    );
+};
 
 export const createActivationPatchingChartPair = async (
     workspaceId: string,
@@ -240,7 +258,10 @@ export const createChartFromLaunch = async (
     }
 
     const chartData = plan.type === "patch-lens" ? plan.chartData : undefined;
-    const { chart, config } = await createChartConfigPair(workspaceId, plan, chartData);
+    const { chart, config } =
+        plan.type === "algorithm-hypothesis"
+            ? await createAlgorithmHypothesisChartPair(workspaceId)
+            : await createChartConfigPair(workspaceId, plan, chartData);
     return { chartId: chart.id, toolType: plan.type, workspaceId, chart, config };
 };
 
@@ -348,6 +369,17 @@ export const copyChart = async (userId: string, chartId: string): Promise<Chart>
         const rest = { ...(copiedData as Record<string, unknown>) };
         delete rest.activeLensRunId;
         copiedData = rest as typeof originalChart.data;
+    }
+    // An Algorithm Hypothesis copy gets its own algorithm, so editing one chart
+    // doesn't change the other.
+    if (
+        originalConfig.type === "algorithm-hypothesis" &&
+        copiedData &&
+        typeof copiedData === "object"
+    ) {
+        const data = copiedData as AlgorithmHypothesisChartData;
+        const algorithm = await copyAlgorithm(data.algorithmId);
+        if (algorithm) copiedData = { ...data, algorithmId: algorithm.id };
     }
 
     const name = originalChart.name?.trim();

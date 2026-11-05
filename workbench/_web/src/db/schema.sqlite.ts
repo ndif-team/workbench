@@ -4,6 +4,7 @@ import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
 import type { TutorialContent } from "@/types/tutorial-content";
+import type { AlgorithmDefinition } from "@/types/algorithmHypothesis";
 
 // Helper function to generate UUIDs for SQLite
 const generateUUID = () => {
@@ -98,7 +99,13 @@ export const workspaces = sqliteTable(
     ],
 );
 
-export const chartTypes = ["logit-lens", "jlens", "activation-patching", "patch-lens"] as const;
+export const chartTypes = [
+    "logit-lens",
+    "jlens",
+    "activation-patching",
+    "patch-lens",
+    "algorithm-hypothesis",
+] as const;
 
 export const charts = sqliteTable("charts", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
@@ -118,7 +125,13 @@ export const charts = sqliteTable("charts", {
         .$onUpdate(() => new Date()),
 });
 
-export const configTypes = ["logit-lens", "jlens", "activation-patching", "patch-lens"] as const;
+export const configTypes = [
+    "logit-lens",
+    "jlens",
+    "activation-patching",
+    "patch-lens",
+    "algorithm-hypothesis",
+] as const;
 
 export const configs = sqliteTable("configs", {
     id: text("id").primaryKey().$defaultFn(generateUUID),
@@ -141,6 +154,24 @@ export const documents = sqliteTable("documents", {
     workspaceId: text("workspace_id").notNull(),
     content: text("content", { mode: "json" }).notNull(), // JSON stored as text in SQLite
     position: real("position").default(0).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+        .$defaultFn(() => new Date())
+        .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+        .$defaultFn(() => new Date())
+        .notNull()
+        .$onUpdate(() => new Date()),
+});
+
+// Algorithm Hypothesis algorithms. Mirrors the pg table (plain columns per the
+// sqlite convention; the pg mirror carries the cascade).
+export const algorithms = sqliteTable("algorithms", {
+    id: text("id").primaryKey().$defaultFn(generateUUID),
+    workspaceId: text("workspace_id").notNull(),
+    name: text("name").notNull().default("Untitled algorithm"),
+    definition: text("definition", { mode: "json" }).$type<AlgorithmDefinition>().notNull(),
+    savedDefinition: text("saved_definition", { mode: "json" }).$type<AlgorithmDefinition>(),
+    savedAt: integer("saved_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" })
         .$defaultFn(() => new Date())
         .notNull(),
