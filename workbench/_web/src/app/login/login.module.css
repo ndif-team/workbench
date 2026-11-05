@@ -179,19 +179,27 @@
         flex-direction: column;
         justify-content: center;
         gap: 0;
-        padding: 36px 24px 0;
+        padding: 36px 24px;
+    }
+    .access {
+        display: contents;
     }
     .intro {
+        order: 1;
+        position: relative;
+        z-index: 1;
         text-align: center;
     }
-    .form {
-        margin-inline: auto;
-    }
     .artwork {
+        order: 2;
         width: min(600px, 100vw);
         height: 220px;
         margin: 16px -24px 0;
         aspect-ratio: auto;
+    }
+    .form {
+        order: 3;
+        margin: 16px auto 0;
     }
 }
 
@@ -210,7 +218,10 @@
     }
     .artwork {
         height: 180px;
-        margin-top: 14px;
+        margin-top: 12px;
+    }
+    .form {
+        margin-top: 12px;
     }
 }
 
