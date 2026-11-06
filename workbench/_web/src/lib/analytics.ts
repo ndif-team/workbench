@@ -207,7 +207,8 @@ interface RunProps extends EventProperties {
  * requests, and one endpoint serves several tools). A new tool is instrumented
  * by the act of getting a run mutation.
  *
- * `run_submitted` carries the run's props: its settings and prompts. The
+ * `run_submitted` carries the run's props: every parameter the run sends to
+ * the backend (settings, positions, prompts), plus counts for breakdowns. The
  * other two repeat only `TrackedRun.SHARED` (the `run_id`, tool, model,
  * trigger and run kind), since PostHog Trends can't join events: "failure
  * rate by model" needs the model on `run_failed`; join on `run_id` for the
