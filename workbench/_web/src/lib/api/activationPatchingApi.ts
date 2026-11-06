@@ -96,8 +96,11 @@ export const useActivationPatching = () => {
                     source_prompt_length: completion.srcPrompt.length,
                     target_prompt: completion.tgtPrompt,
                     target_prompt_length: completion.tgtPrompt.length,
+                    src_pos: completion.srcPos ?? [],
                     src_pos_count: completion.srcPos?.length ?? 0,
+                    tgt_pos: completion.tgtPos ?? [],
                     tgt_pos_count: completion.tgtPos?.length ?? 0,
+                    tgt_freeze: completion.tgtFreeze ?? [],
                     tgt_freeze_count: completion.tgtFreeze?.length ?? 0,
                 },
                 async (jobs) => {
