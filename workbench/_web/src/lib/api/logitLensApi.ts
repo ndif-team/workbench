@@ -68,6 +68,7 @@ export const useLogitLens = () => {
                     tool: "logit-lens",
                     trigger,
                     model: request.model,
+                    prompt: request.prompt,
                     prompt_length: request.prompt.length,
                     topk: request.topk,
                     include_entropy: request.include_entropy,

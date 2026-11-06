@@ -2,15 +2,17 @@
 
 import { useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import posthog from "posthog-js";
 import { usePostHog } from "posthog-js/react";
 import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
+import { queryKeys } from "@/lib/queryKeys";
 import { errorTypeOf, ndifJobIdOf } from "@/lib/ndifError";
 import type { JobRecord, JobSink } from "@/lib/ndifJob";
 import { normalizeToolType, type ToolType } from "@/types/charts";
-import type { WorkspaceScope } from "@/types/workspaces";
+import type { WorkspaceLibrary, WorkspaceScope } from "@/types/workspaces";
 
 /**
  * Product analytics. The single place event names live.
@@ -22,9 +24,10 @@ import type { WorkspaceScope } from "@/types/workspaces";
  * Workshop and tutorial ids are attached (`useModeContext`): they identify a
  * cohort, not a person.
  *
- * User-authored text never goes out: not prompts (send `prompt_length`; the
- * prompt lives in the config row, joinable via `chart_id`), not chart, report
- * or workspace names (send a length), not report content or notes.
+ * Prompts are sent as typed, next to their length (`prompt` and
+ * `prompt_length`; `source_prompt` and `target_prompt` for two-prompt tools).
+ * Other user-authored text never goes out: not chart, report or workspace
+ * names (send a length), not report content or notes.
  *
  * Run lifecycle (`run_submitted` / `run_completed` / `run_failed`) is emitted
  * by `useTrackRun` from the run mutations in `lib/api/*.ts`, not from
@@ -121,16 +124,41 @@ function useModeContext(scope: WorkspaceScope | null): EventProperties {
 }
 
 /**
+ * Whether an event's workspace is the user's default one, the unfiled
+ * workspace every account has.
+ */
+class DefaultWorkspace {
+    /**
+     * Read from the page's workspace scope when the event is about that
+     * workspace, else from the cached library. Undefined, and so left off the
+     * event, when there's no workspace or neither knows it.
+     */
+    static is(
+        queryClient: QueryClient,
+        scope: WorkspaceScope | null,
+        workspaceId: unknown,
+    ): boolean | undefined {
+        if (typeof workspaceId !== "string") return undefined;
+        if (scope?.workspaceId === workspaceId) return scope.isDefault;
+        const library = queryClient.getQueryData<WorkspaceLibrary>(queryKeys.workspaces.library);
+        return library ? library.defaultWorkspaceId === workspaceId : undefined;
+    }
+}
+
+/**
  * Returns a `capture(event, props)` that merges the current `workspace_id`
  * (from the workspace scope, absent outside chart and report pages), the
  * route's `chart_id` / `report_id`, and the workshop context into every event,
  * so call sites pass only the event's own properties. An event that names its
  * own item (passes any of those ids) gets none of the route's, so deleting a
- * report from the sidebar on a chart page doesn't carry that chart's id. No-op
- * until PostHog is initialized (e.g. when `NEXT_PUBLIC_POSTHOG_KEY` is unset).
+ * report from the sidebar on a chart page doesn't carry that chart's id. Any
+ * event with a `workspace_id` also gets `workspace_is_default`
+ * (`DefaultWorkspace`). No-op until PostHog is initialized (e.g. when
+ * `NEXT_PUBLIC_POSTHOG_KEY` is unset).
  */
 export function useCapture() {
     const posthog = usePostHog();
+    const queryClient = useQueryClient();
     const params = useParams();
     const scope = useWorkspaceScope();
     const workspaceId = scope?.workspaceId;
@@ -144,15 +172,21 @@ export function useCapture() {
             const ownItem = ["workspace_id", "chart_id", "report_id"].some(
                 (key) => properties?.[key] !== undefined,
             );
-            posthog.capture(event, {
+            const merged: EventProperties = {
                 ...(ownItem
                     ? {}
                     : { workspace_id: workspaceId, chart_id: chartId, report_id: reportId }),
                 ...mode,
                 ...properties,
-            });
+            };
+            merged.workspace_is_default ??= DefaultWorkspace.is(
+                queryClient,
+                scope,
+                merged.workspace_id,
+            );
+            posthog.capture(event, merged);
         },
-        [posthog, workspaceId, chartId, reportId, mode],
+        [posthog, queryClient, scope, workspaceId, chartId, reportId, mode],
     );
 }
 
