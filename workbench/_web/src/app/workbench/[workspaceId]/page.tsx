@@ -65,6 +65,7 @@ export default async function Page({
                 has_prompt: !workshop && !!initialPrompt,
                 chart_id: created.chartId,
                 workspace_id: workspaceId,
+                workspace_is_default: workspace.isDefault,
                 workshop_id: workshop?.id,
                 mode: workshop ? "workshop" : "main",
             }),

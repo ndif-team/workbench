@@ -390,11 +390,17 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             if (!prompt.trim()) return;
         }
 
+        const patching = selectedTool === "Activation Patching";
+        const submitted = patching ? srcPrompt : prompt;
         capture("landing_submission", {
             ...launchProperties(modelsToSelect.find((m) => m.name === selectedModel)),
             tool: launchTool(selectedTool),
-            prompt_length:
-                selectedTool === "Activation Patching" ? srcPrompt.length : prompt.length,
+            prompt: submitted,
+            prompt_length: submitted.length,
+            ...(patching && {
+                target_prompt: tgtPrompt,
+                target_prompt_length: tgtPrompt.length,
+            }),
         });
 
         // Check if user is trying to use a gated model without being logged in

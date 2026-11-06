@@ -124,7 +124,12 @@ export async function joinWorkshopAction(
 
     // Keyed by the user id, the only identifier PostHog holds; no Prolific params.
     after(async () => {
-        const context = { workspace_id: workspace.id, workshop_id: workshop.id, mode: "workshop" };
+        const context = {
+            workspace_id: workspace.id,
+            workspace_is_default: false,
+            workshop_id: workshop.id,
+            mode: "workshop",
+        };
         await PostHogServer.capture(user.id, "workshop_joined", { tool, ...context });
         await PostHogServer.capture(user.id, "chart_created", {
             tool,
