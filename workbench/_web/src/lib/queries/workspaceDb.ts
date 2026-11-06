@@ -21,6 +21,7 @@ import {
     isUuid,
     jsonTextField,
     lensRuns,
+    workshops,
     workspaces,
 } from "@/db/schema";
 import type { Workspace } from "@/db/schema";
@@ -596,9 +597,11 @@ const getWorkspaceScope = async (workspaceId: SQLWrapper): Promise<WorkspaceScop
             id: workspaces.id,
             name: workspaces.name,
             workshopId: workspaces.workshopId,
+            tutorialId: workshops.tutorialId,
             isDefault: workspaces.isDefault,
         })
         .from(workspaces)
+        .leftJoin(workshops, eq(workshops.id, workspaces.workshopId))
         .where(inArray(workspaces.id, workspaceId))
         .limit(1);
     if (!workspace) return null;
@@ -606,6 +609,7 @@ const getWorkspaceScope = async (workspaceId: SQLWrapper): Promise<WorkspaceScop
         workspaceId: workspace.id,
         name: workspace.name,
         workshopId: workspace.workshopId ?? null,
+        tutorialId: workspace.tutorialId ?? null,
         isDefault: !!workspace.isDefault,
     };
 };

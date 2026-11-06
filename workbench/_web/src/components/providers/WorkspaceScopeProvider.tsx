@@ -60,10 +60,10 @@ export function WorkspaceScopeProvider({
     children: ReactNode;
 }) {
     const setHostScope = useContext(HostContext)?.setScope;
-    const { workspaceId, name, workshopId, isDefault } = scope;
+    const { workspaceId, name, workshopId, tutorialId, isDefault } = scope;
     const value = useMemo(
-        () => ({ workspaceId, name, workshopId, isDefault }),
-        [workspaceId, name, workshopId, isDefault],
+        () => ({ workspaceId, name, workshopId, tutorialId, isDefault }),
+        [workspaceId, name, workshopId, tutorialId, isDefault],
     );
 
     useIsomorphicLayoutEffect(() => {

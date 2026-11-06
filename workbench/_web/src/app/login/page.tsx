@@ -113,7 +113,6 @@ function LoginContent() {
             });
             if (error) {
                 console.error("Anonymous sign-in error:", error);
-                captureError(error, { source: "anonymous_sign_in" });
                 setShowCaptcha(false);
                 captchaRef.current?.resetCaptcha();
             } else {
@@ -121,7 +120,6 @@ function LoginContent() {
             }
         } catch (err) {
             console.error("Anonymous sign-in error:", err);
-            captureError(err, { source: "anonymous_sign_in" });
             setShowCaptcha(false);
             captchaRef.current?.resetCaptcha();
         }

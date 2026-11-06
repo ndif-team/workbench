@@ -14,7 +14,6 @@ import type { ChartLaunchRequest } from "@/lib/chartLaunch";
 import { LogitLensConfigData } from "@/types/logitLens";
 import { JLensConfigData } from "@/types/jlens";
 import { ActivationPatchingConfigData } from "@/types/activationPatching";
-import { DEFAULT_CHART_NAME } from "@/types/charts";
 import { queryKeys } from "../queryKeys";
 import { useCapture } from "../analytics";
 import type { WorkspaceLibrary } from "@/types/workspaces";
@@ -45,19 +44,11 @@ export const useUpdateChartName = () => {
             return await updateChartName(chartId, name);
         },
         onMutate: ({ chartId, name }) => {
-            const facts = ItemAnalytics.chart(queryClient, chartId);
             queryClient.setQueryData<WorkspaceLibrary>(queryKeys.workspaces.library, (library) =>
                 library ? renameInLibrary(library, chartId, name) : library,
             );
-            return facts;
         },
-        onSuccess: (data, variables, facts) => {
-            capture("chart_renamed", {
-                chart_id: variables.chartId,
-                workspace_id: facts.workspace_id,
-                tool: facts.tool,
-                name_length: variables.name === DEFAULT_CHART_NAME ? 0 : variables.name.length,
-            });
+        onSuccess: (data, variables) => {
             const chartKey = queryKeys.charts.chart(variables.chartId);
             queryClient.invalidateQueries({ queryKey: chartKey });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });

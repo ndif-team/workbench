@@ -5,7 +5,6 @@ import { Download } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { captureError } from "@/lib/errorTracking";
 import { exportWorkshopCsv } from "@/lib/queries/workshopAnalyticsQueries";
 
 /** Fetches the CSV from the admin-guarded server action and downloads it client-side. */
@@ -34,8 +33,7 @@ export function ExportCsvButton({
             // Defer the revoke: revoking synchronously after click() can invalidate
             // the blob URL before the browser has read it for the download.
             setTimeout(() => URL.revokeObjectURL(url), 0);
-        } catch (error) {
-            captureError(error, { source: "workshop_csv_export" });
+        } catch {
             toast.error("Could not export CSV");
         } finally {
             setBusy(false);

@@ -8,6 +8,8 @@ export type WorkspaceScope = {
     name: string;
     /** Set when the workspace belongs to a workshop (tool/model restrictions, guided tutorial). */
     workshopId: string | null;
+    /** The workshop's tutorial; null outside a workshop, or when it runs the seeded demo. */
+    tutorialId: string | null;
     /** The user's default workspace: never shown as a folder, renamed or deleted. */
     isDefault: boolean;
 };
