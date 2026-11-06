@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import type { DeploymentPhase, DeploymentState } from "@/types/deployment";
 import { submitWarmup, pollUntilDeployed, DeploymentError } from "@/lib/api/deployApi";
 import { captureEvent } from "@/lib/analytics";
-import { captureError } from "@/lib/errorTracking";
 import { errorTypeOf } from "@/lib/ndifError";
 
 /** Deploy toasts read a touch lighter than the default — a translucent popover
@@ -37,7 +36,7 @@ const DEPLOY_TOAST_STYLE: CSSProperties = {
  *
  * Each warmup attempt reports `model_warmup_started`, then
  * `model_warmup_completed` or `model_warmup_failed` with its `duration_ms`
- * (a failure also goes to error tracking). They're emitted here, where the
+ * (`error_type` names a failure's exception). They're emitted here, where the
  * warmup lives, so every surface that starts or retries one is counted.
  */
 
@@ -100,7 +99,6 @@ export const useModelDeployment = create<ModelDeploymentStore>()((set, get) => {
                 error: message,
                 ndif_job_id: jobId ?? undefined,
             });
-            captureError(e, { source: "model_warmup", model });
             setPhase(model, { phase: "error", error: message });
             toast.error(`Couldn't deploy ${model.split("/").pop()}`, {
                 description: message,

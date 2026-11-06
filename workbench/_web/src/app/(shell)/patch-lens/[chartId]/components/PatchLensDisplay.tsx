@@ -183,12 +183,6 @@ export function PatchLensDisplay({
         async (i: Intervention): Promise<LogitLensData | null> => {
             if (!chartId || !selectedModel) return null;
             patchUnitIdxRef.current = useProlificTutorial.getState().unitIdx;
-            capture("patch_lens_intervention_applied", {
-                source_layer: i.sourceLayer,
-                source_token_position: i.sourceTokenPosition,
-                target_layer: i.targetLayer,
-                target_token_position: i.targetTokenPosition,
-            });
             try {
                 const result = await runIntervention({
                     model: selectedModel,
@@ -217,7 +211,6 @@ export function PatchLensDisplay({
             sourcePrompt,
             targetPrompt,
             runIntervention,
-            capture,
             emitTutorialEvent,
             markPatchApplied,
         ],

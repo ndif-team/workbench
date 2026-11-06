@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Snowflake } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { encodeText } from "@/actions/tok";
-import { captureError } from "@/lib/errorTracking";
 import type { Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
 
@@ -959,7 +958,6 @@ export function PatchPromptSection({
             setTokens?.(newTokens);
         } catch (error) {
             console.error("Tokenization error:", error);
-            captureError(error, { source: "tokenize" });
             setTokens?.([]);
         }
         setIsTokenizing(false);

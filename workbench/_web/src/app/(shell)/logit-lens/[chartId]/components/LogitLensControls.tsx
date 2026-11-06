@@ -622,14 +622,7 @@ export function LogitLensControls({
                         max={10}
                         step={1}
                         value={[topk]}
-                        onValueChange={([value]) => {
-                            setTopk(value);
-                            capture("param_changed", {
-                                tool: "logit-lens",
-                                param: "topk",
-                                value,
-                            });
-                        }}
+                        onValueChange={([value]) => setTopk(value)}
                         disabled={!interactive}
                         className="w-full"
                     />
@@ -639,14 +632,7 @@ export function LogitLensControls({
                     <Checkbox
                         id="entropy"
                         checked={includeEntropy}
-                        onCheckedChange={(checked) => {
-                            setIncludeEntropy(checked === true);
-                            capture("param_changed", {
-                                tool: "logit-lens",
-                                param: "include_entropy",
-                                value: checked === true,
-                            });
-                        }}
+                        onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
                         disabled={!interactive}
                     />
                     <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">

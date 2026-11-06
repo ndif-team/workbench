@@ -16,7 +16,6 @@ import { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
 import { newChartPath } from "@/lib/chartRoutes";
 import { ChartOrigins, launchTool, type ChartOrigin } from "@/lib/chartLaunch";
 import { useCapture } from "@/lib/analytics";
-import { captureError } from "@/lib/errorTracking";
 import { useLaunchChart } from "@/hooks/useLaunchChart";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
@@ -311,7 +310,6 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
 
             if (error) {
                 console.error("Anonymous sign-in error:", error);
-                captureError(error, { source: "anonymous_sign_in" });
                 setShowCaptcha(false);
                 captchaRef.current?.resetCaptcha();
                 setIsSubmitting(false);
@@ -349,7 +347,6 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             }
         } catch (err) {
             console.error("Anonymous sign-in error:", err);
-            captureError(err, { source: "anonymous_sign_in" });
             setShowCaptcha(false);
             captchaRef.current?.resetCaptcha();
             setIsSubmitting(false);

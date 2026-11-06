@@ -7,7 +7,6 @@ import posthog from "posthog-js";
 import { usePostHog } from "posthog-js/react";
 import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider";
 import { useTutorialEmit } from "@/components/providers/TutorialEventProvider";
-import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import { queryKeys } from "@/lib/queryKeys";
 import { errorTypeOf, ndifJobIdOf } from "@/lib/ndifError";
 import type { JobRecord, JobSink } from "@/lib/ndifJob";
@@ -25,7 +24,8 @@ import type { WorkspaceLibrary, WorkspaceScope } from "@/types/workspaces";
  * cohort, not a person.
  *
  * Prompts are sent as typed, next to their length (`prompt` and
- * `prompt_length`; `source_prompt` and `target_prompt` for two-prompt tools).
+ * `prompt_length`; `source_prompt` and `target_prompt` for two-prompt tools),
+ * on `run_submitted` and `landing_submission`.
  * Other user-authored text never goes out: not chart, report or workspace
  * names (send a length), not report content or notes.
  *
@@ -44,7 +44,6 @@ type AnalyticsEvent =
     | "run_restored"
     | "param_changed"
     | "cell_expanded"
-    | "patch_lens_intervention_applied"
     | "patch_lens_intervention_reset"
     // Getting to a chart: the landing page and Home's composer, the Discover
     // J-Lens launch, the models page's launch dialog, and cold-model warmups
@@ -57,7 +56,6 @@ type AnalyticsEvent =
     | "chart_created"
     // Charts, reports and workspaces. Reports have no rename (their title is
     // their first line) and no copy.
-    | "chart_renamed"
     | "chart_copied"
     | "chart_moved"
     | "chart_deleted"
@@ -68,10 +66,7 @@ type AnalyticsEvent =
     | "report_deleted"
     | "report_exported"
     | "workspace_created"
-    | "workspace_renamed"
     | "workspace_deleted"
-    | "workspace_view_changed"
-    | "searched"
     // Guided tutorial; never participant text
     | "tutorial_glossary_opened"
     | "tutorial_notes_opened"
@@ -96,19 +91,14 @@ export function normalizeTool(raw: string | null | undefined): string | undefine
 }
 
 /**
- * Workshop and tutorial identity for the current workspace. Only fetched for a
- * workshop workspace, whose pages already load the same workshop for tool
- * gating and model pinning. A workshop with no tutorial of its own runs the
- * seeded demo, reported as `"demo"`.
+ * Workshop and tutorial identity for the current workspace, from its scope, so
+ * a page's first events already carry it. A workshop with no tutorial of its
+ * own runs the seeded demo, reported as `"demo"`.
  */
 function useModeContext(scope: WorkspaceScope | null): EventProperties {
     const workshopId = scope?.workshopId ?? undefined;
-    const { data: workshop } = useWorkspaceWorkshop(workshopId ? scope?.workspaceId : undefined);
+    const tutorialId = workshopId ? (scope?.tutorialId ?? "demo") : undefined;
     const { isOpen: tutorialActive } = useTutorialEmit();
-
-    const workshopSlug = workshop?.slug;
-    const workshopName = workshop?.name;
-    const tutorialId = workshopId ? (workshop?.tutorialId ?? "demo") : undefined;
 
     return useMemo(() => {
         const mode: AnalyticsMode = tutorialActive ? "tutorial" : workshopId ? "workshop" : "main";
@@ -116,11 +106,9 @@ function useModeContext(scope: WorkspaceScope | null): EventProperties {
             mode,
             tutorial_active: tutorialActive,
             workshop_id: workshopId,
-            workshop_slug: workshopSlug,
-            workshop_name: workshopName,
             tutorial_id: tutorialId,
         };
-    }, [tutorialActive, workshopId, workshopSlug, workshopName, tutorialId]);
+    }, [tutorialActive, workshopId, tutorialId]);
 }
 
 /**
@@ -219,9 +207,11 @@ interface RunProps extends EventProperties {
  * requests, and one endpoint serves several tools). A new tool is instrumented
  * by the act of getting a run mutation.
  *
- * All three events carry the run's props and a shared `run_id`, since PostHog
- * Trends can't join events: "failure rate by model" needs the model on
- * `run_failed`. `duration_ms` is wall-clock as the user waits, queue included;
+ * `run_submitted` carries the run's props: its settings and prompts. The
+ * other two repeat only `TrackedRun.SHARED` (the `run_id`, tool, model,
+ * trigger and run kind), since PostHog Trends can't join events: "failure
+ * rate by model" needs the model on `run_failed`; join on `run_id` for the
+ * rest. `duration_ms` is wall-clock as the user waits, queue included;
  * the job sink handed to `run` brings back the NDIF job ids and queue and job
  * times (`jobProperties`). `run_failed` adds `error_type`, the exception class,
  * for breakdowns, and the message as `error`.
@@ -233,12 +223,13 @@ export function useTrackRun() {
         async <T>(props: RunProps, run: (jobs: JobSink) => Promise<T>): Promise<T> => {
             const jobs: JobSink = [];
             const base = { ...props, run_id: TrackedRun.newId() };
+            const shared = TrackedRun.shared(base);
             const startedAt = Date.now();
             capture("run_submitted", base);
             try {
                 const data = await run(jobs);
                 capture("run_completed", {
-                    ...base,
+                    ...shared,
                     duration_ms: Date.now() - startedAt,
                     ...TrackedRun.jobProperties(jobs),
                 });
@@ -246,7 +237,7 @@ export function useTrackRun() {
             } catch (error) {
                 const fromJobs = TrackedRun.jobProperties(jobs);
                 capture("run_failed", {
-                    ...base,
+                    ...shared,
                     duration_ms: Date.now() - startedAt,
                     error_type: errorTypeOf(error),
                     ...fromJobs,
@@ -262,6 +253,19 @@ export function useTrackRun() {
 
 /** The parts of a tracked run's events that don't depend on the tool. */
 class TrackedRun {
+    /** The run props `run_completed` and `run_failed` repeat from `run_submitted`. */
+    static readonly SHARED = ["run_id", "tool", "model", "trigger", "run_kind"] as const;
+
+    /** A run's `SHARED` props, as set on its `run_submitted`. */
+    static shared(props: EventProperties): EventProperties {
+        return Object.fromEntries(
+            TrackedRun.SHARED.filter((key) => props[key] !== undefined).map((key) => [
+                key,
+                props[key],
+            ]),
+        );
+    }
+
     /**
      * The id shared by one run's three events, which `distinct_id` + `chart_id`
      * can't tell apart from a second run on the same chart seconds later.

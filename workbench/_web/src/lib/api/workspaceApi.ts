@@ -372,14 +372,12 @@ export const useReorderWorkspaceItems = () => {
 /** Renames one of the signed-in user's workspaces. */
 export const useRenameWorkspace = () => {
     const queryClient = useQueryClient();
-    const capture = useCapture();
 
     return useMutation({
         mutationKey: ["renameWorkspace"],
         mutationFn: ({ workspaceId, name }: { workspaceId: string; name: string }) =>
             renameUserWorkspace(workspaceId, name),
         onSuccess: (_, { workspaceId, name }) => {
-            capture("workspace_renamed", { workspace_id: workspaceId, name_length: name.length });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
             queryClient.invalidateQueries({
                 queryKey: queryKeys.workspaces.workspace(workspaceId),

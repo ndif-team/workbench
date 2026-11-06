@@ -37,6 +37,7 @@ import { createLogitLensChartPair, createPatchLensChartPair } from "@/lib/querie
 import { createDocument, updateDocument } from "@/lib/queries/documentDb";
 import { setConfig } from "@/lib/queries/configDb";
 import { createLensRun } from "@/lib/queries/lensRunDb";
+import { ensureSeedTutorial } from "@/lib/queries/tutorialContentDb";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import type { LensRunHeatmaps, LensRunSummary } from "@/types/lensRun";
 import type { LibraryItem } from "@/types/workspaces";
@@ -561,6 +562,7 @@ describe("moves", () => {
             workspaceId: def.id,
             name: DEFAULT_WORKSPACE_NAME,
             workshopId: null,
+            tutorialId: null,
             isDefault: true,
         });
     });
@@ -658,6 +660,19 @@ describe("moves", () => {
 
         expect((await getChartWorkspaceScope(workshopChart))!.workspaceId).toBe(workshopWs.id);
         expect((await getChartWorkspaceScope(folderChart))!.workspaceId).toBe(folder.id);
+    });
+
+    it("gives a workshop workspace's scope its tutorial, null for the demo", async () => {
+        const tutorial = await ensureSeedTutorial();
+        const guided = await createWorkshop({ ...workshopInput(), tutorialId: tutorial.id });
+        const demo = await createWorkshop(workshopInput());
+        const guidedWs = await createWorkspace(USER, "Guided", guided.id);
+        const demoWs = await createWorkspace(USER, "Demo", demo.id);
+        const guidedChart = await createChart(guidedWs.id, "A");
+        const demoChart = await createChart(demoWs.id, "B");
+
+        expect((await getChartWorkspaceScope(guidedChart))!.tutorialId).toBe(tutorial.id);
+        expect((await getChartWorkspaceScope(demoChart))!.tutorialId).toBeNull();
     });
 
     it("throws for a missing chart or report", async () => {

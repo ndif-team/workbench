@@ -60,7 +60,11 @@ async function pdfChart(
     } catch (error) {
         // One chart failing to load shouldn't fail the whole export.
         console.error(`Failed to load chart ${chartId}:`, error);
-        captureError(error, { source: "report_pdf_chart_load", chart_id: chartId });
+        captureError(error, {
+            source: "report_pdf_export",
+            stage: "chart_load",
+            chart_id: chartId,
+        });
         return { title: "Chart", note: "This chart couldn't be loaded." };
     }
     const tool = toolMeta(config?.type ?? chart?.type);
@@ -93,7 +97,11 @@ async function pdfChart(
         };
     } catch (error) {
         console.error(`Failed to snapshot chart ${chartId}:`, error);
-        captureError(error, { source: "report_pdf_chart_snapshot", chart_id: chartId });
+        captureError(error, {
+            source: "report_pdf_export",
+            stage: "chart_snapshot",
+            chart_id: chartId,
+        });
         return { title, subtitle, note: "This chart couldn't be drawn." };
     }
 }
@@ -126,7 +134,7 @@ export function ExportPdfButton() {
             capture("report_exported", { format: "pdf", chart_count: charts.size });
         } catch (error) {
             console.error("Failed to export the report:", error);
-            captureError(error, { source: "report_pdf_export" });
+            captureError(error, { source: "report_pdf_export", stage: "export" });
             toast.error("Failed to export the PDF.");
         } finally {
             setExporting(false);
