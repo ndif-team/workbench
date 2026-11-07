@@ -36,7 +36,7 @@ class ModelHeat(str, Enum):
 
 
 class Message(BaseModel):
-    role: Literal["user", "assistant"]
+    role: Literal["system", "user", "assistant"]
     content: str
 
 class NDIFResponse(BaseModel):
