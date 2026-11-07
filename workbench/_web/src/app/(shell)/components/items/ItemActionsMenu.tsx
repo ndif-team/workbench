@@ -28,9 +28,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
-import { useCopyChart, useDeleteChart } from "@/lib/api/chartApi";
+import { useCopyChart, useDeleteChart, useUpdateChartName } from "@/lib/api/chartApi";
+import { useDeleteChat, useUpdateChat } from "@/lib/api/chatApi";
 import { useDeleteDocument } from "@/lib/api/documentApi";
-import { useMoveChart, useMoveReport, type MoveVia } from "@/lib/api/workspaceApi";
+import { useMoveChart, useMoveChat, useMoveReport, type MoveVia } from "@/lib/api/workspaceApi";
 import { chartPath, workspacePath } from "@/lib/chartRoutes";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,7 @@ interface ItemActionsMenuProps {
     folder: { id: string; name: string } | null;
     /** The item is the page on screen, so deleting it navigates away. */
     active: boolean;
-    /** Starts renaming the chart where it is shown; charts only. */
+    /** Starts renaming the chart or chat where it is shown; reports have no Rename. */
     onRename?: () => void;
     /** "row" is the faint sidebar/list trigger; "header" sits in a page header. */
     variant?: "row" | "header";
@@ -55,13 +56,17 @@ interface ItemActionsMenuProps {
     align?: "start" | "end";
 }
 
+/** What each kind of item is called in the menu's label and messages. */
+const NOUN = { chart: "Chart", chat: "Chat", report: "Report" } as const;
+
 /**
- * Moves a chart or report to a folder (null: back to the default workspace)
- * and says where it went. Shared by the actions menu and dropping a chart on
- * a sidebar folder (`via`).
+ * Moves a chart, chat or report to a folder (null: back to the default
+ * workspace) and says where it went. Shared by the actions menu and dropping
+ * a row on a sidebar folder (`via`).
  */
 export function useMoveItem() {
     const moveChart = useMoveChart();
+    const moveChat = useMoveChat();
     const moveReport = useMoveReport();
     return (
         item: LibraryItem,
@@ -74,6 +79,8 @@ export function useMoveItem() {
         const targetWorkspaceId = target?.id ?? null;
         if (item.kind === "chart") {
             moveChart.mutate({ chartId: item.id, targetWorkspaceId, via }, { onSuccess });
+        } else if (item.kind === "chat") {
+            moveChat.mutate({ chatId: item.id, targetWorkspaceId, via }, { onSuccess });
         } else {
             moveReport.mutate({ documentId: item.id, targetWorkspaceId, via }, { onSuccess });
         }
@@ -81,13 +88,26 @@ export function useMoveItem() {
 }
 
 /**
- * The actions of a chart or report: Rename, Copy, Move to workspace (an
- * existing folder or a new one), Remove from workspace, Delete. Delete asks
- * for confirmation in a popover beside the trigger, and the trigger keeps
- * `data-state="open"` meanwhile so its row stays highlighted. Deleting the
- * item on screen opens the next one in its list (`neighborInList`), else its
- * folder's page, else the workspaces page. Shared by the sidebar rows, the
- * item page header and the workspace page.
+ * Saves a chart's or chat's new name from an in-place rename (a report is
+ * titled by its first line). Shared by the sidebar and the workspace page.
+ */
+export function useRenameItem() {
+    const { mutate: renameChart } = useUpdateChartName();
+    const { mutate: updateChat } = useUpdateChat();
+    return (item: LibraryItem, name: string) => {
+        if (item.kind === "chart") renameChart({ chartId: item.id, name });
+        else if (item.kind === "chat") updateChat({ chatId: item.id, settings: { name } });
+    };
+}
+
+/**
+ * The actions of a chart, chat or report: Rename (charts and chats), Copy
+ * (charts), Move to workspace (an existing folder or a new one), Remove from
+ * workspace, Delete. Delete asks for confirmation in a popover beside the
+ * trigger, and the trigger keeps `data-state="open"` meanwhile so its row
+ * stays highlighted. Deleting the item on screen opens the next one in its
+ * list (`neighborInList`), else its folder's page, else the workspaces page.
+ * Shared by the sidebar rows, the item page header and the workspace page.
  *
  * Rename, Delete… and New workspace… move focus elsewhere, so they run once
  * the menu has closed (`afterCloseRef`), in place of its return of focus to
@@ -112,6 +132,7 @@ export function ItemActionsMenu({
     const moveItem = useMoveItem();
     const copyChart = useCopyChart();
     const deleteChart = useDeleteChart();
+    const deleteChat = useDeleteChat();
     const deleteReport = useDeleteDocument();
 
     const noun = item.kind;
@@ -148,6 +169,8 @@ export function ItemActionsMenu({
                 { chartId: item.id, workspaceId: item.workspaceId },
                 { onSuccess, onError },
             );
+        } else if (item.kind === "chat") {
+            deleteChat.mutate({ chatId: item.id }, { onSuccess, onError });
         } else {
             deleteReport.mutate(
                 { documentId: item.id, workspaceId: item.workspaceId },
@@ -156,7 +179,7 @@ export function ItemActionsMenu({
         }
     };
 
-    const isDeleting = deleteChart.isPending || deleteReport.isPending;
+    const isDeleting = deleteChart.isPending || deleteChat.isPending || deleteReport.isPending;
 
     const afterClose = (action: () => void) => () => {
         afterCloseRef.current = action;
@@ -175,7 +198,7 @@ export function ItemActionsMenu({
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                aria-label={`${noun === "chart" ? "Chart" : "Report"} actions`}
+                                aria-label={`${NOUN[item.kind]} actions`}
                                 className={cn(
                                     variant === "row"
                                         ? "size-6 text-muted-foreground/40 group-data-[variant=drawer]/sidebar:size-8 hover:text-foreground focus-visible:text-foreground data-[state=open]:text-foreground"
@@ -200,7 +223,7 @@ export function ItemActionsMenu({
                             action();
                         }}
                     >
-                        {item.kind === "chart" && onRename && (
+                        {item.kind !== "report" && onRename && (
                             <DropdownMenuItem onSelect={afterClose(onRename)}>
                                 <Pencil />
                                 Rename

@@ -13,7 +13,7 @@ import type { WorkspaceItemKind, WorkspaceLibrary } from "@/types/workspaces";
  */
 
 /**
- * The signed-in user's workspaces and their charts and reports, for the global
+ * The signed-in user's workspaces and their charts, chats and reports, for the global
  * sidebar. A workshop participant's read never creates a default workspace.
  */
 export async function getWorkspaceLibrary(): Promise<WorkspaceLibrary> {
@@ -50,7 +50,7 @@ export async function deleteUserWorkspace(workspaceId: string): Promise<void> {
     return workspaceDb.deleteWorkspace(await requireUserId(), workspaceId);
 }
 
-/** Saves the order of the charts and reports in one of the signed-in user's workspaces. */
+/** Saves the order of the charts, chats and reports in one of the signed-in user's workspaces. */
 export async function reorderWorkspaceItems(
     workspaceId: string,
     items: { kind: WorkspaceItemKind; id: string }[],
@@ -61,6 +61,11 @@ export async function reorderWorkspaceItems(
 /** Moves a chart, with its config and lens runs, to a workspace (null: the default workspace). */
 export async function moveChart(chartId: string, targetWorkspaceId: string | null): Promise<void> {
     return workspaceDb.moveChart(await requireUserId(), chartId, targetWorkspaceId);
+}
+
+/** Moves a chat, with its messages, to a workspace (null: the default workspace). */
+export async function moveChat(chatId: string, targetWorkspaceId: string | null): Promise<void> {
+    return workspaceDb.moveChat(await requireUserId(), chatId, targetWorkspaceId);
 }
 
 /** Moves a report to a workspace (null: the default workspace). */

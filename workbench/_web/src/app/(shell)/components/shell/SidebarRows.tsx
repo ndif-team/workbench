@@ -15,11 +15,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { DeployCardState } from "../DeployCard";
 import { InlineNameInput } from "../items/InlineNameInput";
+import type { NameField } from "../items/itemLabel";
 
 type IconType = ComponentType<{ className?: string }>;
 
-/** The chart payload sidebar rows drag into a report editor or onto a folder. */
+/** The chart payload sidebar rows drag into a report editor. */
 const CHART_DRAG_TYPE = "application/x-chart";
+/** What a row carries when it drags onto a folder to move there. */
+const ITEM_DRAG_TYPE = "application/x-workbench-item";
 
 /**
  * One look for every sidebar row: a full-width link with the ghost Button's
@@ -137,7 +140,7 @@ export function SidebarSectionAction({
 }
 
 /**
- * A sub-heading inside a section, e.g. a recency group of the Charts list.
+ * A sub-heading inside a section, e.g. a recency group of the Recent list.
  * Render each group in its own wrapper so the first one sits tight under the
  * section header.
  */
@@ -210,8 +213,8 @@ export function SidebarRowsSkeleton({ rows = 6 }: { rows?: number }) {
 /**
  * A workspace (folder): its chevron expands it in place, its name opens its
  * page, and `actions` (when given) sits at its end, faintly visible like an
- * item row's. With `onDropChart` it takes a chart dragged from another
- * sidebar row (`CHART_DRAG_TYPE`), lighting up while one is held over it.
+ * item row's. With `onDropItem` it takes an item dragged from another
+ * sidebar row (`ITEM_DRAG_TYPE`), lighting up while one is held over it.
  * While `renaming`, the name becomes an input that saves on Enter or blur and
  * cancels on Escape.
  */
@@ -223,7 +226,7 @@ export function SidebarFolderRow({
     active,
     isWorkshop,
     onToggle,
-    onDropChart,
+    onDropItem,
     actions,
     renaming = false,
     onRename,
@@ -236,7 +239,7 @@ export function SidebarFolderRow({
     active: boolean;
     isWorkshop: boolean;
     onToggle: () => void;
-    onDropChart?: () => void;
+    onDropItem?: () => void;
     actions?: ReactNode;
     renaming?: boolean;
     onRename?: (name: string) => void;
@@ -244,8 +247,7 @@ export function SidebarFolderRow({
 }) {
     const [dropping, setDropping] = useState(false);
     const FolderIcon = isWorkshop ? GraduationCap : expanded ? FolderOpen : Folder;
-    const accepts = (e: DragEvent) =>
-        !!onDropChart && e.dataTransfer.types.includes(CHART_DRAG_TYPE);
+    const accepts = (e: DragEvent) => !!onDropItem && e.dataTransfer.types.includes(ITEM_DRAG_TYPE);
 
     if (renaming) {
         return (
@@ -281,7 +283,7 @@ export function SidebarFolderRow({
                 setDropping(false);
                 if (!accepts(e)) return;
                 e.preventDefault();
-                onDropChart?.();
+                onDropItem?.();
             }}
         >
             <Button
@@ -341,10 +343,12 @@ const DEPLOY_STATE: Record<DeployCardState, { label: string; node: ReactNode }> 
 };
 
 /**
- * A chart or report: tool icon + label, the chart's deploy state when its
+ * A chart, chat or report: its icon + label, a chart's deploy state when its
  * model isn't runnable, and an actions trigger that stays faintly visible.
- * Chart rows drag into a report editor (`dragPayload`). While `renaming`, the
- * label becomes an input that saves on Enter or blur and cancels on Escape.
+ * A `movable` row drags onto a folder (`onDragChange` follows the drag); a
+ * chart's also drags into a report editor (`dragPayload`). While `renaming`
+ * (with `nameField`), the label becomes an input that saves on Enter or blur
+ * and cancels on Escape.
  */
 export function SidebarItemRow({
     href,
@@ -354,11 +358,12 @@ export function SidebarItemRow({
     active,
     nested,
     deployState,
+    movable = false,
     dragPayload,
     onDragChange,
     actions,
     renaming,
-    renameValue,
+    nameField,
     onRename,
     onRenameEnd,
 }: {
@@ -369,37 +374,40 @@ export function SidebarItemRow({
     active: boolean;
     nested: boolean;
     deployState: DeployCardState | null;
+    movable?: boolean;
     dragPayload?: string;
     /** Told when a drag of this row starts (true) and ends (false). */
     onDragChange?: (dragging: boolean) => void;
     actions: ReactNode;
     renaming: boolean;
-    renameValue: string;
+    nameField: NameField | null;
     onRename: (name: string) => void;
     onRenameEnd: () => void;
 }) {
-    if (renaming) {
+    if (renaming && nameField) {
         return (
             <div className={cn("flex h-7 items-center gap-2 px-2", nested && "pl-3.5")}>
                 <Icon className="size-4 shrink-0 text-muted-foreground" />
                 <InlineNameInput
-                    initialValue={renameValue}
-                    ariaLabel="Chart name"
-                    placeholder="Untitled chart"
+                    initialValue={nameField.value}
+                    ariaLabel={nameField.ariaLabel}
+                    placeholder={nameField.placeholder}
                     className="h-6 min-w-0 flex-1 px-1.5"
                     onDone={(name) => {
                         onRenameEnd();
-                        if (name && name !== renameValue) onRename(name);
+                        if (name && name !== nameField.value) onRename(name);
                     }}
                 />
             </div>
         );
     }
 
-    const onDragStart = dragPayload
+    const draggable = movable || !!dragPayload;
+    const onDragStart = draggable
         ? (e: DragEvent<HTMLAnchorElement>) => {
-              e.dataTransfer.setData(CHART_DRAG_TYPE, dragPayload);
-              e.dataTransfer.effectAllowed = "copyMove";
+              if (movable) e.dataTransfer.setData(ITEM_DRAG_TYPE, href);
+              if (dragPayload) e.dataTransfer.setData(CHART_DRAG_TYPE, dragPayload);
+              e.dataTransfer.effectAllowed = dragPayload ? "copyMove" : "move";
               onDragChange?.(true);
           }
         : undefined;
@@ -410,9 +418,9 @@ export function SidebarItemRow({
                 href={href}
                 aria-current={active ? "page" : undefined}
                 title={label}
-                draggable={!!dragPayload}
+                draggable={draggable}
                 onDragStart={onDragStart}
-                onDragEnd={dragPayload ? () => onDragChange?.(false) : undefined}
+                onDragEnd={draggable ? () => onDragChange?.(false) : undefined}
                 className={rowLink(active, cn("pr-8", nested && "pl-3.5"))}
             >
                 <Icon

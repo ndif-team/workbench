@@ -6,6 +6,7 @@ import {
     deleteUserWorkspace,
     getWorkspaceLibrary,
     moveChart,
+    moveChat,
     moveReport,
     renameUserWorkspace,
     reorderWorkspaceItems,
@@ -17,7 +18,7 @@ import type { DocumentListItem } from "@/lib/queries/documentQueries";
 import type { LibraryItem, WorkspaceItemKind, WorkspaceLibrary } from "@/types/workspaces";
 
 /**
- * The signed-in user's workspaces with their charts and reports (global
+ * The signed-in user's workspaces with their charts, chats and reports (global
  * sidebar). Reading it creates the user's default workspace, so leave it
  * disabled where only a workshop workspace is in view.
  */
@@ -28,7 +29,7 @@ export const useWorkspaceLibrary = ({ enabled = true }: { enabled?: boolean } = 
         enabled,
     });
 
-/** The library's entry for a chart or report, wherever it is filed. */
+/** The library's entry for a chart, chat or report, wherever it is filed. */
 export const findLibraryItem = (
     library: WorkspaceLibrary,
     kind: WorkspaceItemKind,
@@ -185,6 +186,29 @@ export const useMoveChart = () => {
             router.refresh();
         },
         onError: () => toast.error("Couldn't move the chart"),
+    });
+};
+
+/** Moves a chat to a workspace; a null target is the default workspace. */
+export const useMoveChat = () => {
+    const queryClient = useQueryClient();
+    const router = useRouter();
+
+    return useMutation({
+        mutationFn: ({
+            chatId,
+            targetWorkspaceId,
+        }: {
+            chatId: string;
+            targetWorkspaceId: string | null;
+            via: MoveVia;
+        }) => moveChat(chatId, targetWorkspaceId),
+        onSuccess: (_, { chatId }) => {
+            invalidateItemLists(queryClient);
+            queryClient.invalidateQueries({ queryKey: queryKeys.chats.chat(chatId) });
+            router.refresh();
+        },
+        onError: () => toast.error("Couldn't move the chat"),
     });
 };
 

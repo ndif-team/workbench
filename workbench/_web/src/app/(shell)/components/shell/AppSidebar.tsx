@@ -27,8 +27,8 @@ type SidebarVariant = "expanded" | "rail" | "drawer";
  * an anonymous workshop participant, it is the focused workshop sidebar
  * (`ChartCardsSidebar`) instead of the global one, so participants keep the
  * workshop's tools and never get the global New chart.
- * A chart or report page's scope only reaches the shell once the page has
- * mounted, so until then the global sidebar is `pending`: it shows its
+ * A chart, chat or report page's scope only reaches the shell once the page
+ * has mounted, so until then the global sidebar is `pending`: it shows its
  * skeleton and doesn't read the library (reading it creates a default
  * workspace, which a workshop participant should never get). `AppShell`
  * hides it on a workshop page's first paint. Its scrollbars stay hidden until
@@ -38,12 +38,12 @@ type SidebarVariant = "expanded" | "rail" | "drawer";
 export function AppSidebar({ variant }: { variant: SidebarVariant }) {
     const scope = useWorkspaceScope();
     const participant = useWorkshopParticipant();
-    const params = useParams<{ chartId?: string; reportId?: string }>();
+    const params = useParams<{ chartId?: string; chatId?: string; reportId?: string }>();
     const { width } = useShellSidebar();
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
 
-    const onItemPage = !!(params.chartId || params.reportId);
+    const onItemPage = !!(params.chartId || params.chatId || params.reportId);
     const workshopWorkspaceId = scope?.workshopId
         ? scope.workspaceId
         : (participant?.workspaceId ?? null);

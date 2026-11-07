@@ -9,6 +9,7 @@ import {
     Folder,
     FolderPlus,
     GraduationCap,
+    MessageSquare,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,9 +35,10 @@ import { searchWorkspaces } from "./workspaceSearch";
 
 /**
  * All workspaces (folders), most recent first: one card each with the
- * folder's cover, its chart and report counts and when it last changed. The
- * search box keeps the folders whose name, or one of whose charts or
- * reports, holds the query; a card found by its items unfolds to those.
+ * folder's cover, its chart, chat and report counts and when it last
+ * changed. The search box keeps the folders whose name, or one of whose
+ * charts, chats or reports, holds the query; a card found by its items
+ * unfolds to those.
  */
 export function WorkspaceGrid() {
     const { data: library, isLoading } = useWorkspaceLibrary();
@@ -60,7 +62,7 @@ export function WorkspaceGrid() {
                 value={query}
                 onValueChange={setQuery}
                 placeholder="search"
-                aria-label="Search workspaces, charts and reports"
+                aria-label="Search workspaces, charts, chats and reports"
             />
         );
 
@@ -134,7 +136,7 @@ const CARD =
 
 /**
  * A workspace's card: its cover (a color of its own in the NDIF palette,
- * marked with how many charts and reports it holds), then its name and
+ * marked with how many charts, chats and reports it holds), then its name and
  * actions, then its counts, which unfold its items in the cover's place,
  * scrolling there when they don't fit, so the card keeps its size. The whole
  * card opens the workspace. While a search found some of its items, it starts
@@ -162,7 +164,7 @@ function WorkspaceCard({
     const listId = useId();
     const { mutate: rename } = useRenameWorkspace();
     const contents = describeContents(workspace);
-    const { charts, reports } = countContents(workspace);
+    const { charts, chats, reports } = countContents(workspace);
     const FolderIcon = workspace.isWorkshop ? GraduationCap : Folder;
 
     return (
@@ -184,6 +186,12 @@ function WorkspaceCard({
                             <span className="flex items-center gap-1.5">
                                 <ChartColumn className="size-5" />
                                 {charts}
+                            </span>
+                        )}
+                        {chats > 0 && (
+                            <span className="flex items-center gap-1.5">
+                                <MessageSquare className="size-5" />
+                                {chats}
                             </span>
                         )}
                         {reports > 0 && (
@@ -306,7 +314,7 @@ function NoMatches({ query, onClear }: { query: string; onClear: () => void }) {
     return (
         <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 px-6 text-center">
             <p className="break-words text-sm text-muted-foreground">
-                No workspace, chart or report matches &ldquo;{query}&rdquo;.
+                No workspace, chart, chat or report matches &ldquo;{query}&rdquo;.
             </p>
             <Button variant="outline" size="sm" onClick={onClear}>
                 Clear search
@@ -322,10 +330,10 @@ function EmptyWorkspaces({ onCreate }: { onCreate: () => void }) {
                 <Folder className="size-5 text-muted-foreground" />
             </div>
             <div className="flex max-w-sm flex-col gap-1">
-                <h2 className="text-sm font-medium">Group related charts and reports</h2>
+                <h2 className="text-sm font-medium">Group related charts, chats and reports</h2>
                 <p className="text-sm text-muted-foreground">
-                    A workspace is a project folder. Create one, then file charts in it with Move to
-                    workspace from a chart&apos;s menu.
+                    A workspace is a project folder. Create one, then file charts, chats and reports
+                    in it with Move to workspace from their menu.
                 </p>
             </div>
             <Button variant="outline" size="sm" onClick={onCreate}>
