@@ -4,7 +4,7 @@ import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
 import type { TutorialContent } from "@/types/tutorial-content";
-import type { ChatMessageMetadata, GenerationParams } from "@/types/chats";
+import type { ChatData, ChatMessageData } from "@/types/chats";
 
 // Helper function to generate UUIDs for SQLite
 const generateUUID = () => {
@@ -158,7 +158,7 @@ export const chats = sqliteTable("chats", {
     name: text("name").notNull().default("New chat"),
     model: text("model").notNull(),
     mode: text("mode").notNull().default("chat"),
-    params: text("params", { mode: "json" }).$type<GenerationParams>(),
+    data: text("data", { mode: "json" }).$type<ChatData>().notNull(),
     position: real("position").default(0).notNull(),
     createdAt: integer("created_at", { mode: "timestamp" })
         .$defaultFn(() => new Date())
@@ -174,10 +174,9 @@ export const chatMessages = sqliteTable(
     {
         id: text("id").primaryKey().$defaultFn(generateUUID),
         chatId: text("chat_id").notNull(),
-        role: text("role").notNull(),
         content: text("content").notNull().default(""),
         position: integer("position").notNull(),
-        metadata: text("metadata", { mode: "json" }).$type<ChatMessageMetadata>(),
+        data: text("data", { mode: "json" }).$type<ChatMessageData>().notNull(),
         createdAt: integer("created_at", { mode: "timestamp_ms" })
             .$defaultFn(() => new Date())
             .notNull(),

@@ -58,7 +58,7 @@ import { recordTutorialEvent } from "@/lib/queries/tutorialEventsDb";
 import { createWorkshop } from "@/lib/queries/workshopDb";
 import { createWorkspace, moveChat } from "@/lib/queries/workspaceDb";
 import type { ChartData } from "@/types/charts";
-import { DEFAULT_GENERATION_PARAMS, type ChatMessageMetadata } from "@/types/chats";
+import { DEFAULT_GENERATION_PARAMS, type ReplyRun } from "@/types/chats";
 import type { LensRunHeatmaps, LensRunPromptSummary, LensRunSummary } from "@/types/lensRun";
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
 
@@ -92,7 +92,7 @@ const chatRow = async (chatId: string) =>
 const chatMessageRows = async (chatId: string) =>
     db.select().from(chatMessages).where(eq(chatMessages.chatId, chatId));
 
-const pendingReply: ChatMessageMetadata = {
+const pendingReply: ReplyRun = {
     status: "pending",
     model: "gpt2",
     params: DEFAULT_GENERATION_PARAMS,
@@ -282,7 +282,7 @@ describe("chat writes", () => {
         await expect(
             updateChatMessage(INTRUDER, replyId, {
                 content: "Tampered",
-                metadata: { ...pendingReply, status: "complete" },
+                run: { ...pendingReply, status: "complete" },
             }),
         ).rejects.toThrow("access denied");
         await expect(moveChat(INTRUDER, chatId, theirs.id)).rejects.toThrow("access denied");
@@ -313,7 +313,7 @@ describe("chat writes", () => {
         expect((await updateChat(OWNER, chatId, { name: "Greetings" })).name).toBe("Greetings");
         await updateChatMessage(OWNER, replyId, {
             content: "Hello!",
-            metadata: { ...pendingReply, status: "complete" },
+            run: { ...pendingReply, status: "complete" },
         });
         await moveChat(OWNER, chatId, folder.id);
         expect((await chatRow(chatId)).workspaceId).toBe(folder.id);

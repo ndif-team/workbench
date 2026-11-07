@@ -22,7 +22,7 @@ export function CompletionDocument({ messages, model, busy, onRetry, onRegenerat
         <div className="space-y-3">
             <div className="whitespace-pre-wrap break-words rounded-md border bg-card p-4 font-mono text-sm leading-relaxed">
                 {messages.map((message) =>
-                    message.role !== "assistant" ? (
+                    message.data.role !== "assistant" ? (
                         <span key={message.id}>{message.content}</span>
                     ) : replyStatus(message) === "complete" ? (
                         <span key={message.id} className="rounded-sm bg-primary/10">
@@ -31,7 +31,7 @@ export function CompletionDocument({ messages, model, busy, onRetry, onRegenerat
                     ) : null,
                 )}
             </div>
-            {last.role === "assistant" && (
+            {last.data.role === "assistant" && (
                 <Reply
                     message={last}
                     showText={false}

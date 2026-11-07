@@ -15,7 +15,7 @@ import {
 } from "@/lib/api/chatApi";
 import { useCapture } from "@/lib/analytics";
 import { useModelsQuery } from "@/lib/api/modelsApi";
-import { chatModeFor, isPendingReply } from "@/lib/chats";
+import { chatModeFor, isPendingReply, replyStatus } from "@/lib/chats";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { DEFAULT_GENERATION_PARAMS } from "@/types/chats";
 import { ChatComposer } from "./ChatComposer";
@@ -81,10 +81,11 @@ export function ChatArea() {
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const last = messages?.[messages.length - 1];
+    const lastStatus = last && replyStatus(last);
     useEffect(() => {
         const el = scrollRef.current;
         if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    }, [messages?.length, last?.content, last?.metadata?.status]);
+    }, [messages?.length, last?.content, lastStatus]);
 
     const list = messages ?? [];
     const busy = replying || list.some(isPendingReply);
@@ -110,7 +111,7 @@ export function ChatArea() {
                 <ChatComposer
                     key={chatId}
                     mode={mode}
-                    params={chat?.params ?? DEFAULT_GENERATION_PARAMS}
+                    params={chat?.data.params ?? DEFAULT_GENERATION_PARAMS}
                     disabled={!chat || !messagesLoaded}
                     busy={busy}
                     canContinue={list.length > 0}

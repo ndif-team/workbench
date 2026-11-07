@@ -22,8 +22,8 @@ export const DEFAULT_CHAT_NAME = "New chat";
  */
 export type ChatReplyStatus = "pending" | "complete" | "error";
 
-/** What an assistant message records about the run that produced it. */
-export type ChatMessageMetadata = {
+/** What a reply records about the run that produced it. */
+export type ReplyRun = {
     status: ChatReplyStatus;
     model: string;
     params: GenerationParams;
@@ -31,3 +31,13 @@ export type ChatMessageMetadata = {
     nTokens?: number;
     error?: string;
 };
+
+/** A chat's `data`: its settings besides its model and mode. */
+export type ChatData = {
+    params: GenerationParams;
+};
+
+/** A message's `data`: who wrote it and, for a reply, the run that produced it. */
+export type ChatMessageData =
+    | { role: Exclude<ChatRole, "assistant"> }
+    | { role: "assistant"; run: ReplyRun };

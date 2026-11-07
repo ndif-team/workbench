@@ -13,12 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type { ConfigData, ChartData } from "@/types/charts";
-import {
-    chatModes,
-    chatRoles,
-    type ChatMessageMetadata,
-    type GenerationParams,
-} from "@/types/chats";
+import { chatModes, type ChatData, type ChatMessageData } from "@/types/chats";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
@@ -173,8 +168,10 @@ export const documents = pgTable("documents", {
         .$onUpdate(() => new Date()),
 });
 
-// A chat with a model: its messages live in chat_messages. `mode` and `params`
-// are the chat's current settings; each reply records the ones it ran with.
+// A chat with a model: its messages live in chat_messages. `model`, `mode` and
+// `data` (sampling settings) are the chat's current settings; each reply records
+// the ones it ran with. `mode` tells chats (chat template) from base-model
+// completions.
 export const chats = pgTable("chats", {
     id: uuid("id").primaryKey().defaultRandom(),
     workspaceId: uuid("workspace_id")
@@ -184,7 +181,7 @@ export const chats = pgTable("chats", {
     name: varchar("name", { length: 256 }).notNull().default("New chat"),
     model: varchar("model", { length: 256 }).notNull(),
     mode: varchar("mode", { enum: chatModes, length: 32 }).notNull().default("chat"),
-    params: jsonb("params").$type<GenerationParams>(),
+    data: jsonb("data").$type<ChatData>().notNull(),
     position: real("position").default(0).notNull(),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: "date" })
@@ -194,8 +191,8 @@ export const chats = pgTable("chats", {
 });
 
 // One row per message, ordered by `position` (dense from 0, unique per chat so
-// concurrent appends can't share one). An assistant message's `metadata`
-// tracks its run: pending, complete or failed.
+// concurrent appends can't share one). `data` holds the role and, for a reply,
+// its run: pending, complete or failed.
 export const chatMessages = pgTable(
     "chat_messages",
     {
@@ -203,10 +200,9 @@ export const chatMessages = pgTable(
         chatId: uuid("chat_id")
             .references(() => chats.id, { onDelete: "cascade" })
             .notNull(),
-        role: varchar("role", { enum: chatRoles, length: 16 }).notNull(),
         content: text("content").notNull().default(""),
         position: integer("position").notNull(),
-        metadata: jsonb("metadata").$type<ChatMessageMetadata>(),
+        data: jsonb("data").$type<ChatMessageData>().notNull(),
         createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
         updatedAt: timestamp("updated_at", { mode: "date" })
             .defaultNow()

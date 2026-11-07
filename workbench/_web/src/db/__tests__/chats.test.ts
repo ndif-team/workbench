@@ -29,24 +29,21 @@ import {
     moveChat,
 } from "@/lib/queries/workspaceDb";
 import { createLogitLensChartPair } from "@/lib/queries/chartDb";
-import {
-    DEFAULT_CHAT_NAME,
-    DEFAULT_GENERATION_PARAMS,
-    type ChatMessageMetadata,
-} from "@/types/chats";
+import { replyStatus } from "@/lib/chats";
+import { DEFAULT_CHAT_NAME, DEFAULT_GENERATION_PARAMS, type ReplyRun } from "@/types/chats";
 
 const USER = "user-chats";
 const OTHER = "other-chats";
 
 const newChat = { model: "meta-llama/Llama-3.2-1B-Instruct", mode: "chat" as const };
 
-const pending: ChatMessageMetadata = {
+const pending: ReplyRun = {
     status: "pending",
     model: newChat.model,
     params: DEFAULT_GENERATION_PARAMS,
 };
 
-const settle = (status: "complete" | "error"): ChatMessageMetadata => ({ ...pending, status });
+const settle = (status: "complete" | "error"): ReplyRun => ({ ...pending, status });
 
 const workshopInput = () => ({
     name: "Pilot",
@@ -60,14 +57,14 @@ const workshopInput = () => ({
 
 /** The chat's messages as (position, role, content) rows. */
 const transcript = async (chatId: string) =>
-    (await getChatMessages(USER, chatId)).map((m) => [m.position, m.role, m.content]);
+    (await getChatMessages(USER, chatId)).map((m) => [m.position, m.data.role, m.content]);
 
 /** Sends `content` and completes its reply with `answer`. */
 const exchange = async (chatId: string, content: string, answer: string) => {
     const added = await addChatTurn(USER, chatId, { content, reply: pending });
     await updateChatMessage(USER, added[added.length - 1].id, {
         content: answer,
-        metadata: settle("complete"),
+        run: settle("complete"),
     });
 };
 
@@ -91,7 +88,7 @@ describe("creating a chat", () => {
         expect(chat.name).toBe(DEFAULT_CHAT_NAME);
         expect(chat.model).toBe(newChat.model);
         expect(chat.mode).toBe("chat");
-        expect(chat.params).toEqual(DEFAULT_GENERATION_PARAMS);
+        expect(chat.data.params).toEqual(DEFAULT_GENERATION_PARAMS);
         expect(chat.position).toBe(1);
         expect(await getChatMessages(USER, chat.id)).toEqual([]);
     });
@@ -109,7 +106,7 @@ describe("creating a chat", () => {
 
         expect(chat.workspaceId).toBe(folder.id);
         expect(chat.mode).toBe("completion");
-        expect(chat.params).toEqual(params);
+        expect(chat.data.params).toEqual(params);
         expect((await getChatWorkspaceScope(chat.id))!.workspaceId).toBe(folder.id);
     });
 
@@ -142,16 +139,16 @@ describe("chat turns", () => {
     it("appends the message and a pending reply at dense positions", async () => {
         const first = await addChatTurn(USER, chatId, { content: "Hi", reply: pending });
 
-        expect(first.map((m) => [m.position, m.role, m.content])).toEqual([
+        expect(first.map((m) => [m.position, m.data.role, m.content])).toEqual([
             [0, "user", "Hi"],
             [1, "assistant", ""],
         ]);
-        expect(first[0].metadata).toBeNull();
-        expect(first[1].metadata).toEqual(pending);
+        expect(first[0].data).toEqual({ role: "user" });
+        expect(first[1].data).toEqual({ role: "assistant", run: pending });
 
         await updateChatMessage(USER, first[1].id, {
             content: "Hello!",
-            metadata: settle("complete"),
+            run: settle("complete"),
         });
         await addChatTurn(USER, chatId, { content: "How are you?", reply: pending });
 
@@ -187,7 +184,7 @@ describe("chat turns", () => {
     it("drops a failed reply at the end before appending, so turns keep alternating", async () => {
         const [, reply] = await addChatTurn(USER, chatId, { content: "Hi", reply: pending });
         await updateChatMessage(USER, reply.id, {
-            metadata: { ...settle("error"), error: "NDIF is down" },
+            run: { ...settle("error"), error: "NDIF is down" },
         });
 
         const added = await addChatTurn(USER, chatId, { content: "Hi again", reply: pending });
@@ -219,7 +216,7 @@ describe("chat turns", () => {
 
         const added = await addChatTurn(USER, chatId, { content: "", reply: pending });
 
-        expect(added.map((m) => [m.position, m.role])).toEqual([[2, "assistant"]]);
+        expect(added.map((m) => [m.position, m.data.role])).toEqual([[2, "assistant"]]);
         expect(await transcript(chatId)).toEqual([
             [0, "user", "Once upon a time"],
             [1, "assistant", " there was"],
@@ -254,20 +251,30 @@ describe("saving a reply", () => {
 
         const saved = await updateChatMessage(USER, reply.id, {
             content: "Hello!",
-            metadata: done,
+            run: done,
         });
         expect(saved.content).toBe("Hello!");
-        expect(saved.metadata).toEqual(done);
+        expect(saved.data).toEqual({ role: "assistant", run: done });
 
-        const reset = await updateChatMessage(USER, reply.id, { content: "", metadata: pending });
+        const reset = await updateChatMessage(USER, reply.id, { content: "", run: pending });
         expect(reset.content).toBe("");
-        expect(reset.metadata?.status).toBe("pending");
+        expect(replyStatus(reset)).toBe("pending");
         expect((await getChatMessages(USER, chatId)).length).toBe(2);
+    });
+
+    it("updates only replies, never the user's own messages", async () => {
+        const chatId = (await createChat(USER, newChat)).id;
+        const [message] = await addChatTurn(USER, chatId, { content: "Hi", reply: pending });
+
+        await expect(
+            updateChatMessage(USER, message.id, { content: "Edited", run: settle("complete") }),
+        ).rejects.toThrow("Message not found");
+        expect((await transcript(chatId))[0]).toEqual([0, "user", "Hi"]);
     });
 
     it("throws for a message that doesn't exist", async () => {
         await expect(
-            updateChatMessage(USER, "missing", { metadata: settle("complete") }),
+            updateChatMessage(USER, "missing", { run: settle("complete") }),
         ).rejects.toThrow("Message not found");
     });
 });
