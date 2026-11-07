@@ -3,7 +3,7 @@ import { RotateCcw } from "lucide-react";
 import { splitRepo } from "@/components/model-selector/status";
 import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "@/db/schema";
-import { replyStatus } from "@/lib/chats";
+import { replyRun } from "@/lib/chats";
 
 export type ThreadProps = {
     messages: ChatMessage[];
@@ -31,7 +31,7 @@ export function ChatThread({ messages, model, busy, onRetry, onRegenerate }: Thr
         <ol className="flex flex-col gap-6" aria-label="Conversation">
             {messages.map((message, i) => (
                 <li key={message.id}>
-                    {message.role === "assistant" ? (
+                    {message.data.role === "assistant" ? (
                         <Reply
                             message={message}
                             canRegenerate={i === lastIndex && !busy}
@@ -66,19 +66,19 @@ export function Reply({
     /** False where the text is shown elsewhere (a completion's document). */
     showText?: boolean;
 }) {
-    const status = replyStatus(message);
-    if (status === "pending") {
+    const run = replyRun(message);
+    if (run?.status === "pending") {
         return (
             <p className="text-sm text-muted-foreground" aria-live="polite">
                 Waiting for the reply…
             </p>
         );
     }
-    if (status === "error") {
+    if (run?.status === "error") {
         return (
             <div role="alert" className="flex items-start justify-between gap-3 text-sm">
                 <p className="min-w-0 break-words text-destructive">
-                    {message.metadata?.error ?? "The reply failed."}
+                    {run.error ?? "The reply failed."}
                 </p>
                 <Button variant="outline" size="sm" onClick={onRetry}>
                     Retry
@@ -87,7 +87,6 @@ export function Reply({
         );
     }
 
-    const meta = message.metadata;
     return (
         <div className="space-y-1.5">
             {showText && (
@@ -95,16 +94,16 @@ export function Reply({
                     {message.content}
                 </div>
             )}
-            {meta && (
+            {run && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="font-mono">{splitRepo(meta.model).label}</span>
-                    {meta.nTokens !== undefined && (
+                    <span className="font-mono">{splitRepo(run.model).label}</span>
+                    {run.nTokens !== undefined && (
                         <span className="tabular-nums">
-                            · {meta.nTokens} {meta.nTokens === 1 ? "token" : "tokens"}
+                            · {run.nTokens} {run.nTokens === 1 ? "token" : "tokens"}
                         </span>
                     )}
-                    {meta.finishReason === "length" && (
-                        <span>· stopped at the {meta.params.maxNewTokens}-token limit</span>
+                    {run.finishReason === "length" && (
+                        <span>· stopped at the {run.params.maxNewTokens}-token limit</span>
                     )}
                     {canRegenerate && (
                         <Button

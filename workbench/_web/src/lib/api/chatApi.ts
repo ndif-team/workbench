@@ -7,7 +7,7 @@ import type { Chat, ChatMessage } from "@/db/schema";
 import { useCapture, useTrackRun, type RunTrigger } from "@/lib/analytics";
 import { ItemAnalytics } from "@/lib/api/workspaceApi";
 import config from "@/lib/config";
-import { conversationBefore } from "@/lib/chats";
+import { conversationBefore, replyRun } from "@/lib/chats";
 import { captureError } from "@/lib/errorTracking";
 import { NDIFJobError, runErrorMessage } from "@/lib/ndifError";
 import {
@@ -22,7 +22,7 @@ import {
 import type { NewChatRequest, ChatSettings } from "@/lib/queries/chatDb";
 import { queryKeys } from "@/lib/queryKeys";
 import { runAndStream } from "@/lib/runAndStream";
-import { DEFAULT_GENERATION_PARAMS, type ChatMessageMetadata } from "@/types/chats";
+import { DEFAULT_GENERATION_PARAMS, type ReplyRun } from "@/types/chats";
 import type { WorkspaceLibrary } from "@/types/workspaces";
 
 export const useChat = (chatId: string) =>
@@ -90,8 +90,11 @@ export const useUpdateChat = () => {
         mutationFn: ({ chatId, settings }: { chatId: string; settings: ChatSettings }) =>
             updateChat(chatId, settings),
         onMutate: ({ chatId, settings }) => {
+            const { params, ...columns } = settings;
             queryClient.setQueryData<Chat | null>(queryKeys.chats.chat(chatId), (chat) =>
-                chat ? { ...chat, ...settings } : chat,
+                chat
+                    ? { ...chat, ...columns, ...(params && { data: { ...chat.data, params } }) }
+                    : chat,
             );
             if (settings.name !== undefined) {
                 const name = settings.name;
@@ -136,10 +139,10 @@ export const useDeleteChat = () => {
 };
 
 /** A reply about to run with the chat's current model and settings. */
-const pendingReply = (chat: Chat): ChatMessageMetadata => ({
+const pendingReply = (chat: Chat): ReplyRun => ({
     status: "pending",
     model: chat.model,
-    params: chat.params ?? DEFAULT_GENERATION_PARAMS,
+    params: chat.data.params ?? DEFAULT_GENERATION_PARAMS,
 });
 
 /** Replies running in this tab. A pending reply that isn't one was interrupted (e.g. by a reload). */
@@ -173,7 +176,7 @@ async function runReply(
     if (runningReplies.has(reply.id)) return;
     runningReplies.add(reply.id);
     const messagesKey = queryKeys.chats.messages(chat.id);
-    const metadata = reply.metadata ?? pendingReply(chat);
+    const run = replyRun(reply) ?? pendingReply(chat);
 
     try {
         const messages = queryClient.getQueryData<ChatMessage[]>(messagesKey) ?? [];
@@ -181,14 +184,14 @@ async function runReply(
         const conversation = conversationBefore(messages, index === -1 ? messages.length : index);
         const last = conversation[conversation.length - 1];
         const prompt = trigger !== "continue" && last?.role === "user" ? last.content : "";
-        let outcome: { content?: string; metadata: ChatMessageMetadata };
+        let outcome: { content?: string; run: ReplyRun };
         try {
             const request = {
-                model: metadata.model,
+                model: run.model,
                 mode: chat.mode,
                 messages: conversation,
-                max_new_tokens: metadata.params.maxNewTokens,
-                temperature: metadata.params.temperature,
+                max_new_tokens: run.params.maxNewTokens,
+                temperature: run.params.temperature,
             };
             const data = await trackRun(
                 {
@@ -216,8 +219,8 @@ async function runReply(
             );
             outcome = {
                 content: data.text,
-                metadata: {
-                    ...metadata,
+                run: {
+                    ...run,
                     status: "complete",
                     finishReason: data.finish_reason,
                     nTokens: data.completion_ids.length,
@@ -225,7 +228,7 @@ async function runReply(
             };
         } catch (error) {
             outcome = {
-                metadata: { ...metadata, status: "error", error: replyErrorMessage(error) },
+                run: { ...run, status: "error", error: replyErrorMessage(error) },
             };
         }
         await updateChatMessage(reply.id, outcome).catch((error) =>
@@ -281,7 +284,7 @@ export const useRerunReply = (chat: Chat | null | undefined) => {
             if (!chat) return;
             const reset = await updateChatMessage(reply.id, {
                 content: "",
-                metadata: pendingReply(chat),
+                run: pendingReply(chat),
             });
             queryClient.setQueryData<ChatMessage[]>(queryKeys.chats.messages(chat.id), (messages) =>
                 messages?.map((m) => (m.id === reset.id ? reset : m)),
@@ -294,10 +297,11 @@ export const useRerunReply = (chat: Chat | null | undefined) => {
 
 /** Marks a reply that was pending when the chat opened, but runs nowhere, as interrupted. */
 export const markReplyInterrupted = async (queryClient: QueryClient, reply: ChatMessage) => {
-    if (runningReplies.has(reply.id) || !reply.metadata) return;
+    const run = replyRun(reply);
+    if (runningReplies.has(reply.id) || !run) return;
     await updateChatMessage(reply.id, {
-        metadata: {
-            ...reply.metadata,
+        run: {
+            ...run,
             status: "error",
             error: "Interrupted: the page was closed or reloaded while the reply was generating.",
         },

@@ -4,7 +4,7 @@ import type { Chat, ChatMessage } from "@/db/schema";
 import { requireUser, requireUserId } from "@/lib/auth/user";
 import * as chatDb from "@/lib/queries/chatDb";
 import { hasWorkshopClaim } from "@/lib/workshop";
-import type { ChatMessageMetadata } from "@/types/chats";
+import type { ReplyRun } from "@/types/chats";
 
 /**
  * The chat RPC surface. Every export is a public endpoint, so each one
@@ -42,7 +42,7 @@ export async function deleteChat(chatId: string): Promise<void> {
 /** Appends a message and a pending reply to one of the signed-in user's chats. */
 export async function addChatTurn(
     chatId: string,
-    turn: { content: string; reply: ChatMessageMetadata },
+    turn: { content: string; reply: ReplyRun },
 ): Promise<ChatMessage[]> {
     return chatDb.addChatTurn(await requireUserId(), chatId, turn);
 }
@@ -50,7 +50,7 @@ export async function addChatTurn(
 /** Saves a reply's outcome, or resets it for a retry, in one of the signed-in user's chats. */
 export async function updateChatMessage(
     messageId: string,
-    values: { content?: string; metadata?: ChatMessageMetadata },
+    values: { content?: string; run?: ReplyRun },
 ): Promise<ChatMessage> {
     return chatDb.updateChatMessage(await requireUserId(), messageId, values);
 }

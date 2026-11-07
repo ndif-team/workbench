@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { chatMessages, chats, isUuid, workspaces } from "@/db/schema";
+import { chatMessages, chats, isUuid, jsonTextField, workspaces } from "@/db/schema";
 import type { Chat, ChatMessage } from "@/db/schema";
 import { chatTitleFrom, isFailedReply, isPendingReply } from "@/lib/chats";
 import { isUniqueViolation } from "@/lib/queries/workshopDb";
@@ -15,9 +15,9 @@ import {
     chatModes,
     DEFAULT_CHAT_NAME,
     DEFAULT_GENERATION_PARAMS,
-    type ChatMessageMetadata,
     type ChatMode,
     type GenerationParams,
+    type ReplyRun,
 } from "@/types/chats";
 
 /**
@@ -44,31 +44,32 @@ const userChatIds = (userId: string) =>
 
 const chatNotFound = () => new Error("Chat not found or access denied");
 
-export type ChatSettings = Partial<Pick<Chat, "name" | "model" | "mode" | "params">>;
+/** A chat's settings as a client changes them; `params` is kept in the chat's `data`. */
+export type ChatSettings = Partial<
+    Pick<Chat, "name" | "model" | "mode"> & { params: GenerationParams }
+>;
 
 /**
- * The settings a client sent, checked: they come from a public server action,
- * so a mode, generation setting or name outside what the app offers is refused.
+ * Generation settings a client sent, checked: they come from a public server
+ * action, so values outside what the app offers are refused.
  */
+const validParams = (params: GenerationParams): GenerationParams => {
+    const { temperature, maxNewTokens } = params;
+    if (!(temperature >= 0 && temperature <= 2)) throw new Error("Temperature must be 0 to 2");
+    if (!(Number.isInteger(maxNewTokens) && maxNewTokens >= 1 && maxNewTokens <= 2048)) {
+        throw new Error("Max new tokens must be 1 to 2048");
+    }
+    return { temperature, maxNewTokens };
+};
+
+/** Chat settings a client sent, checked like `validParams`. */
 const validSettings = ({ name, model, mode, params }: ChatSettings): ChatSettings => {
     if (mode !== undefined && !chatModes.includes(mode)) throw new Error(`Unknown mode: ${mode}`);
-    if (
-        params != null &&
-        !(
-            params.temperature >= 0 &&
-            params.temperature <= 2 &&
-            Number.isInteger(params.maxNewTokens) &&
-            params.maxNewTokens >= 1 &&
-            params.maxNewTokens <= 2048
-        )
-    ) {
-        throw new Error("Temperature must be 0 to 2, and max new tokens 1 to 2048");
-    }
     return {
         ...(name !== undefined && { name: name.trim().slice(0, 256) || DEFAULT_CHAT_NAME }),
         ...(model !== undefined && { model: model.slice(0, 256) }),
         ...(mode !== undefined && { mode }),
-        ...(params !== undefined && { params }),
+        ...(params !== undefined && { params: validParams(params) }),
     };
 };
 
@@ -100,11 +101,8 @@ export const createChat = async (userId: string, request: NewChatRequest): Promi
         .values({
             workspaceId,
             name: DEFAULT_CHAT_NAME,
-            ...validSettings({
-                model: request.model,
-                mode: request.mode,
-                params: request.params ?? DEFAULT_GENERATION_PARAMS,
-            }),
+            ...validSettings({ model: request.model, mode: request.mode }),
+            data: { params: validParams(request.params ?? DEFAULT_GENERATION_PARAMS) },
             position,
         })
         .returning();
@@ -131,15 +129,25 @@ export const getChatMessages = async (userId: string, chatId: string): Promise<C
         .orderBy(chatMessages.position)) as ChatMessage[];
 };
 
-/** Renames one of the user's chats or changes its model, mode or generation settings. */
+/**
+ * Renames one of the user's chats or changes its model, mode or generation
+ * settings. New generation settings are merged into the chat's `data`.
+ */
 export const updateChat = async (
     userId: string,
     chatId: string,
     settings: ChatSettings,
 ): Promise<Chat> => {
+    const { params, ...columns } = validSettings(settings);
+    let data: Chat["data"] | undefined;
+    if (params) {
+        const current = await getChat(userId, chatId);
+        if (!current) throw chatNotFound();
+        data = { ...current.data, params };
+    }
     const [chat] = await db
         .update(chats)
-        .set(validSettings(settings))
+        .set({ ...columns, ...(data && { data }) })
         .where(isUserChat(userId, chatId))
         .returning();
     if (!chat) throw chatNotFound();
@@ -190,7 +198,7 @@ const checkLength = (content: string) => {
 export const addChatTurn = async (
     userId: string,
     chatId: string,
-    { content, reply }: { content: string; reply: ChatMessageMetadata },
+    { content, reply }: { content: string; reply: ReplyRun },
 ): Promise<ChatMessage[]> => {
     checkLength(content);
     const chat = await getChat(userId, chatId);
@@ -214,13 +222,14 @@ export const addChatTurn = async (
             }
 
             const rows = [
-                ...(content ? [{ chatId, role: "user" as const, content, position: next }] : []),
+                ...(content
+                    ? [{ chatId, content, position: next, data: { role: "user" as const } }]
+                    : []),
                 {
                     chatId,
-                    role: "assistant" as const,
                     content: "",
                     position: content ? next + 1 : next,
-                    metadata: reply,
+                    data: { role: "assistant" as const, run: reply },
                 },
             ];
             const inserted = await db.insert(chatMessages).values(rows).returning();
@@ -234,20 +243,27 @@ export const addChatTurn = async (
 };
 
 /**
- * Updates a message in one of the user's chats: a reply's text and metadata
- * as its run ends, or a retry setting it back to pending.
+ * Updates a reply in one of the user's chats: its text and run as the run
+ * ends, or a retry setting it back to pending. Only replies are updated.
  */
 export const updateChatMessage = async (
     userId: string,
     messageId: string,
-    values: { content?: string; metadata?: ChatMessageMetadata },
+    { content, run }: { content?: string; run?: ReplyRun },
 ): Promise<ChatMessage> => {
-    if (values.content !== undefined) checkLength(values.content);
+    if (content !== undefined) checkLength(content);
     const [message] = await db
         .update(chatMessages)
-        .set(values)
+        .set({
+            ...(content !== undefined && { content }),
+            ...(run && { data: { role: "assistant" as const, run } }),
+        })
         .where(
-            and(eq(chatMessages.id, messageId), inArray(chatMessages.chatId, userChatIds(userId))),
+            and(
+                eq(chatMessages.id, messageId),
+                inArray(chatMessages.chatId, userChatIds(userId)),
+                eq(jsonTextField(chatMessages.data, "role"), "assistant"),
+            ),
         )
         .returning();
     if (!message) throw new Error("Message not found or access denied");
