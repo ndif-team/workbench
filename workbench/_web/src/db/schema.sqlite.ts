@@ -159,6 +159,7 @@ export const chats = sqliteTable("chats", {
     model: text("model").notNull(),
     mode: text("mode").notNull().default("chat"),
     data: text("data", { mode: "json" }).$type<ChatData>().notNull(),
+    headMessageId: text("head_message_id"),
     position: real("position").default(0).notNull(),
     createdAt: integer("created_at", { mode: "timestamp" })
         .$defaultFn(() => new Date())
@@ -174,6 +175,7 @@ export const chatMessages = sqliteTable(
     {
         id: text("id").primaryKey().$defaultFn(generateUUID),
         chatId: text("chat_id").notNull(),
+        parentId: text("parent_id"),
         content: text("content").notNull().default(""),
         position: integer("position").notNull(),
         data: text("data", { mode: "json" }).$type<ChatMessageData>().notNull(),
@@ -185,7 +187,7 @@ export const chatMessages = sqliteTable(
             .notNull()
             .$onUpdate(() => new Date()),
     },
-    (table) => [uniqueIndex("chat_messages_chat_position_unique").on(table.chatId, table.position)],
+    (table) => [index("chat_messages_chat_idx").on(table.chatId)],
 );
 
 // F1 prompt history: one row per successful patch-lens lens run. Mirrors the

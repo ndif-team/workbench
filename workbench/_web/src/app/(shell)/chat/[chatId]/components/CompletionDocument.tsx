@@ -1,13 +1,21 @@
 import { splitRepo } from "@/components/model-selector/status";
 import { replyStatus } from "@/lib/chats";
-import { Reply, type ThreadProps } from "./ChatThread";
+import { Reply, VersionSwitcher, type ThreadProps } from "./ChatThread";
 
 /**
  * A completion-mode chat: one document, the user's text and the model's
  * continuations in order, with the model's parts tinted. The last reply's
  * state (waiting, failed, its token count) shows below the document.
  */
-export function CompletionDocument({ messages, model, busy, onRetry, onRegenerate }: ThreadProps) {
+export function CompletionDocument({
+    messages,
+    allMessages,
+    model,
+    busy,
+    onRetry,
+    onRegenerate,
+    onShowVersion,
+}: ThreadProps) {
     if (messages.length === 0) {
         return (
             <p className="py-16 text-center text-sm text-muted-foreground">
@@ -38,6 +46,14 @@ export function CompletionDocument({ messages, model, busy, onRetry, onRegenerat
                     canRegenerate={!busy}
                     onRetry={() => onRetry(last)}
                     onRegenerate={() => onRegenerate(last)}
+                    versions={
+                        <VersionSwitcher
+                            message={last}
+                            allMessages={allMessages}
+                            disabled={busy}
+                            onShowVersion={onShowVersion}
+                        />
+                    }
                 />
             )}
         </div>

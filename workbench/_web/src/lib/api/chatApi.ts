@@ -16,6 +16,8 @@ import {
     deleteChat,
     getChat,
     getChatMessages,
+    regenerateReply,
+    showBranch,
     updateChat,
     updateChatMessage,
 } from "@/lib/queries/chatQueries";
@@ -180,8 +182,7 @@ async function runReply(
 
     try {
         const messages = queryClient.getQueryData<ChatMessage[]>(messagesKey) ?? [];
-        const index = messages.findIndex((m) => m.id === reply.id);
-        const conversation = conversationBefore(messages, index === -1 ? messages.length : index);
+        const conversation = conversationBefore(messages, reply);
         const last = conversation[conversation.length - 1];
         const prompt = trigger !== "continue" && last?.role === "user" ? last.content : "";
         let outcome: { content?: string; run: ReplyRun };
@@ -241,9 +242,19 @@ async function runReply(
     }
 }
 
+/** Shows a new reply at the end of the chat's branch on screen, before its run settles. */
+const showNewReply = async (queryClient: QueryClient, chat: Chat, reply: ChatMessage) => {
+    queryClient.setQueryData<Chat | null>(queryKeys.chats.chat(chat.id), (current) =>
+        current ? { ...current, headMessageId: reply.id } : current,
+    );
+    await queryClient.invalidateQueries({ queryKey: queryKeys.chats.messages(chat.id) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
+};
+
 /**
- * Sends a message (or, with empty content, asks for a continuation) and runs
- * the reply. Resolves once the reply has settled.
+ * Sends a message (or, with empty content, asks for a continuation) at the
+ * end of the branch on screen and runs the reply. Resolves once the reply has
+ * settled.
  */
 export const useSendChatMessage = (chat: Chat | null | undefined) => {
     const queryClient = useQueryClient();
@@ -254,10 +265,9 @@ export const useSendChatMessage = (chat: Chat | null | undefined) => {
         mutationFn: async (content: string) => {
             if (!chat) return;
             const added = await addChatTurn(chat.id, { content, reply: pendingReply(chat) });
-            await queryClient.invalidateQueries({ queryKey: queryKeys.chats.messages(chat.id) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.chats.chat(chat.id) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
             const reply = added[added.length - 1];
+            await showNewReply(queryClient, chat, reply);
+            queryClient.invalidateQueries({ queryKey: queryKeys.chats.chat(chat.id) });
             await runReply(queryClient, trackRun, chat, reply, content ? "run" : "continue");
         },
         onError: (err) => toast.error(err instanceof Error ? err.message : "Couldn't send"),
@@ -265,8 +275,9 @@ export const useSendChatMessage = (chat: Chat | null | undefined) => {
 };
 
 /**
- * Runs a reply again with the chat's current settings: a failed one (Retry)
- * or the last one (Regenerate), replaced in place.
+ * Runs a reply again with the chat's current settings. Retry reruns a failed
+ * reply in its place (it has no text to keep); Regenerate starts a new reply
+ * beside the last one, which stays as another branch.
  */
 export const useRerunReply = (chat: Chat | null | undefined) => {
     const queryClient = useQueryClient();
@@ -282,6 +293,12 @@ export const useRerunReply = (chat: Chat | null | undefined) => {
             trigger: "retry" | "regenerate";
         }) => {
             if (!chat) return;
+            if (trigger === "regenerate") {
+                const sibling = await regenerateReply(chat.id, reply.id, pendingReply(chat));
+                await showNewReply(queryClient, chat, sibling);
+                await runReply(queryClient, trackRun, chat, sibling, trigger);
+                return;
+            }
             const reset = await updateChatMessage(reply.id, {
                 content: "",
                 run: pendingReply(chat),
@@ -292,6 +309,19 @@ export const useRerunReply = (chat: Chat | null | undefined) => {
             await runReply(queryClient, trackRun, chat, reset, trigger);
         },
         onError: () => toast.error("Couldn't run the reply again"),
+    });
+};
+
+/** Shows another branch of a chat: the one through the given message. */
+export const useShowBranch = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationKey: ["showBranch"],
+        mutationFn: ({ chatId, messageId }: { chatId: string; messageId: string }) =>
+            showBranch(chatId, messageId),
+        onSuccess: (chat) => queryClient.setQueryData(queryKeys.chats.chat(chat.id), chat),
+        onError: () => toast.error("Couldn't show that version"),
     });
 };
 

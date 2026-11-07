@@ -28,15 +28,47 @@ export const isPendingReply = (message: Pick<ChatMessage, "data">) =>
 export const isFailedReply = (message: Pick<ChatMessage, "data">) =>
     replyStatus(message) === "error";
 
+type TreeMessage = Pick<ChatMessage, "id" | "parentId" | "createdAt">;
+
+/** Oldest first; messages added together are told apart by id. */
+const byAge = (a: TreeMessage, b: TreeMessage) =>
+    a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id);
+
+/** The branch ending at `leafId`: its messages from the chat's first to the leaf. */
+export const branchTo = <M extends Pick<ChatMessage, "id" | "parentId">>(
+    messages: M[],
+    leafId: string | null | undefined,
+): M[] => {
+    const byId = new Map(messages.map((m) => [m.id, m]));
+    const branch: M[] = [];
+    for (let m = leafId ? byId.get(leafId) : undefined; m; m = byId.get(m.parentId ?? "")) {
+        branch.push(m);
+    }
+    return branch.reverse();
+};
+
+/** The messages that follow the same message as `message`, itself included, oldest first. */
+export const siblingsOf = <M extends TreeMessage>(messages: M[], message: M): M[] =>
+    messages.filter((m) => m.parentId === message.parentId).sort(byAge);
+
+/** The last message of the branch through `messageId` that follows the newest message at each step. */
+export const latestLeaf = (messages: TreeMessage[], messageId: string): string => {
+    let leaf = messageId;
+    for (;;) {
+        const children = messages.filter((m) => m.parentId === leaf).sort(byAge);
+        if (children.length === 0) return leaf;
+        leaf = children[children.length - 1].id;
+    }
+};
+
 /**
- * What the reply at `index` is generated from: the messages before it,
- * leaving out replies that failed or are still running (they hold no text).
+ * What a reply is generated from: the branch before it, leaving out replies
+ * that failed or are still running (they hold no text).
  */
 export const conversationBefore = (
-    messages: Pick<ChatMessage, "content" | "data">[],
-    index: number,
+    messages: Pick<ChatMessage, "id" | "parentId" | "content" | "data">[],
+    message: Pick<ChatMessage, "parentId">,
 ): { role: ChatRole; content: string }[] =>
-    messages
-        .slice(0, index)
+    branchTo(messages, message.parentId)
         .filter((m) => m.data.role !== "assistant" || replyStatus(m) === "complete")
         .map(({ data, content }) => ({ role: data.role, content }));
