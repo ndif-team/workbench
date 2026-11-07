@@ -1,7 +1,9 @@
 import {
     boolean,
+    integer,
     jsonb,
     pgTable,
+    text,
     varchar,
     uuid,
     timestamp,
@@ -11,6 +13,12 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type { ConfigData, ChartData } from "@/types/charts";
+import {
+    chatModes,
+    chatRoles,
+    type ChatMessageMetadata,
+    type GenerationParams,
+} from "@/types/chats";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
@@ -164,6 +172,49 @@ export const documents = pgTable("documents", {
         .notNull()
         .$onUpdate(() => new Date()),
 });
+
+// A chat with a model: its messages live in chat_messages. `mode` and `params`
+// are the chat's current settings; each reply records the ones it ran with.
+export const chats = pgTable("chats", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+        .references(() => workspaces.id, { onDelete: "cascade" })
+        .notNull(),
+
+    name: varchar("name", { length: 256 }).notNull().default("New chat"),
+    model: varchar("model", { length: 256 }).notNull(),
+    mode: varchar("mode", { enum: chatModes, length: 32 }).notNull().default("chat"),
+    params: jsonb("params").$type<GenerationParams>(),
+    position: real("position").default(0).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+        .defaultNow()
+        .notNull()
+        .$onUpdate(() => new Date()),
+});
+
+// One row per message, ordered by `position` (dense from 0, unique per chat so
+// concurrent appends can't share one). An assistant message's `metadata`
+// tracks its run: pending, complete or failed.
+export const chatMessages = pgTable(
+    "chat_messages",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        chatId: uuid("chat_id")
+            .references(() => chats.id, { onDelete: "cascade" })
+            .notNull(),
+        role: varchar("role", { enum: chatRoles, length: 16 }).notNull(),
+        content: text("content").notNull().default(""),
+        position: integer("position").notNull(),
+        metadata: jsonb("metadata").$type<ChatMessageMetadata>(),
+        createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+        updatedAt: timestamp("updated_at", { mode: "date" })
+            .defaultNow()
+            .notNull()
+            .$onUpdate(() => new Date()),
+    },
+    (table) => [uniqueIndex("chat_messages_chat_position_unique").on(table.chatId, table.position)],
+);
 
 // F1 prompt history: one row per successful patch-lens lens run; cascades through
 // workspace/chart like configs. Split storage: `summary` is the compact slice

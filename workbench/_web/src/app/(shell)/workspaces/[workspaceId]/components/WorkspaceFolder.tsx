@@ -25,7 +25,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useUpdateChartName } from "@/lib/api/chartApi";
 import { useCreateDocument } from "@/lib/api/documentApi";
 import { useWorkspaceWorkshop } from "@/lib/api/workshopApi";
 import {
@@ -41,6 +40,7 @@ import type { ToolType } from "@/types/charts";
 import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
 import { PageHeader } from "../../../components/shell/PageHeader";
 import { InlineNameInput } from "../../../components/items/InlineNameInput";
+import { useRenameItem } from "../../../components/items/ItemActionsMenu";
 import { NewItemMenu } from "../../../components/items/NewItemMenu";
 import { SortableEntry } from "../../../components/SortableEntry";
 import { WorkspaceActionsMenu } from "../../../components/items/WorkspaceActions";
@@ -58,11 +58,12 @@ const CARD_GRID = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid
 const LIST_SURFACE = "flex flex-col rounded border bg-secondary/80 p-1.5 dark:bg-secondary/50";
 
 /**
- * One workspace (folder): its name (renamed in place), New chart / New
- * report in it, Delete, and its charts and reports in their saved order, as
- * a grid of preview cards or a list of rows (`useWorkspaceView`), reordered
- * by dragging an item's handle (or with the keyboard on the handle). A
- * workshop workspace can't be renamed or deleted.
+ * One workspace (folder): its name (renamed in place), New chart (whose menu
+ * also starts a chat, outside a workshop workspace) / New report in it,
+ * Delete, and its charts, chats and reports in their saved order, as a grid
+ * of preview cards or a list of rows (`useWorkspaceView`), reordered by
+ * dragging an item's handle (or with the keyboard on the handle). A workshop
+ * workspace can't be renamed or deleted.
  */
 export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
     const router = useRouter();
@@ -74,7 +75,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
     const contentsHeadingId = useId();
     const [renamingItemId, setRenamingItemId] = useState<string | null>(null);
     const { mutate: renameWorkspace } = useRenameWorkspace();
-    const { mutate: renameChart } = useUpdateChartName();
+    const renameItem = useRenameItem();
     const { mutate: reorderItems } = useReorderWorkspaceItems();
     const createReport = useCreateDocument("workspace_page");
     const { view: savedView, setView } = useWorkspaceView();
@@ -108,7 +109,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
         });
 
     const tools = workshop?.allowedTools;
-    /** "3 charts and 1 report"; empty while the folder is empty or loading. */
+    /** "3 charts, 2 chats and 1 report"; empty while the folder is empty or loading. */
     const contents = folder ? describeContents(folder) : "";
 
     if (library && !folder) {
@@ -194,6 +195,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                             )}
                             <NewItemMenu
                                 workspaceId={workspaceId}
+                                offerChat={!folder.isWorkshop}
                                 tools={tools}
                                 align="end"
                                 origin="workspace_page"
@@ -230,7 +232,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
             <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-6">
                 <section aria-labelledby={contentsHeadingId}>
                     <h2 id={contentsHeadingId} className="sr-only">
-                        Charts and reports
+                        Charts, chats and reports
                     </h2>
                     {isLoading || !folder ? (
                         view === "grid" ? (
@@ -291,12 +293,7 @@ export function WorkspaceFolder({ workspaceId }: { workspaceId: string }) {
                                                         }
                                                         onRenameEnd={(name) => {
                                                             setRenamingItemId(null);
-                                                            if (name) {
-                                                                renameChart({
-                                                                    chartId: item.id,
-                                                                    name,
-                                                                });
-                                                            }
+                                                            if (name) renameItem(item, name);
                                                         }}
                                                     />
                                                 </SortableEntry>
@@ -380,7 +377,7 @@ function Breadcrumb({ children }: { children?: React.ReactNode }) {
     );
 }
 
-/** An empty workspace's panel body: what fills it, with New chart and New report right there. */
+/** An empty workspace's panel body: what fills it, with New chart (and chat) and New report right there. */
 function EmptyFolder({
     folder,
     tools,
@@ -402,7 +399,12 @@ function EmptyFolder({
                 <p className="text-sm text-muted-foreground">{EMPTY_WORKSPACE_TEXT}</p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
-                <NewItemMenu workspaceId={folder.id} tools={tools} origin="workspace_page">
+                <NewItemMenu
+                    workspaceId={folder.id}
+                    offerChat={!folder.isWorkshop}
+                    tools={tools}
+                    origin="workspace_page"
+                >
                     <Button variant="outline" size="sm">
                         <Plus />
                         New chart

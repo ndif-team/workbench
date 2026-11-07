@@ -4,7 +4,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 export type WorkspaceView = "grid" | "list";
 
 interface WorkspaceViewState {
-    /** How a workspace page lays out its charts and reports. */
+    /** How a workspace page lays out its charts, chats and reports. */
     view: WorkspaceView;
     setView: (view: WorkspaceView) => void;
 }

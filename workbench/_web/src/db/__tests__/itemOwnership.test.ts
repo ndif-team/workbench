@@ -1,20 +1,30 @@
 /**
- * Integration tests for the owner checks on chart, report, lens-run, config
- * and tutorial-event writes, on SQLite.
+ * Integration tests for the owner checks on chart, chat, report, lens-run,
+ * config and tutorial-event writes, on SQLite.
  *
- * The "use server" wrappers in chartQueries.ts, documentQueries.ts,
- * lensRunQueries.ts, configQueries.ts and tutorialEventsQueries.ts pass the
- * signed-in user to the internals in chartDb.ts, documentDb.ts, lensRunDb.ts,
- * configDb.ts and tutorialEventsDb.ts; these tests call the internals with
- * one user against another user's rows (and a workshop participant against
- * their own workshop workspace, which must keep working).
+ * The "use server" wrappers in chartQueries.ts, chatQueries.ts,
+ * documentQueries.ts, lensRunQueries.ts, configQueries.ts and
+ * tutorialEventsQueries.ts pass the signed-in user to the internals in
+ * chartDb.ts, chatDb.ts, documentDb.ts, lensRunDb.ts, configDb.ts and
+ * tutorialEventsDb.ts; these tests call the internals with one user against
+ * another user's rows (and a workshop participant against their own workshop
+ * workspace, which must keep working, except for chats, which a workshop
+ * workspace never holds).
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import type { SerializedEditorState } from "lexical";
 import { db, clearDatabase } from "../client";
-import { charts, configs, documents, lensRuns, tutorialEvents } from "../schema";
+import {
+    chatMessages,
+    charts,
+    chats,
+    configs,
+    documents,
+    lensRuns,
+    tutorialEvents,
+} from "../schema";
 import {
     assertChartWorkspace,
     copyChart,
@@ -24,6 +34,15 @@ import {
     renameChart,
     setChartData,
 } from "@/lib/queries/chartDb";
+import {
+    addChatTurn,
+    createChat,
+    deleteChat,
+    getChat,
+    getChatMessages,
+    updateChat,
+    updateChatMessage,
+} from "@/lib/queries/chatDb";
 import { setConfig } from "@/lib/queries/configDb";
 import { createDocument, deleteDocument, updateDocument } from "@/lib/queries/documentDb";
 import {
@@ -37,8 +56,9 @@ import {
 } from "@/lib/queries/lensRunDb";
 import { recordTutorialEvent } from "@/lib/queries/tutorialEventsDb";
 import { createWorkshop } from "@/lib/queries/workshopDb";
-import { createWorkspace } from "@/lib/queries/workspaceDb";
+import { createWorkspace, moveChat } from "@/lib/queries/workspaceDb";
 import type { ChartData } from "@/types/charts";
+import { DEFAULT_GENERATION_PARAMS, type ChatMessageMetadata } from "@/types/chats";
 import type { LensRunHeatmaps, LensRunPromptSummary, LensRunSummary } from "@/types/lensRun";
 import type { LogitLensIntroData } from "@/types/logitLensIntro";
 
@@ -65,6 +85,18 @@ const chartRow = async (chartId: string) =>
 
 const documentRow = async (documentId: string) =>
     (await db.select().from(documents).where(eq(documents.id, documentId)))[0];
+
+const chatRow = async (chatId: string) =>
+    (await db.select().from(chats).where(eq(chats.id, chatId)))[0];
+
+const chatMessageRows = async (chatId: string) =>
+    db.select().from(chatMessages).where(eq(chatMessages.chatId, chatId));
+
+const pendingReply: ChatMessageMetadata = {
+    status: "pending",
+    model: "gpt2",
+    params: DEFAULT_GENERATION_PARAMS,
+};
 
 const configRow = async (configId: string) =>
     (await db.select().from(configs).where(eq(configs.id, configId)))[0];
@@ -215,6 +247,91 @@ describe("report writes", () => {
 
         await deleteDocument(OWNER, report.id);
         expect(await documentRow(report.id)).toBeUndefined();
+    });
+});
+
+describe("chat writes", () => {
+    let workspaceId: string;
+    let chatId: string;
+    let replyId: string;
+
+    beforeEach(async () => {
+        await clearDatabase();
+        workspaceId = (await createWorkspace(OWNER, "Mine")).id;
+        chatId = (await createChat(OWNER, { model: "gpt2", mode: "chat", workspaceId })).id;
+        const [, reply] = await addChatTurn(OWNER, chatId, {
+            content: "Hi",
+            reply: pendingReply,
+        });
+        replyId = reply.id;
+        await createWorkspace(INTRUDER, "Theirs");
+    });
+
+    it("refuse another user's create, rename, turn, reply, move and delete", async () => {
+        const theirs = await createWorkspace(INTRUDER, "Also theirs");
+
+        await expect(
+            createChat(INTRUDER, { model: "gpt2", mode: "chat", workspaceId }),
+        ).rejects.toThrow("access denied");
+        await expect(updateChat(INTRUDER, chatId, { name: "Hacked" })).rejects.toThrow(
+            "access denied",
+        );
+        await expect(
+            addChatTurn(INTRUDER, chatId, { content: "Injected", reply: pendingReply }),
+        ).rejects.toThrow("access denied");
+        await expect(
+            updateChatMessage(INTRUDER, replyId, {
+                content: "Tampered",
+                metadata: { ...pendingReply, status: "complete" },
+            }),
+        ).rejects.toThrow("access denied");
+        await expect(moveChat(INTRUDER, chatId, theirs.id)).rejects.toThrow("access denied");
+        await expect(moveChat(INTRUDER, chatId, null)).rejects.toThrow("access denied");
+        await expect(deleteChat(INTRUDER, chatId)).rejects.toThrow("access denied");
+
+        const chat = await chatRow(chatId);
+        expect(chat.name).toBe("Hi");
+        expect(chat.workspaceId).toBe(workspaceId);
+        const messages = await chatMessageRows(chatId);
+        expect(messages.length).toBe(2);
+        expect(messages.find((m: { id: string }) => m.id === replyId)?.content).toBe("");
+        const inWorkspace = await db.select().from(chats).where(eq(chats.workspaceId, workspaceId));
+        expect(inWorkspace.length).toBe(1);
+    });
+
+    it("hide another user's chat and messages from reads", async () => {
+        expect(await getChat(INTRUDER, chatId)).toBeNull();
+        expect(await getChatMessages(INTRUDER, chatId)).toEqual([]);
+
+        expect((await getChat(OWNER, chatId))?.id).toBe(chatId);
+        expect(await getChatMessages(OWNER, chatId)).toHaveLength(2);
+    });
+
+    it("let the owner rename, save a reply, move and delete", async () => {
+        const folder = await createWorkspace(OWNER, "Folder");
+
+        expect((await updateChat(OWNER, chatId, { name: "Greetings" })).name).toBe("Greetings");
+        await updateChatMessage(OWNER, replyId, {
+            content: "Hello!",
+            metadata: { ...pendingReply, status: "complete" },
+        });
+        await moveChat(OWNER, chatId, folder.id);
+        expect((await chatRow(chatId)).workspaceId).toBe(folder.id);
+
+        await deleteChat(OWNER, chatId);
+        expect(await chatRow(chatId)).toBeUndefined();
+        expect(await chatMessageRows(chatId)).toEqual([]);
+    });
+
+    it("refuse a chat in a workshop workspace, even the participant's own", async () => {
+        const workshop = await createWorkshop(workshopInput(["logit-lens"]));
+        const participant = "anon-participant";
+        const ws = await createWorkspace(participant, "Pilot", workshop.id);
+
+        await expect(
+            createChat(participant, { model: "gpt2", mode: "chat", workspaceId: ws.id }),
+        ).rejects.toThrow("workshop");
+        expect(await db.select().from(chats).where(eq(chats.workspaceId, ws.id))).toEqual([]);
     });
 });
 

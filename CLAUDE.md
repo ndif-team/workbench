@@ -17,6 +17,7 @@ If you're proposing visual UI changes, also follow `.claude/skills/product-nativ
   - `"lens2"` is a legacy alias of the `"logit-lens"` tool type, still accepted when reading `configs.type`, `charts.type`, `workshops.allowed_tools` and saved chart embeds until the stored rows are migrated (`normalizeToolType` in `src/types/charts.ts`, and `normalizeWorkshopTools` in `src/lib/workshop.ts` for workshop allowed tools). Writes always use `"logit-lens"`; old `/workbench/<ws>/lens2/<chartId>` links redirect to `/logit-lens/<chartId>` (`next.config.js`).
 - **Config** — the parameters that produced the chart (prompt, topk, etc.). Stored as `jsonb` in the `configs` table.
 - **Document** — a Lexical-based research note inside a workspace.
+- **Chat** — a conversation with a model, filed in a workspace like a chart (`chats` + `chat_messages`; `/chat/<chatId>`). Its `mode` is `chat` (the model's chat template, turn by turn) or `completion` (one text a base model continues); a new chat takes the mode of its model (`chatModeFor`: `is_chat`), and the composer can switch it. Replies run through nnsightful's `generate` tool on `/chat/generate` and arrive whole: NDIF sends nothing back before a job completes, so the stream before the reply carries status only. Each assistant message records its run in `metadata` (`pending` → `complete` or `error`, model, settings, token count); a reply still pending when its chat opens in a new page load is marked interrupted and offers Retry. Workshop workspaces hold no chats.
 - **Workshop / tutorial** — a workshop is a join link (`/w/[slug]`) that signs participants in anonymously (optionally carrying Prolific IDs) and gives each a workspace limited to the workshop's tools and (unless the workshop allows changing it) its model. It runs a DB-backed guided Patch Lens tutorial (`tutorials` table); participant progress goes to `tutorial_events`. Both are managed under `/admin` (`ADMIN_EMAILS` allowlist). Anonymous participants (`hasWorkshopClaim`) are kept inside their workshop workspace: pages outside it redirect them there (`redirectWorkshopParticipant` in `src/lib/auth/user.ts`), the shell shows them only the workshop sidebar, and they never get a default workspace. Workshop workspaces can't be renamed, deleted or moved into or out of.
 
 **High-level architecture**
@@ -86,7 +87,8 @@ workbench/                          # repo root
 │       ├── logit_lens.py           # /logit_lens/run  (streams nnsightful.tools.logit_lens)
 │       ├── j_lens.py               # /j_lens/run  (streams nnsightful.tools.j_lens)
 │       ├── activation_patching.py  # /activation_patching/run (streams nnsightful.tools.activation_patching)
-│       └── causal_mediation.py     # /causal_mediation/start + /results/{job_id}  (Patch Lens patch; polled)
+│       ├── causal_mediation.py     # /causal_mediation/start + /results/{job_id}  (Patch Lens patch; polled)
+│       └── chat.py                 # /chat/generate  (streams nnsightful.tools.generate: a chat reply or a continuation)
 │
 └── workbench/_web/                 # Next.js frontend
     ├── package.json
@@ -135,6 +137,7 @@ workbench/                          # repo root
         │       ├── activation-patching/[chartId]/
         │       ├── patch-lens/[chartId]/        # Patch Lens (edulogitlens), run history rail, guided tutorial
         │       ├── reports/[reportId]/          # Lexical report editor
+        │       ├── chat/[chatId]/               # a chat: thread (or completion document) over its composer
         │       ├── new/            # /new?tool=…&model=…&prompt=…: creates a chart, then opens it
         │       ├── models/         # models grid (scrolls under its header)
         │       └── workspaces/     # all workspaces (folders); [workspaceId]/ is one folder, its items as
@@ -337,7 +340,7 @@ Look at `charts` / `configs` for the canonical shape:
 ### Server vs client query layers
 
 Three files for each entity:
-- `src/lib/queries/<entity>Db.ts` — unguarded internals that call `db` (e.g. `workspaceDb.ts`, `chartDb.ts`, `documentDb.ts`, `configDb.ts`, `lensRunDb.ts`). Writes take the acting user's id and only touch that user's rows. Server code (pages, layouts, other actions) and the `bun:test` suites call these directly.
+- `src/lib/queries/<entity>Db.ts` — unguarded internals that call `db` (e.g. `workspaceDb.ts`, `chartDb.ts`, `chatDb.ts`, `documentDb.ts`, `configDb.ts`, `lensRunDb.ts`). Writes take the acting user's id and only touch that user's rows. Server code (pages, layouts, other actions) and the `bun:test` suites call these directly.
 - `src/lib/queries/<entity>Queries.ts` — `"use server"` directive. **Every export is a public RPC endpoint**, so each one resolves the signed-in user itself (`requireUser()` / `requireUserId()` from `src/lib/auth/user.ts`; never a client-supplied user id) and calls the `*Db.ts` internal, or checks admin access (`requireAdmin()`). A `"use server"` file may export only async functions (and types). Export nothing here that only tests or server code need; put it in `*Db.ts`.
 - `src/lib/api/<entity>Api.ts` — client-side React Query wrappers (`useQuery`, `useMutation`). Calls server actions or external HTTP (FastAPI / NDIF).
 
@@ -616,7 +619,7 @@ The contract between workbench and nnsightful is: **workbench wires tools to UI;
 **Backend** (`workbench/_api/`):
 - `routes/__init__.py` registers nnsightful with NDIF: `from nnsight import ndif; import nnsightful; ndif.register(nnsightful)` — this lets NDIF's remote backend serialize+execute nnsightful tools.
 - `routes/logit_lens.py` imports `from nnsightful.tools.logit_lens import logit_lens`. The `/logit_lens/run` endpoint hands the tool call to `ToolEventStream` (`workbench/_api/sse.py`), which runs it with `ExecMode.REMOTE_ASYNC` in remote mode and streams the result.
-- `routes/j_lens.py` and `routes/activation_patching.py` mirror the same pattern. `routes/models.py` also calls `j_lens.get_available_lenses()` to flag each model's `has_jacobian` (j-lens support).
+- `routes/j_lens.py`, `routes/activation_patching.py` and `routes/chat.py` (`nnsightful.tools.generate`) mirror the same pattern. `routes/models.py` also calls `j_lens.get_available_lenses()` to flag each model's `has_jacobian` (j-lens support).
 
 **Frontend** (`workbench/_web/src/`):
 - `app/(shell)/logit-lens/[chartId]/components/LogitLensDisplay.tsx` — `import { LogitLensWidget } from "nnsightful"; import type { LogitLensData } from "nnsightful";` and renders the widget directly with `chart.data`.

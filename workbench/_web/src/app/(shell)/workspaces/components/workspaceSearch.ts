@@ -8,9 +8,10 @@ type WorkspaceMatch = {
 };
 
 /**
- * The workspaces whose name, or the label of one of their charts or reports,
- * holds `query` (ignoring case), in their order; all of them for a blank
- * query. Placeholder labels ("Untitled chart") don't count as a match.
+ * The workspaces whose name, or the label of one of their charts, chats or
+ * reports (a chat's name), holds `query` (ignoring case), in their order; all
+ * of them for a blank query. Placeholder labels ("Untitled chart", "New
+ * chat") don't count as a match.
  */
 export function searchWorkspaces(workspaces: LibraryWorkspace[], query: string): WorkspaceMatch[] {
     const needle = query.trim().toLocaleLowerCase();

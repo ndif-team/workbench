@@ -1,0 +1,125 @@
+import { RotateCcw } from "lucide-react";
+
+import { splitRepo } from "@/components/model-selector/status";
+import { Button } from "@/components/ui/button";
+import type { ChatMessage } from "@/db/schema";
+import { replyStatus } from "@/lib/chats";
+
+export type ThreadProps = {
+    messages: ChatMessage[];
+    /** The chat's model, named in the empty state. */
+    model: string;
+    /** A reply is running: no Regenerate until it settles. */
+    busy: boolean;
+    onRetry: (reply: ChatMessage) => void;
+    onRegenerate: (reply: ChatMessage) => void;
+};
+
+/** A chat-mode conversation: the user's turns on the right, the model's replies below them. */
+export function ChatThread({ messages, model, busy, onRetry, onRegenerate }: ThreadProps) {
+    if (messages.length === 0) {
+        return (
+            <p className="py-16 text-center text-sm text-muted-foreground">
+                Send a message to start chatting with{" "}
+                <span className="font-mono">{splitRepo(model).label}</span>.
+            </p>
+        );
+    }
+
+    const lastIndex = messages.length - 1;
+    return (
+        <ol className="flex flex-col gap-6" aria-label="Conversation">
+            {messages.map((message, i) => (
+                <li key={message.id}>
+                    {message.role === "assistant" ? (
+                        <Reply
+                            message={message}
+                            canRegenerate={i === lastIndex && !busy}
+                            onRetry={() => onRetry(message)}
+                            onRegenerate={() => onRegenerate(message)}
+                        />
+                    ) : (
+                        <div className="flex justify-end">
+                            <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-md bg-secondary px-3 py-2 text-sm">
+                                {message.content}
+                            </div>
+                        </div>
+                    )}
+                </li>
+            ))}
+        </ol>
+    );
+}
+
+/** One of the model's replies, by its run state: waiting, failed (with Retry) or complete. */
+export function Reply({
+    message,
+    canRegenerate,
+    onRetry,
+    onRegenerate,
+    showText = true,
+}: {
+    message: ChatMessage;
+    canRegenerate: boolean;
+    onRetry: () => void;
+    onRegenerate: () => void;
+    /** False where the text is shown elsewhere (a completion's document). */
+    showText?: boolean;
+}) {
+    const status = replyStatus(message);
+    if (status === "pending") {
+        return (
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+                Waiting for the reply…
+            </p>
+        );
+    }
+    if (status === "error") {
+        return (
+            <div role="alert" className="flex items-start justify-between gap-3 text-sm">
+                <p className="min-w-0 break-words text-destructive">
+                    {message.metadata?.error ?? "The reply failed."}
+                </p>
+                <Button variant="outline" size="sm" onClick={onRetry}>
+                    Retry
+                </Button>
+            </div>
+        );
+    }
+
+    const meta = message.metadata;
+    return (
+        <div className="space-y-1.5">
+            {showText && (
+                <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                    {message.content}
+                </div>
+            )}
+            {meta && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="font-mono">{splitRepo(meta.model).label}</span>
+                    {meta.nTokens !== undefined && (
+                        <span className="tabular-nums">
+                            · {meta.nTokens} {meta.nTokens === 1 ? "token" : "tokens"}
+                        </span>
+                    )}
+                    {meta.finishReason === "length" && (
+                        <span>· stopped at the {meta.params.maxNewTokens}-token limit</span>
+                    )}
+                    {canRegenerate && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-muted-foreground/60 hover:text-foreground"
+                            onClick={onRegenerate}
+                            aria-label="Regenerate the reply"
+                            title="Regenerate"
+                        >
+                            <RotateCcw className="size-3.5" />
+                        </Button>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}

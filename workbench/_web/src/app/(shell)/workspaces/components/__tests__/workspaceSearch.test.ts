@@ -27,6 +27,17 @@ const report = (id: string, title: string): LibraryItem => ({
     updatedAt: new Date(),
 });
 
+const chat = (id: string, name: string): LibraryItem => ({
+    kind: "chat",
+    id,
+    workspaceId: "w",
+    name,
+    model: "gpt2",
+    position: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+});
+
 const workspace = (id: string, name: string, items: LibraryItem[]): LibraryWorkspace => ({
     id,
     name,
@@ -37,7 +48,12 @@ const workspace = (id: string, name: string, items: LibraryItem[]): LibraryWorks
 });
 
 const library = [
-    workspace("ioi", "IOI circuit", [chart("c1", "Name movers"), report("r1", "Draft findings")]),
+    workspace("ioi", "IOI circuit", [
+        chart("c1", "Name movers"),
+        report("r1", "Draft findings"),
+        chat("h1", "Which heads move names?"),
+        chat("h2", "New chat"),
+    ]),
     workspace("facts", "Factual recall", [
         chart("c2", "Untitled Chart", "The Eiffel Tower is in the city of"),
         chart("c3", "Capitals"),
@@ -73,8 +89,15 @@ describe("searchWorkspaces", () => {
         expect(match.items.map((i) => i.id)).toEqual(["c3"]);
     });
 
-    it("doesn't match an untitled chart by its placeholder label", () => {
+    it("finds a workspace by a chat's name", () => {
+        expect(searchWorkspaces(library, "heads")).toEqual([
+            { workspace: library[0], items: [library[0].items[2]] },
+        ]);
+    });
+
+    it("doesn't match an untitled chart or a new chat by its placeholder label", () => {
         const untitled = [workspace("w", "Notes", [chart("c", "Untitled Chart")])];
         expect(searchWorkspaces(untitled, "untitled")).toEqual([]);
+        expect(names("new chat")).toEqual([]);
     });
 });
