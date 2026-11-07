@@ -47,6 +47,20 @@ export async function addChatTurn(
     return chatDb.addChatTurn(await requireUserId(), chatId, turn);
 }
 
+/** Starts a new reply beside an earlier one (Regenerate) in one of the signed-in user's chats. */
+export async function regenerateReply(
+    chatId: string,
+    replyId: string,
+    run: ReplyRun,
+): Promise<ChatMessage> {
+    return chatDb.regenerateReply(await requireUserId(), chatId, replyId, run);
+}
+
+/** Shows the branch through a message in one of the signed-in user's chats. */
+export async function showBranch(chatId: string, messageId: string): Promise<Chat> {
+    return chatDb.showBranch(await requireUserId(), chatId, messageId);
+}
+
 /** Saves a reply's outcome, or resets it for a retry, in one of the signed-in user's chats. */
 export async function updateChatMessage(
     messageId: string,

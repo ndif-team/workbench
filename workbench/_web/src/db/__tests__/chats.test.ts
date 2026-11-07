@@ -19,6 +19,8 @@ import {
     deleteChat,
     getChat,
     getChatMessages,
+    regenerateReply,
+    showBranch,
     updateChatMessage,
 } from "@/lib/queries/chatDb";
 import { createWorkshop } from "@/lib/queries/workshopDb";
@@ -29,7 +31,7 @@ import {
     moveChat,
 } from "@/lib/queries/workspaceDb";
 import { createLogitLensChartPair } from "@/lib/queries/chartDb";
-import { replyStatus } from "@/lib/chats";
+import { branchTo, replyStatus } from "@/lib/chats";
 import { DEFAULT_CHAT_NAME, DEFAULT_GENERATION_PARAMS, type ReplyRun } from "@/types/chats";
 
 const USER = "user-chats";
@@ -58,6 +60,16 @@ const workshopInput = () => ({
 /** The chat's messages as (position, role, content) rows. */
 const transcript = async (chatId: string) =>
     (await getChatMessages(USER, chatId)).map((m) => [m.position, m.data.role, m.content]);
+
+/** The branch on screen as (position, role, content) rows. */
+const branch = async (chatId: string) => {
+    const chat = await getChat(USER, chatId);
+    return branchTo(await getChatMessages(USER, chatId), chat!.headMessageId).map((m) => [
+        m.position,
+        m.data.role,
+        m.content,
+    ]);
+};
 
 /** Sends `content` and completes its reply with `answer`. */
 const exchange = async (chatId: string, content: string, answer: string) => {
@@ -181,22 +193,36 @@ describe("chat turns", () => {
         expect((await getChat(USER, chatId))!.name).toBe("Capitals");
     });
 
-    it("drops a failed reply at the end before appending, so turns keep alternating", async () => {
-        const [, reply] = await addChatTurn(USER, chatId, { content: "Hi", reply: pending });
+    it("makes a message sent after a failed reply another version of the unanswered one", async () => {
+        const [hi, reply] = await addChatTurn(USER, chatId, { content: "Hi", reply: pending });
         await updateChatMessage(USER, reply.id, {
             run: { ...settle("error"), error: "NDIF is down" },
         });
 
-        const added = await addChatTurn(USER, chatId, { content: "Hi again", reply: pending });
+        const [again] = await addChatTurn(USER, chatId, { content: "Hi again", reply: pending });
 
-        expect(added.map((m) => m.position)).toEqual([1, 2]);
-        expect(await transcript(chatId)).toEqual([
-            [0, "user", "Hi"],
-            [1, "user", "Hi again"],
-            [2, "assistant", ""],
+        expect(again.parentId).toBe(hi.parentId);
+        expect(await branch(chatId)).toEqual([
+            [0, "user", "Hi again"],
+            [1, "assistant", ""],
         ]);
         const ids = (await getChatMessages(USER, chatId)).map((m) => m.id);
+        expect(ids).toContain(hi.id);
         expect(ids).not.toContain(reply.id);
+    });
+
+    it("lets a completion's text follow its own text when the continuation failed", async () => {
+        const doc = (await createChat(USER, { model: "gpt2", mode: "completion" })).id;
+        const [, reply] = await addChatTurn(USER, doc, { content: "Once upon", reply: pending });
+        await updateChatMessage(USER, reply.id, { run: settle("error") });
+
+        await addChatTurn(USER, doc, { content: " a time", reply: pending });
+
+        expect(await branch(doc)).toEqual([
+            [0, "user", "Once upon"],
+            [1, "user", " a time"],
+            [2, "assistant", ""],
+        ]);
     });
 
     it("refuses a new message while the last reply is pending", async () => {
@@ -236,6 +262,94 @@ describe("chat turns", () => {
             addChatTurn(USER, chatId, { content: "x".repeat(100_001), reply: pending }),
         ).rejects.toThrow("at most");
         expect(await transcript(chatId)).toEqual([]);
+    });
+});
+
+describe("branches", () => {
+    let chatId: string;
+
+    beforeEach(async () => {
+        await clearDatabase();
+        chatId = (await createChat(USER, newChat)).id;
+    });
+
+    /** Regenerates the reply to "Hi" as "Hey!", next to the first one ("Hello!"). */
+    const twoVersions = async () => {
+        await exchange(chatId, "Hi", "Hello!");
+        const [, first] = await getChatMessages(USER, chatId);
+        const second = await regenerateReply(USER, chatId, first.id, pending);
+        await updateChatMessage(USER, second.id, { content: "Hey!", run: settle("complete") });
+        return { first, second };
+    };
+
+    it("regenerates a reply beside the old one, which stays as another version", async () => {
+        await exchange(chatId, "Hi", "Hello!");
+        const [, old] = await getChatMessages(USER, chatId);
+
+        const fresh = await regenerateReply(USER, chatId, old.id, pending);
+
+        expect(fresh.parentId).toBe(old.parentId);
+        expect(fresh.position).toBe(old.position);
+        expect((await getChat(USER, chatId))!.headMessageId).toBe(fresh.id);
+        expect(await branch(chatId)).toEqual([
+            [0, "user", "Hi"],
+            [1, "assistant", ""],
+        ]);
+        expect((await getChatMessages(USER, chatId)).map((m) => m.content)).toContain("Hello!");
+    });
+
+    it("shows another version, down to its newest message", async () => {
+        const { first, second } = await twoVersions();
+        await exchange(chatId, "How are you?", "Fine.");
+
+        await showBranch(USER, chatId, first.id);
+        expect(await branch(chatId)).toEqual([
+            [0, "user", "Hi"],
+            [1, "assistant", "Hello!"],
+        ]);
+
+        await showBranch(USER, chatId, second.id);
+        expect(await branch(chatId)).toEqual([
+            [0, "user", "Hi"],
+            [1, "assistant", "Hey!"],
+            [2, "user", "How are you?"],
+            [3, "assistant", "Fine."],
+        ]);
+    });
+
+    it("sends on the version on screen", async () => {
+        const { first } = await twoVersions();
+        await showBranch(USER, chatId, first.id);
+
+        const [question] = await addChatTurn(USER, chatId, {
+            content: "Who are you?",
+            reply: pending,
+        });
+
+        expect(question.parentId).toBe(first.id);
+    });
+
+    it("refuses to regenerate while a reply is pending, or anything but a reply", async () => {
+        const [hi, reply] = await addChatTurn(USER, chatId, { content: "Hi", reply: pending });
+        await expect(regenerateReply(USER, chatId, reply.id, pending)).rejects.toThrow(
+            "Wait for the reply",
+        );
+
+        await updateChatMessage(USER, reply.id, { content: "Hello!", run: settle("complete") });
+        await expect(regenerateReply(USER, chatId, hi.id, pending)).rejects.toThrow(
+            "Reply not found",
+        );
+    });
+
+    it("refuses a message from another chat", async () => {
+        const other = (await createChat(USER, newChat)).id;
+        await exchange(other, "Hi", "Hello!");
+        const [foreign, foreignReply] = await getChatMessages(USER, other);
+
+        await expect(showBranch(USER, chatId, foreign.id)).rejects.toThrow("Message not found");
+        await expect(regenerateReply(USER, chatId, foreignReply.id, pending)).rejects.toThrow(
+            "Reply not found",
+        );
     });
 });
 

@@ -41,6 +41,8 @@ import {
     getChat,
     getChatMessages,
     updateChat,
+    regenerateReply,
+    showBranch,
     updateChatMessage,
 } from "@/lib/queries/chatDb";
 import { setConfig } from "@/lib/queries/configDb";
@@ -267,7 +269,7 @@ describe("chat writes", () => {
         await createWorkspace(INTRUDER, "Theirs");
     });
 
-    it("refuse another user's create, rename, turn, reply, move and delete", async () => {
+    it("refuse another user's create, rename, turn, reply, regenerate, version switch, move and delete", async () => {
         const theirs = await createWorkspace(INTRUDER, "Also theirs");
 
         await expect(
@@ -285,6 +287,10 @@ describe("chat writes", () => {
                 run: { ...pendingReply, status: "complete" },
             }),
         ).rejects.toThrow("access denied");
+        await expect(regenerateReply(INTRUDER, chatId, replyId, pendingReply)).rejects.toThrow(
+            "access denied",
+        );
+        await expect(showBranch(INTRUDER, chatId, replyId)).rejects.toThrow("access denied");
         await expect(moveChat(INTRUDER, chatId, theirs.id)).rejects.toThrow("access denied");
         await expect(moveChat(INTRUDER, chatId, null)).rejects.toThrow("access denied");
         await expect(deleteChat(INTRUDER, chatId)).rejects.toThrow("access denied");

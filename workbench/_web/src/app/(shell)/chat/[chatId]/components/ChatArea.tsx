@@ -11,11 +11,12 @@ import {
     useChatMessages,
     useRerunReply,
     useSendChatMessage,
+    useShowBranch,
     useUpdateChat,
 } from "@/lib/api/chatApi";
 import { useCapture } from "@/lib/analytics";
 import { useModelsQuery } from "@/lib/api/modelsApi";
-import { chatModeFor, isPendingReply, replyStatus } from "@/lib/chats";
+import { branchTo, chatModeFor, isPendingReply, replyStatus } from "@/lib/chats";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { DEFAULT_GENERATION_PARAMS } from "@/types/chats";
 import { ChatComposer } from "./ChatComposer";
@@ -41,6 +42,7 @@ export function ChatArea() {
     const { mutate: updateChat } = useUpdateChat();
     const { mutateAsync: send } = useSendChatMessage(chat);
     const { mutate: rerun } = useRerunReply(chat);
+    const { mutate: showBranch, isPending: switching } = useShowBranch();
     const replying = useIsMutating({ mutationKey: ["chat-reply", chatId] }) > 0;
     const capture = useCapture();
 
@@ -80,15 +82,16 @@ export function ChatArea() {
     }, [chatId, messages, messagesLoaded, queryClient]);
 
     const scrollRef = useRef<HTMLDivElement>(null);
-    const last = messages?.[messages.length - 1];
+    const all = messages ?? [];
+    const branch = branchTo(all, chat?.headMessageId);
+    const last = branch[branch.length - 1];
     const lastStatus = last && replyStatus(last);
     useEffect(() => {
         const el = scrollRef.current;
         if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    }, [messages?.length, last?.content, lastStatus]);
+    }, [last?.id, last?.content, lastStatus]);
 
-    const list = messages ?? [];
-    const busy = replying || list.some(isPendingReply);
+    const busy = replying || switching || all.some(isPendingReply);
     const mode = chat?.mode ?? "chat";
     const Thread = mode === "chat" ? ChatThread : CompletionDocument;
 
@@ -98,11 +101,15 @@ export function ChatArea() {
                 <div className="mx-auto w-full max-w-3xl px-4 py-6">
                     {chat && messagesLoaded && (
                         <Thread
-                            messages={list}
+                            messages={branch}
+                            allMessages={all}
                             model={chat.model}
                             busy={busy}
                             onRetry={(reply) => rerun({ reply, trigger: "retry" })}
                             onRegenerate={(reply) => rerun({ reply, trigger: "regenerate" })}
+                            onShowVersion={(messageId) =>
+                                showBranch({ chatId: chat.id, messageId })
+                            }
                         />
                     )}
                 </div>
@@ -114,7 +121,7 @@ export function ChatArea() {
                     params={chat?.data.params ?? DEFAULT_GENERATION_PARAMS}
                     disabled={!chat || !messagesLoaded}
                     busy={busy}
-                    canContinue={list.length > 0}
+                    canContinue={branch.length > 0}
                     onSubmit={(content) => send(content)}
                     onModeChange={(next) =>
                         chat && updateChat({ chatId: chat.id, settings: { mode: next } })

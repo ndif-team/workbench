@@ -3,8 +3,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { chatMessages, chats, isUuid, jsonTextField, workspaces } from "@/db/schema";
 import type { Chat, ChatMessage } from "@/db/schema";
-import { chatTitleFrom, isFailedReply, isPendingReply } from "@/lib/chats";
-import { isUniqueViolation } from "@/lib/queries/workshopDb";
+import { chatTitleFrom, isFailedReply, isPendingReply, latestLeaf } from "@/lib/chats";
 import {
     getNextWorkspaceItemPosition,
     getOrCreateDefaultWorkspace,
@@ -126,7 +125,20 @@ export const getChatMessages = async (userId: string, chatId: string): Promise<C
         .where(
             and(eq(chatMessages.chatId, chatId), inArray(chatMessages.chatId, userChatIds(userId))),
         )
-        .orderBy(chatMessages.position)) as ChatMessage[];
+        .orderBy(chatMessages.position, chatMessages.createdAt)) as ChatMessage[];
+};
+
+/** One message of one of the user's chats, or null. */
+const getMessage = async (userId: string, messageId: string): Promise<ChatMessage | null> => {
+    if (!isUuid(messageId)) return null;
+    const [message] = await db
+        .select()
+        .from(chatMessages)
+        .where(
+            and(eq(chatMessages.id, messageId), inArray(chatMessages.chatId, userChatIds(userId))),
+        )
+        .limit(1);
+    return (message ?? null) as ChatMessage | null;
 };
 
 /**
@@ -166,7 +178,10 @@ export const deleteChat = async (userId: string, chatId: string): Promise<void> 
 };
 
 /** Marks a chat (and its workspace) as just used, so it rises in recent lists. */
-const touchChat = async (chatId: string, values: { name?: string } = {}) => {
+const touchChat = async (
+    chatId: string,
+    values: { name?: string; headMessageId?: string } = {},
+) => {
     const [chat] = await db
         .update(chats)
         .set({ ...values, updatedAt: new Date() })
@@ -183,17 +198,21 @@ const checkLength = (content: string) => {
     }
 };
 
+/** The message the chat's branch on screen ends with, or null for an empty chat. */
+const headOf = async (userId: string, chat: Chat): Promise<ChatMessage | null> =>
+    chat.headMessageId ? getMessage(userId, chat.headMessageId) : null;
+
 /**
- * Appends a user message and a pending reply to it to one of the user's
- * chats, and returns them. An empty `content` adds the reply alone (a
- * completion's Continue). A failed reply at the end of the chat is dropped
- * first, so the new message never follows it: strict chat templates refuse
- * two user turns in a row. Refused while a reply is still pending.
+ * Appends a user message and a pending reply to it at the end of the branch
+ * on screen in one of the user's chats, makes the reply the branch's end, and
+ * returns them. An empty `content` adds the reply alone (a completion's
+ * Continue). Refused while the branch's last reply is pending. A chat still
+ * under its default name is named after its first message.
  *
- * A chat still under its default name is named after its first message.
- * Positions follow the chat's last message; when a concurrent append takes
- * them first, the unique (chat, position) index refuses this insert and it
- * retries.
+ * A failed reply at the end is dropped first. In chat mode a message never
+ * follows another user message, since strict chat templates refuse two user
+ * turns in a row: one sent after an unanswered message becomes another
+ * version of it. A completion's text simply continues.
  */
 export const addChatTurn = async (
     userId: string,
@@ -204,42 +223,105 @@ export const addChatTurn = async (
     const chat = await getChat(userId, chatId);
     if (!chat) throw chatNotFound();
 
-    for (let attempt = 0; ; attempt++) {
-        try {
-            const [last] = await db
-                .select()
-                .from(chatMessages)
-                .where(eq(chatMessages.chatId, chatId))
-                .orderBy(desc(chatMessages.position))
-                .limit(1);
-            if (last && isPendingReply(last as ChatMessage)) {
-                throw new Error("Wait for the reply before sending another message");
-            }
-            let next = last ? last.position + 1 : 0;
-            if (last && isFailedReply(last as ChatMessage)) {
-                await db.delete(chatMessages).where(eq(chatMessages.id, last.id));
-                next = last.position;
-            }
-
-            const rows = [
-                ...(content
-                    ? [{ chatId, content, position: next, data: { role: "user" as const } }]
-                    : []),
-                {
-                    chatId,
-                    content: "",
-                    position: content ? next + 1 : next,
-                    data: { role: "assistant" as const, run: reply },
-                },
-            ];
-            const inserted = await db.insert(chatMessages).values(rows).returning();
-            const named = chat.name === DEFAULT_CHAT_NAME && content;
-            await touchChat(chatId, named ? { name: chatTitleFrom(content) } : {});
-            return inserted as ChatMessage[];
-        } catch (err) {
-            if (attempt >= 2 || !isUniqueViolation(err)) throw err;
-        }
+    let parent = await headOf(userId, chat);
+    if (parent && isPendingReply(parent)) {
+        throw new Error("Wait for the reply before sending another message");
     }
+    if (parent && isFailedReply(parent)) {
+        await db.delete(chatMessages).where(eq(chatMessages.id, parent.id));
+        parent = parent.parentId ? await getMessage(userId, parent.parentId) : null;
+    }
+    if (chat.mode === "chat" && content && parent?.data.role === "user") {
+        parent = parent.parentId ? await getMessage(userId, parent.parentId) : null;
+    }
+
+    const depth = parent ? parent.position + 1 : 0;
+    const userMessage = content
+        ? {
+              id: crypto.randomUUID(),
+              chatId,
+              parentId: parent?.id ?? null,
+              content,
+              position: depth,
+              data: { role: "user" as const },
+          }
+        : null;
+    const rows = [
+        ...(userMessage ? [userMessage] : []),
+        {
+            id: crypto.randomUUID(),
+            chatId,
+            parentId: userMessage?.id ?? parent?.id ?? null,
+            content: "",
+            position: userMessage ? depth + 1 : depth,
+            data: { role: "assistant" as const, run: reply },
+        },
+    ];
+    const inserted = (await db.insert(chatMessages).values(rows).returning()) as ChatMessage[];
+    const named = chat.name === DEFAULT_CHAT_NAME && content;
+    await touchChat(chatId, {
+        headMessageId: rows[rows.length - 1].id,
+        ...(named && { name: chatTitleFrom(content) }),
+    });
+    return inserted;
+};
+
+/**
+ * Starts a new reply beside `replyId` in one of the user's chats (Regenerate):
+ * a pending sibling that follows the same message, which becomes the end of
+ * the branch on screen. The earlier reply stays, as another branch.
+ */
+export const regenerateReply = async (
+    userId: string,
+    chatId: string,
+    replyId: string,
+    run: ReplyRun,
+): Promise<ChatMessage> => {
+    const [chat, reply] = await Promise.all([getChat(userId, chatId), getMessage(userId, replyId)]);
+    if (!chat || !reply || reply.chatId !== chatId || reply.data.role !== "assistant") {
+        throw new Error("Reply not found or access denied");
+    }
+    const head = await headOf(userId, chat);
+    if (head && isPendingReply(head)) {
+        throw new Error("Wait for the reply before running another");
+    }
+
+    const [sibling] = (await db
+        .insert(chatMessages)
+        .values({
+            id: crypto.randomUUID(),
+            chatId,
+            parentId: reply.parentId,
+            content: "",
+            position: reply.position,
+            data: { role: "assistant" as const, run },
+        })
+        .returning()) as ChatMessage[];
+    await touchChat(chatId, { headMessageId: sibling.id });
+    return sibling;
+};
+
+/**
+ * Shows the branch through `messageId` in one of the user's chats: its end
+ * becomes the newest message below `messageId`, following the newest at each
+ * step. Returns the chat.
+ */
+export const showBranch = async (
+    userId: string,
+    chatId: string,
+    messageId: string,
+): Promise<Chat> => {
+    const messages = await getChatMessages(userId, chatId);
+    if (!messages.some((m) => m.id === messageId)) {
+        throw new Error("Message not found or access denied");
+    }
+    const [chat] = await db
+        .update(chats)
+        .set({ headMessageId: latestLeaf(messages, messageId) })
+        .where(isUserChat(userId, chatId))
+        .returning();
+    if (!chat) throw chatNotFound();
+    return chat as Chat;
 };
 
 /**
