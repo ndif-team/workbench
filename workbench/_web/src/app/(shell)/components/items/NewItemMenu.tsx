@@ -75,11 +75,10 @@ export function NewItemMenu({
     contentClassName,
 }: NewItemMenuProps) {
     const router = useRouter();
-    const createReport = useCreateDocument(
-        origin === "workspace_page" ? "workspace_page" : "sidebar",
-    );
+    const surface = origin === "workspace_page" ? "workspace_page" : "sidebar";
+    const createReport = useCreateDocument(surface);
     const launchChart = useLaunchChart();
-    const { start: startChat, isPending: startingChat } = useStartChat();
+    const { start: startChat, isPending: startingChat } = useStartChat(surface);
     const pickedRef = useRef(false);
 
     const newChart = (tool: ToolType) => {

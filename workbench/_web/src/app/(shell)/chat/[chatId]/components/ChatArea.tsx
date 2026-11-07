@@ -13,6 +13,7 @@ import {
     useSendChatMessage,
     useUpdateChat,
 } from "@/lib/api/chatApi";
+import { useCapture } from "@/lib/analytics";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { chatModeFor, isPendingReply } from "@/lib/chats";
 import { useWorkspace } from "@/stores/useWorkspace";
@@ -41,6 +42,14 @@ export function ChatArea() {
     const { mutateAsync: send } = useSendChatMessage(chat);
     const { mutate: rerun } = useRerunReply(chat);
     const replying = useIsMutating({ mutationKey: ["chat-reply", chatId] }) > 0;
+    const capture = useCapture();
+
+    const openedRef = useRef(false);
+    useEffect(() => {
+        if (openedRef.current) return;
+        openedRef.current = true;
+        capture("tool_opened", { tool: "chat" });
+    }, [capture]);
 
     const syncedChatRef = useRef<string | null>(null);
     useEffect(() => {
@@ -91,8 +100,8 @@ export function ChatArea() {
                             messages={list}
                             model={chat.model}
                             busy={busy}
-                            onRetry={(reply) => rerun(reply)}
-                            onRegenerate={(reply) => rerun(reply)}
+                            onRetry={(reply) => rerun({ reply, trigger: "retry" })}
+                            onRegenerate={(reply) => rerun({ reply, trigger: "regenerate" })}
                         />
                     )}
                 </div>

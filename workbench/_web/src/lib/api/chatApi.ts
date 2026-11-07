@@ -4,8 +4,12 @@ import { toast } from "sonner";
 
 import { createUserHeadersAction } from "@/actions/auth";
 import type { Chat, ChatMessage } from "@/db/schema";
+import { useCapture, useTrackRun, type RunTrigger } from "@/lib/analytics";
+import { ItemAnalytics } from "@/lib/api/workspaceApi";
 import config from "@/lib/config";
 import { conversationBefore } from "@/lib/chats";
+import { captureError } from "@/lib/errorTracking";
+import { NDIFJobError, runErrorMessage } from "@/lib/ndifError";
 import {
     addChatTurn,
     createChat,
@@ -35,16 +39,29 @@ export const useChatMessages = (chatId: string) =>
         enabled: !!chatId,
     });
 
+/** Where a chat was created from: the sidebar's New menu or a folder page's. */
+export type ChatOrigin = "sidebar" | "workspace_page";
+
 /**
  * Creates a chat (in the default workspace unless `workspaceId` names a
  * folder) and fills its queries, so its page opens without fetching them.
+ * `origin` says which surface offered it.
  */
-export const useCreateChat = () => {
+export const useCreateChat = (origin: ChatOrigin = "sidebar") => {
     const queryClient = useQueryClient();
+    const capture = useCapture();
 
     return useMutation({
+        mutationKey: ["createChat"],
         mutationFn: (request: NewChatRequest) => createChat(request),
         onSuccess: (chat) => {
+            capture("chat_created", {
+                chat_id: chat.id,
+                workspace_id: chat.workspaceId,
+                model: chat.model,
+                chat_mode: chat.mode,
+                origin,
+            });
             queryClient.setQueryData(queryKeys.chats.chat(chat.id), chat);
             queryClient.setQueryData(queryKeys.chats.messages(chat.id), []);
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
@@ -98,10 +115,18 @@ export const useUpdateChat = () => {
 
 export const useDeleteChat = () => {
     const queryClient = useQueryClient();
+    const capture = useCapture();
 
     return useMutation({
+        mutationKey: ["deleteChat"],
         mutationFn: ({ chatId }: { chatId: string }) => deleteChat(chatId),
-        onSuccess: (_, { chatId }) => {
+        onMutate: ({ chatId }) => ItemAnalytics.chat(queryClient, chatId),
+        onSuccess: (_, { chatId }, chat) => {
+            capture("chat_deleted", {
+                chat_id: chatId,
+                workspace_id: chat.workspace_id,
+                model: chat.model,
+            });
             queryClient.removeQueries({ queryKey: queryKeys.chats.chat(chatId) });
             queryClient.removeQueries({ queryKey: queryKeys.chats.messages(chatId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
@@ -122,12 +147,29 @@ const runningReplies = new Set<string>();
 
 export const isReplyRunning = (messageId: string) => runningReplies.has(messageId);
 
+type TrackRun = ReturnType<typeof useTrackRun>;
+
+/** What a failed reply shows: NDIF's advice for a known failure, else the error's own message. */
+const replyErrorMessage = (error: unknown): string =>
+    error instanceof NDIFJobError
+        ? runErrorMessage(error, "The reply failed on NDIF")
+        : error instanceof Error
+          ? error.message
+          : String(error);
+
 /**
  * Generates the pending reply `reply` from the messages before it and saves
  * its outcome on the message: the text, or the error, which the chat shows
- * inline with a Retry. Never throws.
+ * inline with a Retry. Each reply is a tracked run (`useTrackRun`) whose
+ * prompt is the message it answers (none for a continuation). Never throws.
  */
-async function runReply(queryClient: QueryClient, chat: Chat, reply: ChatMessage) {
+async function runReply(
+    queryClient: QueryClient,
+    trackRun: TrackRun,
+    chat: Chat,
+    reply: ChatMessage,
+    trigger: RunTrigger,
+) {
     if (runningReplies.has(reply.id)) return;
     runningReplies.add(reply.id);
     const messagesKey = queryKeys.chats.messages(chat.id);
@@ -137,19 +179,40 @@ async function runReply(queryClient: QueryClient, chat: Chat, reply: ChatMessage
         const messages = queryClient.getQueryData<ChatMessage[]>(messagesKey) ?? [];
         const index = messages.findIndex((m) => m.id === reply.id);
         const conversation = conversationBefore(messages, index === -1 ? messages.length : index);
+        const last = conversation[conversation.length - 1];
+        const prompt = trigger !== "continue" && last?.role === "user" ? last.content : "";
         let outcome: { content?: string; metadata: ChatMessageMetadata };
         try {
-            const headers = await createUserHeadersAction();
-            const data = await runAndStream<GenerationData>(
-                config.endpoints.chatGenerate,
+            const request = {
+                model: metadata.model,
+                mode: chat.mode,
+                messages: conversation,
+                max_new_tokens: metadata.params.maxNewTokens,
+                temperature: metadata.params.temperature,
+            };
+            const data = await trackRun(
                 {
-                    model: metadata.model,
-                    mode: chat.mode,
-                    messages: conversation,
-                    max_new_tokens: metadata.params.maxNewTokens,
-                    temperature: metadata.params.temperature,
+                    tool: "chat",
+                    run_kind: chat.mode,
+                    trigger,
+                    model: request.model,
+                    chat_id: chat.id,
+                    workspace_id: chat.workspaceId,
+                    prompt,
+                    prompt_length: prompt.length,
+                    message_count: conversation.length,
+                    max_new_tokens: request.max_new_tokens,
+                    temperature: request.temperature,
                 },
-                headers,
+                async (jobs) => {
+                    const headers = await createUserHeadersAction();
+                    return runAndStream<GenerationData>(
+                        config.endpoints.chatGenerate,
+                        request,
+                        headers,
+                        jobs,
+                    );
+                },
             );
             outcome = {
                 content: data.text,
@@ -160,11 +223,14 @@ async function runReply(queryClient: QueryClient, chat: Chat, reply: ChatMessage
                     nTokens: data.completion_ids.length,
                 },
             };
-        } catch (err) {
-            const error = err instanceof Error ? err.message : String(err);
-            outcome = { metadata: { ...metadata, status: "error", error } };
+        } catch (error) {
+            outcome = {
+                metadata: { ...metadata, status: "error", error: replyErrorMessage(error) },
+            };
         }
-        await updateChatMessage(reply.id, outcome).catch(() => undefined);
+        await updateChatMessage(reply.id, outcome).catch((error) =>
+            captureError(error, { source: "chat_reply_save" }),
+        );
     } finally {
         runningReplies.delete(reply.id);
         queryClient.invalidateQueries({ queryKey: messagesKey });
@@ -178,6 +244,7 @@ async function runReply(queryClient: QueryClient, chat: Chat, reply: ChatMessage
  */
 export const useSendChatMessage = (chat: Chat | null | undefined) => {
     const queryClient = useQueryClient();
+    const trackRun = useTrackRun();
 
     return useMutation({
         mutationKey: ["chat-reply", chat?.id],
@@ -187,7 +254,8 @@ export const useSendChatMessage = (chat: Chat | null | undefined) => {
             await queryClient.invalidateQueries({ queryKey: queryKeys.chats.messages(chat.id) });
             queryClient.invalidateQueries({ queryKey: queryKeys.chats.chat(chat.id) });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
-            await runReply(queryClient, chat, added[added.length - 1]);
+            const reply = added[added.length - 1];
+            await runReply(queryClient, trackRun, chat, reply, content ? "run" : "continue");
         },
         onError: (err) => toast.error(err instanceof Error ? err.message : "Couldn't send"),
     });
@@ -199,10 +267,17 @@ export const useSendChatMessage = (chat: Chat | null | undefined) => {
  */
 export const useRerunReply = (chat: Chat | null | undefined) => {
     const queryClient = useQueryClient();
+    const trackRun = useTrackRun();
 
     return useMutation({
         mutationKey: ["chat-reply", chat?.id],
-        mutationFn: async (reply: ChatMessage) => {
+        mutationFn: async ({
+            reply,
+            trigger,
+        }: {
+            reply: ChatMessage;
+            trigger: "retry" | "regenerate";
+        }) => {
             if (!chat) return;
             const reset = await updateChatMessage(reply.id, {
                 content: "",
@@ -211,7 +286,7 @@ export const useRerunReply = (chat: Chat | null | undefined) => {
             queryClient.setQueryData<ChatMessage[]>(queryKeys.chats.messages(chat.id), (messages) =>
                 messages?.map((m) => (m.id === reset.id ? reset : m)),
             );
-            await runReply(queryClient, chat, reset);
+            await runReply(queryClient, trackRun, chat, reset, trigger);
         },
         onError: () => toast.error("Couldn't run the reply again"),
     });
@@ -226,6 +301,6 @@ export const markReplyInterrupted = async (queryClient: QueryClient, reply: Chat
             status: "error",
             error: "Interrupted: the page was closed or reloaded while the reply was generating.",
         },
-    }).catch(() => undefined);
+    }).catch((error) => captureError(error, { source: "chat_reply_interrupted" }));
     queryClient.invalidateQueries({ queryKey: queryKeys.chats.messages(reply.chatId) });
 };
