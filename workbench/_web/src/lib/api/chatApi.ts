@@ -276,6 +276,7 @@ async function runReply(
                     status: "complete",
                     finishReason: data.finish_reason,
                     nTokens: data.completion_ids.length,
+                    ...(data.reasoning && { reasoning: data.reasoning }),
                 },
             };
         } catch (error) {

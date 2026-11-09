@@ -29,6 +29,8 @@ export type ReplyRun = {
     params: GenerationParams;
     finishReason?: "stop" | "length";
     nTokens?: number;
+    /** A reasoning model's thinking, kept apart from the reply's text (gpt-oss's analysis). */
+    reasoning?: string;
     error?: string;
 };
 
