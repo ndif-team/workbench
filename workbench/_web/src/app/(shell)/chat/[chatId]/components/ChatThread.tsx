@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Code, RotateCcw } from "lucide-react";
 
 import { splitRepo } from "@/components/model-selector/status";
 import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "@/db/schema";
 import { replyRun, siblingsOf } from "@/lib/chats";
 import { cn } from "@/lib/utils";
+import { ReplyMarkdown } from "./ReplyMarkdown";
 
 export type ThreadProps = {
     /** The branch on screen, first message to last. */
@@ -130,7 +131,9 @@ export function ChatThread({
 
 /**
  * One of the model's replies, by its run state: waiting, failed (with Retry)
- * or complete, after its reasoning when the model kept that apart.
+ * or complete, after its reasoning when the model kept that apart. A
+ * complete reply reads as markdown (`ReplyMarkdown`); its </> button shows
+ * the text as the model wrote it instead, reasoning included.
  */
 export function Reply({
     message,
@@ -149,6 +152,7 @@ export function Reply({
     /** The reply's version switcher, shown with its outcome. */
     versions?: ReactNode;
 }) {
+    const [raw, setRaw] = useState(false);
     const run = replyRun(message);
     if (run?.status === "pending") {
         return (
@@ -176,13 +180,15 @@ export function Reply({
     return (
         <div className="space-y-1.5">
             {showText && run?.reasoning && (
-                <Reasoning text={run.reasoning} startOpen={!message.content} />
+                <Reasoning text={run.reasoning} raw={raw} startOpen={!message.content} />
             )}
-            {showText && message.content && (
-                <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                    {message.content}
-                </div>
-            )}
+            {showText &&
+                message.content &&
+                (raw ? (
+                    <RawText text={message.content} />
+                ) : (
+                    <ReplyMarkdown text={message.content} />
+                ))}
             {run && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     {versions}
@@ -194,6 +200,22 @@ export function Reply({
                     )}
                     {run.finishReason === "length" && (
                         <span>· stopped at the {run.params.maxNewTokens}-token limit</span>
+                    )}
+                    {showText && (message.content || run.reasoning) && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                                "size-6 hover:text-foreground",
+                                raw ? "bg-accent text-foreground" : "text-muted-foreground/60",
+                            )}
+                            onClick={() => setRaw((r) => !r)}
+                            aria-pressed={raw}
+                            aria-label="Show the raw text"
+                            title={raw ? "Show formatted" : "Show raw text"}
+                        >
+                            <Code className="size-3.5" />
+                        </Button>
                     )}
                     {canRegenerate && (
                         <Button
@@ -213,11 +235,26 @@ export function Reply({
     );
 }
 
+/** Text exactly as the model wrote it: its markdown unrendered, its whitespace kept. */
+function RawText({ text, className }: { text: string; className?: string }) {
+    return (
+        <div
+            className={cn(
+                "whitespace-pre-wrap break-words font-mono text-sm leading-relaxed",
+                className,
+            )}
+        >
+            {text}
+        </div>
+    );
+}
+
 /**
- * A reply's reasoning, folded under "Reasoning" until opened; `startOpen`
- * for a reply with no text besides it (cut off while reasoning).
+ * A reply's reasoning, folded under "Reasoning" until opened, as markdown or,
+ * with `raw`, as written; `startOpen` for a reply with no text besides it
+ * (cut off while reasoning).
  */
-function Reasoning({ text, startOpen }: { text: string; startOpen: boolean }) {
+function Reasoning({ text, raw, startOpen }: { text: string; raw: boolean; startOpen: boolean }) {
     const [open, setOpen] = useState(startOpen);
     return (
         <div>
@@ -234,8 +271,8 @@ function Reasoning({ text, startOpen }: { text: string; startOpen: boolean }) {
                 Reasoning
             </button>
             {open && (
-                <div className="mt-1.5 whitespace-pre-wrap break-words border-l-2 pl-3 text-sm leading-relaxed text-muted-foreground">
-                    {text}
+                <div className="mt-1.5 border-l-2 pl-3 text-muted-foreground">
+                    {raw ? <RawText text={text} /> : <ReplyMarkdown text={text} />}
                 </div>
             )}
         </div>
