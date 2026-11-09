@@ -112,7 +112,7 @@ export function ChatThread({
                         />
                     ) : (
                         <div className="flex flex-col items-end gap-1">
-                            <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-md bg-secondary px-3 py-2 text-sm">
+                            <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-md bg-card px-3 py-2 text-sm shadow-xs dark:bg-secondary">
                                 {message.content}
                             </div>
                             <VersionSwitcher
@@ -156,7 +156,7 @@ export function Reply({
     const run = replyRun(message);
     if (run?.status === "pending") {
         return (
-            <p className="text-sm text-muted-foreground" aria-live="polite">
+            <p className="text-shimmer w-fit text-sm" aria-live="polite">
                 Waiting for the reply…
             </p>
         );

@@ -38,7 +38,7 @@ export function PendingChatPage({ chat }: { chat: ChatDraft }) {
     const Thread = chat.mode === "chat" ? ChatThread : CompletionDocument;
 
     return (
-        <div className="flex size-full min-h-0 flex-col" aria-busy="true">
+        <div className="aurora-base flex size-full min-h-0 flex-col" aria-busy="true">
             <span role="status" className="sr-only">
                 Starting the chat…
             </span>
