@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useIsMutating, useQueryClient } from "@tanstack/react-query";
 
@@ -17,8 +17,10 @@ import {
 import { useCapture } from "@/lib/analytics";
 import { useModelsQuery } from "@/lib/api/modelsApi";
 import { branchTo, chatModeFor, isPendingReply, replyStatus } from "@/lib/chats";
+import { usePromptFocus } from "@/stores/usePromptFocus";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { DEFAULT_GENERATION_PARAMS } from "@/types/chats";
+import { ChatColumns } from "./ChatColumns";
 import { ChatComposer } from "./ChatComposer";
 import { ChatThread } from "./ChatThread";
 import { CompletionDocument } from "./CompletionDocument";
@@ -30,7 +32,8 @@ import { CompletionDocument } from "./CompletionDocument";
  * The header's pick follows the chat when it opens; picking another model
  * there afterwards switches the chat to it, in the mode that model runs in
  * (`chatModeFor`). A reply left pending by a closed or reloaded page is
- * marked interrupted when the chat opens, so it offers Retry.
+ * marked interrupted when the chat opens, so it offers Retry. A chat started
+ * from Home's composer opens with its composer focused (`usePromptFocus`).
  */
 export function ChatArea() {
     const { chatId } = useParams<{ chatId: string }>();
@@ -45,6 +48,11 @@ export function ChatArea() {
     const { mutate: showBranch } = useShowBranch();
     const replying = useIsMutating({ mutationKey: ["chat-reply", chatId] }) > 0;
     const capture = useCapture();
+
+    const [focusComposer] = useState(() => usePromptFocus.getState().itemId === chatId);
+    useEffect(() => {
+        if (focusComposer) usePromptFocus.getState().clear();
+    }, [focusComposer]);
 
     const openedRef = useRef(false);
     useEffect(() => {
@@ -96,25 +104,23 @@ export function ChatArea() {
     const Thread = mode === "chat" ? ChatThread : CompletionDocument;
 
     return (
-        <div className="flex size-full min-h-0 flex-col">
-            <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-                <div className="mx-auto w-full max-w-3xl px-4 py-6">
-                    {chat && messagesLoaded && (
-                        <Thread
-                            messages={branch}
-                            allMessages={all}
-                            model={chat.model}
-                            busy={busy}
-                            onRetry={(reply) => rerun({ reply, trigger: "retry" })}
-                            onRegenerate={(reply) => rerun({ reply, trigger: "regenerate" })}
-                            onShowVersion={(messageId) =>
-                                showBranch({ chatId: chat.id, messageId })
-                            }
-                        />
-                    )}
-                </div>
-            </div>
-            <div className="mx-auto w-full max-w-3xl px-4 pb-4">
+        <ChatColumns
+            scrollRef={scrollRef}
+            thread={
+                chat &&
+                messagesLoaded && (
+                    <Thread
+                        messages={branch}
+                        allMessages={all}
+                        model={chat.model}
+                        busy={busy}
+                        onRetry={(reply) => rerun({ reply, trigger: "retry" })}
+                        onRegenerate={(reply) => rerun({ reply, trigger: "regenerate" })}
+                        onShowVersion={(messageId) => showBranch({ chatId: chat.id, messageId })}
+                    />
+                )
+            }
+            composer={
                 <ChatComposer
                     key={chatId}
                     mode={mode}
@@ -122,6 +128,7 @@ export function ChatArea() {
                     disabled={!chat || !messagesLoaded}
                     busy={busy}
                     canContinue={branch.length > 0}
+                    autoFocus={focusComposer}
                     onSubmit={(content) => send(content)}
                     onModeChange={(next) =>
                         chat && updateChat({ chatId: chat.id, settings: { mode: next } })
@@ -130,7 +137,7 @@ export function ChatArea() {
                         chat && updateChat({ chatId: chat.id, settings: { params } })
                     }
                 />
-            </div>
-        </div>
+            }
+        />
     );
 }

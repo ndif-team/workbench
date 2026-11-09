@@ -11,7 +11,8 @@ import { toolTypeFromDisplay } from "@/lib/toolSupport";
  * ("Logit Lens") or a tool type ("patch-lens"); `srcPos`, `tgtPos` and
  * `tgtFreeze` are JSON arrays; `deploy=true` creates an empty chart for a model
  * that is being deployed; `workspaceId` files the chart in that workspace
- * instead of the default one.
+ * instead of the default one. `tool=Chat` starts a chat instead
+ * (`ChatLaunch`), with `prompt` as its first message, in `mode` when given.
  */
 const CHART_LAUNCH_PARAMS = [
     "tool",
@@ -24,6 +25,7 @@ const CHART_LAUNCH_PARAMS = [
     "tgtFreeze",
     "deploy",
     "workspaceId",
+    "mode",
 ] as const;
 
 export type ChartLaunchRequest = Partial<Record<(typeof CHART_LAUNCH_PARAMS)[number], string>>;

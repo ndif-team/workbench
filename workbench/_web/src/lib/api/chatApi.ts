@@ -6,13 +6,22 @@ import { createUserHeadersAction } from "@/actions/auth";
 import type { Chat, ChatMessage } from "@/db/schema";
 import { useCapture, useTrackRun, type RunTrigger } from "@/lib/analytics";
 import { ItemAnalytics } from "@/lib/api/workspaceApi";
+import type { ChatOrigin } from "@/lib/chatLaunch";
 import config from "@/lib/config";
-import { conversationBefore, latestLeaf, newMessageId, placeTurn, replyRun } from "@/lib/chats";
+import {
+    conversationBefore,
+    draftMessage,
+    latestLeaf,
+    newMessageId,
+    placeTurn,
+    replyRun,
+} from "@/lib/chats";
 import { captureError } from "@/lib/errorTracking";
 import { NDIFJobError, runErrorMessage } from "@/lib/ndifError";
 import {
     addChatTurn,
     createChat,
+    createChatWithMessage,
     deleteChat,
     getChat,
     getChatMessages,
@@ -41,9 +50,6 @@ export const useChatMessages = (chatId: string) =>
         enabled: !!chatId,
     });
 
-/** Where a chat was created from: the sidebar's New menu or a folder page's. */
-export type ChatOrigin = "sidebar" | "workspace_page";
-
 /**
  * Creates a chat (in the default workspace unless `workspaceId` names a
  * folder) and fills its queries, so its page opens without fetching them.
@@ -63,6 +69,7 @@ export const useCreateChat = (origin: ChatOrigin = "sidebar") => {
                 model: chat.model,
                 chat_mode: chat.mode,
                 origin,
+                has_message: false,
             });
             queryClient.setQueryData(queryKeys.chats.chat(chat.id), chat);
             queryClient.setQueryData(queryKeys.chats.messages(chat.id), []);
@@ -70,6 +77,50 @@ export const useCreateChat = (origin: ChatOrigin = "sidebar") => {
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
         },
         onError: () => toast.error("Couldn't create the chat"),
+    });
+};
+
+/**
+ * Creates a chat whose first turn is `content` (`createChatWithMessage`; an
+ * empty chat without one), fills its queries so its page opens without
+ * fetching them, and starts the reply, which runs on after the mutation
+ * resolves and after the launching page unmounts. `origin` is the surface
+ * that started it, for `chat_created`.
+ */
+export const useCreateChatWithMessage = () => {
+    const queryClient = useQueryClient();
+    const capture = useCapture();
+    const trackRun = useTrackRun();
+
+    return useMutation({
+        mutationKey: ["createChat"],
+        mutationFn: async ({
+            request,
+            content,
+        }: {
+            request: NewChatRequest;
+            content: string;
+            origin: ChatOrigin;
+        }) => {
+            const { chat, messages } = await createChatWithMessage(request, content);
+            queryClient.setQueryData(queryKeys.chats.chat(chat.id), chat);
+            queryClient.setQueryData(queryKeys.chats.messages(chat.id), messages);
+            const reply = messages[messages.length - 1];
+            if (reply) void runReply(queryClient, trackRun, chat, reply, "run");
+            return chat;
+        },
+        onSuccess: (chat, { content, origin }) => {
+            capture("chat_created", {
+                chat_id: chat.id,
+                workspace_id: chat.workspaceId,
+                model: chat.model,
+                chat_mode: chat.mode,
+                origin,
+                has_message: !!content,
+            });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all });
+        },
     });
 };
 
@@ -297,15 +348,6 @@ class ChatCache {
             chat ? { ...chat, headMessageId: messageId } : chat,
         );
     }
-
-    /** A message the page shows before the server has written it. */
-    static draft(
-        chatId: string,
-        fields: Pick<ChatMessage, "id" | "parentId" | "content" | "position" | "data">,
-    ): ChatMessage {
-        const now = new Date();
-        return { ...fields, chatId, createdAt: now, updatedAt: now };
-    }
 }
 
 /**
@@ -341,7 +383,7 @@ export const useSendChatMessage = (chat: Chat | null | undefined) => {
                 [
                     ...(ids.user
                         ? [
-                              ChatCache.draft(chat.id, {
+                              draftMessage(chat.id, {
                                   id: ids.user,
                                   parentId: place.parentId,
                                   content,
@@ -350,7 +392,7 @@ export const useSendChatMessage = (chat: Chat | null | undefined) => {
                               }),
                           ]
                         : []),
-                    ChatCache.draft(chat.id, {
+                    draftMessage(chat.id, {
                         id: ids.reply,
                         parentId: ids.user ?? place.parentId,
                         content: "",
@@ -409,7 +451,7 @@ export const useRerunReply = (chat: Chat | null | undefined) => {
                 if (trigger === "regenerate") {
                     const id = newMessageId();
                     cache.put([
-                        ChatCache.draft(chat.id, {
+                        draftMessage(chat.id, {
                             id,
                             parentId: reply.parentId,
                             content: "",

@@ -41,3 +41,21 @@ export type ChatData = {
 export type ChatMessageData =
     | { role: Exclude<ChatRole, "assistant"> }
     | { role: "assistant"; run: ReplyRun };
+
+/** A box's place on screen, in viewport pixels. */
+export type ScreenRect = { top: number; left: number; width: number; height: number };
+
+/**
+ * A chat being started from a composer outside it (Home's, the landing
+ * page's), as its page shows it before it exists: the first message, the
+ * model and mode it runs in, the folder it goes in (none for the default
+ * workspace) and, when launched from a composer on screen, that composer's
+ * box, which the chat's composer glides in from.
+ */
+export type ChatDraft = {
+    model: string;
+    mode: ChatMode;
+    content: string;
+    workspaceId?: string;
+    composerRect?: ScreenRect;
+};
