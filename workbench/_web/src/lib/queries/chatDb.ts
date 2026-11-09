@@ -266,6 +266,38 @@ export const addChatTurn = async (
 };
 
 /**
+ * Creates a chat (like `createChat`) whose first turn is `content` and a
+ * pending reply to it, run with the chat's model and settings, and returns
+ * the chat as that turn left it (named after the message, the reply at the
+ * end of its branch) with the turn's messages. An empty `content` creates an
+ * empty chat. A turn that can't be added takes the chat back out.
+ */
+export const createChatWithMessage = async (
+    userId: string,
+    request: NewChatRequest,
+    content: string,
+): Promise<{ chat: Chat; messages: ChatMessage[] }> => {
+    checkLength(content);
+    const created = await createChat(userId, request);
+    if (!content) return { chat: created, messages: [] };
+
+    try {
+        const reply: ReplyRun = {
+            status: "pending",
+            model: created.model,
+            params: created.data.params,
+        };
+        const messages = await addChatTurn(userId, created.id, { content, reply });
+        const chat = await getChat(userId, created.id);
+        if (!chat) throw chatNotFound();
+        return { chat, messages };
+    } catch (error) {
+        await deleteChat(userId, created.id).catch(() => {});
+        throw error;
+    }
+};
+
+/**
  * Starts a new reply beside `replyId` in one of the user's chats (Regenerate):
  * a pending sibling that follows the same message, which becomes the end of
  * the branch on screen. The earlier reply stays, as another branch. `id` is

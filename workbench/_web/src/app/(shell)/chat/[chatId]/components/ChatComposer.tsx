@@ -26,6 +26,8 @@ export function ChatComposer({
     disabled,
     busy,
     canContinue,
+    autoFocus = false,
+    readOnly = false,
     onSubmit,
     onModeChange,
     onParamsChange,
@@ -37,6 +39,10 @@ export function ChatComposer({
     busy: boolean;
     /** There is text to continue (completion mode). */
     canContinue: boolean;
+    /** Takes focus when it mounts (a chat just started from Home's composer). */
+    autoFocus?: boolean;
+    /** Focusable but takes no input: the composer of a chat still being started. */
+    readOnly?: boolean;
     onSubmit: (content: string) => Promise<unknown>;
     onModeChange: (mode: ChatMode) => void;
     onParamsChange: (params: GenerationParams) => void;
@@ -76,6 +82,8 @@ export function ChatComposer({
                 }
                 aria-label={mode === "chat" ? "Message" : "Text to add"}
                 disabled={disabled}
+                autoFocus={autoFocus}
+                readOnly={readOnly}
                 className="max-h-60 min-h-20 resize-none border-0 bg-transparent px-4 pt-3 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
             <div className="flex flex-wrap items-center gap-1.5 p-2 pl-3">

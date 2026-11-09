@@ -1,13 +1,10 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
-
-import { useWorkspaceLibrary } from "@/lib/api/workspaceApi";
 import { launchTool, type ChartLaunchRequest } from "@/lib/chartLaunch";
 import { cn } from "@/lib/utils";
 import type { ToolType } from "@/types/charts";
 import { toolMeta } from "../toolMeta";
-import { PageHeader } from "./PageHeader";
+import { PendingItemHeader } from "./PendingItemHeader";
 
 type PromptField = { label: string; placeholder: string; height: string };
 
@@ -34,7 +31,7 @@ const LAYOUTS: Record<ToolType, { controls: number; fields: PromptField[] }> = {
 
 /**
  * The page of a chart that is being created, shown from the moment it's asked
- * for until the chart's own page opens (`usePendingChart`, and `/new`): the
+ * for until the chart's own page opens (`usePendingItem`, and `/new`): the
  * chart page's header and its tool's empty panels, laid out as that page lays
  * them out and holding the prompts it was launched with, so the page fills in
  * around them rather than replacing a spinner.
@@ -42,8 +39,6 @@ const LAYOUTS: Record<ToolType, { controls: number; fields: PromptField[] }> = {
 export function PendingChartPage({ request }: { request: ChartLaunchRequest }) {
     const tool = launchTool(request.tool);
     const layout = LAYOUTS[tool];
-    const { data: library } = useWorkspaceLibrary({ enabled: !!request.workspaceId });
-    const folderName = library?.workspaces.find((w) => w.id === request.workspaceId)?.name;
     const prompts =
         request.deploy === "true"
             ? []
@@ -56,25 +51,10 @@ export function PendingChartPage({ request }: { request: ChartLaunchRequest }) {
             <span role="status" className="sr-only">
                 Creating chart…
             </span>
-            <PageHeader
-                center={
-                    <div className="flex min-w-0 items-center gap-1 text-sm">
-                        {folderName && (
-                            <>
-                                <span className="hidden min-w-0 max-w-[12rem] truncate px-1 text-muted-foreground md:block">
-                                    {folderName}
-                                </span>
-                                <ChevronRight
-                                    aria-hidden
-                                    className="hidden size-3.5 shrink-0 text-muted-foreground md:block"
-                                />
-                            </>
-                        )}
-                        <span className="min-w-0 truncate px-1 font-medium text-muted-foreground">
-                            Untitled chart
-                        </span>
-                    </div>
-                }
+            <PendingItemHeader
+                workspaceId={request.workspaceId}
+                title="Untitled chart"
+                placeholder
             />
             <div className="min-h-0 flex-1 px-3 pb-3 max-md:px-2 max-md:pb-2">
                 <div

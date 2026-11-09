@@ -12,13 +12,13 @@ import {
 } from "@/lib/chartLaunch";
 import { toolChartPath } from "@/lib/chartRoutes";
 import type { LaunchedChart } from "@/lib/queries/chartDb";
-import { usePendingChart } from "@/stores/usePendingChart";
+import { usePendingItem } from "@/stores/usePendingItem";
 import { usePromptFocus } from "@/stores/usePromptFocus";
 
 /**
  * Starts a chart from inside the app, from the parameters a `/new` URL takes
  * (`newChartPath`), without loading that page. The shell shows the chart's
- * empty page at once (`usePendingChart`) while the chart is created, then its
+ * empty page at once (`usePendingItem`) while the chart is created, then its
  * page opens on the rows the creation cached (`useCreateChartFromLaunch`); a
  * blank chart opens with its prompt focused. A chart whose user went
  * elsewhere meanwhile is still created, but not opened. `origin` names the
@@ -34,24 +34,24 @@ export function useLaunchChart() {
             const request = chartLaunchFromSearchParams(
                 Object.fromEntries(new URLSearchParams(params)),
             );
-            const launch = usePendingChart
+            const launch = usePendingItem
                 .getState()
-                .start({ request, from: window.location.pathname });
+                .start({ kind: "chart", request, from: window.location.pathname });
             createChart(request).then(
                 (launched) => {
                     const blank = isBlankPlan(planChartLaunch(request));
                     captureLaunched(launched, origin, blank);
-                    if (usePendingChart.getState().pending?.id !== launch) return;
+                    if (usePendingItem.getState().pending?.id !== launch) return;
                     const path = toolChartPath(launched.chartId, launched.toolType);
                     // Reopening the blank chart on screen changes no page to end the launch.
                     const stays = path === window.location.pathname;
-                    if (stays) usePendingChart.getState().clear(launch);
+                    if (stays) usePendingItem.getState().clear(launch);
                     if (blank) usePromptFocus.getState().request(launched.chartId);
                     if (!stays) router.push(path);
                 },
                 (err) => {
                     console.error("Failed to create chart:", err);
-                    usePendingChart.getState().clear(launch);
+                    usePendingItem.getState().clear(launch);
                     toast.error("Couldn't create the chart");
                 },
             );

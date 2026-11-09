@@ -10,6 +10,15 @@ export const chatTitleFrom = (content: string): string => {
     return line.length > TITLE_LENGTH ? `${line.slice(0, TITLE_LENGTH - 1).trimEnd()}…` : line;
 };
 
+/** A message the page shows before the server has written it. */
+export const draftMessage = (
+    chatId: string,
+    fields: Pick<ChatMessage, "id" | "parentId" | "content" | "position" | "data">,
+): ChatMessage => {
+    const now = new Date();
+    return { ...fields, chatId, createdAt: now, updatedAt: now };
+};
+
 /** How a chat with `model` runs: its chat template for a chat model, else completion. */
 export const chatModeFor = (model: Pick<Model, "is_chat"> | undefined): ChatMode =>
     model?.is_chat ? "chat" : "completion";

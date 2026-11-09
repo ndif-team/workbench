@@ -4,7 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { defaultModel, isModelRunnable } from "@/components/model-selector/status";
-import { useCreateChat, type ChatOrigin } from "@/lib/api/chatApi";
+import { useCreateChat } from "@/lib/api/chatApi";
+import type { ChatOrigin } from "@/lib/chatLaunch";
 import { getModels, useModelsQuery } from "@/lib/api/modelsApi";
 import { chatPath } from "@/lib/chartRoutes";
 import { chatModeFor } from "@/lib/chats";

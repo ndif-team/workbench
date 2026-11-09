@@ -19,6 +19,19 @@ export async function createChat(request: chatDb.NewChatRequest): Promise<Chat> 
     return chatDb.createChat(user.id, request);
 }
 
+/**
+ * Creates a chat for the signed-in user whose first turn is `content` and a
+ * pending reply to it (an empty chat when `content` is empty).
+ */
+export async function createChatWithMessage(
+    request: chatDb.NewChatRequest,
+    content: string,
+): Promise<{ chat: Chat; messages: ChatMessage[] }> {
+    const user = await requireUser();
+    if (hasWorkshopClaim(user)) throw new Error("Chats aren't available in a workshop");
+    return chatDb.createChatWithMessage(user.id, request, content);
+}
+
 /** One of the signed-in user's chats, or null. */
 export async function getChat(chatId: string): Promise<Chat | null> {
     return chatDb.getChat(await requireUserId(), chatId);

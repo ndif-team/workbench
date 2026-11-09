@@ -2,7 +2,8 @@
  * Integration tests for chats and their messages (chatDb.ts) on SQLite.
  *
  * Covers where a chat is created (the default workspace, a folder, never
- * another user's or a workshop workspace), how a turn is appended (dense
+ * another user's or a workshop workspace), a chat created with its first
+ * message (Home's composer), how a turn is appended (dense
  * positions, the chat named after its first message, a failed reply dropped
  * first, refused while a reply is pending, a reply alone for a
  * continuation), saving a reply, deleting a chat with its messages, and
@@ -16,6 +17,7 @@ import { chatMessages, chats } from "../schema";
 import {
     addChatTurn,
     createChat,
+    createChatWithMessage,
     deleteChat,
     getChat,
     getChatMessages,
@@ -137,6 +139,66 @@ describe("creating a chat", () => {
             "workshop",
         );
         expect(await db.select().from(chats)).toEqual([]);
+    });
+});
+
+describe("creating a chat with its first message", () => {
+    beforeEach(async () => {
+        await clearDatabase();
+    });
+
+    it("adds the message and a pending reply, names the chat after it and shows the reply", async () => {
+        const folder = await createWorkspace(USER, "Folder");
+        const params = { temperature: 0.2, maxNewTokens: 64 };
+
+        const { chat, messages } = await createChatWithMessage(
+            USER,
+            { ...newChat, params, workspaceId: folder.id },
+            "What is the capital of France?\nAnswer briefly.",
+        );
+
+        expect(chat.workspaceId).toBe(folder.id);
+        expect(chat.name).toBe("What is the capital of France?");
+        expect(messages.map((m) => [m.position, m.data.role, m.content])).toEqual([
+            [0, "user", "What is the capital of France?\nAnswer briefly."],
+            [1, "assistant", ""],
+        ]);
+        expect(chat.headMessageId).toBe(messages[1].id);
+        expect(messages[1].data).toEqual({
+            role: "assistant",
+            run: { status: "pending", model: newChat.model, params },
+        });
+        expect(await getChat(USER, chat.id)).toEqual(chat);
+        expect(await branch(chat.id)).toEqual([
+            [0, "user", "What is the capital of France?\nAnswer briefly."],
+            [1, "assistant", ""],
+        ]);
+    });
+
+    it("creates an empty chat without a message", async () => {
+        const { chat, messages } = await createChatWithMessage(USER, newChat, "");
+
+        expect(chat.name).toBe(DEFAULT_CHAT_NAME);
+        expect(chat.headMessageId).toBeNull();
+        expect(messages).toEqual([]);
+    });
+
+    it("refuses an overlong message, another user's workspace and a workshop's, leaving no chat", async () => {
+        const theirs = await createWorkspace(OTHER, "Theirs");
+        const workshop = await createWorkshop(workshopInput());
+        const pilot = await createWorkspace(USER, "Pilot", workshop.id);
+
+        await expect(createChatWithMessage(USER, newChat, "x".repeat(100_001))).rejects.toThrow(
+            "at most",
+        );
+        await expect(
+            createChatWithMessage(USER, { ...newChat, workspaceId: theirs.id }, "Hi"),
+        ).rejects.toThrow("access denied");
+        await expect(
+            createChatWithMessage(USER, { ...newChat, workspaceId: pilot.id }, "Hi"),
+        ).rejects.toThrow("workshop");
+        expect(await db.select().from(chats)).toEqual([]);
+        expect(await db.select().from(chatMessages)).toEqual([]);
     });
 });
 

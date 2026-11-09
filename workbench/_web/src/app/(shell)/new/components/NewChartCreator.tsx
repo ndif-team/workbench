@@ -3,21 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { useCaptureLaunchedChart } from "@/hooks/useLaunchChart";
 import { useCreateChartFromLaunch } from "@/lib/api/chartApi";
 import { toolChartPath } from "@/lib/chartRoutes";
-import { getPendingRequest, pendingRequestPath } from "@/lib/pendingRequest";
+import { resumePendingRequest } from "@/lib/pendingRequest";
 import {
-    ChartOrigins,
     isBlankPlan,
     planChartLaunch,
     type ChartLaunchRequest,
     type ChartOrigin,
 } from "@/lib/chartLaunch";
 import { usePromptFocus } from "@/stores/usePromptFocus";
-import { PageHeader } from "../../components/shell/PageHeader";
 import { PendingChartPage } from "../../components/shell/PendingChartPage";
+import { LaunchFailed } from "./LaunchFailed";
 
 /**
  * Creates the chart a `/new` URL describes, showing its empty page meanwhile
@@ -51,11 +49,7 @@ export function NewChartCreator({
         if (startedAttemptRef.current === attempt) return;
         startedAttemptRef.current = attempt;
 
-        const pendingRequest = getPendingRequest();
-        if (pendingRequest) {
-            router.replace(ChartOrigins.tag(pendingRequestPath(pendingRequest), "resumed"));
-            return;
-        }
+        if (resumePendingRequest(router)) return;
 
         setFailed(false);
         createChart(request).then(
@@ -73,23 +67,10 @@ export function NewChartCreator({
     }, [attempt, request, origin, router, createChart, captureLaunched]);
 
     if (!failed) return <PendingChartPage request={request} />;
-
     return (
-        <div className="flex size-full min-h-0 flex-col">
-            <PageHeader />
-            <div className="flex flex-1 items-center justify-center p-4" role="alert">
-                <div className="flex flex-col items-center gap-3 text-center">
-                    <p className="text-sm text-muted-foreground">Couldn&apos;t create the chart.</p>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setAttempt((n) => n + 1)}
-                    >
-                        Try again
-                    </Button>
-                </div>
-            </div>
-        </div>
+        <LaunchFailed
+            message="Couldn't create the chart."
+            onRetry={() => setAttempt((n) => n + 1)}
+        />
     );
 }
