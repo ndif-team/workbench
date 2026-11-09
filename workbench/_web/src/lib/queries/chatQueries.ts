@@ -42,7 +42,7 @@ export async function deleteChat(chatId: string): Promise<void> {
 /** Appends a message and a pending reply to one of the signed-in user's chats. */
 export async function addChatTurn(
     chatId: string,
-    turn: { content: string; reply: ReplyRun },
+    turn: { content: string; reply: ReplyRun; ids?: chatDb.TurnIds },
 ): Promise<ChatMessage[]> {
     return chatDb.addChatTurn(await requireUserId(), chatId, turn);
 }
@@ -52,8 +52,9 @@ export async function regenerateReply(
     chatId: string,
     replyId: string,
     run: ReplyRun,
+    id?: string,
 ): Promise<ChatMessage> {
-    return chatDb.regenerateReply(await requireUserId(), chatId, replyId, run);
+    return chatDb.regenerateReply(await requireUserId(), chatId, replyId, run, id);
 }
 
 /** Shows the branch through a message in one of the signed-in user's chats. */

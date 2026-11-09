@@ -42,7 +42,7 @@ export function ChatArea() {
     const { mutate: updateChat } = useUpdateChat();
     const { mutateAsync: send } = useSendChatMessage(chat);
     const { mutate: rerun } = useRerunReply(chat);
-    const { mutate: showBranch, isPending: switching } = useShowBranch();
+    const { mutate: showBranch } = useShowBranch();
     const replying = useIsMutating({ mutationKey: ["chat-reply", chatId] }) > 0;
     const capture = useCapture();
 
@@ -91,7 +91,7 @@ export function ChatArea() {
         if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }, [last?.id, last?.content, lastStatus]);
 
-    const busy = replying || switching || all.some(isPendingReply);
+    const busy = replying || all.some(isPendingReply);
     const mode = chat?.mode ?? "chat";
     const Thread = mode === "chat" ? ChatThread : CompletionDocument;
 

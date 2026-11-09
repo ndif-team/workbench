@@ -7,7 +7,7 @@ import type { Chat, ChatMessage } from "@/db/schema";
 import { useCapture, useTrackRun, type RunTrigger } from "@/lib/analytics";
 import { ItemAnalytics } from "@/lib/api/workspaceApi";
 import config from "@/lib/config";
-import { conversationBefore, replyRun } from "@/lib/chats";
+import { conversationBefore, latestLeaf, newMessageId, placeTurn, replyRun } from "@/lib/chats";
 import { captureError } from "@/lib/errorTracking";
 import { NDIFJobError, runErrorMessage } from "@/lib/ndifError";
 import {
@@ -21,7 +21,7 @@ import {
     updateChat,
     updateChatMessage,
 } from "@/lib/queries/chatQueries";
-import type { NewChatRequest, ChatSettings } from "@/lib/queries/chatDb";
+import type { NewChatRequest, ChatSettings, TurnIds } from "@/lib/queries/chatDb";
 import { queryKeys } from "@/lib/queryKeys";
 import { runAndStream } from "@/lib/runAndStream";
 import { DEFAULT_GENERATION_PARAMS, type ReplyRun } from "@/types/chats";
@@ -232,9 +232,11 @@ async function runReply(
                 run: { ...run, status: "error", error: replyErrorMessage(error) },
             };
         }
-        await updateChatMessage(reply.id, outcome).catch((error) =>
-            captureError(error, { source: "chat_reply_save" }),
-        );
+        const saved = await updateChatMessage(reply.id, outcome).catch((error) => {
+            captureError(error, { source: "chat_reply_save" });
+            return null;
+        });
+        if (saved) new ChatCache(queryClient, chat.id).put([saved]);
     } finally {
         runningReplies.delete(reply.id);
         queryClient.invalidateQueries({ queryKey: messagesKey });
@@ -242,19 +244,75 @@ async function runReply(
     }
 }
 
-/** Shows a new reply at the end of the chat's branch on screen, before its run settles. */
-const showNewReply = async (queryClient: QueryClient, chat: Chat, reply: ChatMessage) => {
-    queryClient.setQueryData<Chat | null>(queryKeys.chats.chat(chat.id), (current) =>
-        current ? { ...current, headMessageId: reply.id } : current,
-    );
-    await queryClient.invalidateQueries({ queryKey: queryKeys.chats.messages(chat.id) });
-    queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
-};
+/**
+ * The page's copy of one chat and its messages. Sends, regenerates, retries
+ * and version switches write it before the server answers, so the
+ * conversation never blanks or waits on a refetch; `restore` puts back what a
+ * refused write changed.
+ */
+class ChatCache {
+    constructor(
+        private readonly queryClient: QueryClient,
+        readonly chatId: string,
+    ) {}
+
+    private get chatKey() {
+        return queryKeys.chats.chat(this.chatId);
+    }
+
+    private get messagesKey() {
+        return queryKeys.chats.messages(this.chatId);
+    }
+
+    get chat(): Chat | null {
+        return this.queryClient.getQueryData<Chat | null>(this.chatKey) ?? null;
+    }
+
+    get messages(): ChatMessage[] {
+        return this.queryClient.getQueryData<ChatMessage[]>(this.messagesKey) ?? [];
+    }
+
+    snapshot() {
+        return { chat: this.chat, messages: this.messages };
+    }
+
+    restore({ chat, messages }: ReturnType<ChatCache["snapshot"]>) {
+        this.queryClient.setQueryData(this.chatKey, chat);
+        this.queryClient.setQueryData(this.messagesKey, messages);
+    }
+
+    /** Adds `rows`, replacing any message with the same id, and drops `dropId`. */
+    put(rows: ChatMessage[], dropId: string | null = null) {
+        this.queryClient.setQueryData<ChatMessage[]>(this.messagesKey, (old = []) => {
+            const byId = new Map(rows.map((row) => [row.id, row]));
+            const kept = old.filter((m) => m.id !== dropId).map((m) => byId.get(m.id) ?? m);
+            const known = new Set(old.map((m) => m.id));
+            return [...kept, ...rows.filter((row) => !known.has(row.id))];
+        });
+    }
+
+    /** Shows the branch ending at `messageId`. */
+    setHead(messageId: string) {
+        this.queryClient.setQueryData<Chat | null>(this.chatKey, (chat) =>
+            chat ? { ...chat, headMessageId: messageId } : chat,
+        );
+    }
+
+    /** A message the page shows before the server has written it. */
+    static draft(
+        chatId: string,
+        fields: Pick<ChatMessage, "id" | "parentId" | "content" | "position" | "data">,
+    ): ChatMessage {
+        const now = new Date();
+        return { ...fields, chatId, createdAt: now, updatedAt: now };
+    }
+}
 
 /**
  * Sends a message (or, with empty content, asks for a continuation) at the
- * end of the branch on screen and runs the reply. Resolves once the reply has
- * settled.
+ * end of the branch on screen and runs the reply. The message and its pending
+ * reply show at once, under ids the page picks and the server keeps; a refused
+ * send takes them back off. Resolves once the reply has settled.
  */
 export const useSendChatMessage = (chat: Chat | null | undefined) => {
     const queryClient = useQueryClient();
@@ -264,11 +322,58 @@ export const useSendChatMessage = (chat: Chat | null | undefined) => {
         mutationKey: ["chat-reply", chat?.id],
         mutationFn: async (content: string) => {
             if (!chat) return;
-            const added = await addChatTurn(chat.id, { content, reply: pendingReply(chat) });
-            const reply = added[added.length - 1];
-            await showNewReply(queryClient, chat, reply);
+            const cache = new ChatCache(queryClient, chat.id);
+            const current = cache.chat ?? chat;
+            const before = cache.snapshot();
+            const place = placeTurn(
+                before.messages,
+                current.headMessageId,
+                current.mode,
+                !!content,
+            );
+            const run = pendingReply(current);
+            const ids: TurnIds = {
+                user: content ? newMessageId() : undefined,
+                reply: newMessageId(),
+            };
+
+            cache.put(
+                [
+                    ...(ids.user
+                        ? [
+                              ChatCache.draft(chat.id, {
+                                  id: ids.user,
+                                  parentId: place.parentId,
+                                  content,
+                                  position: place.depth,
+                                  data: { role: "user" },
+                              }),
+                          ]
+                        : []),
+                    ChatCache.draft(chat.id, {
+                        id: ids.reply,
+                        parentId: ids.user ?? place.parentId,
+                        content: "",
+                        position: ids.user ? place.depth + 1 : place.depth,
+                        data: { role: "assistant", run },
+                    }),
+                ],
+                place.dropId,
+            );
+            cache.setHead(ids.reply);
+
+            let added: ChatMessage[];
+            try {
+                added = await addChatTurn(chat.id, { content, reply: run, ids });
+            } catch (error) {
+                cache.restore(before);
+                throw error;
+            }
+            cache.put(added);
             queryClient.invalidateQueries({ queryKey: queryKeys.chats.chat(chat.id) });
-            await runReply(queryClient, trackRun, chat, reply, content ? "run" : "continue");
+            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.library });
+            const reply = added[added.length - 1];
+            await runReply(queryClient, trackRun, current, reply, content ? "run" : "continue");
         },
         onError: (err) => toast.error(err instanceof Error ? err.message : "Couldn't send"),
     });
@@ -277,7 +382,8 @@ export const useSendChatMessage = (chat: Chat | null | undefined) => {
 /**
  * Runs a reply again with the chat's current settings. Retry reruns a failed
  * reply in its place (it has no text to keep); Regenerate starts a new reply
- * beside the last one, which stays as another branch.
+ * beside the last one, which stays as another branch. Either shows as pending
+ * at once.
  */
 export const useRerunReply = (chat: Chat | null | undefined) => {
     const queryClient = useQueryClient();
@@ -293,26 +399,46 @@ export const useRerunReply = (chat: Chat | null | undefined) => {
             trigger: "retry" | "regenerate";
         }) => {
             if (!chat) return;
-            if (trigger === "regenerate") {
-                const sibling = await regenerateReply(chat.id, reply.id, pendingReply(chat));
-                await showNewReply(queryClient, chat, sibling);
-                await runReply(queryClient, trackRun, chat, sibling, trigger);
-                return;
+            const cache = new ChatCache(queryClient, chat.id);
+            const current = cache.chat ?? chat;
+            const before = cache.snapshot();
+            const run = pendingReply(current);
+
+            let pending: ChatMessage;
+            try {
+                if (trigger === "regenerate") {
+                    const id = newMessageId();
+                    cache.put([
+                        ChatCache.draft(chat.id, {
+                            id,
+                            parentId: reply.parentId,
+                            content: "",
+                            position: reply.position,
+                            data: { role: "assistant", run },
+                        }),
+                    ]);
+                    cache.setHead(id);
+                    pending = await regenerateReply(chat.id, reply.id, run, id);
+                } else {
+                    cache.put([{ ...reply, content: "", data: { role: "assistant", run } }]);
+                    pending = await updateChatMessage(reply.id, { content: "", run });
+                }
+            } catch (error) {
+                cache.restore(before);
+                throw error;
             }
-            const reset = await updateChatMessage(reply.id, {
-                content: "",
-                run: pendingReply(chat),
-            });
-            queryClient.setQueryData<ChatMessage[]>(queryKeys.chats.messages(chat.id), (messages) =>
-                messages?.map((m) => (m.id === reset.id ? reset : m)),
-            );
-            await runReply(queryClient, trackRun, chat, reset, trigger);
+            cache.put([pending]);
+            await runReply(queryClient, trackRun, current, pending, trigger);
         },
         onError: () => toast.error("Couldn't run the reply again"),
     });
 };
 
-/** Shows another branch of a chat: the one through the given message. */
+/**
+ * Shows another branch of a chat: the one through the given message, down to
+ * its newest message. The page switches at once; a refused switch switches
+ * back.
+ */
 export const useShowBranch = () => {
     const queryClient = useQueryClient();
 
@@ -320,8 +446,16 @@ export const useShowBranch = () => {
         mutationKey: ["showBranch"],
         mutationFn: ({ chatId, messageId }: { chatId: string; messageId: string }) =>
             showBranch(chatId, messageId),
-        onSuccess: (chat) => queryClient.setQueryData(queryKeys.chats.chat(chat.id), chat),
-        onError: () => toast.error("Couldn't show that version"),
+        onMutate: ({ chatId, messageId }) => {
+            const cache = new ChatCache(queryClient, chatId);
+            const before = cache.snapshot();
+            cache.setHead(latestLeaf(before.messages, messageId));
+            return before;
+        },
+        onError: (_, { chatId }, before) => {
+            if (before) new ChatCache(queryClient, chatId).restore(before);
+            toast.error("Couldn't show that version");
+        },
     });
 };
 

@@ -3,7 +3,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { chatMessages, chats, isUuid, jsonTextField, workspaces } from "@/db/schema";
 import type { Chat, ChatMessage } from "@/db/schema";
-import { chatTitleFrom, isFailedReply, isPendingReply, latestLeaf } from "@/lib/chats";
+import { chatTitleFrom, isPendingReply, latestLeaf, placeTurn } from "@/lib/chats";
 import {
     getNextWorkspaceItemPosition,
     getOrCreateDefaultWorkspace,
@@ -198,62 +198,61 @@ const checkLength = (content: string) => {
     }
 };
 
-/** The message the chat's branch on screen ends with, or null for an empty chat. */
-const headOf = async (userId: string, chat: Chat): Promise<ChatMessage | null> =>
-    chat.headMessageId ? getMessage(userId, chat.headMessageId) : null;
+/** The ids the page picked for a turn's messages, so it could show them first. */
+export type TurnIds = { user?: string; reply: string };
+
+/** `id` when the page picked one (it must be a UUID), else a new one. */
+const messageId = (id: string | undefined): string => {
+    if (id === undefined) return crypto.randomUUID();
+    if (!isUuid(id)) throw new Error("Invalid message id");
+    return id;
+};
 
 /**
  * Appends a user message and a pending reply to it at the end of the branch
  * on screen in one of the user's chats, makes the reply the branch's end, and
  * returns them. An empty `content` adds the reply alone (a completion's
- * Continue). Refused while the branch's last reply is pending. A chat still
- * under its default name is named after its first message.
- *
- * A failed reply at the end is dropped first. In chat mode a message never
- * follows another user message, since strict chat templates refuse two user
- * turns in a row: one sent after an unanswered message becomes another
- * version of it. A completion's text simply continues.
+ * Continue). Where the turn goes follows `placeTurn`: a failed reply at the
+ * end is dropped, and in chat mode a message sent after an unanswered one
+ * becomes another version of it. Refused while the branch's last reply is
+ * pending. A chat still under its default name is named after its first
+ * message. `ids` are the ids the page showed the turn under.
  */
 export const addChatTurn = async (
     userId: string,
     chatId: string,
-    { content, reply }: { content: string; reply: ReplyRun },
+    { content, reply, ids }: { content: string; reply: ReplyRun; ids?: TurnIds },
 ): Promise<ChatMessage[]> => {
     checkLength(content);
     const chat = await getChat(userId, chatId);
     if (!chat) throw chatNotFound();
 
-    let parent = await headOf(userId, chat);
-    if (parent && isPendingReply(parent)) {
+    const messages = await getChatMessages(userId, chatId);
+    const head = messages.find((m) => m.id === chat.headMessageId);
+    if (head && isPendingReply(head)) {
         throw new Error("Wait for the reply before sending another message");
     }
-    if (parent && isFailedReply(parent)) {
-        await db.delete(chatMessages).where(eq(chatMessages.id, parent.id));
-        parent = parent.parentId ? await getMessage(userId, parent.parentId) : null;
-    }
-    if (chat.mode === "chat" && content && parent?.data.role === "user") {
-        parent = parent.parentId ? await getMessage(userId, parent.parentId) : null;
-    }
+    const place = placeTurn(messages, chat.headMessageId, chat.mode, !!content);
+    if (place.dropId) await db.delete(chatMessages).where(eq(chatMessages.id, place.dropId));
 
-    const depth = parent ? parent.position + 1 : 0;
     const userMessage = content
         ? {
-              id: crypto.randomUUID(),
+              id: messageId(ids?.user),
               chatId,
-              parentId: parent?.id ?? null,
+              parentId: place.parentId,
               content,
-              position: depth,
+              position: place.depth,
               data: { role: "user" as const },
           }
         : null;
     const rows = [
         ...(userMessage ? [userMessage] : []),
         {
-            id: crypto.randomUUID(),
+            id: messageId(ids?.reply),
             chatId,
-            parentId: userMessage?.id ?? parent?.id ?? null,
+            parentId: userMessage?.id ?? place.parentId,
             content: "",
-            position: userMessage ? depth + 1 : depth,
+            position: userMessage ? place.depth + 1 : place.depth,
             data: { role: "assistant" as const, run: reply },
         },
     ];
@@ -269,19 +268,21 @@ export const addChatTurn = async (
 /**
  * Starts a new reply beside `replyId` in one of the user's chats (Regenerate):
  * a pending sibling that follows the same message, which becomes the end of
- * the branch on screen. The earlier reply stays, as another branch.
+ * the branch on screen. The earlier reply stays, as another branch. `id` is
+ * the id the page showed the new reply under.
  */
 export const regenerateReply = async (
     userId: string,
     chatId: string,
     replyId: string,
     run: ReplyRun,
+    id?: string,
 ): Promise<ChatMessage> => {
     const [chat, reply] = await Promise.all([getChat(userId, chatId), getMessage(userId, replyId)]);
     if (!chat || !reply || reply.chatId !== chatId || reply.data.role !== "assistant") {
         throw new Error("Reply not found or access denied");
     }
-    const head = await headOf(userId, chat);
+    const head = chat.headMessageId ? await getMessage(userId, chat.headMessageId) : null;
     if (head && isPendingReply(head)) {
         throw new Error("Wait for the reply before running another");
     }
@@ -289,7 +290,7 @@ export const regenerateReply = async (
     const [sibling] = (await db
         .insert(chatMessages)
         .values({
-            id: crypto.randomUUID(),
+            id: messageId(id),
             chatId,
             parentId: reply.parentId,
             content: "",

@@ -251,6 +251,23 @@ describe("chat turns", () => {
         expect((await getChat(USER, chatId))!.name).toBe("Once upon a time");
     });
 
+    it("keeps the ids the page showed the turn under, and refuses ids that aren't UUIDs", async () => {
+        const ids = { user: crypto.randomUUID(), reply: crypto.randomUUID() };
+
+        const added = await addChatTurn(USER, chatId, { content: "Hi", reply: pending, ids });
+
+        expect(added.map((m) => m.id)).toEqual([ids.user, ids.reply]);
+        expect((await getChat(USER, chatId))!.headMessageId).toBe(ids.reply);
+        await updateChatMessage(USER, ids.reply, { content: "Hello!", run: settle("complete") });
+        await expect(
+            addChatTurn(USER, chatId, {
+                content: "Again",
+                reply: pending,
+                ids: { user: "not-a-uuid", reply: crypto.randomUUID() },
+            }),
+        ).rejects.toThrow("Invalid message id");
+    });
+
     it("refuses a turn on a chat that doesn't exist", async () => {
         await expect(
             addChatTurn(USER, "missing", { content: "Hi", reply: pending }),
@@ -286,8 +303,10 @@ describe("branches", () => {
         await exchange(chatId, "Hi", "Hello!");
         const [, old] = await getChatMessages(USER, chatId);
 
-        const fresh = await regenerateReply(USER, chatId, old.id, pending);
+        const id = crypto.randomUUID();
+        const fresh = await regenerateReply(USER, chatId, old.id, pending, id);
 
+        expect(fresh.id).toBe(id);
         expect(fresh.parentId).toBe(old.parentId);
         expect(fresh.position).toBe(old.position);
         expect((await getChat(USER, chatId))!.headMessageId).toBe(fresh.id);

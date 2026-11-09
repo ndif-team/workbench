@@ -62,6 +62,47 @@ export const latestLeaf = (messages: TreeMessage[], messageId: string): string =
 };
 
 /**
+ * Where a new turn goes on the branch ending at `headId`: the message it
+ * follows (null at the start of a chat), its depth, and a failed reply at the
+ * end to drop first. In chat mode a message never follows another user
+ * message (strict chat templates refuse two user turns in a row), so one sent
+ * after an unanswered message becomes another version of it. Shared by the
+ * server, which writes the turn, and the page, which shows it at once.
+ */
+export const placeTurn = (
+    messages: Pick<ChatMessage, "id" | "parentId" | "position" | "data">[],
+    headId: string | null,
+    mode: ChatMode,
+    hasContent: boolean,
+): { parentId: string | null; depth: number; dropId: string | null } => {
+    const byId = new Map(messages.map((m) => [m.id, m]));
+    let parent = headId ? byId.get(headId) : undefined;
+    let dropId: string | null = null;
+    if (parent && isFailedReply(parent)) {
+        dropId = parent.id;
+        parent = byId.get(parent.parentId ?? "");
+    }
+    if (mode === "chat" && hasContent && parent?.data.role === "user") {
+        parent = byId.get(parent.parentId ?? "");
+    }
+    return { parentId: parent?.id ?? null, depth: parent ? parent.position + 1 : 0, dropId };
+};
+
+/**
+ * A new message id (a v4 UUID). The page picks a turn's ids so it can show the
+ * turn before the server has written it. `crypto.randomUUID` is missing outside
+ * secure contexts (a plain-http preview host), hence the fallback.
+ */
+export const newMessageId = (): string => {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
+/**
  * What a reply is generated from: the branch before it, leaving out replies
  * that failed or are still running (they hold no text).
  */
