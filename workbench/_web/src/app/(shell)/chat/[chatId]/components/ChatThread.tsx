@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 
 import { splitRepo } from "@/components/model-selector/status";
 import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "@/db/schema";
 import { replyRun, siblingsOf } from "@/lib/chats";
+import { cn } from "@/lib/utils";
 
 export type ThreadProps = {
     /** The branch on screen, first message to last. */
@@ -127,7 +128,10 @@ export function ChatThread({
     );
 }
 
-/** One of the model's replies, by its run state: waiting, failed (with Retry) or complete. */
+/**
+ * One of the model's replies, by its run state: waiting, failed (with Retry)
+ * or complete, after its reasoning when the model kept that apart.
+ */
 export function Reply({
     message,
     canRegenerate,
@@ -171,7 +175,10 @@ export function Reply({
 
     return (
         <div className="space-y-1.5">
-            {showText && (
+            {showText && run?.reasoning && (
+                <Reasoning text={run.reasoning} startOpen={!message.content} />
+            )}
+            {showText && message.content && (
                 <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                     {message.content}
                 </div>
@@ -200,6 +207,35 @@ export function Reply({
                             <RotateCcw className="size-3.5" />
                         </Button>
                     )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/**
+ * A reply's reasoning, folded under "Reasoning" until opened; `startOpen`
+ * for a reply with no text besides it (cut off while reasoning).
+ */
+function Reasoning({ text, startOpen }: { text: string; startOpen: boolean }) {
+    const [open, setOpen] = useState(startOpen);
+    return (
+        <div>
+            <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                aria-expanded={open}
+                className="inline-flex items-center gap-1 rounded-md text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+                <ChevronRight
+                    aria-hidden
+                    className={cn("size-3.5 transition-transform", open && "rotate-90")}
+                />
+                Reasoning
+            </button>
+            {open && (
+                <div className="mt-1.5 whitespace-pre-wrap break-words border-l-2 pl-3 text-sm leading-relaxed text-muted-foreground">
+                    {text}
                 </div>
             )}
         </div>
