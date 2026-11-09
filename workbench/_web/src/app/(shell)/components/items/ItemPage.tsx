@@ -36,11 +36,20 @@ type ItemRef =
 /**
  * A chart, chat or report page inside the shell: the page header (model picker,
  * breadcrumb, the item's actions) above the page itself. Rendered by the
- * item route's layout, inside its workspace scope.
+ * item route's layout, inside its workspace scope. `className` is the whole
+ * page's surface (a chat's `aurora-base`), behind its header too.
  */
-export function ItemPage({ item, children }: { item: ItemRef; children: ReactNode }) {
+export function ItemPage({
+    item,
+    className,
+    children,
+}: {
+    item: ItemRef;
+    className?: string;
+    children: ReactNode;
+}) {
     return (
-        <div className="flex size-full min-h-0 flex-col">
+        <div className={cn("flex size-full min-h-0 flex-col", className)}>
             <ItemPageHeader item={item} />
             <div className="min-h-0 flex-1">{children}</div>
         </div>

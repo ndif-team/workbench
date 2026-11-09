@@ -11,7 +11,9 @@ export default async function ChatLayout({
     const { chatId } = await params;
     return (
         <ChatWorkspaceScope chatId={chatId}>
-            <ItemPage item={{ kind: "chat", id: chatId }}>{children}</ItemPage>
+            <ItemPage item={{ kind: "chat", id: chatId }} className="aurora-base">
+                {children}
+            </ItemPage>
         </ChatWorkspaceScope>
     );
 }

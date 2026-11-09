@@ -85,7 +85,7 @@ export function NewChatCreator({
     }
     if (draft) return <PendingChatPage chat={draft} />;
     return (
-        <div className="flex size-full min-h-0 flex-col" aria-busy="true">
+        <div className="aurora-base flex size-full min-h-0 flex-col" aria-busy="true">
             <span role="status" className="sr-only">
                 Starting the chat…
             </span>
