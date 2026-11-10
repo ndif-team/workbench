@@ -7,8 +7,8 @@ import type { ChatMode, GenerationParams } from "@/types/chats";
 import { GenerationSettings } from "./GenerationSettings";
 
 /**
- * The message box under a chat: two lines that grow with the text, beside the
- * chat's settings (mode included, `GenerationSettings`) and Send.
+ * The message box under a chat: the text, which grows as it's written, over a
+ * row with the chat's settings (mode included, `GenerationSettings`) and Send.
  * ⌘/Ctrl-Enter sends; plain Enter is a newline. In completion mode an empty
  * box continues the text. The draft comes back when a send fails.
  */
@@ -63,11 +63,11 @@ export function ChatComposer({
                 e.preventDefault();
                 submit();
             }}
-            className="flex items-end gap-1 rounded-md border bg-card p-1.5 shadow-sm transition-[border-color,box-shadow] has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 dark:bg-secondary"
+            className="rounded-md border bg-card shadow-sm transition-[border-color,box-shadow] has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 dark:bg-secondary"
         >
             <Textarea
                 ref={textareaRef}
-                rows={2}
+                rows={1}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -85,25 +85,26 @@ export function ChatComposer({
                 disabled={disabled}
                 autoFocus={autoFocus}
                 readOnly={readOnly}
-                className="max-h-60 min-h-8 resize-none border-0 bg-transparent px-2.5 py-1.5 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
+                className="max-h-60 min-h-0 resize-none border-0 bg-transparent px-3 pb-1 pt-2.5 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
-            <GenerationSettings
-                mode={mode}
-                params={params}
-                onModeChange={onModeChange}
-                onChange={onParamsChange}
-                disabled={disabled || busy}
-            />
-            <Button
-                type="submit"
-                size="icon"
-                className="shrink-0"
-                disabled={!canSend}
-                aria-label={action}
-                title={`${action} (⌘↵)`}
-            >
-                {continuing ? <ChevronsRight /> : <ArrowUp />}
-            </Button>
+            <div className="flex items-center justify-end gap-1 p-1.5 pt-0">
+                <GenerationSettings
+                    mode={mode}
+                    params={params}
+                    onModeChange={onModeChange}
+                    onChange={onParamsChange}
+                    disabled={disabled || busy}
+                />
+                <Button
+                    type="submit"
+                    size="icon"
+                    disabled={!canSend}
+                    aria-label={action}
+                    title={`${action} (⌘↵)`}
+                >
+                    {continuing ? <ChevronsRight /> : <ArrowUp />}
+                </Button>
+            </div>
         </form>
     );
 }
