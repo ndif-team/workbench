@@ -19,7 +19,7 @@ Public API:
     ``MetadataCache``
         In-memory registry backed by the JSON file. ``fetch_metadata(name)``
         is the sole fetch entry point for model metadata; ``avatar_url(name)``
-        looks up the logo of the account that owns a model.
+        looks up the logo of the organization that publishes a model.
 
     ``fetch_model_metadata``
         Low-level HuggingFace probe; normally called via
@@ -291,7 +291,8 @@ class MetadataCache:
     * ``metadata`` — repo ID → ``ModelMetadata`` fields
     * ``unsupported`` — list of repo IDs that failed supportability checks
     * ``avatars`` — owning account (the repo ID's first part) → the URL of
-      its Hugging Face avatar, or null when it has none of its own
+      its Hugging Face avatar when it's an organization, else null (a
+      person's account, or an organization without one)
 
     Every mutation (new metadata or new unsupported verdict) is persisted
     atomically via write-to-temp + ``os.replace``.
@@ -300,11 +301,10 @@ class MetadataCache:
     force a full re-fetch on next startup.
     """
 
-    # Where Hugging Face serves an account's avatar, for each kind of account
-    # a repo can belong to.
-    AVATAR_API = "https://huggingface.co/api/{kind}/{account}/avatar"
-    AVATAR_ACCOUNT_KINDS = ("organizations", "users")
-    # Where avatars that accounts uploaded are served from. An account with
+    # Where Hugging Face serves an organization's avatar. A person's account
+    # isn't one, so it gets none: a model card never shows someone's picture.
+    AVATAR_API = "https://huggingface.co/api/organizations/{account}/avatar"
+    # Where avatars that organizations uploaded are served from. One with
     # none gets a generated stand-in from elsewhere (Hugging Face's own SVGs,
     # or a Gravatar fallback), which isn't a logo.
     UPLOADED_AVATAR_PREFIX = "https://cdn-avatars.huggingface.co/"
@@ -379,17 +379,17 @@ class MetadataCache:
             for name, meta in self.metadata.items()
         ]
 
-    # ----- account avatars ----------------------------------------------
+    # ----- organization avatars -----------------------------------------
 
     def avatar_url(self, model_name: str) -> str | None:
-        """Return the avatar URL of the account that owns ``model_name``.
+        """Return the avatar URL of the organization that publishes ``model_name``.
 
-        Model cards show it as the model's logo. Looked up once per account
-        (an organization, or a user for a personal repo) and persisted, an
-        account with no avatar of its own included (``None``). A lookup that
-        fails (network, rate limit, server error) isn't cached and isn't
-        retried for ``AVATAR_RETRY_SECONDS``, so the model list never waits
-        on a struggling Hub.
+        Model cards show it as the model's logo. Only organizations have one
+        here: a model from a person's account gets ``None``, so no one's
+        picture is shown. Looked up once per account and persisted, ``None``
+        included. A lookup that fails (network, rate limit, server error)
+        isn't cached and isn't retried for ``AVATAR_RETRY_SECONDS``, so the
+        model list never waits on a struggling Hub.
 
         Args:
             model_name: HuggingFace repo ID.
@@ -416,21 +416,19 @@ class MetadataCache:
 
     @classmethod
     def _fetch_avatar(cls, account: str) -> str | None:
-        """Ask Hugging Face for ``account``'s avatar, as an organization, then a user.
+        """Ask Hugging Face for ``account``'s avatar as an organization.
 
-        Returns ``None`` for an account that doesn't exist or never uploaded
-        an avatar; raises for any other failure.
+        Returns ``None`` for an account that isn't an organization (a 404) or
+        never uploaded an avatar; raises for any other failure.
         """
-        for kind in cls.AVATAR_ACCOUNT_KINDS:
-            url = cls.AVATAR_API.format(kind=kind, account=quote(account, safe=""))
-            resp = requests.get(url, timeout=cls.AVATAR_TIMEOUT_SECONDS)
-            if resp.status_code == 404:
-                continue
-            resp.raise_for_status()
-            avatar = resp.json().get("avatarUrl")
-            if isinstance(avatar, str) and avatar.startswith(cls.UPLOADED_AVATAR_PREFIX):
-                return avatar
+        url = cls.AVATAR_API.format(account=quote(account, safe=""))
+        resp = requests.get(url, timeout=cls.AVATAR_TIMEOUT_SECONDS)
+        if resp.status_code == 404:
             return None
+        resp.raise_for_status()
+        avatar = resp.json().get("avatarUrl")
+        if isinstance(avatar, str) and avatar.startswith(cls.UPLOADED_AVATAR_PREFIX):
+            return avatar
         return None
 
     # ----- persistence -------------------------------------------------

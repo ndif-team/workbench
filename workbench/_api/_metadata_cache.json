@@ -1301,7 +1301,7 @@
   "avatars": {
     "EleutherAI": "https://cdn-avatars.huggingface.co/v1/production/uploads/1614054059123-603481bb60e3dd96631c9095.png",
     "HuggingFaceTB": "https://cdn-avatars.huggingface.co/v1/production/uploads/651e96991b97c9f33d26bde6/e4VK7uW5sTeCYupD0s_ob.png",
-    "Maykeye": "https://cdn-avatars.huggingface.co/v1/production/uploads/63a3c6507abdaa25a81ce659/vwsXBgZcLCteUZtBzcANa.png",
+    "Maykeye": null,
     "Qwen": "https://cdn-avatars.huggingface.co/v1/production/uploads/6215ca5692c0ecfba9186921/hrRM50-6XcdWgg2AKpENG.jpeg",
     "allenai": "https://cdn-avatars.huggingface.co/v1/production/uploads/652db071b62cf1f8463221e2/CxxwFiaomTa1MCX_B7-pT.png",
     "auditing-agents": null,
@@ -1318,10 +1318,10 @@
     "openai-community": "https://cdn-avatars.huggingface.co/v1/production/uploads/5dd96eb166059660ed1ee413/9NY4jfufqo1uyv8oNXQju.png",
     "qwen": "https://cdn-avatars.huggingface.co/v1/production/uploads/6215ca5692c0ecfba9186921/hrRM50-6XcdWgg2AKpENG.jpeg",
     "sbintuitions": "https://cdn-avatars.huggingface.co/v1/production/uploads/619f151fd4931de0d2faeb95/IrEqvVAC2xXOLLtyfMLRM.jpeg",
-    "sshleifer": "https://cdn-avatars.huggingface.co/v1/production/uploads/1583859526680-5e67bff7100906368940747c.jpeg",
+    "sshleifer": null,
     "tiiuae": "https://cdn-avatars.huggingface.co/v1/production/uploads/61a8d1aac664736898ffc84f/AT6cAB5ZNwCcqFMal71WD.jpeg",
     "yen-av": null,
-    "yujiepan": "https://cdn-avatars.huggingface.co/v1/production/uploads/62cf8c361c206ff91a0d1561/Vr45C_kukHViKjr9KcD0_.png",
+    "yujiepan": null,
     "zai-org": "https://cdn-avatars.huggingface.co/v1/production/uploads/62dc173789b4cf157d36ebee/i_pxzM2ZDo3Ub-BEgIkE9.png"
   }
 }

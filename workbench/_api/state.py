@@ -140,7 +140,7 @@ class AppState:
         """Return the user-facing model list for remote mode.
 
         Each entry combines cached HuggingFace metadata with the current
-        deployment heat as ``status`` and the owning account's ``avatar_url``.
+        deployment heat as ``status`` and its organization's ``avatar_url``.
 
         Returns:
             List of model metadata dicts. Models without cached metadata are
