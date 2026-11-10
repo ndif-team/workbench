@@ -26,4 +26,7 @@ export interface Model {
     /** Whether a Jacobian lens checkpoint exists for this model, i.e. whether
      * the j-lens tool can run against it. Stamped by the backend /models route. */
     has_jacobian?: boolean;
+    /** The logo of the account that publishes it (its Hugging Face avatar),
+     * or null when it has none. Stamped by the backend /models route. */
+    avatar_url?: string | null;
 }

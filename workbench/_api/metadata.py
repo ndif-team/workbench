@@ -18,7 +18,8 @@ Public API:
 
     ``MetadataCache``
         In-memory registry backed by the JSON file. ``fetch_metadata(name)``
-        is the sole fetch entry point.
+        is the sole fetch entry point for model metadata; ``avatar_url(name)``
+        looks up the logo of the account that owns a model.
 
     ``fetch_model_metadata``
         Low-level HuggingFace probe; normally called via
@@ -33,7 +34,10 @@ import json
 import logging
 import os
 import re
+import time
+from urllib.parse import quote
 
+import requests
 from huggingface_hub import get_safetensors_metadata
 from pydantic import BaseModel
 from transformers import AutoConfig
@@ -282,10 +286,12 @@ class MetadataCache:
     """Disk-backed registry of model metadata and unsupported-model verdicts.
 
     On construction, loads ``_metadata_cache.json`` (see ``METADATA_CACHE_PATH``).
-    The file has two top-level keys:
+    The file has three top-level keys:
 
     * ``metadata`` — repo ID → ``ModelMetadata`` fields
     * ``unsupported`` — list of repo IDs that failed supportability checks
+    * ``avatars`` — owning account (the repo ID's first part) → the URL of
+      its Hugging Face avatar, or null when it has none of its own
 
     Every mutation (new metadata or new unsupported verdict) is persisted
     atomically via write-to-temp + ``os.replace``.
@@ -294,11 +300,25 @@ class MetadataCache:
     force a full re-fetch on next startup.
     """
 
+    # Where Hugging Face serves an account's avatar, for each kind of account
+    # a repo can belong to.
+    AVATAR_API = "https://huggingface.co/api/{kind}/{account}/avatar"
+    AVATAR_ACCOUNT_KINDS = ("organizations", "users")
+    # Where avatars that accounts uploaded are served from. An account with
+    # none gets a generated stand-in from elsewhere (Hugging Face's own SVGs,
+    # or a Gravatar fallback), which isn't a logo.
+    UPLOADED_AVATAR_PREFIX = "https://cdn-avatars.huggingface.co/"
+    AVATAR_TIMEOUT_SECONDS = 5
+    # How long an account whose lookup failed waits before it's asked again.
+    AVATAR_RETRY_SECONDS = 600
+
     def __init__(self, path: str = METADATA_CACHE_PATH):
         """Load the cache from ``path``, or start empty if the file is missing."""
         self.path = path
         self.metadata: dict[str, ModelMetadata] = {}
         self.unsupported: set[str] = set()
+        self.avatars: dict[str, str | None] = {}
+        self._avatar_retry_at: dict[str, float] = {}
         self._load()
 
     def fetch_metadata(self, model_name: str) -> ModelMetadata:
@@ -349,12 +369,69 @@ class MetadataCache:
         return model_name in self.metadata
 
     def all_dumped(self) -> list[dict]:
-        """Return all cached metadata as plain dicts.
+        """Return all cached metadata as plain dicts, each with its ``avatar_url``.
 
         Used by local-mode ``/models`` to list every model the backend knows
         about, regardless of NDIF deployment status.
         """
-        return [m.model_dump() for m in self.metadata.values()]
+        return [
+            {**meta.model_dump(), "avatar_url": self.avatar_url(name)}
+            for name, meta in self.metadata.items()
+        ]
+
+    # ----- account avatars ----------------------------------------------
+
+    def avatar_url(self, model_name: str) -> str | None:
+        """Return the avatar URL of the account that owns ``model_name``.
+
+        Model cards show it as the model's logo. Looked up once per account
+        (an organization, or a user for a personal repo) and persisted, an
+        account with no avatar of its own included (``None``). A lookup that
+        fails (network, rate limit, server error) isn't cached and isn't
+        retried for ``AVATAR_RETRY_SECONDS``, so the model list never waits
+        on a struggling Hub.
+
+        Args:
+            model_name: HuggingFace repo ID.
+
+        Returns:
+            An absolute image URL, or ``None``.
+        """
+        account, _, rest = model_name.partition("/")
+        if not rest:
+            return None
+        if account in self.avatars:
+            return self.avatars[account]
+        if time.monotonic() < self._avatar_retry_at.get(account, 0):
+            return None
+        try:
+            url = self._fetch_avatar(account)
+        except (requests.RequestException, ValueError) as e:
+            logger.warning(f"Could not look up the avatar of {account}: {e}")
+            self._avatar_retry_at[account] = time.monotonic() + self.AVATAR_RETRY_SECONDS
+            return None
+        self.avatars[account] = url
+        self._save()
+        return url
+
+    @classmethod
+    def _fetch_avatar(cls, account: str) -> str | None:
+        """Ask Hugging Face for ``account``'s avatar, as an organization, then a user.
+
+        Returns ``None`` for an account that doesn't exist or never uploaded
+        an avatar; raises for any other failure.
+        """
+        for kind in cls.AVATAR_ACCOUNT_KINDS:
+            url = cls.AVATAR_API.format(kind=kind, account=quote(account, safe=""))
+            resp = requests.get(url, timeout=cls.AVATAR_TIMEOUT_SECONDS)
+            if resp.status_code == 404:
+                continue
+            resp.raise_for_status()
+            avatar = resp.json().get("avatarUrl")
+            if isinstance(avatar, str) and avatar.startswith(cls.UPLOADED_AVATAR_PREFIX):
+                return avatar
+            return None
+        return None
 
     # ----- persistence -------------------------------------------------
 
@@ -375,6 +452,7 @@ class MetadataCache:
                 except Exception as e:
                     logger.warning(f"Skipping malformed cached metadata for {name}: {e}")
             self.unsupported.update(data.get("unsupported") or [])
+            self.avatars.update(data.get("avatars") or {})
             logger.info(
                 f"Loaded metadata cache from {self.path}: "
                 f"{len(self.metadata)} models, {len(self.unsupported)} unsupported",
@@ -387,6 +465,7 @@ class MetadataCache:
         payload = {
             "metadata": {k: v.model_dump() for k, v in self.metadata.items()},
             "unsupported": sorted(self.unsupported),
+            "avatars": dict(sorted(self.avatars.items())),
         }
         tmp_path = self.path + ".tmp"
         try:
