@@ -34,8 +34,6 @@ export function GenerationSettings({
 }) {
     const [draft, setDraft] = useState(params);
     useEffect(() => setDraft(params), [params]);
-    const temperatureId = useId();
-    const tokensId = useId();
     const commit = (next: Partial<GenerationParams>) => onChange({ ...draft, ...next });
     const current = MODES.find((m) => m.mode === mode) ?? MODES[0];
     const changed =
@@ -63,72 +61,97 @@ export function GenerationSettings({
                     )}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent side="top" align="end" className="w-72 space-y-5">
-                <div className="space-y-2">
-                    <div
-                        role="group"
-                        aria-label="Mode"
-                        className="grid grid-cols-2 gap-0.5 rounded-md border bg-card p-0.5 shadow-xs dark:bg-input/30"
-                    >
-                        {MODES.map((m) => (
-                            <button
-                                key={m.mode}
-                                type="button"
-                                aria-pressed={m.mode === mode}
-                                onClick={() => m.mode !== mode && onModeChange(m.mode)}
-                                className={cn(
-                                    "h-7 rounded-sm text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-                                    m.mode === mode
-                                        ? "bg-accent text-accent-foreground"
-                                        : "text-muted-foreground hover:text-foreground",
-                                )}
-                            >
-                                {m.label}
-                            </button>
-                        ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{current.description}</p>
+            <PopoverContent side="top" align="end" className="w-56 space-y-3 p-3">
+                <div
+                    role="group"
+                    aria-label="Mode"
+                    className="grid grid-cols-2 gap-0.5 rounded-md border bg-card p-0.5 shadow-xs dark:bg-input/30"
+                >
+                    {MODES.map((m) => (
+                        <button
+                            key={m.mode}
+                            type="button"
+                            aria-pressed={m.mode === mode}
+                            title={m.description}
+                            onClick={() => m.mode !== mode && onModeChange(m.mode)}
+                            className={cn(
+                                "h-6 rounded-sm text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+                                m.mode === mode
+                                    ? "bg-accent text-accent-foreground"
+                                    : "text-muted-foreground hover:text-foreground",
+                            )}
+                        >
+                            {m.label}
+                        </button>
+                    ))}
                 </div>
-                <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor={temperatureId}>Temperature</Label>
-                        <span className="text-sm tabular-nums text-muted-foreground">
-                            {draft.temperature.toFixed(1)}
-                        </span>
-                    </div>
-                    <Slider
-                        id={temperatureId}
-                        min={0}
-                        max={2}
-                        step={0.1}
-                        value={[draft.temperature]}
-                        onValueChange={([temperature]) => setDraft({ ...draft, temperature })}
-                        onValueCommit={([temperature]) => commit({ temperature })}
-                        aria-label="Temperature"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                        0 always picks the most likely token.
-                    </p>
-                </div>
-                <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor={tokensId}>Max new tokens</Label>
-                        <span className="text-sm tabular-nums text-muted-foreground">
-                            {draft.maxNewTokens}
-                        </span>
-                    </div>
-                    <Slider
-                        id={tokensId}
-                        min={16}
-                        max={2048}
-                        step={16}
-                        value={[draft.maxNewTokens]}
-                        onValueChange={([maxNewTokens]) => setDraft({ ...draft, maxNewTokens })}
-                        onValueCommit={([maxNewTokens]) => commit({ maxNewTokens })}
-                        aria-label="Max new tokens"
-                    />
-                </div>
+                <SettingSlider
+                    label="Temperature"
+                    hint="0 always picks the most likely token."
+                    shown={draft.temperature === 0 ? "Greedy" : draft.temperature.toFixed(1)}
+                    min={0}
+                    max={2}
+                    step={0.1}
+                    value={draft.temperature}
+                    onChange={(temperature) => setDraft({ ...draft, temperature })}
+                    onCommit={(temperature) => commit({ temperature })}
+                />
+                <SettingSlider
+                    label="Max new tokens"
+                    shown={String(draft.maxNewTokens)}
+                    min={16}
+                    max={2048}
+                    step={16}
+                    value={draft.maxNewTokens}
+                    onChange={(maxNewTokens) => setDraft({ ...draft, maxNewTokens })}
+                    onCommit={(maxNewTokens) => commit({ maxNewTokens })}
+                />
             </PopoverContent>
         </Popover>
+    );
+}
+
+/** One setting's slider, under its name and value (`hint` is the name's tooltip). */
+function SettingSlider({
+    label,
+    hint,
+    shown,
+    value,
+    onChange,
+    onCommit,
+    ...range
+}: {
+    label: string;
+    hint?: string;
+    shown: string;
+    min: number;
+    max: number;
+    step: number;
+    value: number;
+    onChange: (value: number) => void;
+    onCommit: (value: number) => void;
+}) {
+    const id = useId();
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+                <Label
+                    htmlFor={id}
+                    title={hint}
+                    className="text-xs font-normal text-muted-foreground"
+                >
+                    {label}
+                </Label>
+                <span className="tabular-nums">{shown}</span>
+            </div>
+            <Slider
+                id={id}
+                {...range}
+                value={[value]}
+                onValueChange={([next]) => onChange(next)}
+                onValueCommit={([next]) => onCommit(next)}
+                aria-label={label}
+            />
+        </div>
     );
 }
