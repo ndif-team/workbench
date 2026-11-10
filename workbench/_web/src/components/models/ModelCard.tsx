@@ -12,10 +12,13 @@ import {
     type ModelGroup,
 } from "@/components/model-selector/status";
 import { SparkBadge } from "@/components/SparkBadge";
+import { OrgAvatar } from "./OrgAvatar";
 
 export interface ModelCardModel {
     org: string;
     name: string;
+    /** The org's logo (`OrgAvatar`); its initial without one. */
+    avatarUrl?: string | null;
     group: ModelGroup;
     heat: ModelHeat;
     params: string;
@@ -118,13 +121,16 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
                 </span>
             </div>
 
-            <div className={cn("flex flex-col", m.has_jacobian && "pr-16")}>
-                <span className="text-sm text-muted-foreground truncate leading-tight">
-                    {m.org}
-                </span>
-                <span className="font-mono text-lg font-semibold truncate leading-tight">
-                    {m.name}
-                </span>
+            <div className={cn("flex items-center gap-3", m.has_jacobian && "pr-16")}>
+                <OrgAvatar org={m.org} src={m.avatarUrl} className="size-10 text-base" />
+                <div className="flex min-w-0 flex-col">
+                    <span className="text-sm text-muted-foreground truncate leading-tight">
+                        {m.org}
+                    </span>
+                    <span className="font-mono text-lg font-semibold truncate leading-tight">
+                        {m.name}
+                    </span>
+                </div>
             </div>
 
             <div
