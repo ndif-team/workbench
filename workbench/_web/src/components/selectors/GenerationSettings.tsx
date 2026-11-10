@@ -8,17 +8,28 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { DEFAULT_GENERATION_PARAMS, type ChatMode, type GenerationParams } from "@/types/chats";
 
+/**
+ * Why a chat's mode can't be switched: its first message settled it
+ * (`isModeLocked`), or its model is a base model, which only continues text.
+ */
+export type ModeFixed = "started" | "base";
+
+const MODE_FIXED_NOTES: Record<ModeFixed, string> = {
+    started: "Set by the first message. Start a new chat to switch.",
+    base: "A base model only continues text.",
+};
+
 const MODES: { mode: ChatMode; label: string; description: string }[] = [
     { mode: "chat", label: "Chat", description: "Turns, with the model's chat template." },
     { mode: "completion", label: "Completion", description: "One text the model continues." },
 ];
 
 /**
- * The chat's settings behind an icon in its composer: its mode, temperature
- * and the reply's token limit, the sliders saved when let go. The icon's
- * tooltip sums them up, and a dot on it marks sampling changed from the
- * defaults. The mode shows but can't change once the chat has messages
- * (`modeLocked`, `isModeLocked`).
+ * A chat's settings behind an icon, in its composer and in Home's when Chat
+ * is picked: its mode, temperature and the reply's token limit, the sliders
+ * saved when let go. The icon's tooltip sums them up, and a dot on it marks
+ * sampling changed from the defaults. `modeFixed` keeps the mode from being
+ * switched, with a note saying why.
  */
 export function GenerationSettings({
     mode,
@@ -26,14 +37,14 @@ export function GenerationSettings({
     onModeChange,
     onChange,
     disabled,
-    modeLocked,
+    modeFixed,
 }: {
     mode: ChatMode;
     params: GenerationParams;
     onModeChange: (mode: ChatMode) => void;
     onChange: (params: GenerationParams) => void;
     disabled: boolean;
-    modeLocked: boolean;
+    modeFixed?: ModeFixed;
 }) {
     const [draft, setDraft] = useState(params);
     useEffect(() => setDraft(params), [params]);
@@ -76,7 +87,11 @@ export function GenerationSettings({
                                 key={m.mode}
                                 type="button"
                                 aria-pressed={m.mode === mode}
-                                disabled={modeLocked && m.mode !== mode}
+                                disabled={
+                                    modeFixed === "started"
+                                        ? m.mode !== mode
+                                        : modeFixed === "base" && m.mode === "chat"
+                                }
                                 title={m.description}
                                 onClick={() => m.mode !== mode && onModeChange(m.mode)}
                                 className={cn(
@@ -90,9 +105,9 @@ export function GenerationSettings({
                             </button>
                         ))}
                     </div>
-                    {modeLocked && (
+                    {modeFixed && (
                         <p className="text-xs text-muted-foreground">
-                            Set by the first message. Start a new chat to switch.
+                            {MODE_FIXED_NOTES[modeFixed]}
                         </p>
                     )}
                 </div>

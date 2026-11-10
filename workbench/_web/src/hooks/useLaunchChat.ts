@@ -37,6 +37,7 @@ export function useLaunchChat() {
                     model: chat.model,
                     mode: chat.mode,
                     workspaceId: chat.workspaceId ?? null,
+                    ...(chat.params && { params: chat.params }),
                 },
                 content: chat.content,
                 origin,

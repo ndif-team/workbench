@@ -125,6 +125,13 @@ export function ChatArea() {
 
     const busy = replying || all.some(isPendingReply);
     const mode = chat?.mode ?? "chat";
+    const chatModel = models?.find((m) => m.name === chat?.model);
+    const modeFixed =
+        chat && isModeLocked(chat)
+            ? "started"
+            : chatModel && !chatModel.is_chat
+              ? "base"
+              : undefined;
     const Thread = mode === "chat" ? ChatThread : CompletionDocument;
 
     return (
@@ -153,7 +160,7 @@ export function ChatArea() {
                     busy={busy}
                     canContinue={branch.length > 0}
                     autoFocus={focusComposer}
-                    modeLocked={!!chat && isModeLocked(chat)}
+                    modeFixed={modeFixed}
                     onSubmit={(content) => send(content)}
                     onModeChange={(next) =>
                         chat && updateChat({ chatId: chat.id, settings: { mode: next } })

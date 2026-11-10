@@ -34,7 +34,9 @@ import {
     ToolPill,
     WorkspacePill,
 } from "@/components/selectors/LaunchSelectors";
+import { GenerationSettings } from "@/components/selectors/GenerationSettings";
 import { PROMPT_FIELD } from "@/components/promptField";
+import { DEFAULT_GENERATION_PARAMS, type ChatMode } from "@/types/chats";
 import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
 import { CwLogoMark } from "@/components/CwLogo";
@@ -263,6 +265,9 @@ function ModelTriggerPopover({
  */
 export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     const [prompt, setPrompt] = useState("");
+    const [chatParams, setChatParams] = useState(DEFAULT_GENERATION_PARAMS);
+    // A mode picked in Chat's settings, for the model it was picked on.
+    const [modePick, setModePick] = useState<{ model: string; mode: ChatMode } | null>(null);
     const [showCaptcha, setShowCaptcha] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedModel, setSelectedModel] = useState<string>("");
@@ -379,7 +384,8 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     };
 
     const chatting = selectedTool === ChatLaunch.TOOL;
-    const chatMode = chatModeFor(modelsToSelect.find((m) => m.name === selectedModel));
+    const chatModel = modelsToSelect.find((m) => m.name === selectedModel);
+    const chatMode = modePick?.model === selectedModel ? modePick.mode : chatModeFor(chatModel);
     // A chat's first message: trimmed in chat mode, as typed for a text to continue.
     const chatContent = chatMode === "chat" ? prompt.trim() : prompt;
 
@@ -398,6 +404,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         } else if (chatting) {
             params.set("prompt", chatContent);
             params.set("mode", chatMode);
+            ChatLaunch.tagParams(params, chatParams);
         } else {
             params.set("prompt", prompt);
         }
@@ -474,6 +481,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                         model: selectedModel,
                         mode: chatMode,
                         content: chatContent,
+                        params: chatParams,
                         ...(selectedWorkspace && { workspaceId: selectedWorkspace }),
                         ...(box && {
                             composerRect: {
@@ -549,6 +557,18 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         PROMPT_FIELD.composer,
     );
 
+    // Chat's settings (its mode, temperature and token limit), beside Send.
+    const chatSettings = (
+        <GenerationSettings
+            mode={chatMode}
+            params={chatParams}
+            onModeChange={(mode) => setModePick({ model: selectedModel, mode })}
+            onChange={setChatParams}
+            disabled={showCaptcha || isSubmitting}
+            modeFixed={chatModel && !chatModel.is_chat ? "base" : undefined}
+        />
+    );
+
     // Under the composer's box: what the run is of (tool, model) and where it
     // lands (workspace).
     const pickers = (
@@ -586,7 +606,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
 
     // The box's last row: a tool's own controls and its hint for the next
     // step (activation patching's), then Run.
-    const toolbar = (tools?: ReactNode, hint = "") => (
+    const toolbar = (tools?: ReactNode, hint?: string) => (
         <div
             className={cn(
                 "flex items-center gap-1.5 p-2",
@@ -594,7 +614,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             )}
         >
             {tools && <div className="flex shrink-0 items-center">{tools}</div>}
-            {tools && (
+            {hint !== undefined && (
                 <span
                     aria-live="polite"
                     className="min-w-0 flex-1 text-balance px-1 text-right text-xs text-muted-foreground"
@@ -718,7 +738,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                                 className="prompt-input custom-scrollbar max-h-44 min-h-20 flex-1 resize-none border-0 bg-transparent py-3 pl-4 pr-0 text-base leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent md:text-base md:leading-7 monitor:max-h-52 monitor:text-lg monitor:leading-7 wide:max-h-60 wide:text-xl wide:leading-8"
                                 disabled={showCaptcha || isSubmitting}
                             />
-                            {toolbar()}
+                            {toolbar(chatting ? chatSettings : undefined)}
                         </div>
                     ) : (
                         <ActivationPatchingLandingInput

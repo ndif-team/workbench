@@ -4,7 +4,7 @@ import { ArrowUp, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { ChatMode, GenerationParams } from "@/types/chats";
-import { GenerationSettings } from "./GenerationSettings";
+import { GenerationSettings, type ModeFixed } from "@/components/selectors/GenerationSettings";
 
 /**
  * The message box under a chat: the text, which grows as it's written, over a
@@ -20,7 +20,7 @@ export function ChatComposer({
     canContinue,
     autoFocus = false,
     readOnly = false,
-    modeLocked = false,
+    modeFixed,
     formRef,
     onSubmit,
     onModeChange,
@@ -37,8 +37,8 @@ export function ChatComposer({
     autoFocus?: boolean;
     /** Focusable but takes no input: the composer of a chat still being started. */
     readOnly?: boolean;
-    /** The chat has messages, which settle its mode (`isModeLocked`). */
-    modeLocked?: boolean;
+    /** Why the mode can't be switched, if it can't (`GenerationSettings`). */
+    modeFixed?: ModeFixed;
     /** The box itself, for the page that glides it into place (`PendingChatPage`). */
     formRef?: Ref<HTMLFormElement>;
     onSubmit: (content: string) => Promise<unknown>;
@@ -97,7 +97,7 @@ export function ChatComposer({
                     onModeChange={onModeChange}
                     onChange={onParamsChange}
                     disabled={disabled || busy}
-                    modeLocked={modeLocked}
+                    modeFixed={modeFixed}
                 />
                 <Button
                     type="submit"

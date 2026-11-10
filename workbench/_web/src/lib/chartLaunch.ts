@@ -26,6 +26,8 @@ const CHART_LAUNCH_PARAMS = [
     "deploy",
     "workspaceId",
     "mode",
+    "temperature",
+    "maxNewTokens",
 ] as const;
 
 export type ChartLaunchRequest = Partial<Record<(typeof CHART_LAUNCH_PARAMS)[number], string>>;

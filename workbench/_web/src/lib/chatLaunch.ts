@@ -1,7 +1,13 @@
 import { defaultModel } from "@/components/model-selector/status";
 import type { ChartLaunchRequest, ChartOrigin } from "@/lib/chartLaunch";
 import { chatModeFor } from "@/lib/chats";
-import { chatModes, type ChatDraft, type ChatMode } from "@/types/chats";
+import {
+    chatModes,
+    DEFAULT_GENERATION_PARAMS,
+    type ChatDraft,
+    type ChatMode,
+    type GenerationParams,
+} from "@/types/chats";
 import type { Model } from "@/types/models";
 
 /**
@@ -16,7 +22,8 @@ export type ChatOrigin = Extract<
 
 /**
  * A launch that starts a chat rather than a chart: the composer's Chat, and
- * `/new?tool=Chat&model=…&prompt=…` links (the landing page's after sign-in).
+ * `/new?tool=Chat&model=…&prompt=…` links (the landing page's after sign-in),
+ * which can name the chat's settings too (`temperature`, `maxNewTokens`).
  */
 export class ChatLaunch {
     /** The `tool` a launch names to start a chat, as the composer's picker shows it. */
@@ -43,8 +50,9 @@ export class ChatLaunch {
     /**
      * The chat a launch starts: on the request's model, else the default chat
      * model; in the mode it names, else its model's (`chatModeFor`); with its
-     * prompt as the first message, in its folder. Null when that takes the
-     * model catalog and `models` isn't given, or no model is known.
+     * prompt as the first message, in its folder, and with the settings it
+     * names (`params`). Null when that takes the model catalog and `models`
+     * isn't given, or no model is known.
      */
     static draft(request: ChartLaunchRequest, models?: Model[]): ChatDraft | null {
         const named = chatModes.find((mode) => mode === request.mode);
@@ -54,11 +62,43 @@ export class ChatLaunch {
         if (named) mode = named;
         else if (models) mode = chatModeFor(models.find((m) => m.name === model));
         else return null;
+        const params = ChatLaunch.params(request);
         return {
             model,
             mode,
             content: request.prompt ?? "",
             ...(request.workspaceId && { workspaceId: request.workspaceId }),
+            ...(params && { params }),
+        };
+    }
+
+    /** `params` as a launch URL carries them: only those that differ from the defaults. */
+    static tagParams(query: URLSearchParams, params: GenerationParams): void {
+        if (params.temperature !== DEFAULT_GENERATION_PARAMS.temperature) {
+            query.set("temperature", String(params.temperature));
+        }
+        if (params.maxNewTokens !== DEFAULT_GENERATION_PARAMS.maxNewTokens) {
+            query.set("maxNewTokens", String(params.maxNewTokens));
+        }
+    }
+
+    /**
+     * The settings a launch names; a value missing or out of the range the
+     * app offers is the default's. None when it names neither.
+     */
+    private static params(request: ChartLaunchRequest): GenerationParams | undefined {
+        if (request.temperature === undefined && request.maxNewTokens === undefined) return;
+        const temperature = Number(request.temperature);
+        const maxNewTokens = Number(request.maxNewTokens);
+        return {
+            temperature:
+                request.temperature && temperature >= 0 && temperature <= 2
+                    ? temperature
+                    : DEFAULT_GENERATION_PARAMS.temperature,
+            maxNewTokens:
+                Number.isInteger(maxNewTokens) && maxNewTokens >= 1 && maxNewTokens <= 2048
+                    ? maxNewTokens
+                    : DEFAULT_GENERATION_PARAMS.maxNewTokens,
         };
     }
 }
