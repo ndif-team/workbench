@@ -45,8 +45,9 @@ export type ChartLaunchPlan =
  * Where a chart launch started, reported as `chart_created`'s `origin`: New
  * chart in the sidebar or on a workspace page, Home's or the landing page's
  * composer, Discover J-Lens, the models page's launch dialog, the workshop
- * sidebar, a `/new` link, a launch resumed after sign-in, and the charts the
- * server creates: opening an empty workspace, and joining a workshop.
+ * sidebar, a `/new` link, a launch resumed after sign-in, the charts the
+ * server creates (opening an empty workspace, and joining a workshop), and a
+ * completion started from a chat's page with a model the chat can't take.
  */
 export type ChartOrigin = (typeof ChartOrigins.ALL)[number];
 
@@ -64,6 +65,7 @@ export class ChartOrigins {
         "resumed",
         "workspace_open",
         "workshop_join",
+        "chat_page",
     ] as const;
 
     private static readonly PARAM = "origin";

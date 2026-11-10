@@ -53,7 +53,7 @@ async def run_generate(
     if req.mode == "chat" and getattr(model.tokenizer, "chat_template", None) is None:
         raise HTTPException(
             status_code=400,
-            detail=f"{req.model} has no chat template. Switch this chat to Completion.",
+            detail=f"{req.model} has no chat template, so it can't take turns. Start a completion with it instead.",
         )
 
     messages = [m.model_dump() for m in req.messages]

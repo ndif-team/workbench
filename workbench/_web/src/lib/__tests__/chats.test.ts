@@ -7,6 +7,7 @@ import {
     latestLeaf,
     newMessageId,
     placeTurn,
+    settingsForModel,
     siblingsOf,
 } from "@/lib/chats";
 import { DEFAULT_GENERATION_PARAMS, type ReplyRun } from "@/types/chats";
@@ -123,5 +124,38 @@ describe("message ids", () => {
         expect(newMessageId()).toMatch(
             /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
         );
+    });
+});
+
+describe("moving a chat to another model", () => {
+    const empty = { mode: "chat" as const, headMessageId: null };
+    const started = { mode: "chat" as const, headMessageId: "m1" };
+    const completion = { mode: "completion" as const, headMessageId: "m1" };
+    const instruct = { is_chat: true };
+    const base = { is_chat: false };
+
+    it("takes the model's own mode before the first message", () => {
+        expect(settingsForModel(empty, "gpt2", base)).toEqual({
+            model: "gpt2",
+            mode: "completion",
+        });
+        expect(settingsForModel({ ...empty, mode: "completion" }, "llama-it", instruct)).toEqual({
+            model: "llama-it",
+            mode: "chat",
+        });
+    });
+
+    it("keeps the chat's mode after it", () => {
+        expect(settingsForModel(started, "gemma-it", instruct)).toEqual({ model: "gemma-it" });
+        expect(settingsForModel(completion, "llama-it", instruct)).toEqual({ model: "llama-it" });
+        expect(settingsForModel(completion, "gpt2", base)).toEqual({ model: "gpt2" });
+    });
+
+    it("refuses a base model for a chat that has messages", () => {
+        expect(settingsForModel(started, "gpt2", base)).toBeNull();
+    });
+
+    it("lets a model missing from the catalog keep the chat's mode", () => {
+        expect(settingsForModel(started, "unlisted", undefined)).toEqual({ model: "unlisted" });
     });
 });
