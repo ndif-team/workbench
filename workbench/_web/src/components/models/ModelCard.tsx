@@ -12,12 +12,13 @@ import {
     type ModelGroup,
 } from "@/components/model-selector/status";
 import { SparkBadge } from "@/components/SparkBadge";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { OrgAvatar } from "./OrgAvatar";
 
 export interface ModelCardModel {
     org: string;
     name: string;
-    /** The org's logo (`OrgAvatar`); its initial without one. */
+    /** The org's logo (`OrgAvatar`); none when it has none. */
     avatarUrl?: string | null;
     group: ModelGroup;
     heat: ModelHeat;
@@ -122,14 +123,14 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
             </div>
 
             <div className={cn("flex items-center gap-3", m.has_jacobian && "pr-16")}>
-                <OrgAvatar org={m.org} src={m.avatarUrl} className="size-10 text-base" />
+                <OrgAvatar src={m.avatarUrl} className="size-10" />
                 <div className="flex min-w-0 flex-col">
                     <span className="text-sm text-muted-foreground truncate leading-tight">
                         {m.org}
                     </span>
-                    <span className="font-mono text-lg font-semibold truncate leading-tight">
+                    <TruncatedText className="font-mono text-lg font-semibold leading-tight">
                         {m.name}
-                    </span>
+                    </TruncatedText>
                 </div>
             </div>
 
