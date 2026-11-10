@@ -28,11 +28,11 @@ const noop = () => {};
  * and `/new`): the chat page's header and body (`ChatColumns`) holding the
  * first message and its pending reply, as the chat's page will show them, so
  * that page opens in its place unchanged. The first message rises in, and the
- * composer glides in from the composer that sent it (`composerRect`), focused
- * but taking no input until the chat exists.
+ * composer settles into place from the composer that sent it (`composerRect`),
+ * focused but taking no input until the chat exists.
  */
 export function PendingChatPage({ chat }: { chat: ChatDraft }) {
-    const composerRef = useRef<HTMLDivElement>(null);
+    const composerRef = useRef<HTMLFormElement>(null);
     useGlideFrom(composerRef, chat.composerRect);
     const messages = draftTurn(chat);
     const Thread = chat.mode === "chat" ? ChatThread : CompletionDocument;
@@ -64,20 +64,19 @@ export function PendingChatPage({ chat }: { chat: ChatDraft }) {
                         </div>
                     }
                     composer={
-                        <div ref={composerRef}>
-                            <ChatComposer
-                                mode={chat.mode}
-                                params={DEFAULT_GENERATION_PARAMS}
-                                disabled={false}
-                                busy
-                                canContinue={false}
-                                autoFocus
-                                readOnly
-                                onSubmit={async () => {}}
-                                onModeChange={noop}
-                                onParamsChange={noop}
-                            />
-                        </div>
+                        <ChatComposer
+                            mode={chat.mode}
+                            params={DEFAULT_GENERATION_PARAMS}
+                            disabled={false}
+                            busy
+                            canContinue={false}
+                            autoFocus
+                            readOnly
+                            formRef={composerRef}
+                            onSubmit={async () => {}}
+                            onModeChange={noop}
+                            onParamsChange={noop}
+                        />
                     }
                 />
             </div>
@@ -111,10 +110,11 @@ function draftTurn(chat: ChatDraft): ChatMessage[] {
 }
 
 /**
- * Moves the box in `ref` to its place from `from`, where the composer that
- * started the chat was, so the box the user typed in reads as moving down to
- * become the chat's. Translation only, lining up the boxes' centers and
- * bottom edges (their toolbars): the two are about the same size. Nothing
+ * Turns the box in `ref` into its place from `from`, where the composer that
+ * started the chat was: its outline moves and resizes from that box's to its
+ * own, so the box the user typed in reads as settling down into the chat's
+ * smaller one, its Send staying in the corner. The content isn't scaled; the
+ * box keeps its bottom edge in the page's flow, so it grows upward. Nothing
  * moves without `from`, or for a user who asks for reduced motion.
  */
 function useGlideFrom(ref: RefObject<HTMLElement | null>, from: ScreenRect | undefined) {
@@ -122,10 +122,17 @@ function useGlideFrom(ref: RefObject<HTMLElement | null>, from: ScreenRect | und
         const el = ref.current;
         if (!el || !from || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
         const to = el.getBoundingClientRect();
-        const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+        const dx = from.left - to.left;
         const dy = from.top + from.height - to.bottom;
         const glide = el.animate(
-            [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }],
+            [
+                {
+                    transform: `translate(${dx}px, ${dy}px)`,
+                    width: `${from.width}px`,
+                    height: `${from.height}px`,
+                },
+                { transform: "none", width: `${to.width}px`, height: `${to.height}px` },
+            ],
             { duration: CHAT_GLIDE_MS, easing: "cubic-bezier(0.2, 0, 0, 1)" },
         );
         return () => glide.cancel();
