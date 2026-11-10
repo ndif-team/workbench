@@ -17,7 +17,8 @@ const MODES: { mode: ChatMode; label: string; description: string }[] = [
  * The chat's settings behind an icon in its composer: its mode, temperature
  * and the reply's token limit, the sliders saved when let go. The icon's
  * tooltip sums them up, and a dot on it marks sampling changed from the
- * defaults.
+ * defaults. The mode shows but can't change once the chat has messages
+ * (`modeLocked`, `isModeLocked`).
  */
 export function GenerationSettings({
     mode,
@@ -25,12 +26,14 @@ export function GenerationSettings({
     onModeChange,
     onChange,
     disabled,
+    modeLocked,
 }: {
     mode: ChatMode;
     params: GenerationParams;
     onModeChange: (mode: ChatMode) => void;
     onChange: (params: GenerationParams) => void;
     disabled: boolean;
+    modeLocked: boolean;
 }) {
     const [draft, setDraft] = useState(params);
     useEffect(() => setDraft(params), [params]);
@@ -62,28 +65,36 @@ export function GenerationSettings({
                 </Button>
             </PopoverTrigger>
             <PopoverContent side="top" align="end" className="w-56 space-y-3 p-3">
-                <div
-                    role="group"
-                    aria-label="Mode"
-                    className="grid grid-cols-2 gap-0.5 rounded-md border bg-card p-0.5 shadow-xs dark:bg-input/30"
-                >
-                    {MODES.map((m) => (
-                        <button
-                            key={m.mode}
-                            type="button"
-                            aria-pressed={m.mode === mode}
-                            title={m.description}
-                            onClick={() => m.mode !== mode && onModeChange(m.mode)}
-                            className={cn(
-                                "h-6 rounded-sm text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-                                m.mode === mode
-                                    ? "bg-accent text-accent-foreground"
-                                    : "text-muted-foreground hover:text-foreground",
-                            )}
-                        >
-                            {m.label}
-                        </button>
-                    ))}
+                <div className="space-y-1.5">
+                    <div
+                        role="group"
+                        aria-label="Mode"
+                        className="grid grid-cols-2 gap-0.5 rounded-md border bg-card p-0.5 shadow-xs dark:bg-input/30"
+                    >
+                        {MODES.map((m) => (
+                            <button
+                                key={m.mode}
+                                type="button"
+                                aria-pressed={m.mode === mode}
+                                disabled={modeLocked && m.mode !== mode}
+                                title={m.description}
+                                onClick={() => m.mode !== mode && onModeChange(m.mode)}
+                                className={cn(
+                                    "h-6 rounded-sm text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                                    m.mode === mode
+                                        ? "bg-accent text-accent-foreground"
+                                        : "text-muted-foreground enabled:hover:text-foreground",
+                                )}
+                            >
+                                {m.label}
+                            </button>
+                        ))}
+                    </div>
+                    {modeLocked && (
+                        <p className="text-xs text-muted-foreground">
+                            Set by the first message. Start a new chat to switch.
+                        </p>
+                    )}
                 </div>
                 <SettingSlider
                     label="Temperature"

@@ -6,8 +6,8 @@
  * message (Home's composer), how a turn is appended (dense
  * positions, the chat named after its first message, a failed reply dropped
  * first, refused while a reply is pending, a reply alone for a
- * continuation), saving a reply, deleting a chat with its messages, and
- * moving a chat between workspaces.
+ * continuation), a mode settled by the first message, saving a reply,
+ * deleting a chat with its messages, and moving a chat between workspaces.
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
@@ -23,6 +23,7 @@ import {
     getChatMessages,
     regenerateReply,
     showBranch,
+    updateChat,
     updateChatMessage,
 } from "@/lib/queries/chatDb";
 import { createWorkshop } from "@/lib/queries/workshopDb";
@@ -341,6 +342,38 @@ describe("chat turns", () => {
             addChatTurn(USER, chatId, { content: "x".repeat(100_001), reply: pending }),
         ).rejects.toThrow("at most");
         expect(await transcript(chatId)).toEqual([]);
+    });
+});
+
+describe("a chat's mode", () => {
+    let chatId: string;
+
+    beforeEach(async () => {
+        await clearDatabase();
+        chatId = (await createChat(USER, newChat)).id;
+    });
+
+    it("changes before the first message", async () => {
+        const updated = await updateChat(USER, chatId, { mode: "completion" });
+        expect(updated.mode).toBe("completion");
+    });
+
+    it("is settled by the first message, while the model and settings still change", async () => {
+        await addChatTurn(USER, chatId, { content: "Hi", reply: pending });
+
+        await expect(updateChat(USER, chatId, { mode: "completion" })).rejects.toThrow(
+            "can't change once it has messages",
+        );
+        const updated = await updateChat(USER, chatId, {
+            mode: "chat",
+            model: "google/gemma-2-9b-it",
+            params: { temperature: 0, maxNewTokens: 64 },
+        });
+        expect([updated.mode, updated.model, updated.data.params.temperature]).toEqual([
+            "chat",
+            "google/gemma-2-9b-it",
+            0,
+        ]);
     });
 });
 

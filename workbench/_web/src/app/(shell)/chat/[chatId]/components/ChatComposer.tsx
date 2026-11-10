@@ -20,6 +20,7 @@ export function ChatComposer({
     canContinue,
     autoFocus = false,
     readOnly = false,
+    modeLocked = false,
     formRef,
     onSubmit,
     onModeChange,
@@ -36,6 +37,8 @@ export function ChatComposer({
     autoFocus?: boolean;
     /** Focusable but takes no input: the composer of a chat still being started. */
     readOnly?: boolean;
+    /** The chat has messages, which settle its mode (`isModeLocked`). */
+    modeLocked?: boolean;
     /** The box itself, for the page that glides it into place (`PendingChatPage`). */
     formRef?: Ref<HTMLFormElement>;
     onSubmit: (content: string) => Promise<unknown>;
@@ -94,6 +97,7 @@ export function ChatComposer({
                     onModeChange={onModeChange}
                     onChange={onParamsChange}
                     disabled={disabled || busy}
+                    modeLocked={modeLocked}
                 />
                 <Button
                     type="submit"

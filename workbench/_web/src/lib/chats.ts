@@ -1,4 +1,4 @@
-import type { ChatMessage } from "@/db/schema";
+import type { Chat, ChatMessage } from "@/db/schema";
 import type { ChatMode, ChatReplyStatus, ChatRole, ReplyRun } from "@/types/chats";
 import type { Model } from "@/types/models";
 
@@ -22,6 +22,31 @@ export const draftMessage = (
 /** How a chat with `model` runs: its chat template for a chat model, else completion. */
 export const chatModeFor = (model: Pick<Model, "is_chat"> | undefined): ChatMode =>
     model?.is_chat ? "chat" : "completion";
+
+/**
+ * Whether a chat's mode is settled: its first message settles it. Each mode
+ * keeps a conversation in its own shape (turns read through the model's chat
+ * template, or one text), so the other mode would misread it.
+ */
+export const isModeLocked = (chat: Pick<Chat, "headMessageId">): boolean =>
+    chat.headMessageId !== null;
+
+/**
+ * What moving `chat` to the model `name` changes: the model, and the mode too
+ * until the first message (that model's own, `chatModeFor`). After it, the
+ * mode stays: a completion takes any model, and a chat only a chat model, so
+ * this is null for a base model, which has no chat template to read the turns
+ * with.
+ */
+export const settingsForModel = (
+    chat: Pick<Chat, "mode" | "headMessageId">,
+    name: string,
+    model: Pick<Model, "is_chat"> | undefined,
+): { model: string; mode?: ChatMode } | null => {
+    if (!isModeLocked(chat)) return { model: name, mode: chatModeFor(model) };
+    if (chat.mode === "chat" && model && !model.is_chat) return null;
+    return { model: name };
+};
 
 /** The run that produced a reply; null for a user or system message. */
 export const replyRun = (message: Pick<ChatMessage, "data">): ReplyRun | null =>

@@ -11,7 +11,7 @@ import type { Model } from "@/types/models";
  */
 export type ChatOrigin = Extract<
     ChartOrigin,
-    "sidebar" | "workspace_page" | "home" | "landing" | "new_link" | "resumed"
+    "sidebar" | "workspace_page" | "home" | "landing" | "new_link" | "resumed" | "chat_page"
 >;
 
 /**

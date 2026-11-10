@@ -72,6 +72,7 @@ export function PendingChatPage({ chat }: { chat: ChatDraft }) {
                             canContinue={false}
                             autoFocus
                             readOnly
+                            modeLocked={!!chat.content}
                             formRef={composerRef}
                             onSubmit={async () => {}}
                             onModeChange={noop}

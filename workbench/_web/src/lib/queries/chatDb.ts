@@ -3,7 +3,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { chatMessages, chats, isUuid, jsonTextField, workspaces } from "@/db/schema";
 import type { Chat, ChatMessage } from "@/db/schema";
-import { chatTitleFrom, isPendingReply, latestLeaf, placeTurn } from "@/lib/chats";
+import { chatTitleFrom, isModeLocked, isPendingReply, latestLeaf, placeTurn } from "@/lib/chats";
 import {
     getNextWorkspaceItemPosition,
     getOrCreateDefaultWorkspace,
@@ -143,7 +143,8 @@ const getMessage = async (userId: string, messageId: string): Promise<ChatMessag
 
 /**
  * Renames one of the user's chats or changes its model, mode or generation
- * settings. New generation settings are merged into the chat's `data`.
+ * settings. New generation settings are merged into the chat's `data`. The
+ * mode only changes before the first message (`isModeLocked`).
  */
 export const updateChat = async (
     userId: string,
@@ -152,10 +153,13 @@ export const updateChat = async (
 ): Promise<Chat> => {
     const { params, ...columns } = validSettings(settings);
     let data: Chat["data"] | undefined;
-    if (params) {
+    if (params || columns.mode) {
         const current = await getChat(userId, chatId);
         if (!current) throw chatNotFound();
-        data = { ...current.data, params };
+        if (columns.mode && columns.mode !== current.mode && isModeLocked(current)) {
+            throw new Error("A chat's mode can't change once it has messages");
+        }
+        if (params) data = { ...current.data, params };
     }
     const [chat] = await db
         .update(chats)

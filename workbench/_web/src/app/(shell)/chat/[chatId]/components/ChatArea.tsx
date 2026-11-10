@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useIsMutating, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import {
     isReplyRunning,
     markReplyInterrupted,
     useChat,
     useChatMessages,
+    useCreateChat,
     useRerunReply,
     useSendChatMessage,
     useShowBranch,
@@ -16,7 +18,8 @@ import {
 } from "@/lib/api/chatApi";
 import { useCapture } from "@/lib/analytics";
 import { useModelsQuery } from "@/lib/api/modelsApi";
-import { branchTo, chatModeFor, isPendingReply, replyStatus } from "@/lib/chats";
+import { chatPath } from "@/lib/chartRoutes";
+import { branchTo, isModeLocked, isPendingReply, replyStatus, settingsForModel } from "@/lib/chats";
 import { usePromptFocus } from "@/stores/usePromptFocus";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { DEFAULT_GENERATION_PARAMS } from "@/types/chats";
@@ -30,8 +33,10 @@ import { CompletionDocument } from "./CompletionDocument";
  * header's model picker and the chat's model in step, and sends messages.
  *
  * The header's pick follows the chat when it opens; picking another model
- * there afterwards switches the chat to it, in the mode that model runs in
- * (`chatModeFor`). A reply left pending by a closed or reloaded page is
+ * there afterwards switches the chat to it (`settingsForModel`): in that
+ * model's mode until the first message, in the chat's own after it. A chat
+ * with messages can't take a base model, so the pick goes back and a toast
+ * offers a completion with that model instead. A reply left pending by a closed or reloaded page is
  * marked interrupted when the chat opens, so it offers Retry. A chat started
  * from Home's composer opens with its composer focused (`usePromptFocus`).
  */
@@ -43,6 +48,8 @@ export function ChatArea() {
     const { data: models } = useModelsQuery();
     const { selectedModel, setSelectedModel } = useWorkspace();
     const { mutate: updateChat } = useUpdateChat();
+    const { mutateAsync: createChat } = useCreateChat("chat_page");
+    const router = useRouter();
     const { mutateAsync: send } = useSendChatMessage(chat);
     const { mutate: rerun } = useRerunReply(chat);
     const { mutate: showBranch } = useShowBranch();
@@ -69,14 +76,31 @@ export function ChatArea() {
             setSelectedModel(chat.model);
             return;
         }
-        if (selectedModel && selectedModel !== chat.model) {
-            const model = models?.find((m) => m.name === selectedModel);
-            updateChat({
-                chatId: chat.id,
-                settings: { model: selectedModel, mode: chatModeFor(model) },
-            });
+        if (!selectedModel || selectedModel === chat.model || !models) return;
+        const settings = settingsForModel(
+            chat,
+            selectedModel,
+            models.find((m) => m.name === selectedModel),
+        );
+        if (settings) {
+            updateChat({ chatId: chat.id, settings });
+            return;
         }
-    }, [chat, models, selectedModel, setSelectedModel, updateChat]);
+        setSelectedModel(chat.model);
+        const name = selectedModel.split("/").pop();
+        toast(`${name} is a base model`, {
+            description: `It continues text rather than taking turns, so this chat stays on ${chat.model.split("/").pop()}.`,
+            action: {
+                label: "Start a completion",
+                onClick: () =>
+                    createChat({
+                        model: selectedModel,
+                        mode: "completion",
+                        workspaceId: chat.workspaceId,
+                    }).then((created) => router.push(chatPath(created.id))),
+            },
+        });
+    }, [chat, models, selectedModel, setSelectedModel, updateChat, createChat, router]);
 
     const checkedChatRef = useRef<string | null>(null);
     useEffect(() => {
@@ -129,6 +153,7 @@ export function ChatArea() {
                     busy={busy}
                     canContinue={branch.length > 0}
                     autoFocus={focusComposer}
+                    modeLocked={!!chat && isModeLocked(chat)}
                     onSubmit={(content) => send(content)}
                     onModeChange={(next) =>
                         chat && updateChat({ chatId: chat.id, settings: { mode: next } })
