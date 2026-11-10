@@ -66,13 +66,13 @@ export function PendingChatPage({ chat }: { chat: ChatDraft }) {
                     composer={
                         <ChatComposer
                             mode={chat.mode}
-                            params={DEFAULT_GENERATION_PARAMS}
+                            params={chat.params ?? DEFAULT_GENERATION_PARAMS}
                             disabled={false}
                             busy
                             canContinue={false}
                             autoFocus
                             readOnly
-                            modeLocked={!!chat.content}
+                            modeFixed={chat.content ? "started" : undefined}
                             formRef={composerRef}
                             onSubmit={async () => {}}
                             onModeChange={noop}
@@ -104,7 +104,11 @@ function draftTurn(chat: ChatDraft): ChatMessage[] {
             position: 1,
             data: {
                 role: "assistant",
-                run: { status: "pending", model: chat.model, params: DEFAULT_GENERATION_PARAMS },
+                run: {
+                    status: "pending",
+                    model: chat.model,
+                    params: chat.params ?? DEFAULT_GENERATION_PARAMS,
+                },
             },
         }),
     ];

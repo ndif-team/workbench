@@ -62,7 +62,12 @@ export function NewChatCreator({
             setDraft(chat);
             useWorkspace.getState().setSelectedModel(chat.model);
             const created = await createChat({
-                request: { model: chat.model, mode: chat.mode, workspaceId: chat.workspaceId },
+                request: {
+                    model: chat.model,
+                    mode: chat.mode,
+                    workspaceId: chat.workspaceId,
+                    params: chat.params,
+                },
                 content: chat.content,
                 origin,
             });

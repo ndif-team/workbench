@@ -59,5 +59,7 @@ export type ChatDraft = {
     mode: ChatMode;
     content: string;
     workspaceId?: string;
+    /** The chat's settings, when the launch chose any; else the defaults. */
+    params?: GenerationParams;
     composerRect?: ScreenRect;
 };

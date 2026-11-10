@@ -29,6 +29,8 @@ import {
     splitRepo,
 } from "@/components/model-selector/status";
 import { LAUNCH_TRIGGER, ToolPill, WorkspacePill } from "@/components/selectors/LaunchSelectors";
+import { GenerationSettings } from "@/components/selectors/GenerationSettings";
+import { DEFAULT_GENERATION_PARAMS, type ChatMode } from "@/types/chats";
 import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
 import { CwLogoMark } from "@/components/CwLogo";
@@ -240,6 +242,9 @@ function ModelTriggerPopover({
  */
 export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     const [prompt, setPrompt] = useState("");
+    const [chatParams, setChatParams] = useState(DEFAULT_GENERATION_PARAMS);
+    // A mode picked in Chat's settings, for the model it was picked on.
+    const [modePick, setModePick] = useState<{ model: string; mode: ChatMode } | null>(null);
     const [showCaptcha, setShowCaptcha] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedModel, setSelectedModel] = useState<string>("");
@@ -347,7 +352,8 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     };
 
     const chatting = selectedTool === ChatLaunch.TOOL;
-    const chatMode = chatModeFor(modelsToSelect.find((m) => m.name === selectedModel));
+    const chatModel = modelsToSelect.find((m) => m.name === selectedModel);
+    const chatMode = modePick?.model === selectedModel ? modePick.mode : chatModeFor(chatModel);
     // A chat's first message: trimmed in chat mode, as typed for a text to continue.
     const chatContent = chatMode === "chat" ? prompt.trim() : prompt;
 
@@ -366,6 +372,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         } else if (chatting) {
             params.set("prompt", chatContent);
             params.set("mode", chatMode);
+            ChatLaunch.tagParams(params, chatParams);
         } else {
             params.set("prompt", prompt);
         }
@@ -442,6 +449,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                         model: selectedModel,
                         mode: chatMode,
                         content: chatContent,
+                        params: chatParams,
                         ...(selectedWorkspace && { workspaceId: selectedWorkspace }),
                         ...(box && {
                             composerRect: {
@@ -660,10 +668,26 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                                     quietDefault
                                 />
                             )}
+                            {chatting && (
+                                <div className="ml-auto">
+                                    <GenerationSettings
+                                        mode={chatMode}
+                                        params={chatParams}
+                                        onModeChange={(mode) =>
+                                            setModePick({ model: selectedModel, mode })
+                                        }
+                                        onChange={setChatParams}
+                                        disabled={showCaptcha || isSubmitting}
+                                        modeFixed={
+                                            chatModel && !chatModel.is_chat ? "base" : undefined
+                                        }
+                                    />
+                                </div>
+                            )}
                             <Button
                                 type="submit"
                                 size="sm"
-                                className="ml-auto"
+                                className={cn(!chatting && "ml-auto")}
                                 disabled={
                                     showCaptcha ||
                                     isSubmitting ||

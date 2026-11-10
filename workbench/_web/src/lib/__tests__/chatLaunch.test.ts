@@ -57,6 +57,39 @@ describe("ChatLaunch", () => {
         expect(ChatLaunch.draft({ tool: "Chat", mode: "bogus" }, [])).toBeNull();
     });
 
+    it("carries the settings a link names, as a launch writes them", () => {
+        const query = new URLSearchParams({ tool: "Chat", model: "gpt2", mode: "completion" });
+        ChatLaunch.tagParams(query, { temperature: 0, maxNewTokens: 1024 });
+        expect(Object.fromEntries(query)).toMatchObject({ temperature: "0", maxNewTokens: "1024" });
+        expect(ChatLaunch.draft(Object.fromEntries(query))?.params).toEqual({
+            temperature: 0,
+            maxNewTokens: 1024,
+        });
+    });
+
+    it("leaves default settings out of a link, and a link without settings takes none", () => {
+        const query = new URLSearchParams();
+        ChatLaunch.tagParams(query, { temperature: 0.7, maxNewTokens: 256 });
+        expect(query.toString()).toBe("");
+        expect(
+            ChatLaunch.draft({ tool: "Chat", model: "gpt2", mode: "chat" })?.params,
+        ).toBeUndefined();
+    });
+
+    it("takes the default for a setting a link gets wrong", () => {
+        const draft = (temperature: string, maxNewTokens: string) =>
+            ChatLaunch.draft({
+                tool: "Chat",
+                model: "gpt2",
+                mode: "chat",
+                temperature,
+                maxNewTokens,
+            })?.params;
+        expect(draft("5", "4096")).toEqual({ temperature: 0.7, maxNewTokens: 256 });
+        expect(draft("", "1.5")).toEqual({ temperature: 0.7, maxNewTokens: 256 });
+        expect(draft("1.2", "abc")).toEqual({ temperature: 1.2, maxNewTokens: 256 });
+    });
+
     it("reports a /new origin that starts no chats as a plain link", () => {
         expect(ChatLaunch.origin("landing")).toBe("landing");
         expect(ChatLaunch.origin("resumed")).toBe("resumed");
