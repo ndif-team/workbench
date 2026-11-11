@@ -156,8 +156,13 @@ export function Reply({
     const run = replyRun(message);
     if (run?.status === "pending") {
         return (
-            <p className="text-shimmer w-fit text-sm" aria-live="polite">
-                Waiting for the reply…
+            <p className="w-fit text-sm text-muted-foreground" aria-live="polite">
+                <span className="text-shimmer">Waiting for the reply</span>
+                <span aria-hidden className="wait-dots">
+                    <span>.</span>
+                    <span>.</span>
+                    <span>.</span>
+                </span>
             </p>
         );
     }
