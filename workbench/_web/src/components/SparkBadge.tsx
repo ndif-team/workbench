@@ -64,7 +64,7 @@ export function SparkBadge({
                 y={CY + 1}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fontFamily="var(--font-mono, ui-monospace, monospace)"
+                className="font-mono"
                 fontWeight={700}
                 fontSize={fontSize}
                 fill="#6D28D9"
