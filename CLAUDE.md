@@ -136,7 +136,7 @@ workbench/                          # repo root
         │       ├── patch-lens/[chartId]/        # Patch Lens (edulogitlens), run history rail, guided tutorial
         │       ├── reports/[reportId]/          # Lexical report editor
         │       ├── new/            # /new?tool=…&model=…&prompt=…: creates a chart, then opens it
-        │       ├── models/         # models grid (paged to fit the page on desktop, page controls under it; scrolls on a phone)
+        │       ├── models/         # models grid (scrolls under its header)
         │       └── workspaces/     # all workspaces (folders); [workspaceId]/ is one folder, its items as
         │                           #   preview cards (FolderItemCard, useChartPreview) or rows (FolderItemRow)
         │
@@ -145,7 +145,7 @@ workbench/                          # repo root
         │   ├── charts/             # ChartModelPill (stale-model pill), theming.ts (Nivo theme)
         │   ├── activation-patching/  # toolkit.tsx (shared AP state, prompt section, patch arrows)
         │   ├── model-selector/     # ModelPopover (model picker body), status.ts (model heat vocabulary)
-        │   ├── models/             # ModelsSection (the models grid on /models), ModelsPager, ModelLaunchDialog,
+        │   ├── models/             # ModelsSection (the models grid on /models), ModelLaunchDialog,
         │   │                       #   OrgAvatar (a card's publisher logo)
         │   ├── providers/          # QueryProvider, ThemeProvider, TourProvider, TutorialEventProvider
         │   ├── ModelControl.tsx    # header model pill + picker; its job badge shows useWorkspace.jobStatus
