@@ -14,6 +14,7 @@ import {
     type ModelHeat,
 } from "@/components/model-selector/status";
 import { useModelDeployment } from "@/stores/useModelDeployment";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { ModelsSectionHeader } from "./ModelsSectionHeader";
 import { ModelsFetchErrorBanner } from "./ModelsFetchErrorBanner";
 import { ModelLaunchDialog, type ModelLaunchMode } from "./ModelLaunchDialog";
@@ -138,9 +139,10 @@ interface ModelsSectionProps {
  * The models the backend serves, as a filterable grid set straight on the
  * page and filling it: hottest first, filters (type, status, search) mirrored
  * to the URL.
- * The grid never scrolls: it shows as many cards as fit and pages through the
- * rest, with the page controls under it at the page's bottom. A card opens
- * the launch dialog (or deploys a cold model).
+ * On desktop the grid never scrolls: it shows as many cards as fit and pages
+ * through the rest, with the page controls under it at the page's bottom. On
+ * a phone it lists every model and scrolls. A card opens the launch dialog
+ * (or deploys a cold model).
  */
 export function ModelsSection({
     cardHref = (m) => `https://huggingface.co/${m.org}/${m.name}`,
@@ -295,10 +297,22 @@ export function ModelsSection({
             .finally(() => setIsRetrying(false));
     }, [queryClient]);
 
+    const isMobile = useIsMobile();
     const { pageSize, areaRef, cardRef } = useGridPageSize();
+    const scrollArea = useRef<HTMLDivElement | null>(null);
+    const setArea = useCallback(
+        (el: HTMLDivElement | null) => {
+            areaRef(el);
+            scrollArea.current = el;
+        },
+        [areaRef],
+    );
     const [page, setPage] = useState(0);
-    useEffect(() => setPage(0), [query, statusFilters, groupFilters]);
-    const perPage = pageSize ?? filtered.length;
+    useEffect(() => {
+        setPage(0);
+        scrollArea.current?.scrollTo({ top: 0 });
+    }, [query, statusFilters, groupFilters]);
+    const perPage = isMobile ? filtered.length : (pageSize ?? filtered.length);
     const pageCount = Math.max(1, Math.ceil(filtered.length / Math.max(1, perPage)));
     const currentPage = Math.min(page, pageCount - 1);
     const pageModels = filtered.slice(currentPage * perPage, (currentPage + 1) * perPage);
@@ -325,7 +339,7 @@ export function ModelsSection({
                 />
             </div>
 
-            <div ref={areaRef} className="min-h-0 flex-1 overflow-hidden">
+            <div ref={setArea} className="min-h-0 flex-1 overflow-y-auto md:overflow-hidden">
                 {isLoading && !rawModels ? (
                     <div className="py-8 text-center text-xs text-muted-foreground">
                         Loading models…
@@ -341,7 +355,7 @@ export function ModelsSection({
                         No models match the current filters.
                     </div>
                 ) : (
-                    <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-4">
+                    <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-4 pb-3 md:pb-0">
                         {pageModels.map((m, i) => (
                             <li
                                 key={`${m.org}/${m.name}`}
