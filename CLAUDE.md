@@ -136,7 +136,7 @@ workbench/                          # repo root
         │       ├── patch-lens/[chartId]/        # Patch Lens (edulogitlens), run history rail, guided tutorial
         │       ├── reports/[reportId]/          # Lexical report editor
         │       ├── new/            # /new?tool=…&model=…&prompt=…: creates a chart, then opens it
-        │       ├── models/         # models grid (paged to fit the page, never scrolled; page controls under it)
+        │       ├── models/         # models grid (paged to fit the page on desktop, page controls under it; scrolls on a phone)
         │       └── workspaces/     # all workspaces (folders); [workspaceId]/ is one folder, its items as
         │                           #   preview cards (FolderItemCard, useChartPreview) or rows (FolderItemRow)
         │
