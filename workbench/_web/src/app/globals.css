@@ -233,6 +233,39 @@
     opacity: 0.55;
 }
 
+/* A model card's surface on that background: mother-of-pearl, a pale sheen
+ * of its sky, violet and pink running across the card, with a highlight
+ * along the top edge and a soft shadow, so the cards stand off the
+ * marbling. */
+.pearl-surface {
+    background: linear-gradient(
+        120deg,
+        hsl(0 0% 100%) 0%,
+        hsl(200 80% 95%) 30%,
+        hsl(275 70% 96%) 55%,
+        hsl(330 80% 96%) 78%,
+        hsl(0 0% 100%) 100%
+    );
+    box-shadow:
+        inset 0 1px 0 hsl(0 0% 100%),
+        0 1px 2px hsl(226 57% 21% / 0.12),
+        0 6px 16px -6px hsl(226 57% 21% / 0.3);
+}
+.dark .pearl-surface {
+    background: linear-gradient(
+        120deg,
+        hsl(220 14% 21%) 0%,
+        hsl(200 22% 17%) 30%,
+        hsl(270 18% 19%) 55%,
+        hsl(330 16% 17%) 78%,
+        hsl(220 14% 20%) 100%
+    );
+    box-shadow:
+        inset 0 1px 0 hsl(0 0% 100% / 0.12),
+        0 1px 2px hsl(0 0% 0% / 0.5),
+        0 6px 16px -6px hsl(0 0% 0% / 0.8);
+}
+
 /* Scrollbars: thin, a muted thumb on a clear track. The standard properties
  * come first: Chromium (Chrome, Dia, Edge, Arc) and Firefox draw them, and
  * once they are set Chromium ignores ::-webkit-scrollbar, so setting them
