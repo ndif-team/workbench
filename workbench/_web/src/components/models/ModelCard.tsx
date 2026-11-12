@@ -89,29 +89,29 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
             <div className="flex items-center justify-between gap-2">
                 {deploying ? (
                     <span
-                        className="inline-flex min-w-0 items-center gap-2 text-sm font-medium"
+                        className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium"
                         style={{ color: MODEL_STATUS.deploying.color }}
                     >
-                        <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+                        <Loader2 className="size-3 shrink-0 animate-spin" />
                         <span className="truncate">deploying</span>
                     </span>
                 ) : (
                     <span
-                        className="inline-flex min-w-0 items-center gap-2 text-sm font-medium"
+                        className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium"
                         style={{ color: heat.color }}
                     >
                         <span
-                            className="w-2 h-2 shrink-0 rounded-full"
+                            className="size-1.5 shrink-0 rounded-full"
                             style={{
                                 background: heat.color,
-                                boxShadow: `0 0 0 3px ${heat.color}26`,
+                                boxShadow: `0 0 0 2px ${heat.color}26`,
                             }}
                         />
                         <span className="truncate">{heat.label}</span>
                     </span>
                 )}
                 <span
-                    className="shrink-0 whitespace-nowrap text-sm font-medium px-2 py-0.5 rounded border"
+                    className="shrink-0 whitespace-nowrap text-xs font-medium px-1.5 py-px rounded border"
                     style={{
                         color: pillText,
                         background: pillBg,
@@ -135,7 +135,7 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
             </div>
 
             <div
-                className="flex items-center gap-3 -mx-4 -mb-3.5 mt-auto px-4 py-2 border-t font-mono text-sm text-muted-foreground"
+                className="flex items-center gap-2 -mx-4 -mb-3.5 mt-auto py-1.5 pl-4 pr-2 border-t text-xs tabular-nums text-muted-foreground"
                 style={{ background: footerBg, borderColor: footerBorder }}
             >
                 <span>{m.params}</span>
@@ -158,16 +158,10 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
     );
 
     const shell = cn(
-        "group relative w-full min-w-0 px-4 py-3.5 rounded-md overflow-hidden border border-foreground/50 text-left shadow-md shadow-blue-950/15 transition-colors dark:border-foreground/45 dark:shadow-black/50",
-        clickable
-            ? "cursor-pointer hover:border-foreground/65 dark:hover:border-foreground/60"
-            : "cursor-default",
+        "group relative w-full min-w-0 px-4 py-3.5 rounded-md overflow-hidden border bg-card text-left shadow-xs transition-colors",
+        clickable ? "cursor-pointer hover:border-foreground/20" : "cursor-default",
         muted && "opacity-70",
     );
-
-    const style = {
-        background: "hsl(var(--card))",
-    } as const;
 
     // The card is a plain div so it can nest interactive children (the info
     // link, the Deploy button). Runnable cards get button semantics + keyboard
@@ -199,14 +193,14 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
         // Relative wrapper (no clipping) so the j-lens sticker can overhang the
         // card's rounded, overflow-hidden shell.
         <div className="relative w-full min-w-0">
-            <div className={shell} style={style} aria-label={ariaLabel} {...interactive}>
+            <div className={shell} aria-label={ariaLabel} {...interactive}>
                 {content}
             </div>
             {m.has_jacobian && (
                 <SparkBadge
                     text="J-Lens"
                     label="Supports J-Lens"
-                    className="pointer-events-none absolute right-3 top-12 z-10 h-11 w-16 rotate-12 drop-shadow-sm"
+                    className="pointer-events-none absolute right-3 top-10 z-10 h-11 w-16 rotate-12 drop-shadow-sm"
                 />
             )}
         </div>
