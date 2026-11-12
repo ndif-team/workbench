@@ -1298,30 +1298,102 @@
     "yujiepan/voxtral-tiny-random",
     "yujiepan/zaya1-tiny-random"
   ],
-  "avatars": {
-    "EleutherAI": "https://cdn-avatars.huggingface.co/v1/production/uploads/1614054059123-603481bb60e3dd96631c9095.png",
-    "HuggingFaceTB": "https://cdn-avatars.huggingface.co/v1/production/uploads/651e96991b97c9f33d26bde6/e4VK7uW5sTeCYupD0s_ob.png",
-    "Maykeye": null,
-    "Qwen": "https://cdn-avatars.huggingface.co/v1/production/uploads/6215ca5692c0ecfba9186921/hrRM50-6XcdWgg2AKpENG.jpeg",
-    "allenai": "https://cdn-avatars.huggingface.co/v1/production/uploads/652db071b62cf1f8463221e2/CxxwFiaomTa1MCX_B7-pT.png",
-    "auditing-agents": null,
-    "axolotl-ai-co": "https://cdn-avatars.huggingface.co/v1/production/uploads/641dfddf3bae5a77636817c5/Wa6Qn38GOAlhl6ClMv_Q3.png",
-    "bigscience": "https://cdn-avatars.huggingface.co/v1/production/uploads/1634806038075-5df7e9e5da6d0311fd3d53f9.png",
-    "deepseek-ai": "https://cdn-avatars.huggingface.co/v1/production/uploads/6538815d1bdb3c40db94fbfa/xMBly9PUMphrFVMxLX4kq.png",
-    "google": "https://cdn-avatars.huggingface.co/v1/production/uploads/5dd96eb166059660ed1ee413/WtA3YYitedOr9n02eHfJe.png",
-    "google-bert": "https://cdn-avatars.huggingface.co/v1/production/uploads/5dd96eb166059660ed1ee413/TmmBAiyUIfm_mM3OtySkw.png",
-    "humain-ai": "https://cdn-avatars.huggingface.co/v1/production/uploads/67d698026f5362e0b878c9ff/I3h_HWfjbqUi5pvC0V9GR.png",
-    "meta-llama": "https://cdn-avatars.huggingface.co/v1/production/uploads/646cf8084eefb026fb8fd8bc/oCTqufkdTkjyGodsx1vo1.png",
-    "microsoft": "https://cdn-avatars.huggingface.co/v1/production/uploads/1583646260758-5e64858c87403103f9f1055d.png",
-    "mistralai": "https://cdn-avatars.huggingface.co/v1/production/uploads/634c17653d11eaedd88b314d/9OgyfKstSZtbmsmuG8MbU.png",
-    "openai": "https://cdn-avatars.huggingface.co/v1/production/uploads/68783facef79a05727260de3/UPX5RQxiPGA-ZbBmArIKq.png",
-    "openai-community": "https://cdn-avatars.huggingface.co/v1/production/uploads/5dd96eb166059660ed1ee413/9NY4jfufqo1uyv8oNXQju.png",
-    "qwen": "https://cdn-avatars.huggingface.co/v1/production/uploads/6215ca5692c0ecfba9186921/hrRM50-6XcdWgg2AKpENG.jpeg",
-    "sbintuitions": "https://cdn-avatars.huggingface.co/v1/production/uploads/619f151fd4931de0d2faeb95/IrEqvVAC2xXOLLtyfMLRM.jpeg",
-    "sshleifer": null,
-    "tiiuae": "https://cdn-avatars.huggingface.co/v1/production/uploads/61a8d1aac664736898ffc84f/AT6cAB5ZNwCcqFMal71WD.jpeg",
-    "yen-av": null,
-    "yujiepan": null,
-    "zai-org": "https://cdn-avatars.huggingface.co/v1/production/uploads/62dc173789b4cf157d36ebee/i_pxzM2ZDo3Ub-BEgIkE9.png"
+  "orgs": {
+    "EleutherAI": {
+      "name": "EleutherAI",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/1614054059123-603481bb60e3dd96631c9095.png"
+    },
+    "HuggingFaceTB": {
+      "name": "HuggingFaceTB",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/651e96991b97c9f33d26bde6/e4VK7uW5sTeCYupD0s_ob.png"
+    },
+    "Maykeye": {
+      "name": "Maykeye",
+      "avatar_url": null
+    },
+    "Qwen": {
+      "name": "Qwen",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/6215ca5692c0ecfba9186921/hrRM50-6XcdWgg2AKpENG.jpeg"
+    },
+    "allenai": {
+      "name": "allenai",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/652db071b62cf1f8463221e2/CxxwFiaomTa1MCX_B7-pT.png"
+    },
+    "auditing-agents": {
+      "name": "auditing-agents",
+      "avatar_url": null
+    },
+    "axolotl-ai-co": {
+      "name": "axolotl-ai-co",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/641dfddf3bae5a77636817c5/Wa6Qn38GOAlhl6ClMv_Q3.png"
+    },
+    "bigscience": {
+      "name": "bigscience",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/1634806038075-5df7e9e5da6d0311fd3d53f9.png"
+    },
+    "deepseek-ai": {
+      "name": "deepseek-ai",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/6538815d1bdb3c40db94fbfa/xMBly9PUMphrFVMxLX4kq.png"
+    },
+    "google": {
+      "name": "google",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/5dd96eb166059660ed1ee413/WtA3YYitedOr9n02eHfJe.png"
+    },
+    "google-bert": {
+      "name": "google-bert",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/5dd96eb166059660ed1ee413/TmmBAiyUIfm_mM3OtySkw.png"
+    },
+    "humain-ai": {
+      "name": "humain-ai",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/67d698026f5362e0b878c9ff/I3h_HWfjbqUi5pvC0V9GR.png"
+    },
+    "meta-llama": {
+      "name": "meta-llama",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/646cf8084eefb026fb8fd8bc/oCTqufkdTkjyGodsx1vo1.png"
+    },
+    "microsoft": {
+      "name": "microsoft",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/1583646260758-5e64858c87403103f9f1055d.png"
+    },
+    "mistralai": {
+      "name": "mistralai",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/634c17653d11eaedd88b314d/9OgyfKstSZtbmsmuG8MbU.png"
+    },
+    "openai": {
+      "name": "openai",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/68783facef79a05727260de3/UPX5RQxiPGA-ZbBmArIKq.png"
+    },
+    "openai-community": {
+      "name": "openai-community",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/5dd96eb166059660ed1ee413/9NY4jfufqo1uyv8oNXQju.png"
+    },
+    "qwen": {
+      "name": "qwen",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/6215ca5692c0ecfba9186921/hrRM50-6XcdWgg2AKpENG.jpeg"
+    },
+    "sbintuitions": {
+      "name": "sbintuitions",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/619f151fd4931de0d2faeb95/IrEqvVAC2xXOLLtyfMLRM.jpeg"
+    },
+    "sshleifer": {
+      "name": "sshleifer",
+      "avatar_url": null
+    },
+    "tiiuae": {
+      "name": "tiiuae",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/61a8d1aac664736898ffc84f/AT6cAB5ZNwCcqFMal71WD.jpeg"
+    },
+    "yen-av": {
+      "name": "yen-av",
+      "avatar_url": null
+    },
+    "yujiepan": {
+      "name": "yujiepan",
+      "avatar_url": null
+    },
+    "zai-org": {
+      "name": "zai-org",
+      "avatar_url": "https://cdn-avatars.huggingface.co/v1/production/uploads/62dc173789b4cf157d36ebee/i_pxzM2ZDo3Ub-BEgIkE9.png"
+    }
   }
 }
