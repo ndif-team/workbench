@@ -266,6 +266,21 @@
         0 6px 16px -6px hsl(0 0% 0% / 0.8);
 }
 
+/* A scrolling list whose content fades out over its top and bottom 12px
+ * instead of being cut off there (the models grid). Pad the content 12px at
+ * each end so it shows in full when scrolled to either end. */
+.scroll-fade-y {
+    --scroll-fade: linear-gradient(
+        to bottom,
+        transparent,
+        black 12px,
+        black calc(100% - 12px),
+        transparent
+    );
+    -webkit-mask-image: var(--scroll-fade);
+    mask-image: var(--scroll-fade);
+}
+
 /* Scrollbars: thin, a muted thumb on a clear track. The standard properties
  * come first: Chromium (Chrome, Dia, Edge, Arc) and Firefox draw them, and
  * once they are set Chromium ignores ::-webkit-scrollbar, so setting them
