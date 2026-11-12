@@ -31,9 +31,6 @@ interface ModelsSectionHeaderProps {
 
     groupFilters: Set<ModelGroup>;
     onToggleGroup: (g: ModelGroup) => void;
-
-    /** Page controls, shown after the filters when the models span pages. */
-    pager?: React.ReactNode;
 }
 
 export function ModelsSectionHeader({
@@ -47,7 +44,6 @@ export function ModelsSectionHeader({
     onToggleStatus,
     groupFilters,
     onToggleGroup,
-    pager,
 }: ModelsSectionHeaderProps) {
     const searchRef = useRef<HTMLInputElement>(null);
     const filtered = filteredTotal !== total;
@@ -138,15 +134,14 @@ export function ModelsSectionHeader({
                     />
                 </PopoverContent>
             </Popover>
-
-            {pager}
         </div>
     );
 }
 
 /**
  * The filter controls (search + type + status). Rendered inline in the header
- * on desktop, and stacked inside a popover on mobile. Pass `searchRef` only to
+ * on desktop, the search last, at the row's right end, and stacked inside a
+ * popover on mobile, the search first. Pass `searchRef` only to
  * the instance that should own the "/" focus shortcut (the desktop one) to
  * avoid a ref collision between the two instances.
  */
@@ -175,7 +170,7 @@ function FilterControls({
                 onValueChange={onQuery}
                 placeholder="search models…"
                 aria-label="Search models"
-                className="w-44"
+                className="w-44 md:order-last"
             />
 
             <div className="flex flex-wrap items-center gap-1.5">
