@@ -122,7 +122,7 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
                 </span>
             </div>
 
-            <div className={cn("flex items-center gap-3", m.has_jacobian && "pr-16")}>
+            <div className={cn("my-1 flex items-center gap-3", m.has_jacobian && "pr-16")}>
                 <OrgAvatar src={m.avatarUrl} className="size-10" />
                 <div className="flex min-w-0 flex-col">
                     <span className="text-sm text-muted-foreground truncate leading-tight">
@@ -135,7 +135,7 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
             </div>
 
             <div
-                className="flex items-center gap-2 -mx-4 -mb-3.5 mt-auto py-1.5 pl-4 pr-2 border-t text-xs tabular-nums text-muted-foreground"
+                className="flex items-center gap-2 -mx-4 -mb-3.5 mt-auto py-0.5 pl-4 pr-2 border-t text-xs tabular-nums text-muted-foreground"
                 style={{ background: footerBg, borderColor: footerBorder }}
             >
                 <span>{m.params}</span>
@@ -158,7 +158,7 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
     );
 
     const shell = cn(
-        "group relative w-full min-w-0 px-4 py-3.5 rounded-md overflow-hidden border bg-card text-left shadow-xs transition-colors",
+        "group relative w-full min-w-0 px-4 py-3.5 rounded-md overflow-hidden border pearl-surface text-left transition-colors",
         clickable ? "cursor-pointer hover:border-foreground/20" : "cursor-default",
         muted && "opacity-70",
     );
@@ -200,7 +200,7 @@ export function ModelCard({ m, onClick, href }: ModelCardProps) {
                 <SparkBadge
                     text="J-Lens"
                     label="Supports J-Lens"
-                    className="pointer-events-none absolute right-3 top-10 z-10 h-11 w-16 rotate-12 drop-shadow-sm"
+                    className="pointer-events-none absolute right-3 top-11 z-10 h-11 w-16 rotate-12 drop-shadow-sm"
                 />
             )}
         </div>
