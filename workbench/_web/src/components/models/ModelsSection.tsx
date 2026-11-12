@@ -139,7 +139,8 @@ interface ModelsSectionProps {
  * page and filling it: hottest first, filters (type, status, search) mirrored
  * to the URL.
  * The grid never scrolls: it shows as many cards as fit and pages through the
- * rest. A card opens the launch dialog (or deploys a cold model).
+ * rest, with the page controls under it at the page's bottom. A card opens
+ * the launch dialog (or deploys a cold model).
  */
 export function ModelsSection({
     cardHref = (m) => `https://huggingface.co/${m.org}/${m.name}`,
@@ -321,15 +322,6 @@ export function ModelsSection({
                     onToggleStatus={onToggleStatus}
                     groupFilters={groupFilters}
                     onToggleGroup={onToggleGroup}
-                    pager={
-                        pageCount > 1 ? (
-                            <ModelsPager
-                                page={currentPage}
-                                pageCount={pageCount}
-                                onPage={setPage}
-                            />
-                        ) : null
-                    }
                 />
             </div>
 
@@ -366,6 +358,12 @@ export function ModelsSection({
                     </ul>
                 )}
             </div>
+
+            {pageCount > 1 && (
+                <div className="flex shrink-0 justify-center pt-3">
+                    <ModelsPager page={currentPage} pageCount={pageCount} onPage={setPage} />
+                </div>
+            )}
 
             <ModelLaunchDialog
                 model={dialog?.model ?? null}
