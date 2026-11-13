@@ -68,9 +68,16 @@ function ModelPillOrSelect({
 }) {
     if (modelsLoading) {
         return (
-            <Button type="button" variant="outline" size="sm" disabled aria-label="Select model">
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled
+                aria-label="Select model"
+                className="min-w-12 shrink"
+            >
                 <Loader2 className="animate-spin text-muted-foreground" />
-                Loading models
+                <span className="truncate">Loading models</span>
             </Button>
         );
     }
@@ -83,9 +90,9 @@ function ModelPillOrSelect({
                 size="sm"
                 disabled
                 aria-label="Select model"
-                className="text-destructive"
+                className="min-w-12 shrink text-destructive"
             >
-                Models unavailable
+                <span className="truncate">Models unavailable</span>
             </Button>
         );
     }
@@ -143,7 +150,7 @@ function ModelTriggerPopover({
                 <button
                     type="button"
                     disabled={disabled}
-                    className={LAUNCH_TRIGGER}
+                    className={cn(LAUNCH_TRIGGER, "min-w-20")}
                     aria-label="Select model"
                     title={selectedModel || undefined}
                 >
@@ -615,7 +622,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                             </div>
                         )}
 
-                        <div className="flex flex-wrap items-center gap-1.5 p-2 pl-3">
+                        <div className="flex items-center gap-1.5 p-2 pl-3">
                             <ToolPill
                                 value={selectedTool}
                                 onChange={setSelectedTool}
@@ -644,7 +651,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                             <Button
                                 type="submit"
                                 size="sm"
-                                className="ml-auto"
+                                className="ml-auto shrink-0 max-sm:px-2.5"
                                 disabled={
                                     showCaptcha ||
                                     isSubmitting ||

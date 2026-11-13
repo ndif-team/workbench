@@ -40,11 +40,11 @@ const TOOL_OPTIONS: PillPopoverOption[] = [
 ].map((option) => ({ ...option, icon: <ToolIcon tool={option.value} /> }));
 
 /** Trigger chrome of the launch selectors on the composer: an outline button,
- * like the app's other menu buttons ("New chart"), narrower on a phone so the
- * composer's toolbar fits in two rows. */
+ * like the app's other menu buttons ("New chart"). It gives up width (its
+ * label truncates) so the composer's toolbar stays on one row on a phone. */
 export const LAUNCH_TRIGGER = cn(
     buttonVariants({ variant: "outline", size: "sm" }),
-    "max-w-[10rem] sm:max-w-[16rem]",
+    "min-w-12 shrink max-sm:px-2 max-sm:has-[>svg]:px-2 sm:max-w-[16rem]",
 );
 
 /** Neutral trigger that mirrors the shadcn `SelectTrigger` — `rounded-md`,
@@ -78,7 +78,10 @@ export function ToolPill({
             modal={modal}
             trigger={
                 <>
-                    <ToolIcon tool={value} />
+                    {/* The name alone on a phone, where the toolbar is one tight row. */}
+                    <span className="contents max-sm:hidden">
+                        <ToolIcon tool={value} />
+                    </span>
                     <span className="truncate">{value}</span>
                 </>
             }
@@ -131,7 +134,11 @@ export function WorkspacePill({
             onChange={(v) => onChange(v === noWorkspace ? "" : v)}
             disabled={disabled}
             ariaLabel="Select workspace"
-            triggerClassName={cn(triggerClassName, "max-w-[180px]")}
+            // The icon-only pill keeps its size; a named folder truncates first.
+            triggerClassName={cn(
+                triggerClassName,
+                currentLabel ? "max-w-24 shrink-[3] sm:max-w-[180px]" : "shrink-0",
+            )}
             compact={false}
             modal={modal}
             trigger={
