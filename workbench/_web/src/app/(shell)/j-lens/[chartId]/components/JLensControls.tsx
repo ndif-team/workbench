@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, Play, TriangleAlert } from "lucide-react";
 import { useJLens } from "@/lib/api/jlensApi";
+import { JLensIcon } from "@/components/JLensIcon";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { JLensConfigData } from "@/types/jlens";
 import { Slider } from "@/components/ui/slider";
@@ -23,6 +24,7 @@ import { useFocusNewChartPrompt } from "@/hooks/useFocusNewChartPrompt";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/(shell)/components/ToolPanelHeader";
+import { FloatingToolComposer } from "@/app/(shell)/components/FloatingToolComposer";
 import { useCapture } from "@/lib/analytics";
 
 interface JLensConfig {
@@ -40,6 +42,9 @@ interface JLensControlsProps {
      * an error. */
     modelsLoading?: boolean;
     hasExistingData?: boolean;
+    /** "panel" is the side panel; "floating" is the phone's composer over the
+     * chart (`FloatingToolComposer`). */
+    layout?: "panel" | "floating";
     /** Whether the selected model supports j-lens (has a Jacobian lens). When
      * false the controls are greyed out and a banner invites picking another
      * model. Defaults to true. */
@@ -47,7 +52,9 @@ interface JLensControlsProps {
 }
 
 const TOKEN_STYLES = {
-    base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative",
+    base: "whitespace-pre-wrap break-words select-none !box-border relative",
+    /** The floating composer's text is 16px, which a phone doesn't zoom into. */
+    size: { panel: "!text-sm !leading-5", floating: "!text-base !leading-6" },
     hover: "hover:bg-primary/20 hover:ring-1 hover:ring-primary/30 hover:ring-inset",
 } as const;
 
@@ -61,7 +68,15 @@ const fixTokenText = (text: string) => {
     return { result, numNewlines };
 };
 
-function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }) {
+function TokenDisplay({
+    tokens,
+    loading,
+    layout,
+}: {
+    tokens: Token[];
+    loading: boolean;
+    layout: "panel" | "floating";
+}) {
     return (
         <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.map((token, idx) => {
@@ -72,6 +87,7 @@ function TokenDisplay({ tokens, loading }: { tokens: Token[]; loading: boolean }
                             data-token-id={idx}
                             className={cn(
                                 TOKEN_STYLES.base,
+                                TOKEN_STYLES.size[layout],
                                 "bg-transparent",
                                 !loading && TOKEN_STYLES.hover,
                                 token.text === "\\n" ? "w-full" : "w-fit",
@@ -94,6 +110,7 @@ export function JLensControls({
     modelsAvailable,
     modelsLoading = false,
     hasExistingData = false,
+    layout = "panel",
     modelSupported = true,
 }: JLensControlsProps) {
     const { chartId } = useParams<{ chartId: string }>();
@@ -536,6 +553,128 @@ export function JLensControls({
         tokenizedModel === selectedModel &&
         lastTokenizedPromptRef.current === prompt;
 
+    const floating = layout === "floating";
+
+    const promptEditor = (
+        <div className="relative">
+            {editingText ? (
+                <Textarea
+                    ref={textareaRef}
+                    value={prompt}
+                    onChange={(e) => {
+                        handlePromptChange(e);
+                        autoResizeTextarea();
+                    }}
+                    onKeyDown={handleKeyDown}
+                    onBlur={handleTextareaBlur}
+                    aria-label="Prompt"
+                    className={
+                        floating
+                            ? "max-h-[32vh] min-h-20 w-full resize-none border-0 bg-transparent px-4 !text-base !leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
+                            : "w-full !text-sm bg-input/30 min-h-32 !leading-5"
+                    }
+                    placeholder="Enter your prompt here..."
+                    disabled={!interactive}
+                />
+            ) : (
+                <div
+                    ref={tokenContainerRef}
+                    className={cn(
+                        "flex w-full py-2",
+                        floating
+                            ? "max-h-[32vh] min-h-20 overflow-auto px-4"
+                            : "px-3 bg-input/30 border rounded min-h-32",
+                        isExecuting ? "cursor-progress" : "cursor-text",
+                    )}
+                    onClick={() => {
+                        if (interactive) escapeTokenArea();
+                    }}
+                >
+                    <TokenDisplay tokens={tokenData} loading={isExecuting} layout={layout} />
+                </div>
+            )}
+        </div>
+    );
+
+    const params = (
+        <>
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="topk" className="text-sm font-medium">
+                        Top-K Predictions
+                    </Label>
+                    <span className="text-sm text-muted-foreground">{topk}</span>
+                </div>
+                <Slider
+                    id="topk"
+                    min={1}
+                    max={10}
+                    step={1}
+                    value={[topk]}
+                    onValueChange={([value]) => setTopk(value)}
+                    disabled={!interactive}
+                    className="w-full"
+                />
+            </div>
+
+            <div className="flex items-center gap-2">
+                <Checkbox
+                    id="entropy"
+                    checked={includeEntropy}
+                    onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
+                    disabled={!interactive}
+                />
+                <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">
+                    Include Entropy
+                </Label>
+            </div>
+        </>
+    );
+
+    const unsupportedNotice = !modelSupported && (
+        <div
+            role="status"
+            className="flex items-start gap-2 rounded border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200"
+        >
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>
+                {selectedModel ? (
+                    <>
+                        <span className="font-medium">{selectedModel}</span> has no J-Lens (Jacobian
+                        lens).
+                    </>
+                ) : (
+                    "This model has no J-Lens (Jacobian lens)."
+                )}{" "}
+                Pick a model with a lens from the header to run J-Lens.
+            </span>
+        </div>
+    );
+
+    // On a phone Run tokenizes the prompt itself (`handleSubmit`), so it doesn't
+    // wait for the blur that would do it: a tap on a disabled button blurs nothing.
+    if (floating) {
+        return (
+            <FloatingToolComposer
+                title="J-Lens"
+                icon={JLensIcon}
+                summary={prompt.trim()}
+                prompt={promptEditor}
+                params={params}
+                notice={unsupportedNotice}
+                defaultOpen={!hasExistingData && !savedPrompt.trim()}
+                isExecuting={isExecuting}
+                runDisabled={!interactive || !prompt.trim()}
+                onRun={handleSubmit}
+                viewMode={viewMode}
+                showReset={showReset}
+                showSync={showSync}
+                onReset={resetDraft}
+                onSync={updateConfigModel}
+            />
+        );
+    }
+
     return (
         <>
             <ToolPanelHeader
@@ -552,89 +691,13 @@ export function JLensControls({
                 onSync={updateConfigModel}
             />
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
-                {!modelSupported && (
-                    <div
-                        role="status"
-                        className="flex items-start gap-2 rounded border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200"
-                    >
-                        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                        <span>
-                            {selectedModel ? (
-                                <>
-                                    <span className="font-medium">{selectedModel}</span> has no
-                                    J-Lens (Jacobian lens).
-                                </>
-                            ) : (
-                                "This model has no J-Lens (Jacobian lens)."
-                            )}{" "}
-                            Pick a model with a lens from the header to run J-Lens.
-                        </span>
-                    </div>
-                )}
+                {unsupportedNotice}
                 <div className="flex flex-col gap-2">
                     <Label className="text-sm font-medium">Prompt</Label>
-                    <div className="relative">
-                        {editingText ? (
-                            <Textarea
-                                ref={textareaRef}
-                                value={prompt}
-                                onChange={(e) => {
-                                    handlePromptChange(e);
-                                    autoResizeTextarea();
-                                }}
-                                onKeyDown={handleKeyDown}
-                                onBlur={handleTextareaBlur}
-                                className="w-full !text-sm bg-input/30 min-h-32 !leading-5"
-                                placeholder="Enter your prompt here..."
-                                disabled={!interactive}
-                            />
-                        ) : (
-                            <div
-                                ref={tokenContainerRef}
-                                className={cn(
-                                    "flex w-full px-3 py-2 bg-input/30 border rounded min-h-32",
-                                    isExecuting ? "cursor-progress" : "cursor-text",
-                                )}
-                                onClick={() => {
-                                    if (interactive) escapeTokenArea();
-                                }}
-                            >
-                                <TokenDisplay tokens={tokenData} loading={isExecuting} />
-                            </div>
-                        )}
-                    </div>
+                    {promptEditor}
                 </div>
 
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="topk" className="text-sm font-medium">
-                            Top-K Predictions
-                        </Label>
-                        <span className="text-sm text-muted-foreground">{topk}</span>
-                    </div>
-                    <Slider
-                        id="topk"
-                        min={1}
-                        max={10}
-                        step={1}
-                        value={[topk]}
-                        onValueChange={([value]) => setTopk(value)}
-                        disabled={!interactive}
-                        className="w-full"
-                    />
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <Checkbox
-                        id="entropy"
-                        checked={includeEntropy}
-                        onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
-                        disabled={!interactive}
-                    />
-                    <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">
-                        Include Entropy
-                    </Label>
-                </div>
+                {params}
 
                 <Button
                     onClick={handleSubmit}

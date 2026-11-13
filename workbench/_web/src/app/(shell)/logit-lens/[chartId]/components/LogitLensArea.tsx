@@ -1,6 +1,7 @@
 "use client";
 
 import { useToolArea } from "@/hooks/useToolArea";
+import { cn } from "@/lib/utils";
 import { LogitLensControls } from "./LogitLensControls";
 import type { LogitLensData } from "nnsightful";
 import { LogitLensConfigData } from "@/types/logitLens";
@@ -18,7 +19,11 @@ interface LogitLensChart {
     type: string;
 }
 
-export default function LogitLensArea() {
+/**
+ * The chart's controls: the side panel, or on a phone (`layout="floating"`)
+ * the composer floating over the chart.
+ */
+export default function LogitLensArea({ layout = "panel" }: { layout?: "panel" | "floating" }) {
     const {
         config,
         chart,
@@ -31,6 +36,7 @@ export default function LogitLensArea() {
     } = useToolArea<LogitLensConfig, LogitLensChart>();
 
     if (!config || isChartLoading) {
+        if (layout === "floating") return null;
         return (
             <div className="h-full flex flex-col md:min-w-64">
                 <div className="p-3 border-b flex items-center justify-between">
@@ -42,7 +48,7 @@ export default function LogitLensArea() {
     }
 
     return (
-        <div className="h-full flex flex-col md:min-w-64">
+        <div className={cn(layout === "panel" && "h-full flex flex-col md:min-w-64")}>
             <LogitLensControls
                 key={config.id}
                 initialConfig={config}
@@ -53,6 +59,7 @@ export default function LogitLensArea() {
                 modelsAvailable={modelsAvailable && modelRunnable}
                 modelsLoading={modelsFetching}
                 hasExistingData={hasExistingData}
+                layout={layout}
                 nextToken={finalPrediction(chart?.data)}
             />
         </div>

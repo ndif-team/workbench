@@ -6,7 +6,7 @@ import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvi
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Play } from "lucide-react";
+import { Grid3X3, Loader2, Play } from "lucide-react";
 import { useLogitLens } from "@/lib/api/logitLensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { LogitLensConfigData } from "@/types/logitLens";
@@ -23,6 +23,7 @@ import { useFocusNewChartPrompt } from "@/hooks/useFocusNewChartPrompt";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/(shell)/components/ToolPanelHeader";
+import { FloatingToolComposer } from "@/app/(shell)/components/FloatingToolComposer";
 import { useCapture } from "@/lib/analytics";
 
 interface LogitLensConfig {
@@ -40,12 +41,17 @@ interface LogitLensControlsProps {
      * an error. */
     modelsLoading?: boolean;
     hasExistingData?: boolean;
+    /** "panel" is the side panel; "floating" is the phone's composer over the
+     * chart (`FloatingToolComposer`). */
+    layout?: "panel" | "floating";
     /** The saved run's predicted next token, shown after the prompt's tokens. */
     nextToken?: string | null;
 }
 
 const TOKEN_STYLES = {
-    base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative",
+    base: "whitespace-pre-wrap break-words select-none !box-border relative",
+    /** The floating composer's text is 16px, which a phone doesn't zoom into. */
+    size: { panel: "!text-sm !leading-5", floating: "!text-base !leading-6" },
     hover: "hover:bg-primary/20 hover:ring-1 hover:ring-primary/30 hover:ring-inset",
 } as const;
 
@@ -63,10 +69,12 @@ function TokenDisplay({
     tokens,
     loading,
     nextToken,
+    layout,
 }: {
     tokens: Token[];
     loading: boolean;
     nextToken?: string | null;
+    layout: "panel" | "floating";
 }) {
     return (
         <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
@@ -78,6 +86,7 @@ function TokenDisplay({
                             data-token-id={idx}
                             className={cn(
                                 TOKEN_STYLES.base,
+                                TOKEN_STYLES.size[layout],
                                 "bg-transparent",
                                 !loading && TOKEN_STYLES.hover,
                                 token.text === "\\n" ? "w-full" : "w-fit",
@@ -94,6 +103,7 @@ function TokenDisplay({
                 <span
                     className={cn(
                         TOKEN_STYLES.base,
+                        TOKEN_STYLES.size[layout],
                         "cursor-default italic text-zinc-500 dark:text-zinc-400",
                     )}
                     title={`Predicted next token: "${nextToken}"`}
@@ -111,6 +121,7 @@ export function LogitLensControls({
     modelsAvailable,
     modelsLoading = false,
     hasExistingData = false,
+    layout = "panel",
     nextToken = null,
 }: LogitLensControlsProps) {
     const { chartId } = useParams<{ chartId: string }>();
@@ -555,6 +566,112 @@ export function LogitLensControls({
     const showNextToken =
         tokenizedModel === savedModel && lastTokenizedPromptRef.current === savedPrompt;
 
+    const floating = layout === "floating";
+
+    const promptEditor = (
+        <div className="relative">
+            {editingText ? (
+                <Textarea
+                    ref={textareaRef}
+                    value={prompt}
+                    onChange={(e) => {
+                        handlePromptChange(e);
+                        autoResizeTextarea();
+                    }}
+                    onKeyDown={handleKeyDown}
+                    onBlur={handleTextareaBlur}
+                    aria-label="Prompt"
+                    className={
+                        floating
+                            ? "max-h-[32vh] min-h-20 w-full resize-none border-0 bg-transparent px-4 !text-base !leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
+                            : "w-full !text-sm bg-input/30 min-h-32 !leading-5"
+                    }
+                    placeholder="Enter your prompt here..."
+                    disabled={!interactive}
+                />
+            ) : (
+                <div
+                    ref={tokenContainerRef}
+                    className={cn(
+                        "flex w-full py-2",
+                        floating
+                            ? "max-h-[32vh] min-h-20 overflow-auto px-4"
+                            : "px-3 bg-input/30 border rounded min-h-32",
+                        isExecuting ? "cursor-progress" : "cursor-text",
+                    )}
+                    onClick={() => {
+                        if (interactive) escapeTokenArea();
+                    }}
+                >
+                    <TokenDisplay
+                        tokens={tokenData}
+                        loading={isExecuting}
+                        nextToken={showNextToken ? nextToken : null}
+                        layout={layout}
+                    />
+                </div>
+            )}
+        </div>
+    );
+
+    const params = (
+        <>
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="topk" className="text-sm font-medium">
+                        Top-K Predictions
+                    </Label>
+                    <span className="text-sm text-muted-foreground">{topk}</span>
+                </div>
+                <Slider
+                    id="topk"
+                    min={1}
+                    max={10}
+                    step={1}
+                    value={[topk]}
+                    onValueChange={([value]) => setTopk(value)}
+                    disabled={!interactive}
+                    className="w-full"
+                />
+            </div>
+
+            <div className="flex items-center gap-2">
+                <Checkbox
+                    id="entropy"
+                    checked={includeEntropy}
+                    onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
+                    disabled={!interactive}
+                />
+                <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">
+                    Include Entropy
+                </Label>
+            </div>
+        </>
+    );
+
+    // On a phone Run tokenizes the prompt itself (`handleSubmit`), so it doesn't
+    // wait for the blur that would do it: a tap on a disabled button blurs nothing.
+    if (floating) {
+        return (
+            <FloatingToolComposer
+                title="Logit Lens"
+                icon={Grid3X3}
+                summary={prompt.trim()}
+                prompt={promptEditor}
+                params={params}
+                defaultOpen={!hasExistingData && !savedPrompt.trim()}
+                isExecuting={isExecuting}
+                runDisabled={!interactive || !prompt.trim()}
+                onRun={handleSubmit}
+                viewMode={viewMode}
+                showReset={showReset}
+                showSync={showSync}
+                onReset={resetDraft}
+                onSync={updateConfigModel}
+            />
+        );
+    }
+
     return (
         <>
             <ToolPanelHeader
@@ -573,72 +690,10 @@ export function LogitLensControls({
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                     <Label className="text-sm font-medium">Prompt</Label>
-                    <div className="relative">
-                        {editingText ? (
-                            <Textarea
-                                ref={textareaRef}
-                                value={prompt}
-                                onChange={(e) => {
-                                    handlePromptChange(e);
-                                    autoResizeTextarea();
-                                }}
-                                onKeyDown={handleKeyDown}
-                                onBlur={handleTextareaBlur}
-                                className="w-full !text-sm bg-input/30 min-h-32 !leading-5"
-                                placeholder="Enter your prompt here..."
-                                disabled={!interactive}
-                            />
-                        ) : (
-                            <div
-                                ref={tokenContainerRef}
-                                className={cn(
-                                    "flex w-full px-3 py-2 bg-input/30 border rounded min-h-32",
-                                    isExecuting ? "cursor-progress" : "cursor-text",
-                                )}
-                                onClick={() => {
-                                    if (interactive) escapeTokenArea();
-                                }}
-                            >
-                                <TokenDisplay
-                                    tokens={tokenData}
-                                    loading={isExecuting}
-                                    nextToken={showNextToken ? nextToken : null}
-                                />
-                            </div>
-                        )}
-                    </div>
+                    {promptEditor}
                 </div>
 
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="topk" className="text-sm font-medium">
-                            Top-K Predictions
-                        </Label>
-                        <span className="text-sm text-muted-foreground">{topk}</span>
-                    </div>
-                    <Slider
-                        id="topk"
-                        min={1}
-                        max={10}
-                        step={1}
-                        value={[topk]}
-                        onValueChange={([value]) => setTopk(value)}
-                        disabled={!interactive}
-                        className="w-full"
-                    />
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <Checkbox
-                        id="entropy"
-                        checked={includeEntropy}
-                        onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
-                        disabled={!interactive}
-                    />
-                    <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">
-                        Include Entropy
-                    </Label>
-                </div>
+                {params}
 
                 <Button
                     onClick={handleSubmit}

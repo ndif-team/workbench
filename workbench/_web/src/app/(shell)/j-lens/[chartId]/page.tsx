@@ -5,15 +5,13 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import JLensArea from "./components/JLensArea";
 import { JLensDisplay } from "./components/JLensDisplay";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { MobileCollapsibleControls } from "../../components/MobileCollapsibleControls";
+import { FloatingToolComposer } from "../../components/FloatingToolComposer";
 import { ModelDeployingPanel } from "../../components/ModelDeployingPanel";
 import { useChartModelReady } from "@/hooks/useChartModelReady";
-import { JLensIcon } from "@/components/JLensIcon";
-import { useIsMutating } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 
 export default function JLensChartPage() {
     const isMobile = useIsMobile();
-    const isRunning = useIsMutating({ mutationKey: ["jlens"] }) > 0;
     const { chartId } = useParams<{ chartId: string }>();
     const readiness = useChartModelReady(chartId);
 
@@ -24,9 +22,15 @@ export default function JLensChartPage() {
     // so the user can navigate to other charts while this model deploys.
     const deploying = readiness.state === "deploying";
 
+    // On a phone the chart has the page; its controls float over the bottom.
     if (isMobile) {
         return (
-            <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pt-0 gap-2">
+            <div
+                className={cn(
+                    "size-full flex flex-col min-h-0 overflow-auto p-2 pt-0 gap-2",
+                    !deploying && FloatingToolComposer.BAR_SPACE,
+                )}
+            >
                 {deploying ? (
                     <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
                         <ModelDeployingPanel
@@ -36,16 +40,10 @@ export default function JLensChartPage() {
                     </div>
                 ) : (
                     <>
-                        <MobileCollapsibleControls
-                            label="J-Lens"
-                            icon={JLensIcon}
-                            isRunning={isRunning}
-                        >
-                            <JLensArea />
-                        </MobileCollapsibleControls>
                         <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
                             <JLensDisplay />
                         </div>
+                        <JLensArea layout="floating" />
                     </>
                 )}
             </div>
