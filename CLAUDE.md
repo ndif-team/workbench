@@ -125,6 +125,7 @@ workbench/                          # repo root
         │       │   ├── WorkspaceScopes.tsx      # server wrappers that look up an item's workspace scope
         │       │   ├── ChartCardsSidebar.tsx, ChartCard.tsx, ReportCard.tsx  # workshop (workspace-scoped) sidebar
         │       │   ├── MobileCollapsibleControls.tsx
+        │       │   ├── FloatingToolComposer.tsx # a lens's controls on a phone: a composer floating over the chart
         │       │   ├── ToolPanelHeader.tsx      # title row shared by the tool Controls
         │       │   ├── ChartExportMenu.tsx      # a chart's Export menu (in ItemPage's header): image, and notebook
         │       │   │                            #   where a template exists
@@ -266,7 +267,7 @@ Existing panel header pattern (copy this exactly when adding a new panel):
   <div className="flex items-center gap-2">…controls…</div>
 </div>
 ```
-See `LogitLensArea.tsx`, `ActivationPatchingArea.tsx`, and `ToolPanelHeader.tsx` (the title row shared by the logit-lens, j-lens and activation-patching Controls).
+See `LogitLensArea.tsx`, `ActivationPatchingArea.tsx`, and `ToolPanelHeader.tsx` (the title row shared by the logit-lens, j-lens and activation-patching Controls; its `ToolPanelActions`, the View Mode / Reset / Sync group, is also the floating composer's).
 
 ### Avoiding off-brand / AI-looking UI
 
@@ -434,7 +435,7 @@ Set in `src/components/providers/QueryProvider.tsx`: `staleTime: 5min`, `retry: 
 - **Workspace page** = one folder's charts and reports set straight on the page (no surrounding panel): a grid of preview cards (the default) or a list of rows on a card surface, switched in the page header, where the item count sits beside the folder's name (`useWorkspaceView`). A chart card's preview is drawn in the browser the way a report embed draws the chart (`chartFigure` + nnsightful's `snapshotChart`, in `useChartPreview`), except that a logit lens shows only its heatmap, without the layer navigator (nnsightful's `layerNavigator: false`) or the line plot a selected or pinned row opens (`withoutLinePlot`): only once the card is on screen, two at a time, and cached per saved version of the chart and theme, so each visible chart's data is downloaded once per session. A report card shows a `powder-cover` (brand-color blur under a grain, in `globals.css`), placed per report.
 - **All workspaces** (`/workspaces`) = one card per folder, set straight on the page: a cover in a color of the folder's own (`folderCover` in `components/items/covers.ts`: one of the NDIF logo's colors, over a `powder-cover`), its name and actions, then its counts, which unfold its items (each opening the item) in the cover's place, scrolling there when they don't fit, so a card never changes size. The header's search (`SearchInput`, as on the models page) keeps the folders whose name or whose charts' and reports' labels hold the query (`searchWorkspaces`); a card found by its items starts unfolded to just those.
 - **Feature panel** = bordered, rounded card (`rounded dark:bg-secondary/50 bg-secondary/80 border`) with the standard panel header pattern (see §4).
-- **Mobile** = the shell's sidebar drawer (opened from the page header), `MobileCollapsibleControls` (collapsible top section). Mirror these when adding mobile paths.
+- **Mobile** = the shell's sidebar drawer (opened from the page header). On a logit-lens or j-lens chart the chart has the page and its controls float over the bottom (`FloatingToolComposer`, which the tool's `*Controls` render for `layout="floating"`): a composer shaped like Home's, the prompt over a toolbar of Params (a popover holding the tool's parameters) and Run, which collapses to a bar showing the prompt, and does so by itself when a run starts. Activation patching and Patch Lens still use `MobileCollapsibleControls` (collapsible top section). Mirror these when adding mobile paths. Home's composer keeps its toolbar on one row on a phone: the pickers' labels truncate rather than wrap.
 - **Charts** = each tool's `*Display` component (`LogitLensDisplay`, `JLensDisplay`, `ActivationPatchingDisplay`) renders its nnsightful widget straight from `chart.data`; `PatchLensDisplay` renders `edulogitlens`'s `CausalMediationExplorer`.
 - **Modals/dialogs** = used sparingly, only for blocking confirmations or single-step entry.
 - **Right-rail** = the guided-tutorial dock on patch-lens (`TutorialDockPanel` in `patch-lens/[chartId]/components/tutorial/TutorialDock.tsx`); it collapses to a slim strip (`TutorialCollapsedRail`) that mirrors the chart sidebar's collapsed state.
