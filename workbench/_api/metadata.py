@@ -91,6 +91,12 @@ VISION_MODEL_TYPES = {
 # standardizes the wrapper's language model, so the tools see a causal LM.
 TEXT_PROMPTED_VISION_MODEL_TYPES = {"gemma3", "gemma4"}
 
+# Multimodal `config.model_type` values whose image-text-to-text deployment on
+# NDIF runs text prompts as their text-generation one does (see
+# `ModelMetadata.image_task`). Gemma 4 isn't one: its processor's image fields
+# pad on the right and its tokenizer on the left, so two prompts don't batch.
+IMAGE_TASK_MODEL_TYPES = {"gemma3", "qwen3_5", "qwen3_5_moe"}
+
 # Chat/instruct classification is name-based, NOT tokenizer-chat-template-based.
 # The tokenizer signal is unreliable: several families (notably Qwen) bundle a
 # chat_template into their BASE tokenizers, so `chat_template is not None` would
@@ -193,6 +199,10 @@ class ModelMetadata(BaseModel):
             ``MetadataCache`` fills it in from its one record per account and
             saves the model without it; ``None`` until the account has been
             looked up, which never holds the model back.
+        image_task: Whether NDIF's image-text-to-text deployment of the repo
+            can serve workbench's text prompts. Its wrapper standardizes to
+            the same names as the text-generation one, and the prompts are
+            tokenized the same way.
     """
 
     name: str
@@ -201,6 +211,7 @@ class ModelMetadata(BaseModel):
     params: str
     gated: bool
     org: OrgMetadata | None = None
+    image_task: bool = False
 
 
 # ----- raw fetch + helpers -----------------------------------------------
@@ -348,6 +359,7 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
         n_layers=n_layers,
         params=_format_params(num_params) if num_params > 0 else "unknown",
         gated=gated,
+        image_task=config.model_type in IMAGE_TASK_MODEL_TYPES,
     )
 
 
