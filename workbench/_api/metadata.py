@@ -17,8 +17,9 @@ Public API:
 
     ``UnsupportedModel``
         Raised for repos outside workbench support: LoRA adapters, vision /
-        multimodal architectures, ``trust_remote_code`` models, or configs
-        that cannot be loaded.
+        multimodal architectures that text prompts can't run (all but those
+        that load as a text-only causal LM, and Gemma 3 and 4),
+        ``trust_remote_code`` models, or configs that cannot be loaded.
 
     ``MetadataCache``
         In-memory registry backed by the JSON file. ``fetch_metadata(name)``
@@ -84,6 +85,11 @@ VISION_MODEL_TYPES = {
     "video_llava", "vipllava",
     "git",
 }
+
+# Multimodal `config.model_type` values that load whole (as their
+# `...ForConditionalGeneration` wrapper) yet run text prompts: nnterp
+# standardizes the wrapper's language model, so the tools see a causal LM.
+TEXT_PROMPTED_VISION_MODEL_TYPES = {"gemma3", "gemma4"}
 
 # Chat/instruct classification is name-based, NOT tokenizer-chat-template-based.
 # The tokenizer signal is unreliable: several families (notably Qwen) bundle a
@@ -260,6 +266,15 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
     architecture is a standard causal LM, rejects vision/multimodal configs,
     and reads parameter count from safetensors headers.
 
+    A multimodal config passes when ``AutoModelForCausalLM`` builds only its
+    language model: Qwen3.5's checkpoints carry an image encoder but load as
+    ``Qwen3_5ForCausalLM``, which text prompts drive like any causal LM.
+    Gemma 3 and 4 load whole (``Gemma3ForConditionalGeneration``,
+    ``Gemma4ForConditionalGeneration``) and pass too, as
+    ``TEXT_PROMPTED_VISION_MODEL_TYPES``: nnterp standardizes the wrapper's
+    language model. Any other wrapper that loads whole, and the types in
+    ``VISION_MODEL_TYPES``, stay unsupported.
+
     Args:
         model_name: HuggingFace repo ID.
 
@@ -297,19 +312,21 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
             f"{model_name} is not a causal LM (model_type: {config.model_type})"
         )
 
-    # Defense in depth: some VLMs register a ForCausalLM head but still carry
-    # a vision tower in the config (the LLM half of an LLaVA-style stack).
-    # Reject those too — workbench can't drive them with text-only prompts.
-    if (
+    has_vision = (
         hasattr(config, "vision_config")
         or hasattr(config, "vision_tower")
         or hasattr(config, "image_token_index")
         or hasattr(config, "image_token_id")
-        or getattr(config, "model_type", None) in VISION_MODEL_TYPES
-    ):
+    )
+    runs_text_prompts = (
+        MODEL_FOR_CAUSAL_LM_MAPPING_NAMES[config.model_type].endswith("ForCausalLM")
+        or config.model_type in TEXT_PROMPTED_VISION_MODEL_TYPES
+    )
+    if config.model_type in VISION_MODEL_TYPES or (has_vision and not runs_text_prompts):
         raise UnsupportedModel(f"{model_name} has a vision component ({config.model_type})")
 
-    n_layers = getattr(config, "num_hidden_layers", None) or getattr(config, "n_layer", 0)
+    text_config = config.get_text_config()
+    n_layers = getattr(text_config, "num_hidden_layers", None) or getattr(text_config, "n_layer", 0)
 
     # Parameter count from safetensors header (no weights download)
     try:

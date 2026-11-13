@@ -50,7 +50,10 @@ def _refresh_catalog(state: AppState) -> None:
         app_state = deployment_state.get("application_state")
         pinned = app_state == "RUNNING" and bool(deployment_state.get("pinned"))
 
-        if not repo_id:
+        # Workbench runs text-generation deployments; another task's
+        # deployment of the same repo (Qwen3.5's image-text-to-text) is a
+        # separate model with its own heat and pin.
+        if not repo_id or deployment_state.get("task") not in (None, "text-generation"):
             continue
 
         # A replica whose application is mid-load surfaces as DEPLOYING
