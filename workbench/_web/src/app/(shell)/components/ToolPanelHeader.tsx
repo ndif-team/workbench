@@ -2,12 +2,7 @@ import { BookOpen, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface ToolPanelHeaderProps {
-    /** Panel title (e.g. "Logit Lens", "Activation Patching"). */
-    title: string;
-    /** Optional reference link (e.g. the tool's paper) shown as a small book
-     * icon next to the title. */
-    reference?: { href: string; label: string };
+interface ToolPanelActionsProps {
     /** True when models are unavailable AND not currently fetching — shows
      * the compact ⚠ View Mode indicator. */
     viewMode: boolean;
@@ -27,15 +22,20 @@ interface ToolPanelHeaderProps {
     onSync: () => void;
 }
 
+interface ToolPanelHeaderProps extends ToolPanelActionsProps {
+    /** Panel title (e.g. "Logit Lens", "Activation Patching"). */
+    title: string;
+    /** Optional reference link (e.g. the tool's paper) shown as a small book
+     * icon next to the title. */
+    reference?: { href: string; label: string };
+}
+
 /**
- * Shared title row used by every interpretability tool's Controls component.
- *
- * Right-aligned, in priority order: ⚠ View Mode → Reset → Sync. Each element
- * is gated on its own visibility prop; only the title is permanent.
+ * A tool's draft-state actions, in priority order: ⚠ View Mode → Reset → Sync.
+ * Each is gated on its own visibility prop, so this renders nothing when none
+ * applies. Shared by the panel header and the phone's floating composer.
  */
-export function ToolPanelHeader({
-    title,
-    reference,
+export function ToolPanelActions({
     viewMode,
     showReset,
     showSync,
@@ -43,7 +43,59 @@ export function ToolPanelHeader({
     syncClassName,
     onReset,
     onSync,
-}: ToolPanelHeaderProps) {
+}: ToolPanelActionsProps) {
+    return (
+        <>
+            {viewMode && (
+                <span
+                    role="status"
+                    aria-label="View only — models unavailable"
+                    className={cn(
+                        "inline-flex items-center gap-1 h-6 px-2 rounded-md select-none",
+                        "border border-yellow-500/50",
+                        "text-xs font-medium text-yellow-700 dark:text-yellow-400",
+                    )}
+                >
+                    <span aria-hidden>⚠</span>
+                    View Mode
+                </span>
+            )}
+            {showReset && (
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={onReset}
+                    disabled={isExecuting}
+                    aria-label="Discard changes"
+                    className="h-6 px-2 text-xs gap-1"
+                >
+                    <RotateCcw />
+                    Reset
+                </Button>
+            )}
+            {showSync && (
+                <Button
+                    type="button"
+                    size="sm"
+                    onClick={onSync}
+                    disabled={isExecuting}
+                    aria-label="Update saved config to selected model"
+                    className={cn("h-6 px-2.5 text-xs", syncClassName)}
+                >
+                    Sync
+                </Button>
+            )}
+        </>
+    );
+}
+
+/**
+ * Shared title row used by every interpretability tool's Controls component:
+ * the title, then the tool's draft-state actions (`ToolPanelActions`),
+ * right-aligned. Only the title is permanent.
+ */
+export function ToolPanelHeader({ title, reference, ...actions }: ToolPanelHeaderProps) {
     return (
         <div className="p-3 border-b flex items-center justify-between">
             <div className="flex items-center gap-1.5 pl-2">
@@ -62,46 +114,7 @@ export function ToolPanelHeader({
                 )}
             </div>
             <div className="flex items-center gap-1.5">
-                {viewMode && (
-                    <span
-                        role="status"
-                        aria-label="View only — models unavailable"
-                        className={cn(
-                            "inline-flex items-center gap-1 h-6 px-2 rounded-md select-none",
-                            "border border-yellow-500/50",
-                            "text-xs font-medium text-yellow-700 dark:text-yellow-400",
-                        )}
-                    >
-                        <span aria-hidden>⚠</span>
-                        View Mode
-                    </span>
-                )}
-                {showReset && (
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={onReset}
-                        disabled={isExecuting}
-                        aria-label="Discard changes"
-                        className="h-6 px-2 text-xs gap-1"
-                    >
-                        <RotateCcw />
-                        Reset
-                    </Button>
-                )}
-                {showSync && (
-                    <Button
-                        type="button"
-                        size="sm"
-                        onClick={onSync}
-                        disabled={isExecuting}
-                        aria-label="Update saved config to selected model"
-                        className={cn("h-6 px-2.5 text-xs", syncClassName)}
-                    >
-                        Sync
-                    </Button>
-                )}
+                <ToolPanelActions {...actions} />
             </div>
         </div>
     );
