@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * The logo of the account that publishes a model (its Hugging Face avatar,
- * `Model.avatar_url`), on a small square tile. Nothing at all when the
+ * `Model.org.avatar_url`), on a small square tile. Nothing at all when the
  * account has none or the image doesn't load, so the names beside it start
  * where it would have been. Decorative: the account's name is always shown
  * beside it.
