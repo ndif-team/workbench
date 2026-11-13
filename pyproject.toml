@@ -19,6 +19,9 @@ dependencies = [
     # architectures land in our env: OLMo 3, recent Gemma, etc.
     "transformers>=5.11.0",
     "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git@f295ed111deae3294b07cfaed7010b505500e733",
+    # The backend wraps every model in nnterp's StandardizedTransformer;
+    # 2.0.0rc1 is nnterp's first release on nnsight 0.8.
+    "nnterp==2.0.0rc1",
     "requests>=2.32.5",
     # nnsightful's tools return pydantic objects built on NDIF, which only
     # unpickle with the pydantic-core version NDIF's server runs; keep in step.
@@ -54,3 +57,8 @@ torchvision = [
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
+
+[tool.uv]
+# nnsightful pins nnterp to a git commit from before its nnsight 0.8 release;
+# use the release instead.
+override-dependencies = ["nnterp==2.0.0rc1"]

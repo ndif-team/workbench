@@ -45,7 +45,7 @@ The backend speaks `nnsight` to either NDIF (remote model deployments) or local 
 | Charts | Nivo (`@nivo/line`, admin analytics only), nnsightful widgets (LogitLensWidget, ActivationPatchingWidget), `edulogitlens` (CausalMediationExplorer, LogitLensGrid) for Patch Lens |
 | Database | Drizzle ORM 0.44 with **two backends** chosen at runtime by `NEXT_PUBLIC_LOCAL_DB`: <br>• Postgres via `postgres-js` (Supabase) <br>• SQLite via `better-sqlite3` (local dev) or `bun:sqlite` (under bun test) |
 | Auth | Supabase SSR (`@supabase/ssr`); short-circuited to a stub user when `NEXT_PUBLIC_DISABLE_AUTH=true` |
-| Backend | FastAPI on Python 3.12, nnsight ≥0.8.1 + nnterp (git, pulled in by nnsightful) + transformers ≥5.11, deployed via Docker / Modal |
+| Backend | FastAPI on Python 3.12, nnsight ≥0.8.1 + nnterp 2.0.0rc1 (PyPI; `pyproject.toml` overrides nnsightful's git pin of it) + transformers ≥5.11, deployed via Docker / Modal |
 | Telemetry | PostHog: product analytics and error tracking, client (`posthog-js`) and server (`posthog-node`); see §7. InfluxDB client in the backend (off) |
 | Toasts | `sonner` |
 | Testing | `bun:test` for DB integration and unit tests (`src/**/__tests__`); Playwright for e2e (`tests/`) |
