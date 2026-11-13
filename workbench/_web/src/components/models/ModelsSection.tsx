@@ -77,7 +77,7 @@ const toCardModel = (m: Model, isSignedIn: boolean): ModelCardModel => {
         params: m.params,
         layers: m.n_layers,
         has_jacobian: m.has_jacobian,
-        avatarUrl: m.avatar_url,
+        avatarUrl: m.org?.avatar_url,
     };
 };
 

@@ -9,11 +9,11 @@ Public API:
 
     ``ModelMetadata``
         Pydantic record returned to the frontend (name, layer count, params,
-        chat/base classification, gating flag).
+        chat/base classification, gating flag, publishing account).
 
     ``OrgMetadata``
         What workbench keeps about the account a model is published under:
-        its organization's logo.
+        its organization's logo. A model's record carries it as ``org``.
 
     ``UnsupportedModel``
         Raised for repos outside workbench support: LoRA adapters, vision /
@@ -22,9 +22,8 @@ Public API:
 
     ``MetadataCache``
         In-memory registry backed by the JSON file. ``fetch_metadata(name)``
-        is the sole fetch entry point for model metadata; ``avatar_url(name)``
-        returns the logo of the organization that publishes a model, from
-        the account's ``OrgMetadata``.
+        is the sole fetch entry point for model metadata; it and ``get(name)``
+        fill in the record's ``org``, looking the account up once.
 
     ``fetch_model_metadata``
         Low-level HuggingFace probe; normally called via
@@ -39,7 +38,6 @@ import json
 import logging
 import os
 import re
-import time
 from typing import ClassVar
 from urllib.parse import quote
 
@@ -127,27 +125,6 @@ class UnsupportedModel(Exception):
     """
 
 
-class ModelMetadata(BaseModel):
-    """Derived metadata for a HuggingFace model repo.
-
-    Attributes:
-        name: Full repo ID (``org/model``).
-        is_chat: Whether the repo name indicates an instruct/chat variant.
-        n_layers: Transformer block count from ``AutoConfig``.
-        params: Human-readable parameter count (e.g. ``"7B"``), or
-            ``"unknown"`` when safetensors headers are unavailable.
-        gated: Workbench access-control flag. True when parameter count is at
-            or above ``GATED_THRESHOLD_PARAMS`` (guests cannot use gated
-            models). This replaces HuggingFace Hub's native gated field.
-    """
-
-    name: str
-    is_chat: bool
-    n_layers: int
-    params: str
-    gated: bool
-
-
 class OrgMetadata(BaseModel):
     """What workbench keeps about the account a model is published under.
 
@@ -192,6 +169,31 @@ class OrgMetadata(BaseModel):
         avatar = resp.json().get("avatarUrl")
         uploaded = isinstance(avatar, str) and avatar.startswith(cls.UPLOADED_AVATAR_PREFIX)
         return cls(name=account, avatar_url=avatar if uploaded else None)
+
+
+class ModelMetadata(BaseModel):
+    """Derived metadata for a HuggingFace model repo.
+
+    Attributes:
+        name: Full repo ID (``org/model``).
+        is_chat: Whether the repo name indicates an instruct/chat variant.
+        n_layers: Transformer block count from ``AutoConfig``.
+        params: Human-readable parameter count (e.g. ``"7B"``), or
+            ``"unknown"`` when safetensors headers are unavailable.
+        gated: Workbench access-control flag. True when parameter count is at
+            or above ``GATED_THRESHOLD_PARAMS`` (guests cannot use gated
+            models). This replaces HuggingFace Hub's native gated field.
+        org: The account the model is published under. ``MetadataCache``
+            fills it in from its one record per account and saves the model
+            without it; ``None`` until the account has been looked up.
+    """
+
+    name: str
+    is_chat: bool
+    n_layers: int
+    params: str
+    gated: bool
+    org: OrgMetadata | None = None
 
 
 # ----- raw fetch + helpers -----------------------------------------------
@@ -343,7 +345,8 @@ class MetadataCache:
     * ``metadata`` — repo ID → ``ModelMetadata`` fields
     * ``unsupported`` — list of repo IDs that failed supportability checks
     * ``orgs`` — owning account (the repo ID's first part) → ``OrgMetadata``
-      fields
+      fields, kept once per account: the models' records carry theirs as
+      ``ModelMetadata.org`` in memory, and are saved without it
 
     Every mutation (new metadata or new unsupported verdict) is persisted
     atomically via write-to-temp + ``os.replace``.
@@ -352,16 +355,12 @@ class MetadataCache:
     force a full re-fetch on next startup.
     """
 
-    # How long an account whose lookup failed waits before it's asked again.
-    ORG_RETRY_SECONDS = 600
-
     def __init__(self, path: str = METADATA_CACHE_PATH):
         """Load the cache from ``path``, or start empty if the file is missing."""
         self.path = path
         self.metadata: dict[str, ModelMetadata] = {}
         self.unsupported: set[str] = set()
         self.orgs: dict[str, OrgMetadata] = {}
-        self._org_retry_at: dict[str, float] = {}
         self._load()
 
     def fetch_metadata(self, model_name: str) -> ModelMetadata:
@@ -384,8 +383,8 @@ class MetadataCache:
         if model_name in self.unsupported:
             raise UnsupportedModel(f"{model_name} previously identified as unsupported")
         if model_name in self.metadata:
-            return self.metadata[model_name]
-        
+            return self._add_org(self.metadata[model_name])
+
         try:
             meta = fetch_model_metadata(model_name)
         except UnsupportedModel as e:
@@ -393,75 +392,72 @@ class MetadataCache:
             self.unsupported.add(model_name)
             self._save()
             raise
-        
+
         self.metadata[model_name] = meta
         self._save()
-        return meta
+        return self._add_org(meta)
 
     def get(self, model_name: str) -> ModelMetadata | None:
-        """Return cached metadata without fetching.
+        """Return cached metadata, with its organization, without probing the model.
 
         Returns:
             The cached record, or ``None`` if ``model_name`` has not been
             successfully probed.
         """
-        return self.metadata.get(model_name)
+        meta = self.metadata.get(model_name)
+        return None if meta is None else self._add_org(meta)
 
     def __contains__(self, model_name: str) -> bool:
         """Return whether ``model_name`` has cached (supported) metadata."""
         return model_name in self.metadata
 
     def all_dumped(self) -> list[dict]:
-        """Return all cached metadata as plain dicts, each with its ``avatar_url``.
+        """Return all cached metadata as plain dicts, each with its organization.
 
         Used by local-mode ``/models`` to list every model the backend knows
         about, regardless of NDIF deployment status.
         """
-        return [
-            {**meta.model_dump(), "avatar_url": self.avatar_url(name)}
-            for name, meta in self.metadata.items()
-        ]
+        return [self._add_org(meta).model_dump() for meta in self.metadata.values()]
 
     # ----- organizations -----------------------------------------------
 
-    def avatar_url(self, model_name: str) -> str | None:
-        """Return the logo of the organization that publishes ``model_name``.
-
-        Model cards show it as the model's logo. The account's
-        ``OrgMetadata`` is looked up once and persisted, a person's account
-        included (with no logo). A lookup that fails (network, rate limit,
-        server error) isn't cached and isn't retried for
-        ``ORG_RETRY_SECONDS``, so the model list never waits on a struggling
-        Hub.
-
-        Args:
-            model_name: HuggingFace repo ID.
-
-        Returns:
-            An absolute image URL, or ``None``.
-        """
+    @staticmethod
+    def _account(model_name: str) -> str | None:
+        """Return the account in a repo ID (``meta-llama`` in ``meta-llama/Llama-3.2-1B``)."""
         account, _, rest = model_name.partition("/")
-        if not rest:
-            return None
+        return account if rest else None
+
+    def _add_org(self, meta: ModelMetadata) -> ModelMetadata:
+        """Fill in ``meta.org`` if it isn't known yet, and return ``meta``.
+
+        The account's ``OrgMetadata`` is looked up once and persisted, a
+        person's account included (with no logo). A lookup that fails
+        (network, rate limit, server error) isn't cached: ``meta.org`` stays
+        ``None`` and the account is asked again next time.
+        """
+        if meta.org is not None:
+            return meta
+        account = self._account(meta.name)
+        if account is None:
+            return meta
         org = self.orgs.get(account)
         if org is None:
-            if time.monotonic() < self._org_retry_at.get(account, 0):
-                return None
             try:
                 org = OrgMetadata.fetch(account)
             except (requests.RequestException, ValueError) as e:
                 logger.warning(f"Could not look up the organization {account}: {e}")
-                self._org_retry_at[account] = time.monotonic() + self.ORG_RETRY_SECONDS
-                return None
+                return meta
             self.orgs[account] = org
             self._save()
-        return org.avatar_url
+        meta.org = org
+        return meta
 
     # ----- persistence -------------------------------------------------
 
     def _load(self) -> None:
         """Hydrate ``self.metadata``, ``self.unsupported`` and ``self.orgs`` from disk.
 
+        Each model is given its organization's record when the file has one.
         Malformed per-model and per-organization entries are skipped with a
         warning. A missing or unreadable file leaves the cache empty.
         """
@@ -470,17 +466,20 @@ class MetadataCache:
         try:
             with open(self.path, "r") as f:
                 data = json.load(f)
-            for name, raw in (data.get("metadata") or {}).items():
-                try:
-                    self.metadata[name] = ModelMetadata(**raw)
-                except Exception as e:
-                    logger.warning(f"Skipping malformed cached metadata for {name}: {e}")
-            self.unsupported.update(data.get("unsupported") or [])
             for name, raw in (data.get("orgs") or {}).items():
                 try:
                     self.orgs[name] = OrgMetadata(**raw)
                 except Exception as e:
                     logger.warning(f"Skipping malformed cached organization {name}: {e}")
+            for name, raw in (data.get("metadata") or {}).items():
+                try:
+                    meta = ModelMetadata(**raw)
+                except Exception as e:
+                    logger.warning(f"Skipping malformed cached metadata for {name}: {e}")
+                    continue
+                meta.org = self.orgs.get(self._account(name))
+                self.metadata[name] = meta
+            self.unsupported.update(data.get("unsupported") or [])
             logger.info(
                 f"Loaded metadata cache from {self.path}: "
                 f"{len(self.metadata)} models, {len(self.unsupported)} unsupported",
@@ -491,7 +490,7 @@ class MetadataCache:
     def _save(self) -> None:
         """Atomically persist the current cache state to ``self.path``."""
         payload = {
-            "metadata": {k: v.model_dump() for k, v in self.metadata.items()},
+            "metadata": {k: v.model_dump(exclude={"org"}) for k, v in self.metadata.items()},
             "unsupported": sorted(self.unsupported),
             "orgs": {k: v.model_dump() for k, v in sorted(self.orgs.items())},
         }
