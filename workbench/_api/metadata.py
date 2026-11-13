@@ -22,8 +22,8 @@ Public API:
 
     ``MetadataCache``
         In-memory registry backed by the JSON file. ``fetch_metadata(name)``
-        is the sole fetch entry point for model metadata; it and ``get(name)``
-        fill in the record's ``org``, looking the account up once.
+        is the sole fetch entry point for model metadata, and fills in the
+        record's ``org``, looking the account up once.
 
     ``fetch_model_metadata``
         Low-level HuggingFace probe; normally called via
@@ -183,9 +183,10 @@ class ModelMetadata(BaseModel):
         gated: Workbench access-control flag. True when parameter count is at
             or above ``GATED_THRESHOLD_PARAMS`` (guests cannot use gated
             models). This replaces HuggingFace Hub's native gated field.
-        org: The account the model is published under. ``MetadataCache``
-            fills it in from its one record per account and saves the model
-            without it; ``None`` until the account has been looked up.
+        org: The account the model is published under. Optional:
+            ``MetadataCache`` fills it in from its one record per account and
+            saves the model without it; ``None`` until the account has been
+            looked up, which never holds the model back.
     """
 
     name: str
@@ -370,6 +371,10 @@ class MetadataCache:
         to ``fetch_model_metadata`` on a miss. Both positive and negative
         results are persisted before returning or raising.
 
+        Also fills in the record's ``org`` while it's missing (see
+        ``_add_org``); a failed organization lookup leaves it ``None`` and
+        never fails the model.
+
         Args:
             model_name: HuggingFace repo ID.
 
@@ -398,26 +403,25 @@ class MetadataCache:
         return self._add_org(meta)
 
     def get(self, model_name: str) -> ModelMetadata | None:
-        """Return cached metadata, with its organization, without probing the model.
+        """Return cached metadata without fetching.
 
         Returns:
             The cached record, or ``None`` if ``model_name`` has not been
             successfully probed.
         """
-        meta = self.metadata.get(model_name)
-        return None if meta is None else self._add_org(meta)
+        return self.metadata.get(model_name)
 
     def __contains__(self, model_name: str) -> bool:
         """Return whether ``model_name`` has cached (supported) metadata."""
         return model_name in self.metadata
 
     def all_dumped(self) -> list[dict]:
-        """Return all cached metadata as plain dicts, each with its organization.
+        """Return all cached metadata as plain dicts, without fetching.
 
         Used by local-mode ``/models`` to list every model the backend knows
         about, regardless of NDIF deployment status.
         """
-        return [self._add_org(meta).model_dump() for meta in self.metadata.values()]
+        return [meta.model_dump() for meta in self.metadata.values()]
 
     # ----- organizations -----------------------------------------------
 
@@ -431,9 +435,11 @@ class MetadataCache:
         """Fill in ``meta.org`` if it isn't known yet, and return ``meta``.
 
         The account's ``OrgMetadata`` is looked up once and persisted, a
-        person's account included (with no logo). A lookup that fails
-        (network, rate limit, server error) isn't cached: ``meta.org`` stays
-        ``None`` and the account is asked again next time.
+        person's account included (with no logo). The organization is
+        optional, so this never raises: a lookup that fails for any reason
+        (network, rate limit, server error, an unexpected answer) isn't
+        cached, ``meta.org`` stays ``None``, and the account is asked again
+        the next time ``fetch_metadata`` sees one of its models.
         """
         if meta.org is not None:
             return meta
@@ -444,7 +450,7 @@ class MetadataCache:
         if org is None:
             try:
                 org = OrgMetadata.fetch(account)
-            except (requests.RequestException, ValueError) as e:
+            except Exception as e:
                 logger.warning(f"Could not look up the organization {account}: {e}")
                 return meta
             self.orgs[account] = org
