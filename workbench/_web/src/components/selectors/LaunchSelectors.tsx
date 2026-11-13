@@ -1,10 +1,11 @@
 "use client";
 
-import { Folder } from "lucide-react";
+import { Folder, MessageSquare } from "lucide-react";
 
 import { toolMeta } from "@/app/(shell)/components/toolMeta";
 import { buttonVariants } from "@/components/ui/button";
 import { PillPopover, type PillPopoverOption } from "@/components/ui/pill-popover";
+import { ChatLaunch } from "@/lib/chatLaunch";
 import { cn } from "@/lib/utils";
 import type { getUserWorkspaces } from "@/lib/queries/workspaceQueries";
 import { toolTypeFromDisplay } from "@/lib/toolSupport";
@@ -14,7 +15,7 @@ import { toolTypeFromDisplay } from "@/lib/toolSupport";
  * page and the cold-model Deploy dialog so the selection flow is identical in
  * both places — both produce a tool name and a workspace id ("" for no
  * workspace, i.e. the default one) that feed the same `/new?...` chart-creation
- * route.
+ * route. The landing page's tool picker also offers Chat, which starts a chat.
  */
 
 type WorkspaceListItem = Awaited<ReturnType<typeof getUserWorkspaces>>[number];
@@ -28,8 +29,8 @@ const NewBadge = () => (
 
 /** A launch tool's icon, by its display name. */
 function ToolIcon({ tool }: { tool: string }) {
-    const meta = toolMeta(toolTypeFromDisplay(tool));
-    return meta ? <meta.Icon className="size-4 shrink-0 text-muted-foreground" /> : null;
+    const Icon = tool === ChatLaunch.TOOL ? MessageSquare : toolMeta(toolTypeFromDisplay(tool))?.Icon;
+    return Icon ? <Icon className="size-4 shrink-0 text-muted-foreground" /> : null;
 }
 
 /** The tool values the chart-creation flow understands. */
@@ -38,6 +39,15 @@ const TOOL_OPTIONS: PillPopoverOption[] = [
     { value: "J-Lens", label: "J-Lens", group: "Tools", trailing: <NewBadge /> },
     { value: "Activation Patching", label: "Activation Patching", group: "Tools" },
 ].map((option) => ({ ...option, icon: <ToolIcon tool={option.value} /> }));
+
+/** Chat, offered beside the tools where a launch can start a chat (`ChatLaunch`). */
+const CHAT_OPTION: PillPopoverOption = {
+    value: ChatLaunch.TOOL,
+    label: "Chat",
+    group: "Generate",
+    trailing: <NewBadge />,
+    icon: <ToolIcon tool={ChatLaunch.TOOL} />,
+};
 
 /** Trigger chrome of the launch selectors on the composer: an outline button,
  * like the app's other menu buttons ("New chart"), narrower on a phone so the
@@ -59,6 +69,7 @@ export function ToolPill({
     disabled,
     triggerClassName = LAUNCH_TRIGGER,
     modal = false,
+    withChat = false,
 }: {
     value: string;
     onChange: (v: string) => void;
@@ -66,6 +77,8 @@ export function ToolPill({
     triggerClassName?: string;
     /** Set when used inside a Dialog so the menu list can scroll. */
     modal?: boolean;
+    /** Also offer Chat, for a surface that can start a chat (Home's composer). */
+    withChat?: boolean;
 }) {
     return (
         <PillPopover
@@ -83,7 +96,7 @@ export function ToolPill({
                 </>
             }
             showSearch={false}
-            options={TOOL_OPTIONS}
+            options={withChat ? [...TOOL_OPTIONS, CHAT_OPTION] : TOOL_OPTIONS}
         />
     );
 }

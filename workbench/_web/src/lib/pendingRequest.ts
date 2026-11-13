@@ -1,3 +1,4 @@
+import { ChartOrigins } from "@/lib/chartLaunch";
 import { newChartPath } from "@/lib/chartRoutes";
 
 /**
@@ -60,4 +61,15 @@ export function pendingRequestPath(request: PendingRequest): string {
     if (request.tgtPos) params.set("tgtPos", request.tgtPos);
     if (request.tgtFreeze) params.set("tgtFreeze", request.tgtFreeze);
     return newChartPath(params);
+}
+
+/**
+ * Sends `/new` on to a launch still waiting on sign-in, which takes precedence
+ * over the URL's own request; true when there was one.
+ */
+export function resumePendingRequest(router: { replace: (href: string) => void }): boolean {
+    const pendingRequest = getPendingRequest();
+    if (!pendingRequest) return false;
+    router.replace(ChartOrigins.tag(pendingRequestPath(pendingRequest), "resumed"));
+    return true;
 }

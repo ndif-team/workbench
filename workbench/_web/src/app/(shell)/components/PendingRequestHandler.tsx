@@ -2,8 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChartOrigins } from "@/lib/chartLaunch";
-import { getPendingRequest, pendingRequestPath } from "@/lib/pendingRequest";
+import { resumePendingRequest } from "@/lib/pendingRequest";
 
 /**
  * Resumes a chart launch that was waiting on sign-in (saved to localStorage by
@@ -17,11 +16,7 @@ export function PendingRequestHandler() {
     const pathname = usePathname();
 
     useEffect(() => {
-        if (pathname === "/new") return;
-        const pendingRequest = getPendingRequest();
-        if (pendingRequest) {
-            router.replace(ChartOrigins.tag(pendingRequestPath(pendingRequest), "resumed"));
-        }
+        if (pathname !== "/new") resumePendingRequest(router);
     }, [pathname, router]);
 
     return null;

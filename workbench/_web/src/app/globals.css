@@ -132,23 +132,93 @@
     background: linear-gradient(135deg, rgba(147, 89, 146, 0.8), rgba(46, 131, 175, 0.8));
 }
 
-/* Workspace-list aurora page background — three soft brand-colored radial
- * blobs (primary upper-left, purple upper-right, cyan bottom) on a faintly
- * blue-tinted base. The clean section card sits on top as an inset surface.
- * Light alphas paint; dark alphas glow on a moodier base. */
+/* The aurora page background of the landing page and Home — three soft
+ * brand-colored radial blobs (primary upper-left, purple upper-right, cyan
+ * bottom) on a faintly blue-tinted base (--aurora-base). Light alphas paint;
+ * dark alphas glow on a moodier base. A chat's page is the base alone
+ * (.aurora-base): a quiet surface to read on, the same tint as Home's. */
+:root {
+    --aurora-base: 220 25% 97%;
+}
+.dark {
+    --aurora-base: 220 22% 7%;
+}
 .aurora-bg {
     background:
         radial-gradient(ellipse 600px 400px at 12% 8%, hsl(217 91% 60% / 0.22), transparent 60%),
         radial-gradient(ellipse 540px 420px at 92% 68%, hsl(270 91% 65% / 0.18), transparent 60%),
         radial-gradient(ellipse 700px 420px at 30% 100%, hsl(190 90% 60% / 0.14), transparent 60%),
-        hsl(220 25% 97%);
+        hsl(var(--aurora-base));
 }
 .dark .aurora-bg {
     background:
         radial-gradient(ellipse 600px 400px at 12% 8%, hsl(217 91% 60% / 0.16), transparent 60%),
         radial-gradient(ellipse 540px 420px at 92% 68%, hsl(270 91% 65% / 0.13), transparent 60%),
         radial-gradient(ellipse 700px 420px at 30% 100%, hsl(190 90% 60% / 0.1), transparent 60%),
-        hsl(220 22% 7%);
+        hsl(var(--aurora-base));
+}
+.aurora-base {
+    background: hsl(var(--aurora-base));
+}
+
+/* Muted text that a brighter band sweeps across while it waits (a reply
+ * being generated): the job badge's shimmer, run through the letters. Still
+ * for a user who asks for reduced motion. */
+.text-shimmer {
+    color: transparent;
+    background: linear-gradient(
+            90deg,
+            hsl(var(--muted-foreground)) 35%,
+            hsl(var(--foreground)) 50%,
+            hsl(var(--muted-foreground)) 65%
+        )
+        0 0 / 250% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: text-shimmer 2s ease-in-out infinite;
+}
+@keyframes text-shimmer {
+    from {
+        background-position: 100% 0;
+    }
+    to {
+        background-position: 0 0;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .text-shimmer {
+        animation: none;
+        color: hsl(var(--muted-foreground));
+        background: none;
+    }
+}
+
+/* Dots after a waiting message that hop one after another. Still for a user
+ * who asks for reduced motion. */
+.wait-dots > span {
+    display: inline-block;
+    animation: wait-dot 1.2s ease-in-out infinite;
+}
+.wait-dots > span:nth-child(2) {
+    animation-delay: 0.15s;
+}
+.wait-dots > span:nth-child(3) {
+    animation-delay: 0.3s;
+}
+@keyframes wait-dot {
+    0%,
+    50%,
+    100% {
+        transform: translateY(0);
+    }
+    25% {
+        transform: translateY(-0.3em);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .wait-dots > span {
+        animation: none;
+    }
 }
 
 /* The expanded sidebar's own surface (the --sidebar tokens), so the page's

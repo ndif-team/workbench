@@ -2,9 +2,9 @@ export const queryKeys = {
     workspaces: {
         all: ["workspaces"] as const,
         workspace: (workspaceId: string) => ["workspace", workspaceId] as const,
-        // The signed-in user's workspaces with their charts and reports (global
-        // sidebar). Invalidate it from every mutation that adds, removes, renames,
-        // reorders or moves a chart, report or workspace.
+        // The signed-in user's workspaces with their charts, chats and reports
+        // (global sidebar). Invalidate it from every mutation that adds, removes,
+        // renames, reorders or moves an item or a workspace.
         library: ["workspace-library"] as const,
     },
     charts: {
@@ -24,6 +24,10 @@ export const queryKeys = {
         byWorkspaceAll: ["documents"] as const,
         byWorkspace: (workspaceId: string) => ["documents", workspaceId] as const,
         workspaceDoc: (workspaceId: string) => ["document-workspace", workspaceId] as const,
+    },
+    chats: {
+        chat: (chatId: string) => ["chat", chatId] as const,
+        messages: (chatId: string) => ["chatMessages", chatId] as const,
     },
     lensRuns: {
         byChart: (chartId: string, model?: string) => ["lensRuns", chartId, model ?? null] as const,

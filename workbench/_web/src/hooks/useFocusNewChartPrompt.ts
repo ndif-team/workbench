@@ -12,7 +12,7 @@ export function useFocusNewChartPrompt(
     inputRef: RefObject<HTMLTextAreaElement | null>,
     ready: boolean,
 ) {
-    const requested = usePromptFocus((s) => s.chartId === chartId);
+    const requested = usePromptFocus((s) => s.itemId === chartId);
     useEffect(() => {
         if (!requested || !ready) return;
         usePromptFocus.getState().clear();

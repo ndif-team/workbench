@@ -25,7 +25,8 @@ import type { WorkspaceLibrary, WorkspaceScope } from "@/types/workspaces";
  *
  * Prompts are sent as typed, next to their length (`prompt` and
  * `prompt_length`; `source_prompt` and `target_prompt` for two-prompt tools),
- * on `run_submitted` and `landing_submission`.
+ * on `run_submitted` and `landing_submission`. A chat reply is a run
+ * (`tool: "chat"`) whose prompt is the message it answers.
  * Other user-authored text never goes out: not chart, report or workspace
  * names (send a length), not report content or notes.
  *
@@ -54,13 +55,16 @@ type AnalyticsEvent =
     | "model_warmup_completed"
     | "model_warmup_failed"
     | "chart_created"
-    // Charts, reports and workspaces. Reports have no rename (their title is
-    // their first line) and no copy.
+    // Charts, chats, reports and workspaces. Reports have no rename (their
+    // title is their first line) and no copy; chats have no copy.
     | "chart_copied"
     | "chart_moved"
     | "chart_deleted"
     | "chart_exported"
     | "chart_embedded"
+    | "chat_created"
+    | "chat_moved"
+    | "chat_deleted"
     | "report_created"
     | "report_moved"
     | "report_deleted"
@@ -135,8 +139,8 @@ class DefaultWorkspace {
 
 /**
  * Returns a `capture(event, props)` that merges the current `workspace_id`
- * (from the workspace scope, absent outside chart and report pages), the
- * route's `chart_id` / `report_id`, and the workshop context into every event,
+ * (from the workspace scope, absent outside item pages), the route's
+ * `chart_id` / `chat_id` / `report_id`, and the workshop context into every event,
  * so call sites pass only the event's own properties. An event that names its
  * own item (passes any of those ids) gets none of the route's, so deleting a
  * report from the sidebar on a chart page doesn't carry that chart's id. Any
@@ -152,18 +156,24 @@ export function useCapture() {
     const workspaceId = scope?.workspaceId;
     const chartId = typeof params?.chartId === "string" ? params.chartId : undefined;
     const reportId = typeof params?.reportId === "string" ? params.reportId : undefined;
+    const chatId = typeof params?.chatId === "string" ? params.chatId : undefined;
     const mode = useModeContext(scope);
 
     return useCallback(
         (event: AnalyticsEvent, properties?: EventProperties) => {
             if (!posthog?.__loaded) return;
-            const ownItem = ["workspace_id", "chart_id", "report_id"].some(
+            const ownItem = ["workspace_id", "chart_id", "chat_id", "report_id"].some(
                 (key) => properties?.[key] !== undefined,
             );
             const merged: EventProperties = {
                 ...(ownItem
                     ? {}
-                    : { workspace_id: workspaceId, chart_id: chartId, report_id: reportId }),
+                    : {
+                          workspace_id: workspaceId,
+                          chart_id: chartId,
+                          chat_id: chatId,
+                          report_id: reportId,
+                      }),
                 ...mode,
                 ...properties,
             };
@@ -174,7 +184,7 @@ export function useCapture() {
             );
             posthog.capture(event, merged);
         },
-        [posthog, queryClient, scope, workspaceId, chartId, reportId, mode],
+        [posthog, queryClient, scope, workspaceId, chartId, chatId, reportId, mode],
     );
 }
 
@@ -188,11 +198,14 @@ export function captureEvent(event: AnalyticsEvent, properties?: EventProperties
 }
 
 /** What started a run: `launch`, the run a chart starts as it opens with a
- * saved prompt and no result (a launch from Home); `run`, a Run press. */
-export type RunTrigger = "launch" | "run";
+ * saved prompt and no result (a launch from Home); `run`, a Run press (a chat
+ * message sent). A chat reply can also be a `continue` (a completion
+ * continued with nothing added), a `retry` (of a failed reply) or a
+ * `regenerate` (the last reply, run again). */
+export type RunTrigger = "launch" | "run" | "continue" | "retry" | "regenerate";
 
 interface RunProps extends EventProperties {
-    tool: ToolType;
+    tool: ToolType | "chat";
     model?: string | null;
     trigger?: RunTrigger;
 }

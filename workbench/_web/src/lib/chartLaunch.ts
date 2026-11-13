@@ -11,7 +11,8 @@ import { toolTypeFromDisplay } from "@/lib/toolSupport";
  * ("Logit Lens") or a tool type ("patch-lens"); `srcPos`, `tgtPos` and
  * `tgtFreeze` are JSON arrays; `deploy=true` creates an empty chart for a model
  * that is being deployed; `workspaceId` files the chart in that workspace
- * instead of the default one.
+ * instead of the default one. `tool=Chat` starts a chat instead
+ * (`ChatLaunch`), with `prompt` as its first message, in `mode` when given.
  */
 const CHART_LAUNCH_PARAMS = [
     "tool",
@@ -24,6 +25,9 @@ const CHART_LAUNCH_PARAMS = [
     "tgtFreeze",
     "deploy",
     "workspaceId",
+    "mode",
+    "temperature",
+    "maxNewTokens",
 ] as const;
 
 export type ChartLaunchRequest = Partial<Record<(typeof CHART_LAUNCH_PARAMS)[number], string>>;
@@ -43,8 +47,9 @@ export type ChartLaunchPlan =
  * Where a chart launch started, reported as `chart_created`'s `origin`: New
  * chart in the sidebar or on a workspace page, Home's or the landing page's
  * composer, Discover J-Lens, the models page's launch dialog, the workshop
- * sidebar, a `/new` link, a launch resumed after sign-in, and the charts the
- * server creates: opening an empty workspace, and joining a workshop.
+ * sidebar, a `/new` link, a launch resumed after sign-in, the charts the
+ * server creates (opening an empty workspace, and joining a workshop), and a
+ * completion started from a chat's page with a model the chat can't take.
  */
 export type ChartOrigin = (typeof ChartOrigins.ALL)[number];
 
@@ -62,6 +67,7 @@ export class ChartOrigins {
         "resumed",
         "workspace_open",
         "workshop_join",
+        "chat_page",
     ] as const;
 
     private static readonly PARAM = "origin";

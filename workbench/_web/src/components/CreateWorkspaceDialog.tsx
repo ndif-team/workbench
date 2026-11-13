@@ -87,7 +87,7 @@ export function CreateWorkspaceDialog({
                 <DialogHeader>
                     <DialogTitle>New workspace</DialogTitle>
                     <DialogDescription>
-                        A workspace groups related charts and reports, like a project folder.
+                        A workspace groups related charts, chats and reports, like a project folder.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">

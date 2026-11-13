@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { FileText } from "lucide-react";
+import { FileText, MessageSquare } from "lucide-react";
 
 import { splitRepo } from "@/components/model-selector/status";
 import type { ChartFigureGap } from "@/lib/report/chartFigure";
@@ -12,7 +12,13 @@ import { InlineNameInput } from "../../../components/items/InlineNameInput";
 import { ItemActionsMenu } from "../../../components/items/ItemActionsMenu";
 import { formatTimestamp, formatUpdated } from "../../../components/items/formatUpdated";
 import { coverPlacement } from "../../../components/items/covers";
-import { chartName, itemIcon, itemLabel, itemPath } from "../../../components/items/itemLabel";
+import {
+    itemIcon,
+    itemKindLabel,
+    itemLabel,
+    itemPath,
+    nameField,
+} from "../../../components/items/itemLabel";
 import { toolMeta } from "../../../components/toolMeta";
 import { useDeployStateOf } from "../../../components/useDeployStateOf";
 import { DEPLOY_LABEL } from "./FolderItemRow";
@@ -22,10 +28,11 @@ import { useChartPreview, useSeenOnScreen } from "./useChartPreview";
 const CARD = "rounded border bg-secondary/80 dark:bg-secondary/50 transition-colors duration-100";
 
 /**
- * A chart or report on a workspace page's grid: a preview on top (the chart
- * drawn from its saved view, or a report's cover), then its label and
- * actions, then its tool, model and last update. The whole card opens the
- * item; `SortableEntry` puts the drag handle in its top-left corner.
+ * A chart, chat or report on a workspace page's grid: a preview on top (the
+ * chart drawn from its saved view, a chat's model, or a report's cover), then
+ * its label and actions, then its tool (or kind), a chart's model and the
+ * last update. The whole card opens the item; `SortableEntry` puts the drag
+ * handle in its top-left corner.
  */
 export function FolderItemCard({
     item,
@@ -46,8 +53,8 @@ export function FolderItemCard({
     const deployStateOf = useDeployStateOf();
     const Icon = itemIcon(item);
     const label = itemLabel(item);
+    const field = nameField(item);
     const isChart = item.kind === "chart";
-    const tool = isChart ? toolMeta(item.toolType) : undefined;
     const deployState = isChart ? deployStateOf(item) : null;
 
     return (
@@ -58,19 +65,27 @@ export function FolderItemCard({
             )}
         >
             <div className="aspect-[2/1] overflow-hidden border-b">
-                {isChart ? <ChartPreviewImage item={item} /> : <ReportCover reportId={item.id} />}
+                {item.kind === "chart" ? (
+                    <ChartPreviewImage item={item} />
+                ) : item.kind === "chat" ? (
+                    <PreviewNote icon={<MessageSquare />}>
+                        <span className="max-w-full truncate px-3 font-mono" title={item.model}>
+                            {splitRepo(item.model).label}
+                        </span>
+                    </PreviewNote>
+                ) : (
+                    <ReportCover reportId={item.id} />
+                )}
             </div>
             <div className="flex items-center gap-2 py-1.5 pl-3 pr-1.5">
                 <Icon className="size-4 shrink-0 text-muted-foreground" />
-                {renaming && isChart ? (
+                {renaming && field ? (
                     <InlineNameInput
-                        initialValue={chartName(item.name)}
-                        ariaLabel="Chart name"
-                        placeholder="Untitled chart"
+                        initialValue={field.value}
+                        ariaLabel={field.ariaLabel}
+                        placeholder={field.placeholder}
                         className="h-7 min-w-0 flex-1 px-2 text-sm"
-                        onDone={(name) =>
-                            onRenameEnd(name && name !== chartName(item.name) ? name : null)
-                        }
+                        onDone={(name) => onRenameEnd(name && name !== field.value ? name : null)}
                     />
                 ) : (
                     <Link
@@ -93,7 +108,7 @@ export function FolderItemCard({
                             workspaces={workspaces}
                             folder={folder}
                             active={false}
-                            onRename={isChart ? onRenameStart : undefined}
+                            onRename={field ? onRenameStart : undefined}
                             side="bottom"
                             align="end"
                         />
@@ -102,7 +117,7 @@ export function FolderItemCard({
             </div>
             <div className="flex items-center gap-1.5 px-3 pb-2.5 text-xs text-muted-foreground">
                 <span className="min-w-0 truncate">
-                    {isChart ? (tool?.label ?? "Retired tool") : "Report"}
+                    {itemKindLabel(item)}
                     {isChart && item.model && (
                         <>
                             {" · "}

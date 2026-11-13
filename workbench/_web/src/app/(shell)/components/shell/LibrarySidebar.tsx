@@ -7,14 +7,13 @@ import { Boxes, ChevronDown, FolderClosed, House, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
 import { findLibraryItem, useRenameWorkspace, useWorkspaceLibrary } from "@/lib/api/workspaceApi";
-import { useUpdateChartName } from "@/lib/api/chartApi";
 import { workspacePath } from "@/lib/chartRoutes";
 import { useSidebarFolders } from "@/stores/useSidebarFolders";
-import type { LibraryItem, LibraryWorkspace } from "@/types/workspaces";
-import { ItemActionsMenu, useMoveItem } from "../items/ItemActionsMenu";
+import type { LibraryItem, LibraryWorkspace, WorkspaceItemKind } from "@/types/workspaces";
+import { ItemActionsMenu, useMoveItem, useRenameItem } from "../items/ItemActionsMenu";
 import { NewItemMenu, useNewItemWorkspace } from "../items/NewItemMenu";
 import { WorkspaceActionsMenu } from "../items/WorkspaceActions";
-import { chartName, itemIcon, itemLabel, itemPath } from "../items/itemLabel";
+import { itemIcon, itemLabel, itemPath, nameField } from "../items/itemLabel";
 import { recencyGroup } from "../items/formatUpdated";
 import { EMPTY_WORKSPACE_TEXT } from "../items/workspaceContents";
 import { useDeployStateOf } from "../useDeployStateOf";
@@ -47,25 +46,29 @@ const groupByRecency = (items: LibraryItem[]) => {
 
 /**
  * The global sidebar's body (expanded and in the mobile drawer): New chart
- * (filed in the folder of the chart or report on screen, if it's in one),
- * the Home, Models and Workspaces pages, the workspace folders with their items,
- * and the charts and reports that aren't in a folder, newest first. While
- * `pending` (the page's workspace isn't known yet) it doesn't read the
- * library and shows the list's skeleton.
+ * (filed in the folder of the item on screen, if it's in one), the Home,
+ * Models and Workspaces pages, the workspace folders with their items, and
+ * Recent: the charts, chats and reports that aren't in a folder, newest
+ * first. While `pending` (the page's workspace isn't known yet) it doesn't
+ * read the library and shows the list's skeleton.
  *
  * Both sections fold under their headers. Workspaces lists the most recently
  * updated folders (`visibleFolders`, always including the one holding the
  * item on screen, or the one whose page is open) until "Show N more" lists
- * them all. A chart row dropped on
- * another folder moves the chart there. A folder's actions rename it in place
- * or delete it; deleting the folder on screen (its page, or the item open in
- * it) goes Home.
+ * them all. A chart or chat row dropped on another folder moves it there. A
+ * folder's actions rename it in place or delete it; deleting the folder on
+ * screen (its page, or the item open in it) goes Home.
  */
 export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const pathname = usePathname();
     const router = useRouter();
-    const params = useParams<{ chartId?: string; reportId?: string; workspaceId?: string }>();
-    const activeItemId = params.chartId ?? params.reportId ?? null;
+    const params = useParams<{
+        chartId?: string;
+        chatId?: string;
+        reportId?: string;
+        workspaceId?: string;
+    }>();
+    const activeItemId = params.chartId ?? params.chatId ?? params.reportId ?? null;
 
     const { data: library, isLoading, isError } = useWorkspaceLibrary({ enabled: !pending });
     const newItemWorkspace = useNewItemWorkspace(library?.defaultWorkspaceId ?? undefined);
@@ -80,28 +83,28 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
     const [creatingWorkspace, setCreatingWorkspace] = useState(false);
-    const [draggedChartId, setDraggedChartId] = useState<string | null>(null);
-    const { mutate: renameChart } = useUpdateChartName();
+    const [dragged, setDragged] = useState<{ kind: WorkspaceItemKind; id: string } | null>(null);
+    const renameItem = useRenameItem();
     const { mutate: renameWorkspace } = useRenameWorkspace();
     const moveItem = useMoveItem();
     const deployStateOf = useDeployStateOf();
     const workspacesListId = useId();
-    const chartsListId = useId();
+    const recentListId = useId();
 
     const folders = useMemo(() => inFolderOrder(library?.workspaces ?? []), [library?.workspaces]);
     const workspacesOpen = !collapsedSections.includes("workspaces");
-    const chartsOpen = !collapsedSections.includes("charts");
-    const draggedChart =
-        library && draggedChartId ? findLibraryItem(library, "chart", draggedChartId) : undefined;
+    const recentOpen = !collapsedSections.includes("charts");
+    const draggedItem =
+        library && dragged ? findLibraryItem(library, dragged.kind, dragged.id) : undefined;
 
-    /** Moves the chart being dragged into `folder`, or null when it can't go there. */
+    /** Moves the item being dragged into `folder`, or undefined when it can't go there. */
     const dropInto = (folder: LibraryWorkspace) =>
-        draggedChart && !folder.isWorkshop && draggedChart.workspaceId !== folder.id
+        draggedItem && !folder.isWorkshop && draggedItem.workspaceId !== folder.id
             ? () => {
-                  const from = folders.find((w) => w.id === draggedChart.workspaceId) ?? null;
-                  moveItem(draggedChart, folder, from, "drag");
+                  const from = folders.find((w) => w.id === draggedItem.workspaceId) ?? null;
+                  moveItem(draggedItem, folder, from, "drag");
                   expandFolder(folder.id);
-                  setDraggedChartId(null);
+                  setDragged(null);
               }
             : undefined;
 
@@ -125,6 +128,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
     const renderItem = (item: LibraryItem, folder: LibraryWorkspace | null) => {
         const label = itemLabel(item);
         const isChart = item.kind === "chart";
+        const field = nameField(item);
         return (
             <SidebarItemRow
                 key={`${item.kind}-${item.id}`}
@@ -135,15 +139,18 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                 active={item.id === activeItemId}
                 nested={!!folder}
                 deployState={isChart ? deployStateOf(item) : null}
+                movable={item.kind !== "report"}
                 dragPayload={
                     isChart
                         ? JSON.stringify({ chartId: item.id, chartType: item.toolType })
                         : undefined
                 }
-                onDragChange={(dragging) => setDraggedChartId(dragging ? item.id : null)}
+                onDragChange={(dragging) =>
+                    setDragged(dragging ? { kind: item.kind, id: item.id } : null)
+                }
                 renaming={renamingId === item.id}
-                renameValue={isChart ? chartName(item.name) : ""}
-                onRename={(name) => renameChart({ chartId: item.id, name })}
+                nameField={field}
+                onRename={(name) => renameItem(item, name)}
                 onRenameEnd={() => setRenamingId(null)}
                 actions={
                     folder?.isWorkshop ? null : (
@@ -152,7 +159,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                             workspaces={folders}
                             folder={folder}
                             active={item.id === activeItemId}
-                            onRename={isChart ? () => setRenamingId(item.id) : undefined}
+                            onRename={field ? () => setRenamingId(item.id) : undefined}
                         />
                     )
                 }
@@ -172,7 +179,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                     active={params.workspaceId === folder.id}
                     isWorkshop={folder.isWorkshop}
                     onToggle={() => toggleFolder(folder.id)}
-                    onDropChart={dropInto(folder)}
+                    onDropItem={dropInto(folder)}
                     renaming={renamingFolderId === folder.id}
                     onRename={(name) => renameWorkspace({ workspaceId: folder.id, name })}
                     onRenameEnd={() => setRenamingFolderId(null)}
@@ -246,7 +253,7 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                             <SidebarRowsSkeleton rows={2} />
                         </section>
                         <section>
-                            <SidebarSectionHeader title="Charts" />
+                            <SidebarSectionHeader title="Recent" />
                             <SidebarRowsSkeleton rows={6} />
                         </section>
                     </>
@@ -275,7 +282,8 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                                 <div id={workspacesListId}>
                                     {folders.length === 0 ? (
                                         <SidebarEmpty>
-                                            Group related charts and reports into a workspace.
+                                            Group related charts, chats and reports into a
+                                            workspace.
                                         </SidebarEmpty>
                                     ) : (
                                         <>
@@ -297,17 +305,19 @@ export function LibrarySidebar({ pending = false }: { pending?: boolean }) {
                             )}
                         </section>
 
-                        <section aria-label="Charts">
+                        <section aria-label="Recent">
                             <SidebarSectionHeader
-                                title="Charts"
-                                expanded={chartsOpen}
+                                title="Recent"
+                                expanded={recentOpen}
                                 onToggle={() => toggleSection("charts")}
-                                controls={chartsListId}
+                                controls={recentListId}
                             />
-                            {chartsOpen && (
-                                <div id={chartsListId}>
+                            {recentOpen && (
+                                <div id={recentListId}>
                                     {library.defaultItems.length === 0 ? (
-                                        <SidebarEmpty>Charts you create land here.</SidebarEmpty>
+                                        <SidebarEmpty>
+                                            Charts, chats and reports you create land here.
+                                        </SidebarEmpty>
                                     ) : (
                                         <div className="flex flex-col">
                                             {groupByRecency(library.defaultItems).map(

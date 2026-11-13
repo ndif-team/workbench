@@ -11,6 +11,7 @@ import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider
 import { useIsDark } from "@/hooks/useIsDark";
 import { useGetDocument } from "@/lib/api/documentApi";
 import { useUpdateChartName } from "@/lib/api/chartApi";
+import { useChat, useUpdateChat } from "@/lib/api/chatApi";
 import { useWorkspaceLibrary } from "@/lib/api/workspaceApi";
 import { getChartById, getConfigForChart } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
@@ -19,6 +20,7 @@ import { chartFigure } from "@/lib/report/chartFigure";
 import { deriveReportTitle } from "@/lib/reportTitle";
 import { cn } from "@/lib/utils";
 import { DEFAULT_CHART_NAME } from "@/types/charts";
+import { DEFAULT_CHAT_NAME } from "@/types/chats";
 import { ChartExportMenu } from "../ChartExportMenu";
 import { useWorkshopParticipant } from "../shell/AppShell";
 import { PageHeader } from "../shell/PageHeader";
@@ -26,16 +28,28 @@ import { ItemActionsMenu } from "./ItemActionsMenu";
 import { chartName, itemLabel } from "./itemLabel";
 import { InlineNameInput } from "./InlineNameInput";
 
-type ItemRef = { kind: "chart"; id: string } | { kind: "report"; id: string };
+type ItemRef =
+    | { kind: "chart"; id: string }
+    | { kind: "chat"; id: string }
+    | { kind: "report"; id: string };
 
 /**
- * A chart or report page inside the shell: the page header (model picker,
+ * A chart, chat or report page inside the shell: the page header (model picker,
  * breadcrumb, the item's actions) above the page itself. Rendered by the
- * item route's layout, inside its workspace scope.
+ * item route's layout, inside its workspace scope. `className` is the whole
+ * page's surface (a chat's `aurora-base`), behind its header too.
  */
-export function ItemPage({ item, children }: { item: ItemRef; children: ReactNode }) {
+export function ItemPage({
+    item,
+    className,
+    children,
+}: {
+    item: ItemRef;
+    className?: string;
+    children: ReactNode;
+}) {
     return (
-        <div className="flex size-full min-h-0 flex-col">
+        <div className={cn("flex size-full min-h-0 flex-col", className)}>
             <ItemPageHeader item={item} />
             <div className="min-h-0 flex-1">{children}</div>
         </div>
@@ -43,10 +57,11 @@ export function ItemPage({ item, children }: { item: ItemRef; children: ReactNod
 }
 
 /**
- * The item's header. A chart's leads with the model picker (a report has no
- * model) and ends with its Export menu once it has a result. The breadcrumb
- * leads with the item's workspace (nothing for the default workspace); a
- * chart's name is renamed in place by clicking it or from the actions menu.
+ * The item's header. A chart's or chat's leads with the model picker (a
+ * report has no model); a chart's ends with its Export menu once it has a
+ * result. The breadcrumb leads with the item's workspace (nothing for the
+ * default workspace); a chart's or chat's name is renamed in place by
+ * clicking it or from the actions menu.
  * Workshop items get no actions menu: they can't be moved, and the workshop
  * sidebar already covers the rest.
  */
@@ -71,7 +86,7 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
 
     return (
         <PageHeader
-            start={item.kind === "chart" ? <ModelControl compact /> : null}
+            start={item.kind === "report" ? null : <ModelControl compact />}
             center={
                 <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-sm">
                     {folderId && (
@@ -97,6 +112,12 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
                                     ? itemLabel(libraryItem).text
                                     : ""
                             }
+                            editing={renaming}
+                            onEditingChange={setRenaming}
+                        />
+                    ) : item.kind === "chat" ? (
+                        <ChatTitle
+                            chatId={item.id}
                             editing={renaming}
                             onEditingChange={setRenaming}
                         />
@@ -212,6 +233,62 @@ function ChartTitle({
                     )}
                 >
                     {chart ? shown || "Untitled chart" : "\u00a0"}
+                </button>
+            </h1>
+            <span id={hintId} className="sr-only">
+                Click to rename
+            </span>
+        </>
+    );
+}
+
+/** The chat's name; click it (or pick Rename) to edit it in place. */
+function ChatTitle({
+    chatId,
+    editing,
+    onEditingChange,
+}: {
+    chatId: string;
+    editing: boolean;
+    onEditingChange: (editing: boolean) => void;
+}) {
+    const { data: chat } = useChat(chatId);
+    const { mutate: updateChat } = useUpdateChat();
+    const hintId = useId();
+    const name = chat?.name ?? "";
+    const unnamed = name === DEFAULT_CHAT_NAME;
+
+    if (editing) {
+        return (
+            <InlineNameInput
+                initialValue={unnamed ? "" : name}
+                ariaLabel="Chat name"
+                placeholder={DEFAULT_CHAT_NAME}
+                className="h-7 w-64 max-w-full px-2 font-medium"
+                onDone={(next) => {
+                    onEditingChange(false);
+                    if (next === null || next === name || (unnamed && !next)) return;
+                    updateChat({ chatId, settings: { name: next } });
+                }}
+            />
+        );
+    }
+
+    return (
+        <>
+            <h1 className="flex min-w-0">
+                <button
+                    type="button"
+                    onClick={() => onEditingChange(true)}
+                    title={`${name} (click to rename)`}
+                    aria-describedby={hintId}
+                    className={cn(
+                        titleClass,
+                        "cursor-text transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                        unnamed && "text-muted-foreground",
+                    )}
+                >
+                    {chat ? name : "\u00a0"}
                 </button>
             </h1>
             <span id={hintId} className="sr-only">
