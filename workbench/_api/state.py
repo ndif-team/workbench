@@ -95,10 +95,9 @@ class AppState:
         actually needs the model.
 
         The entry takes the heat and pin of the deployment workbench runs the
-        model on: the hotter of its text-generation deployment and, when the
-        metadata's ``image_task`` allows it, its image-text-to-text one
-        (text-generation on a tie). A model NDIF deploys only for tasks it
-        can't run on is listed as cold on text-generation, the deployment a
+        model on: the hottest of those whose task the metadata's ``tasks``
+        lists (the task listed first on a tie). A model NDIF deploys only for
+        other tasks is listed as cold on its first task, the deployment a
         request to it starts. A wrapper built for another task is unloaded,
         so the next ``get_model`` builds one for this deployment.
 
@@ -128,12 +127,10 @@ class AppState:
             return
 
         usable = {
-            task: deployment
-            for task, deployment in deployments.items()
-            if task == "text-generation" or (task == "image-text-to-text" and meta.image_task)
-        } or {"text-generation": (ModelHeat.COLD, False)}
+            task: deployment for task, deployment in deployments.items() if task in meta.tasks
+        } or {meta.tasks[0]: (ModelHeat.COLD, False)}
         task, (heat, pinned) = min(
-            usable.items(), key=lambda item: (item[1][0].rank, item[0] != "text-generation")
+            usable.items(), key=lambda item: (item[1][0].rank, meta.tasks.index(item[0]))
         )
         if self.tasks.get(model_name, task) != task:
             self._unload_model(model_name)
@@ -327,9 +324,10 @@ class AppState:
 
         if not self.remote:
             for model_name in pinned:
-                self._metadata.fetch_metadata(model_name)
+                meta = self._metadata.fetch_metadata(model_name)
                 model = StandardizedTransformer(
                     model_name,
+                    task=meta.tasks[0],
                     device_map="auto",
                     torch_dtype=torch.bfloat16,
                     remote=self.remote,
@@ -341,17 +339,18 @@ class AppState:
         """Load a single model wrapper on demand.
 
         Ensures metadata is cached, then constructs a ``StandardizedTransformer``
-        for the task of the deployment the catalog picked (``tasks``).
+        for the task of the deployment the catalog picked (``tasks``), or the
+        model's first task outside the catalog.
         In remote mode the wrapper is used for tokenization and dispatch only;
         weights are not loaded locally.
         """
         logger.info(f"Loading model: {model_name}")
 
-        self._metadata.fetch_metadata(model_name)
+        meta = self._metadata.fetch_metadata(model_name)
 
         model = StandardizedTransformer(
             model_name,
-            task=self.tasks.get(model_name, "text-generation"),
+            task=self.tasks.get(model_name, meta.tasks[0]),
             device_map="auto",
             torch_dtype=torch.bfloat16,
             remote=False,
