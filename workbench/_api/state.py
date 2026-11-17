@@ -97,18 +97,20 @@ class AppState:
         The entry takes the heat and pin of the deployment workbench runs the
         model on: the hotter of its text-generation deployment and, when the
         metadata's ``image_task`` allows it, its image-text-to-text one
-        (text-generation on a tie). A wrapper built for the other task is
-        unloaded, so the next ``get_model`` builds one for this deployment.
+        (text-generation on a tie). A model NDIF deploys only for tasks it
+        can't run on is listed as cold on text-generation, the deployment a
+        request to it starts. A wrapper built for another task is unloaded,
+        so the next ``get_model`` builds one for this deployment.
 
         Silently skips unsupported models (LoRA adapters, vision models,
-        ``trust_remote_code`` repos) and ``Meta-Llama-*`` legacy aliases, and
-        deregisters a model left with no deployment it can run on.
+        ``trust_remote_code`` repos) and ``Meta-Llama-*`` legacy aliases.
 
         Args:
             model_name: HuggingFace repo ID.
-            deployments: NDIF's deployments of the repo by task, each as its
-                heat and NDIF-reported pin status. Pinned models are never
-                LRU-evicted; unpinned models participate in eviction once loaded.
+            deployments: NDIF's deployments of the repo by task (whatever
+                the task), each as its heat and NDIF-reported pin status.
+                Pinned models are never LRU-evicted; unpinned models
+                participate in eviction once loaded.
         """
         # Legacy Meta-Llama-* repos duplicate Llama-* names since 3.1; skip
         # them so the catalog does not list both variants.
@@ -128,11 +130,8 @@ class AppState:
         usable = {
             task: deployment
             for task, deployment in deployments.items()
-            if task == "text-generation" or meta.image_task
-        }
-        if not usable:
-            self.deregister_catalog_entry(model_name)
-            return
+            if task == "text-generation" or (task == "image-text-to-text" and meta.image_task)
+        } or {"text-generation": (ModelHeat.COLD, False)}
         task, (heat, pinned) = min(
             usable.items(), key=lambda item: (item[1][0].rank, item[0] != "text-generation")
         )
