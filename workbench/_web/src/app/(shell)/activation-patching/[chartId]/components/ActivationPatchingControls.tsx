@@ -1082,10 +1082,11 @@ export function ActivationPatchingControls({
                 prompt={
                     <>
                         {sourcePrompt}
+                        <div aria-hidden className="mx-3 border-t" />
                         {targetPrompt}
                     </>
                 }
-                promptClassName="divide-y"
+                promptClassName=""
                 divided
                 hint={hint}
                 tools={

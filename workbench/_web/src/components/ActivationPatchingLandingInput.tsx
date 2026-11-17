@@ -141,7 +141,7 @@ export function ActivationPatchingLandingInput({
     return (
         <div
             ref={containerRef}
-            className="relative divide-y"
+            className="relative"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
@@ -176,6 +176,7 @@ export function ActivationPatchingLandingInput({
                 pendingRangeStart={pendingRangeStart}
                 onSrcTokenClick={(pos, shift) => handleSrcTokenClick(pos, shift || rangeMode)}
             />
+            <div aria-hidden className="mx-4 border-t" />
             <PatchPromptSection
                 variant="target"
                 mode="compact"
