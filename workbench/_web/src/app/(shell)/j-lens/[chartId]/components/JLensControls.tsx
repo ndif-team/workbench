@@ -672,6 +672,7 @@ export function JLensControls({
     return (
         <>
             <ToolPanelHeader
+                syncClassName="bg-violet-500 hover:bg-violet-600 text-white"
                 title="J-Lens"
                 reference={{
                     href: "https://transformer-circuits.pub/2026/workspace/index.html",
@@ -696,7 +697,7 @@ export function JLensControls({
                 <Button
                     onClick={handleSubmit}
                     disabled={!interactive || !prompt.trim() || !tokensInSync}
-                    className="w-full"
+                    className="w-full bg-violet-500 hover:bg-violet-600 text-white"
                 >
                     {isExecuting ? (
                         <>

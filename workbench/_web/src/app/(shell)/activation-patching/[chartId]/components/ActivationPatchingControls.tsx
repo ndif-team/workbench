@@ -1120,7 +1120,6 @@ export function ActivationPatchingControls({
                     if (editing) (document.activeElement as HTMLElement | null)?.blur();
                     else handleSubmit();
                 }}
-                runClassName="text-violet-500 hover:text-violet-500"
                 viewMode={viewMode}
                 showReset={showReset}
                 showSync={showSync}

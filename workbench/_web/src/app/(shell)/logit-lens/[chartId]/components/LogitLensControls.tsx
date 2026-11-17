@@ -670,6 +670,7 @@ export function LogitLensControls({
     return (
         <>
             <ToolPanelHeader
+                syncClassName="bg-violet-500 hover:bg-violet-600 text-white"
                 title="Logit Lens"
                 reference={{
                     href: "https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens",
@@ -693,7 +694,7 @@ export function LogitLensControls({
                 <Button
                     onClick={handleSubmit}
                     disabled={!interactive || !prompt.trim() || !tokensInSync}
-                    className="w-full"
+                    className="w-full bg-violet-500 hover:bg-violet-600 text-white"
                 >
                     {isExecuting ? (
                         <>

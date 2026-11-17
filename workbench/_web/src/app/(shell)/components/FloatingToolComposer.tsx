@@ -24,8 +24,6 @@ interface FloatingToolComposerProps {
     promptClassName?: string;
     /** Draws a rule between the prompt area and the toolbar. */
     divided?: boolean;
-    /** Classes for Run (a tool's own accent color). */
-    runClassName?: string;
     /** A message above the prompt (a model the tool can't run). */
     notice?: ReactNode;
     isExecuting: boolean;
@@ -60,7 +58,6 @@ export function FloatingToolComposer({
     hint,
     promptClassName,
     divided = false,
-    runClassName,
     notice,
     isExecuting,
     runDisabled,
@@ -158,7 +155,7 @@ export function FloatingToolComposer({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className={cn("group/run text-primary hover:text-primary", runClassName)}
+                        className="group/run text-violet-500 hover:text-violet-500"
                         aria-label={`Run ${title}`}
                         onClick={onRun}
                         disabled={runDisabled}
@@ -178,7 +175,7 @@ FloatingToolComposer.PAGE_SPACE = "pb-36";
 FloatingToolComposer.HIDDEN_BESIDE = "[body:has([data-floating-composer])_&]:hidden";
 
 /**
- * Run's glyph: an arrow on a disc that runs from the button's color into the
+ * Run's glyph: an arrow on a disc that runs from violet into the
  * brand's purple, lifting under the pointer and sinking on a press.
  */
 function RunIcon() {
