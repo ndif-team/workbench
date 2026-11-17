@@ -22,13 +22,13 @@ export default function JLensChartPage() {
     // so the user can navigate to other charts while this model deploys.
     const deploying = readiness.state === "deploying";
 
-    // On a phone the chart has the page; its controls float over the bottom.
+    // On a phone the chart has the page; its controls are fixed to the bottom.
     if (isMobile) {
         return (
             <div
                 className={cn(
                     "size-full flex flex-col min-h-0 overflow-auto p-2 pt-0 gap-2",
-                    !deploying && FloatingToolComposer.BAR_SPACE,
+                    !deploying && FloatingToolComposer.PAGE_SPACE,
                 )}
             >
                 {deploying ? (

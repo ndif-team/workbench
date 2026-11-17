@@ -6,7 +6,7 @@ import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvi
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Grid3X3, Loader2, Play } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
 import { useLogitLens } from "@/lib/api/logitLensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { LogitLensConfigData } from "@/types/logitLens";
@@ -583,7 +583,7 @@ export function LogitLensControls({
                     aria-label="Prompt"
                     className={
                         floating
-                            ? "max-h-[32vh] min-h-20 w-full resize-none border-0 bg-transparent px-4 !text-base !leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
+                            ? "min-h-[4.5rem] w-full resize-none overflow-hidden rounded-none border-0 bg-transparent px-4 py-2 !text-base !leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
                             : "w-full !text-sm bg-input/30 min-h-32 !leading-5"
                     }
                     placeholder="Enter your prompt here..."
@@ -595,7 +595,7 @@ export function LogitLensControls({
                     className={cn(
                         "flex w-full py-2",
                         floating
-                            ? "max-h-[32vh] min-h-20 overflow-auto px-4"
+                            ? "min-h-[4.5rem] px-4"
                             : "px-3 bg-input/30 border rounded min-h-32",
                         isExecuting ? "cursor-progress" : "cursor-text",
                     )}
@@ -655,11 +655,8 @@ export function LogitLensControls({
         return (
             <FloatingToolComposer
                 title="Logit Lens"
-                icon={Grid3X3}
-                summary={prompt.trim()}
                 prompt={promptEditor}
                 params={params}
-                defaultOpen={!hasExistingData && !savedPrompt.trim()}
                 isExecuting={isExecuting}
                 runDisabled={!interactive || !prompt.trim()}
                 onRun={handleSubmit}

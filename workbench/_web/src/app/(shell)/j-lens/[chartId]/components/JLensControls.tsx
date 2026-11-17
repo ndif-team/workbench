@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, Play, TriangleAlert } from "lucide-react";
 import { useJLens } from "@/lib/api/jlensApi";
-import { JLensIcon } from "@/components/JLensIcon";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { JLensConfigData } from "@/types/jlens";
 import { Slider } from "@/components/ui/slider";
@@ -570,7 +569,7 @@ export function JLensControls({
                     aria-label="Prompt"
                     className={
                         floating
-                            ? "max-h-[32vh] min-h-20 w-full resize-none border-0 bg-transparent px-4 !text-base !leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
+                            ? "min-h-[4.5rem] w-full resize-none overflow-hidden rounded-none border-0 bg-transparent px-4 py-2 !text-base !leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
                             : "w-full !text-sm bg-input/30 min-h-32 !leading-5"
                     }
                     placeholder="Enter your prompt here..."
@@ -582,7 +581,7 @@ export function JLensControls({
                     className={cn(
                         "flex w-full py-2",
                         floating
-                            ? "max-h-[32vh] min-h-20 overflow-auto px-4"
+                            ? "min-h-[4.5rem] px-4"
                             : "px-3 bg-input/30 border rounded min-h-32",
                         isExecuting ? "cursor-progress" : "cursor-text",
                     )}
@@ -657,12 +656,9 @@ export function JLensControls({
         return (
             <FloatingToolComposer
                 title="J-Lens"
-                icon={JLensIcon}
-                summary={prompt.trim()}
                 prompt={promptEditor}
                 params={params}
                 notice={unsupportedNotice}
-                defaultOpen={!hasExistingData && !savedPrompt.trim()}
                 isExecuting={isExecuting}
                 runDisabled={!interactive || !prompt.trim()}
                 onRun={handleSubmit}
