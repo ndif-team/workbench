@@ -5,15 +5,13 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import ActivationPatchingArea from "./components/ActivationPatchingArea";
 import { ActivationPatchingDisplay } from "./components/ActivationPatchingDisplay";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { MobileCollapsibleControls } from "../../components/MobileCollapsibleControls";
+import { FloatingToolComposer } from "../../components/FloatingToolComposer";
 import { ModelDeployingPanel } from "../../components/ModelDeployingPanel";
 import { useChartModelReady } from "@/hooks/useChartModelReady";
-import { GitBranch } from "lucide-react";
-import { useIsMutating } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 
 export default function ActivationPatchingPage() {
     const isMobile = useIsMobile();
-    const isRunning = useIsMutating({ mutationKey: ["activationPatching"] }) > 0;
     const { chartId } = useParams<{ chartId: string }>();
     const readiness = useChartModelReady(chartId);
 
@@ -23,9 +21,15 @@ export default function ActivationPatchingPage() {
     // sidebar/drawer stay mounted so other charts remain navigable.
     const deploying = readiness.state === "deploying";
 
+    // On a phone the chart has the page; its controls are fixed to the bottom.
     if (isMobile) {
         return (
-            <div className="size-full flex flex-col min-h-0 overflow-auto p-2 pt-0 gap-2">
+            <div
+                className={cn(
+                    "size-full flex flex-col min-h-0 overflow-auto p-2 pt-0 gap-2",
+                    !deploying && FloatingToolComposer.PAGE_SPACE,
+                )}
+            >
                 {deploying ? (
                     <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
                         <ModelDeployingPanel
@@ -35,16 +39,10 @@ export default function ActivationPatchingPage() {
                     </div>
                 ) : (
                     <>
-                        <MobileCollapsibleControls
-                            label="Activation Patching"
-                            icon={GitBranch}
-                            isRunning={isRunning}
-                        >
-                            <ActivationPatchingArea />
-                        </MobileCollapsibleControls>
                         <div className="rounded dark:bg-secondary/50 bg-secondary/80 border min-h-[50vh] flex-1">
                             <ActivationPatchingDisplay />
                         </div>
+                        <ActivationPatchingArea layout="floating" />
                     </>
                 )}
             </div>

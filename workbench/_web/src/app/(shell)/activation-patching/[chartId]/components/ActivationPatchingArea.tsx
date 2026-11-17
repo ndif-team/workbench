@@ -1,6 +1,7 @@
 "use client";
 
 import { useToolArea } from "@/hooks/useToolArea";
+import { cn } from "@/lib/utils";
 import { ActivationPatchingControls } from "./ActivationPatchingControls";
 import { ActivationPatchingConfigData, ActivationPatchingData } from "@/types/activationPatching";
 
@@ -16,7 +17,15 @@ interface ActivationPatchingChart {
     type: string;
 }
 
-export default function ActivationPatchingArea() {
+/**
+ * The chart's controls: the side panel, or on a phone (`layout="floating"`)
+ * the composer fixed under the chart.
+ */
+export default function ActivationPatchingArea({
+    layout = "panel",
+}: {
+    layout?: "panel" | "floating";
+}) {
     const {
         config,
         isChartLoading,
@@ -28,6 +37,7 @@ export default function ActivationPatchingArea() {
     } = useToolArea<ActivationPatchingConfig, ActivationPatchingChart>();
 
     if (!config || isChartLoading) {
+        if (layout === "floating") return null;
         return (
             <div className="h-full flex flex-col md:min-w-64">
                 <div className="p-3 border-b flex items-center justify-between">
@@ -39,7 +49,7 @@ export default function ActivationPatchingArea() {
     }
 
     return (
-        <div className="h-full flex flex-col md:min-w-64">
+        <div className={cn(layout === "panel" && "h-full flex flex-col md:min-w-64")}>
             <ActivationPatchingControls
                 key={config.id}
                 initialConfig={config}
@@ -49,6 +59,7 @@ export default function ActivationPatchingArea() {
                 modelsAvailable={modelsAvailable && modelRunnable}
                 modelsLoading={modelsFetching}
                 hasExistingData={hasExistingData}
+                layout={layout}
             />
         </div>
     );

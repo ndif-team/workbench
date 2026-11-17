@@ -46,6 +46,9 @@ export const PATCH_COLORS = [
 // Token styling constants
 const TOKEN_STYLES = {
     base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
+    /** The phone composer's tokens: 16px, like its textarea, which a phone doesn't zoom into. */
+    floating:
+        "!text-base !leading-7 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
     clickable: "bg-muted/60 ring-1 ring-border/50 ring-inset",
     hover: "hover:bg-violet-500/20 hover:ring-1 hover:ring-violet-400/50 hover:ring-inset cursor-pointer",
     selected: "ring-2 ring-inset text-white",
@@ -105,6 +108,7 @@ function SelectableTokenDisplay({
     predictionToken,
     tokensClickable = true,
     compact = false,
+    floating = false,
 }: {
     tokens: Token[];
     loading: boolean;
@@ -120,6 +124,7 @@ function SelectableTokenDisplay({
     side: "source" | "target";
     predictionToken?: string | null;
     compact?: boolean;
+    floating?: boolean;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
         // Only claim the click when clicking a token actually does something. With
@@ -135,13 +140,19 @@ function SelectableTokenDisplay({
 
     const baseStyles = compact
         ? "text-sm whitespace-pre-wrap break-words select-none relative px-0.5 py-0.5 rounded-sm transition-all"
-        : TOKEN_STYLES.base;
+        : floating
+          ? TOKEN_STYLES.floating
+          : TOKEN_STYLES.base;
 
     return (
         <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.length === 0 ? (
                 <span className="text-muted-foreground italic text-sm">
-                    {compact ? "Enter a prompt..." : "Enter text and click away to tokenize"}
+                    {compact
+                        ? "Enter a prompt..."
+                        : floating
+                          ? "Enter a prompt"
+                          : "Enter text and click away to tokenize"}
                 </span>
             ) : (
                 tokens.map((token, idx) => {
@@ -236,6 +247,7 @@ function SourceTokenDisplay({
     predictionToken,
     tokensClickable = true,
     compact = false,
+    floating = false,
 }: {
     tokens: Token[];
     loading: boolean;
@@ -248,6 +260,7 @@ function SourceTokenDisplay({
     label: string;
     predictionToken?: string | null;
     compact?: boolean;
+    floating?: boolean;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
         // Only claim the click when clicking a token actually does something. With
@@ -263,13 +276,19 @@ function SourceTokenDisplay({
 
     const baseStyles = compact
         ? "text-sm whitespace-pre-wrap break-words select-none relative px-0.5 py-0.5 rounded-sm transition-all"
-        : TOKEN_STYLES.base;
+        : floating
+          ? TOKEN_STYLES.floating
+          : TOKEN_STYLES.base;
 
     return (
         <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.length === 0 ? (
                 <span className="text-muted-foreground italic text-sm">
-                    {compact ? "Enter a prompt..." : "Enter text and click away to tokenize"}
+                    {compact
+                        ? "Enter a prompt..."
+                        : floating
+                          ? "Enter a prompt"
+                          : "Enter text and click away to tokenize"}
                 </span>
             ) : (
                 tokens.map((token, idx) => {
@@ -865,7 +884,10 @@ export function useActivationPatchingState({
 
 interface PatchPromptSectionProps {
     variant: "source" | "target";
-    mode: "compact" | "full";
+    /** "compact" is Home's composer, "full" the chart's side panel, and
+     * "floating" the chart's composer on a phone (`FloatingToolComposer`): one
+     * line at rest, taller while the composer is in use, its label in a corner. */
+    mode: "compact" | "full" | "floating";
     label: string;
     prompt: string;
     setPrompt: (value: string) => void;
@@ -937,6 +959,7 @@ export function PatchPromptSection({
     const tokenContainerRef = externalTokenContainerRef ?? internalTokenContainerRef;
 
     const isCompact = mode === "compact";
+    const isFloating = mode === "floating";
     const isSource = variant === "source";
     const loading = isExecuting || isTokenizing;
 
@@ -1025,6 +1048,7 @@ export function PatchPromptSection({
                     label={label}
                     predictionToken={predictionToken}
                     compact={isCompact}
+                    floating={isFloating}
                 />
             );
         } else {
@@ -1042,15 +1066,16 @@ export function PatchPromptSection({
                     side="target"
                     predictionToken={predictionToken}
                     compact={isCompact}
+                    floating={isFloating}
                 />
             );
         }
     };
 
     return (
-        <div className={isCompact ? "" : "flex flex-col gap-2"}>
+        <div className={isCompact || isFloating ? "" : "flex flex-col gap-2"}>
             {/* Label row - only show for full mode */}
-            {!isCompact && (
+            {!isCompact && !isFloating && (
                 <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium">{label}</Label>
                     {/* Pending range indicator (source only, full mode) */}
@@ -1061,7 +1086,13 @@ export function PatchPromptSection({
                     )}
                 </div>
             )}
-            <div className="relative">
+            <div
+                className={cn(
+                    "relative",
+                    isFloating &&
+                        "max-h-9 overflow-y-auto overscroll-contain transition-[max-height] focus-within:max-h-[30vh] group-data-[active=true]/composer:max-h-[30vh]",
+                )}
+            >
                 {isEditing ? (
                     <Textarea
                         ref={textareaRef as React.RefObject<HTMLTextAreaElement>}
@@ -1072,7 +1103,9 @@ export function PatchPromptSection({
                         className={cn(
                             isCompact
                                 ? "resize-none bg-background/50 border-border focus:border-primary/50 transition-colors min-h-[80px] text-sm pr-16"
-                                : "w-full !text-sm bg-input/30 min-h-24 !leading-5",
+                                : isFloating
+                                  ? "min-h-9 w-full resize-none overflow-hidden rounded-none border-0 bg-transparent py-1 pl-3 pr-16 !text-base !leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent"
+                                  : "w-full !text-sm bg-input/30 min-h-24 !leading-5",
                         )}
                         disabled={disabled || loading}
                         autoFocus
@@ -1084,10 +1117,17 @@ export function PatchPromptSection({
                         className={cn(
                             isCompact
                                 ? "p-2.5 bg-background/50 border border-border rounded-md min-h-[80px] max-h-32 overflow-auto"
-                                : "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
+                                : isFloating
+                                  ? "min-h-9 w-full px-3 py-1"
+                                  : "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
                             loading ? "cursor-progress" : "cursor-text",
                         )}
                     >
+                        {isFloating && (
+                            <span className="float-right ml-2 select-none text-xs leading-7 text-muted-foreground">
+                                {label}
+                            </span>
+                        )}
                         {renderTokenDisplay()}
                     </div>
                 )}
@@ -1095,6 +1135,12 @@ export function PatchPromptSection({
                 {/* Compact mode label - bottom right overlay */}
                 {isCompact && (
                     <span className="absolute bottom-1.5 right-2 text-[10px] font-medium text-muted-foreground/50 pointer-events-none select-none uppercase tracking-wide">
+                        {label}
+                    </span>
+                )}
+
+                {isFloating && isEditing && (
+                    <span className="pointer-events-none absolute right-3 top-1 select-none text-xs leading-7 text-muted-foreground">
                         {label}
                     </span>
                 )}
