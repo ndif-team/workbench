@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Loader2, Play, X, Snowflake, ChevronDown } from "lucide-react";
+import { toolMeta } from "@/app/(shell)/components/toolMeta";
+import { Loader2, X, Snowflake, ChevronDown } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { useCapture } from "@/lib/analytics";
@@ -1212,7 +1213,7 @@ export function ActivationPatchingControls({
                         </>
                     ) : (
                         <>
-                            <Play className="mr-2 h-4 w-4" />
+                            <ActivationPatchingControls.Icon className="mr-2 h-4 w-4" />
                             Run
                         </>
                     )}
@@ -1221,3 +1222,6 @@ export function ActivationPatchingControls({
         </>
     );
 }
+
+/** The tool's icon, which its Run button carries. */
+ActivationPatchingControls.Icon = toolMeta("activation-patching")!.Icon;

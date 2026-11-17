@@ -6,6 +6,7 @@ import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvi
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { toolMeta } from "@/app/(shell)/components/toolMeta";
 import { Loader2, Play } from "lucide-react";
 import { useLogitLens } from "@/lib/api/logitLensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
@@ -703,7 +704,7 @@ export function LogitLensControls({
                         </>
                     ) : (
                         <>
-                            <Play className="mr-2 h-4 w-4" />
+                            <LogitLensControls.Icon className="mr-2 h-4 w-4" />
                             Run Logit Lens
                         </>
                     )}
@@ -717,3 +718,6 @@ export function LogitLensControls({
         </>
     );
 }
+
+/** The tool's icon, which its Run button carries. */
+LogitLensControls.Icon = toolMeta("logit-lens")!.Icon;

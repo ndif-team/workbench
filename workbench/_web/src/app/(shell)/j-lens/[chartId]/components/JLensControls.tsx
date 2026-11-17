@@ -6,7 +6,8 @@ import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvi
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Play, TriangleAlert } from "lucide-react";
+import { toolMeta } from "@/app/(shell)/components/toolMeta";
+import { Loader2, TriangleAlert } from "lucide-react";
 import { useJLens } from "@/lib/api/jlensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { JLensConfigData } from "@/types/jlens";
@@ -706,7 +707,7 @@ export function JLensControls({
                         </>
                     ) : (
                         <>
-                            <Play className="mr-2 h-4 w-4" />
+                            <JLensControls.Icon className="mr-2 h-4 w-4" />
                             Run J-Lens
                         </>
                     )}
@@ -720,3 +721,6 @@ export function JLensControls({
         </>
     );
 }
+
+/** The tool's icon, which its Run button carries. */
+JLensControls.Icon = toolMeta("jlens")!.Icon;
