@@ -6,7 +6,7 @@ import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvi
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { toolMeta } from "@/app/(shell)/components/toolMeta";
-import { Loader2, X, Snowflake, ChevronDown } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { useCapture } from "@/lib/analytics";
@@ -23,7 +23,6 @@ import { toast } from "sonner";
 import { getChartById } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import {
-    PATCH_COLORS,
     useActivationPatchingState,
     PatchPromptSection,
     PatchTools,
@@ -56,141 +55,6 @@ interface ActivationPatchingControlsProps {
     /** "panel" is the side panel; "floating" is the phone's composer over the
      * chart (`FloatingToolComposer`). */
     layout?: "panel" | "floating";
-}
-
-// Collapsible patch configuration table component
-function PatchConfigTable({
-    srcPos,
-    tgtPos,
-    tgtFreeze,
-    expanded,
-    onToggleExpanded,
-    onClear,
-    disabled,
-}: {
-    srcPos: SourcePosition[];
-    tgtPos: number[];
-    tgtFreeze: number[];
-    expanded: boolean;
-    onToggleExpanded: () => void;
-    onClear: () => void;
-    disabled: boolean;
-}) {
-    if (srcPos.length === 0 && tgtFreeze.length === 0) {
-        return null;
-    }
-
-    return (
-        <div className="border border-border rounded overflow-hidden">
-            {/* Header / Toggle */}
-            <div className="flex items-center justify-between px-2 py-1 bg-muted/20">
-                <button
-                    onClick={onToggleExpanded}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors text-xs text-muted-foreground"
-                >
-                    <span>Config</span>
-                    <ChevronDown
-                        className={cn(
-                            "w-3 h-3 transition-transform duration-200",
-                            expanded && "rotate-180",
-                        )}
-                    />
-                </button>
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onClear();
-                    }}
-                    disabled={disabled}
-                    className="p-0.5 rounded hover:bg-muted/50 text-muted-foreground/60 hover:text-muted-foreground transition-colors disabled:opacity-50"
-                    title="Clear all"
-                >
-                    <X className="w-3 h-3" />
-                </button>
-            </div>
-
-            {/* Table Content */}
-            {expanded && (
-                <div className="px-2 py-1.5 space-y-1">
-                    {/* Patch rows - sorted by earliest source position */}
-                    {srcPos
-                        .map((srcPosition, idx) => ({
-                            srcPosition,
-                            idx,
-                            sortKey: typeof srcPosition === "number" ? srcPosition : srcPosition[0],
-                        }))
-                        .sort((a, b) => a.sortKey - b.sortKey)
-                        .map(({ srcPosition, idx }) => {
-                            const patchColor = PATCH_COLORS[idx % PATCH_COLORS.length];
-                            const hasPairedTarget = idx < tgtPos.length;
-                            const srcPosLabel =
-                                typeof srcPosition === "number"
-                                    ? `${srcPosition}`
-                                    : `${srcPosition[0]}–${srcPosition[1] - 1}`;
-                            const tgtPosLabel = hasPairedTarget ? `${tgtPos[idx]}` : "?";
-
-                            return (
-                                <div
-                                    key={`patch-${idx}`}
-                                    className="flex items-center gap-1.5 text-[10px]"
-                                >
-                                    {/* Source position */}
-                                    <span className="font-mono text-muted-foreground min-w-[24px] text-right">
-                                        {srcPosLabel}
-                                    </span>
-                                    {/* Arrow - compact */}
-                                    <span
-                                        className="flex items-center flex-shrink-0"
-                                        style={{ color: patchColor.bg }}
-                                    >
-                                        <span
-                                            className="w-4 h-px"
-                                            style={{ backgroundColor: patchColor.bg }}
-                                        />
-                                        <span
-                                            className="w-0 h-0 border-t-[3px] border-b-[3px] border-l-[4px] border-t-transparent border-b-transparent -ml-px"
-                                            style={{ borderLeftColor: patchColor.bg }}
-                                        />
-                                    </span>
-                                    {/* Target position */}
-                                    <span
-                                        className={cn(
-                                            "font-mono min-w-[24px]",
-                                            hasPairedTarget
-                                                ? "text-muted-foreground"
-                                                : "text-muted-foreground/40 italic",
-                                        )}
-                                    >
-                                        {tgtPosLabel}
-                                    </span>
-                                </div>
-                            );
-                        })}
-
-                    {/* Frozen positions section */}
-                    {tgtFreeze.length > 0 && (
-                        <>
-                            {srcPos.length > 0 && <div className="border-t border-border my-1" />}
-                            <div className="flex items-center gap-1 flex-wrap">
-                                {tgtFreeze
-                                    .slice()
-                                    .sort((a, b) => a - b)
-                                    .map((pos) => (
-                                        <span
-                                            key={`frozen-${pos}`}
-                                            className="inline-flex items-center gap-0.5 px-1 py-px rounded text-[10px] font-mono text-cyan-600 dark:text-cyan-400"
-                                        >
-                                            <Snowflake className="w-2 h-2" />
-                                            {pos}
-                                        </span>
-                                    ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-            )}
-        </div>
-    );
 }
 
 export function ActivationPatchingControls({
@@ -258,7 +122,6 @@ export function ActivationPatchingControls({
     const [hoverTgtIdx, setHoverTgtIdx] = useState<number | null>(null);
 
     // Patch summary table collapsed state
-    const [patchTableExpanded, setPatchTableExpanded] = useState(true);
 
     // Track the prompts + model from the last successful run (to show predictions).
     // Predictions are only meaningful while the prompt AND the tokenization
@@ -818,7 +681,6 @@ export function ActivationPatchingControls({
             // Land draftModel on the model that just persisted so the banner
             // doesn't flash between the run completing and the refetch arriving.
             setDraftModel(selectedModel);
-            setPatchTableExpanded(false);
             setLastRunSrcPrompt(srcPrompt);
             setLastRunTgtPrompt(tgtPrompt);
             setLastRunModel(selectedModel);
@@ -905,7 +767,6 @@ export function ActivationPatchingControls({
                         trigger: "launch",
                     });
 
-                    setPatchTableExpanded(false);
                     setLastRunSrcPrompt(initialSrcPrompt);
                     setLastRunTgtPrompt(initialTgtPrompt);
                     setLastRunModel(selectedModel);
@@ -1007,8 +868,8 @@ export function ActivationPatchingControls({
     const sourcePrompt = (
         <PatchPromptSection
             variant="source"
-            mode={floating ? "floating" : "full"}
-            label={floating ? "Source" : "Source Prompt"}
+            mode={floating ? "floating" : "field"}
+            label="Source"
             prompt={srcPrompt}
             setPrompt={setSrcPrompt}
             tokens={srcTokens}
@@ -1035,8 +896,8 @@ export function ActivationPatchingControls({
     const targetPrompt = (
         <PatchPromptSection
             variant="target"
-            mode={floating ? "floating" : "full"}
-            label={floating ? "Target" : "Target Prompt"}
+            mode={floating ? "floating" : "field"}
+            label="Target"
             prompt={tgtPrompt}
             setPrompt={setTgtPrompt}
             tokens={tgtTokens}
@@ -1070,13 +931,35 @@ export function ActivationPatchingControls({
         />
     );
 
-    if (floating) {
-        const editing = srcEditing || tgtEditing;
-        const hint =
-            interactive && !editing
-                ? PatchTools.hint({ pendingRangeStart, isConnecting, rangeMode, freezeMode })
-                : "";
+    const editing = srcEditing || tgtEditing;
+    const hint =
+        interactive && !editing
+            ? PatchTools.hint({ pendingRangeStart, isConnecting, rangeMode, freezeMode })
+            : "";
+    const patchTools = (
+        <PatchTools
+            srcTokens={srcTokens}
+            tgtTokens={tgtTokens}
+            srcPos={srcPos}
+            tgtPos={tgtPos}
+            tgtFreeze={tgtFreeze}
+            rangeMode={rangeMode}
+            onRangeModeChange={(on) => {
+                setRangeMode(on);
+                setPendingRangeStart(null);
+            }}
+            freezeMode={freezeMode}
+            onFreezeModeChange={setFreezeMode}
+            disabled={!interactive}
+            onRemove={(index) => {
+                const pos = srcPos[index];
+                handleSrcTokenClick(typeof pos === "number" ? pos : pos[0], false);
+            }}
+            onClear={clearAll}
+        />
+    );
 
+    if (floating) {
         return (
             <FloatingToolComposer
                 title="Activation Patching"
@@ -1090,28 +973,7 @@ export function ActivationPatchingControls({
                 promptClassName=""
                 divided
                 hint={hint}
-                tools={
-                    <PatchTools
-                        srcTokens={srcTokens}
-                        tgtTokens={tgtTokens}
-                        srcPos={srcPos}
-                        tgtPos={tgtPos}
-                        tgtFreeze={tgtFreeze}
-                        rangeMode={rangeMode}
-                        onRangeModeChange={(on) => {
-                            setRangeMode(on);
-                            setPendingRangeStart(null);
-                        }}
-                        freezeMode={freezeMode}
-                        onFreezeModeChange={setFreezeMode}
-                        disabled={!interactive}
-                        onRemove={(index) => {
-                            const pos = srcPos[index];
-                            handleSrcTokenClick(typeof pos === "number" ? pos : pos[0], false);
-                        }}
-                        onClear={clearAll}
-                    />
-                }
+                tools={patchTools}
                 isExecuting={isExecuting}
                 // While a prompt is being edited Run stays enabled and ends the
                 // edit: a tap on a disabled button blurs nothing on a touch
@@ -1168,37 +1030,19 @@ export function ActivationPatchingControls({
                     />
                 )}
 
-                {/* Source Prompt - with range selection support */}
-                <div className="flex flex-col gap-1">
-                    {sourcePrompt}
-                    {!srcEditing && srcTokens.length > 0 && (
-                        <p className="text-[11px] text-muted-foreground/70">
-                            <span className="font-medium">Shift+click</span> to select a range of
-                            tokens
-                        </p>
-                    )}
-                </div>
+                {sourcePrompt}
+                {targetPrompt}
 
-                {/* Target Prompt */}
-                <div className="flex flex-col gap-1">
-                    {targetPrompt}
-                    {!tgtEditing && tgtTokens.length > 0 && (
-                        <p className="text-[11px] text-muted-foreground/70">
-                            <span className="font-medium">⌘/Ctrl+click</span> to freeze tokens
-                        </p>
-                    )}
+                {/* The patch tools and the hint for the next pick, on a row of their own */}
+                <div className="-my-1.5 flex items-center gap-1">
+                    {patchTools}
+                    <span
+                        aria-live="polite"
+                        className="min-w-0 flex-1 text-balance text-right text-xs text-muted-foreground"
+                    >
+                        {hint}
+                    </span>
                 </div>
-
-                {/* Collapsible Patch Summary Table */}
-                <PatchConfigTable
-                    srcPos={srcPos}
-                    tgtPos={tgtPos}
-                    tgtFreeze={tgtFreeze}
-                    expanded={patchTableExpanded}
-                    onToggleExpanded={() => setPatchTableExpanded(!patchTableExpanded)}
-                    onClear={clearAll}
-                    disabled={!interactive}
-                />
 
                 {/* Run Button */}
                 <Button

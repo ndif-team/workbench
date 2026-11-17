@@ -884,7 +884,7 @@ interface PatchPromptSectionProps {
      * A "floating" prompt shows one line at rest, scrolled to its
      * first selected token; a few lines, scrolling, while the composer is in
      * use; and up to `30vh` while it is edited, the other prompt back to a line. */
-    mode: "compact" | "full" | "floating";
+    mode: "compact" | "full" | "floating" | "field";
     label: string;
     prompt: string;
     setPrompt: (value: string) => void;
@@ -957,7 +957,8 @@ export function PatchPromptSection({
 
     const isCompact = mode === "compact";
     const isFloating = mode === "floating";
-    const inComposer = isCompact || isFloating;
+    const isField = mode === "field";
+    const inComposer = isCompact || isFloating || isField;
     const isSource = variant === "source";
     const loading = isExecuting || isTokenizing;
 
@@ -1070,7 +1071,7 @@ export function PatchPromptSection({
                     tokensClickable={tokensClickable}
                     label={label}
                     predictionToken={predictionToken}
-                    floating={isCompact || isFloating}
+                    floating={inComposer}
                 />
             );
         } else {
@@ -1087,7 +1088,7 @@ export function PatchPromptSection({
                     label={label}
                     side="target"
                     predictionToken={predictionToken}
-                    floating={isCompact || isFloating}
+                    floating={inComposer}
                 />
             );
         }
@@ -1112,6 +1113,8 @@ export function PatchPromptSection({
                     "relative",
                     inComposer && "overflow-y-auto overscroll-contain",
                     isCompact && "max-h-44",
+                    isField &&
+                        "max-h-56 rounded-md border border-transparent bg-foreground/[0.04] transition-colors focus-within:border-violet-400",
                     isFloating &&
                         "max-h-9 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-[8.5rem] group-has-[textarea:focus]/composer:max-h-9",
                 )}
@@ -1130,6 +1133,7 @@ export function PatchPromptSection({
                                 ? "w-full resize-none overflow-hidden rounded-none border-0 bg-transparent pr-16 !text-base !leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent"
                                 : "w-full !text-sm bg-input/30 min-h-24 !leading-5",
                             isCompact && "min-h-[4.25rem] py-3 pl-4",
+                            isField && "min-h-[4.25rem] py-2 pl-3",
                             isFloating && "min-h-9 py-1 pl-3",
                         )}
                         disabled={disabled || loading}
@@ -1142,9 +1146,11 @@ export function PatchPromptSection({
                         className={cn(
                             isCompact
                                 ? "min-h-[4.25rem] w-full px-4 py-3"
-                                : isFloating
-                                  ? "min-h-9 w-full px-3 py-1"
-                                  : "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
+                                : isField
+                                  ? "min-h-[4.25rem] w-full px-3 py-2"
+                                  : isFloating
+                                    ? "min-h-9 w-full px-3 py-1"
+                                    : "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
                             loading ? "cursor-progress" : "cursor-text",
                         )}
                     >
@@ -1161,7 +1167,11 @@ export function PatchPromptSection({
                     <span
                         className={cn(
                             "pointer-events-none absolute select-none text-xs leading-7 text-muted-foreground",
-                            isCompact ? "right-4 top-3" : "right-3 top-1",
+                            isCompact
+                                ? "right-4 top-3"
+                                : isField
+                                  ? "right-3 top-2"
+                                  : "right-3 top-1",
                         )}
                     >
                         {label}
