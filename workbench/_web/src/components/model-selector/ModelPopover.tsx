@@ -42,7 +42,8 @@ interface ModelPopoverProps {
     showSearch?: boolean;
     /** Tighter dimensions + minimal row chrome (drops org and uppercase
      * heat label; the heat dot still encodes status). Use on the landing
-     * popover where the model set is already small and pre-filtered. */
+     * popover where the model set is already small and pre-filtered. A phone
+     * gets a narrower menu with the same minimal rows either way. */
     compact?: boolean;
     /** When true, only runnable (hot/warm) models are listed — cold models
      * must be deployed first and aren't offered as active choices. The
@@ -62,6 +63,21 @@ interface ModelPopoverProps {
 }
 
 type ModelGroup = "base" | "chat";
+
+/**
+ * How far to pull the menu left of its trigger's left edge (a Radix
+ * `alignOffset`, zero or negative) so it stays on screen: a host that turns
+ * collision avoidance off, to keep the menu from flipping up, loses the
+ * sideways shift too.
+ */
+ModelPopover.alignOffsetFor = (trigger: HTMLElement | null, compact = false): number => {
+    if (!trigger) return 0;
+    const margin = 8;
+    const phone = window.matchMedia("(max-width: 639px)").matches;
+    const width = Math.min(compact ? 260 : phone ? 300 : 380, window.innerWidth - 2 * margin);
+    const overflow = trigger.getBoundingClientRect().left + width - (window.innerWidth - margin);
+    return overflow > 0 ? -overflow : 0;
+};
 
 export function ModelPopover({
     models,
@@ -192,11 +208,14 @@ export function ModelPopover({
             // Cap to the room below the trigger (Radix var, inherited) so a tall
             // menu scrolls instead of flipping up or running off-screen.
             style={{
-                width: compact ? 260 : 380,
                 maxHeight: "var(--radix-popover-content-available-height)",
                 ...popoverMenuShellStyle(compact),
             }}
-            className={cn(popoverMenuShellClass(compact), "flex flex-col")}
+            className={cn(
+                popoverMenuShellClass(compact),
+                "flex max-w-[calc(100vw-1rem)] flex-col",
+                compact ? "w-[260px]" : "w-[300px] sm:w-[380px]",
+            )}
         >
             {/* Search */}
             {showSearch && (
@@ -217,7 +236,7 @@ export function ModelPopover({
                     />
                     <kbd
                         className={cn(
-                            "text-xs px-1.5 py-0.5 border rounded font-mono",
+                            "text-xs px-1.5 py-0.5 border rounded font-mono max-sm:hidden",
                             "text-muted-foreground shrink-0",
                         )}
                     >
@@ -490,7 +509,9 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
                     {label}
                 </span>
                 {!compact && org && (
-                    <span className="text-xs text-muted-foreground truncate">{org}</span>
+                    <span className="text-xs text-muted-foreground truncate max-sm:hidden">
+                        {org}
+                    </span>
                 )}
             </span>
             {/* Compact mode drops the uppercase heat label; the dot color
@@ -503,7 +524,7 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
                 {selected ? (
                     <Check className="w-3 h-3" />
                 ) : compact ? null : (
-                    <span className="text-xs font-semibold uppercase tracking-wide">
+                    <span className="text-xs font-semibold uppercase tracking-wide max-sm:hidden">
                         {meta.label}
                     </span>
                 )}

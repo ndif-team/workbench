@@ -108,6 +108,8 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
     const { data: workshop, isLoading: workshopLoading } = useWorkspaceWorkshop(workspaceId);
 
     const [open, setOpen] = React.useState(false);
+    const [alignOffset, setAlignOffset] = React.useState(0);
+    const triggerRef = React.useRef<HTMLButtonElement>(null);
 
     // The tool of the chart currently open (from the route), so the picker can
     // disable models it doesn't support. Null on non-tool routes / unrestricted
@@ -233,9 +235,16 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
     }
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover
+            open={open}
+            onOpenChange={(next) => {
+                if (next) setAlignOffset(ModelPopover.alignOffsetFor(triggerRef.current));
+                setOpen(next);
+            }}
+        >
             <PopoverTrigger asChild>
                 <button
+                    ref={triggerRef}
                     type="button"
                     data-testid="model-select-trigger"
                     aria-label={
@@ -265,6 +274,7 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
                 // Never flip up — the menu caps to the room below (the shell
                 // reads --radix-popover-content-available-height) and scrolls.
                 avoidCollisions={false}
+                alignOffset={alignOffset}
                 collisionPadding={8}
                 sideOffset={6}
                 style={{ maxHeight: "var(--radix-popover-content-available-height)" }}

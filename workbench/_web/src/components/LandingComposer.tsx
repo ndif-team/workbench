@@ -141,13 +141,22 @@ function ModelTriggerPopover({
     toolType: ToolType | null;
 }) {
     const [open, setOpen] = useState(false);
+    const [alignOffset, setAlignOffset] = useState(0);
+    const triggerRef = useRef<HTMLButtonElement>(null);
 
     const model = models.find((m) => m.name === selectedModel);
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover
+            open={open}
+            onOpenChange={(next) => {
+                if (next) setAlignOffset(ModelPopover.alignOffsetFor(triggerRef.current));
+                setOpen(next);
+            }}
+        >
             <PopoverTrigger asChild>
                 <button
+                    ref={triggerRef}
                     type="button"
                     disabled={disabled}
                     className={cn(LAUNCH_TRIGGER, "min-w-20")}
@@ -172,9 +181,10 @@ function ModelTriggerPopover({
                 side="bottom"
                 // Never flip up — the menu caps to the room below (the shell
                 // reads --radix-popover-content-available-height) and scrolls.
-                // This also disables horizontal shift; fine here since the
-                // trigger is left-aligned with room to the right.
+                // This also disables horizontal shift, so `alignOffset` keeps
+                // the menu on a phone's screen.
                 avoidCollisions={false}
+                alignOffset={alignOffset}
                 collisionPadding={8}
                 sideOffset={6}
                 style={{ maxHeight: "var(--radix-popover-content-available-height)" }}
