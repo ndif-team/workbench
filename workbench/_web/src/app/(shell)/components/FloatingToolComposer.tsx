@@ -98,8 +98,9 @@ export function FloatingToolComposer({
                     />
                     <Button
                         type="button"
+                        variant="ghost"
                         size="icon"
-                        className="ml-auto"
+                        className="ml-auto text-primary hover:text-primary"
                         aria-label={`Run ${title}`}
                         onClick={onRun}
                         disabled={runDisabled}
