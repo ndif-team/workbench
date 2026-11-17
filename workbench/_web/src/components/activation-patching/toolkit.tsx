@@ -51,7 +51,9 @@ const TOKEN_STYLES = {
     /** The composers' tokens: 16px, like their textarea, which a phone doesn't zoom into. */
     floating:
         "!text-base !leading-7 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
-    clickable: "bg-muted/60 ring-1 ring-border/50 ring-inset",
+    /** Plain text at rest; a prompt under the pointer, or in a composer in use, outlines its tokens. */
+    clickable:
+        "ring-1 ring-inset ring-transparent group-hover/tokens:ring-border group-data-[active=true]/composer:ring-border",
     hover: "hover:bg-violet-500/20 hover:ring-1 hover:ring-violet-400/50 hover:ring-inset cursor-pointer",
     selected: "ring-2 ring-inset text-white",
 } as const;
@@ -142,7 +144,7 @@ function SelectableTokenDisplay({
     const baseStyles = floating ? TOKEN_STYLES.floating : TOKEN_STYLES.base;
 
     return (
-        <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
+        <div className="group/tokens w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.length === 0 ? (
                 <span className="text-muted-foreground italic text-sm">
                     {floating ? "Enter a prompt" : "Enter text and click away to tokenize"}
@@ -269,7 +271,7 @@ function SourceTokenDisplay({
     const baseStyles = floating ? TOKEN_STYLES.floating : TOKEN_STYLES.base;
 
     return (
-        <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
+        <div className="group/tokens w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.length === 0 ? (
                 <span className="text-muted-foreground italic text-sm">
                     {floating ? "Enter a prompt" : "Enter text and click away to tokenize"}
