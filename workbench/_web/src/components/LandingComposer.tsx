@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, type ElementRef, type ReactNode } from "react";
-import { RunIcon } from "@/components/RunIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, ChevronDown, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowUp, ChevronDown, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
@@ -582,9 +581,12 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             </span>
             <Button
                 type="submit"
-                variant="ghost"
                 size="icon"
-                className="group/run shrink-0 text-violet-500 hover:text-violet-500"
+                className={cn(
+                    "group/run shrink-0 bg-violet-500 text-white shadow-sm shadow-violet-500/40 transition-all",
+                    "hover:bg-violet-600 hover:shadow-md hover:shadow-violet-500/40 active:scale-95",
+                    "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none",
+                )}
                 aria-label="Run"
                 disabled={
                     showCaptcha ||
@@ -598,7 +600,14 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                         : !prompt.trim())
                 }
             >
-                <RunIcon />
+                {isSubmitting ? (
+                    <Loader2 className="animate-spin" />
+                ) : (
+                    <ArrowUp
+                        strokeWidth={2.5}
+                        className="transition-transform duration-200 group-hover/run:-translate-y-0.5"
+                    />
+                )}
             </Button>
         </div>
     );
