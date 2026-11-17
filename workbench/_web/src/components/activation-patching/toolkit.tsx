@@ -871,7 +871,8 @@ interface PatchPromptSectionProps {
     /** "full" is the chart's side panel. "compact" (Home's composer) and
      * "floating" (the chart's composer on a phone, `FloatingToolComposer`)
      * share a look: no box of their own, the label in a corner. "compact"
-     * tokenizes its prompt itself and is as tall as its text, up to `40vh`.
+     * tokenizes its prompt itself and is as tall as its text, up to about six
+     * lines, where it scrolls.
      * A "floating" prompt shows one line at rest, scrolled to its
      * first selected token; a few lines, scrolling, while the composer is in
      * use; and up to `30vh` while it is edited, the other prompt back to a line. */
@@ -999,13 +1000,13 @@ export function PatchPromptSection({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isCompact, selectedModel]);
 
-    // Auto-resize textarea (full mode)
+    // Grow the textarea with its text; a composer's prompt area scrolls it
     useEffect(() => {
-        if (!isCompact && isEditing && textareaRef.current) {
+        if (isEditing && textareaRef.current) {
             textareaRef.current.style.height = "auto";
             textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
         }
-    }, [prompt, isEditing, textareaRef, isCompact]);
+    }, [prompt, isEditing, textareaRef]);
 
     // On a phone the prompt rests at one line: keep that line the one holding
     // its first selected token, whenever the area shrinks back or the
@@ -1102,7 +1103,7 @@ export function PatchPromptSection({
                 className={cn(
                     "relative",
                     inComposer && "overflow-y-auto overscroll-contain",
-                    isCompact && "max-h-[40vh]",
+                    isCompact && "max-h-44",
                     isFloating &&
                         "max-h-9 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-[8.5rem] group-has-[textarea:focus]/composer:max-h-9",
                 )}
