@@ -89,11 +89,11 @@ VISION_MODEL_TYPES = {
 # Multimodal `config.model_type` values that load whole (as their
 # `...ForConditionalGeneration` wrapper) yet run text prompts: nnterp
 # standardizes the wrapper's language model, so the tools see a causal LM.
-TEXT_PROMPTED_VISION_MODEL_TYPES = {"gemma3", "gemma4"}
+TEXT_PROMPTED_VISION_MODEL_TYPES = {"gemma3", "gemma4", "gemma4_unified"}
 
 # Multimodal `config.model_type` values whose image-text-to-text deployment on
 # NDIF runs text prompts as their text-generation one does (see
-# `ModelMetadata.image_task`). Gemma 4 isn't one: its processor's image fields
+# `ModelMetadata.image_task`). Gemma 4 isn't one: its processors' image fields
 # pad on the right and its tokenizer on the left, so two prompts don't batch.
 IMAGE_TASK_MODEL_TYPES = {"gemma3", "qwen3_5", "qwen3_5_moe"}
 
