@@ -569,7 +569,7 @@ export function JLensControls({
                     aria-label="Prompt"
                     className={
                         floating
-                            ? "min-h-[4.5rem] w-full resize-none overflow-hidden rounded-none border-0 bg-transparent px-4 py-2 !text-base !leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
+                            ? "min-h-10 w-full resize-none overflow-hidden rounded-none border-0 bg-transparent px-4 py-2 !text-base !leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
                             : "w-full !text-sm bg-input/30 min-h-32 !leading-5"
                     }
                     placeholder="Enter your prompt here..."
@@ -580,9 +580,7 @@ export function JLensControls({
                     ref={tokenContainerRef}
                     className={cn(
                         "flex w-full py-2",
-                        floating
-                            ? "min-h-[4.5rem] px-4"
-                            : "px-3 bg-input/30 border rounded min-h-32",
+                        floating ? "min-h-10 px-4" : "px-3 bg-input/30 border rounded min-h-32",
                         isExecuting ? "cursor-progress" : "cursor-text",
                     )}
                     onClick={() => {

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { ChevronDown, ChevronUp, Loader2, SlidersHorizontal } from "lucide-react";
+import type { ReactNode } from "react";
+import { Loader2, Play, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -30,12 +30,12 @@ interface FloatingToolComposerProps {
 /**
  * A tool's controls on a phone: a composer fixed to the bottom of the screen,
  * shaped like Home's (the prompt over a toolbar ending in Run), with the
- * tool's parameters behind a Params button. The prompt area has a fixed
- * height and scrolls; the toolbar's chevron makes it taller, over the chart,
- * to read or edit a long prompt. The composer is see-through until it is
- * being used (focused, expanded, or its Params open). The page keeps
- * `FloatingToolComposer.PAGE_SPACE` under the chart, so the whole chart
- * scrolls clear of the composer at its resting height.
+ * tool's parameters behind a button. The prompt area is as tall as its text,
+ * up to three lines at rest, where it scrolls; while the prompt is being
+ * edited it grows with the text, over the chart, up to `45vh`. The composer
+ * is see-through until it is being used (focused, or its parameters open).
+ * The page keeps `FloatingToolComposer.PAGE_SPACE` under the chart, so the
+ * whole chart scrolls clear of the composer at its resting height.
  */
 export function FloatingToolComposer({
     title,
@@ -51,8 +51,6 @@ export function FloatingToolComposer({
     onReset,
     onSync,
 }: FloatingToolComposerProps) {
-    const [expanded, setExpanded] = useState(false);
-
     return (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
             <section
@@ -60,30 +58,25 @@ export function FloatingToolComposer({
                 className={cn(
                     "pointer-events-auto w-full max-w-xl rounded-md border shadow-lg transition-[background-color,border-color,box-shadow]",
                     "has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50",
-                    expanded
-                        ? "bg-card dark:bg-secondary"
-                        : cn(
-                              "bg-card/70 backdrop-blur-sm dark:bg-secondary/70",
-                              "focus-within:bg-card dark:focus-within:bg-secondary",
-                              "has-[[data-state=open]]:bg-card dark:has-[[data-state=open]]:bg-secondary",
-                          ),
+                    "bg-card/70 backdrop-blur-sm dark:bg-secondary/70",
+                    "focus-within:bg-card dark:focus-within:bg-secondary",
+                    "has-[[data-state=open]]:bg-card dark:has-[[data-state=open]]:bg-secondary",
                 )}
             >
                 {notice && <div className="px-2 pt-2">{notice}</div>}
-                <div
-                    className={cn(
-                        "overflow-y-auto overscroll-contain transition-[height]",
-                        expanded ? "h-[45vh]" : "h-[4.5rem]",
-                    )}
-                >
+                <div className="max-h-[4.5rem] overflow-y-auto overscroll-contain transition-[max-height] focus-within:max-h-[45vh]">
                     {prompt}
                 </div>
                 <div className="flex items-center gap-1.5 p-2">
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button type="button" variant="outline" size="sm">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                aria-label="Parameters"
+                            >
                                 <SlidersHorizontal className="text-muted-foreground" />
-                                Params
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent
@@ -104,22 +97,13 @@ export function FloatingToolComposer({
                     />
                     <Button
                         type="button"
-                        variant="ghost"
                         size="icon"
                         className="ml-auto"
-                        aria-label={expanded ? "Shrink the prompt" : "Expand the prompt"}
-                        aria-expanded={expanded}
-                        onClick={() => setExpanded((e) => !e)}
+                        aria-label={`Run ${title}`}
+                        onClick={onRun}
+                        disabled={runDisabled}
                     >
-                        {expanded ? (
-                            <ChevronDown className="text-muted-foreground" />
-                        ) : (
-                            <ChevronUp className="text-muted-foreground" />
-                        )}
-                    </Button>
-                    <Button type="button" size="sm" onClick={onRun} disabled={runDisabled}>
-                        {isExecuting && <Loader2 className="animate-spin" />}
-                        Run
+                        {isExecuting ? <Loader2 className="animate-spin" /> : <Play />}
                     </Button>
                 </div>
             </section>
