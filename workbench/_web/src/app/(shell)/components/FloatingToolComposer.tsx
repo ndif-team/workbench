@@ -5,6 +5,7 @@ import { Loader2, Play, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ModelControl } from "@/components/ModelControl";
 import { cn } from "@/lib/utils";
 import { ToolPanelActions } from "./ToolPanelHeader";
 
@@ -39,8 +40,10 @@ interface FloatingToolComposerProps {
 
 /**
  * A tool's controls on a phone: a composer fixed to the bottom of the screen,
- * shaped like Home's (the prompt over a toolbar ending in Run), with the
- * tool's parameters behind a button. The prompt area is as tall as its text,
+ * shaped like Home's (the prompt over a toolbar ending in the model picker
+ * and Run), with the tool's parameters behind a button. While it is on the
+ * page it is the page's model picker: the item header hides its own
+ * (`FloatingToolComposer.HIDDEN_BESIDE`). The prompt area is as tall as its text,
  * up to three lines at rest, where it scrolls; while the prompt is being
  * edited it grows with the text, over the chart, up to `45vh`. The composer
  * is see-through until it is being used (focused, its parameters open, or
@@ -90,6 +93,7 @@ export function FloatingToolComposer({
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
             <section
                 ref={sectionRef}
+                data-floating-composer
                 aria-label={`${title} controls`}
                 data-active={active}
                 className={cn(
@@ -148,6 +152,8 @@ export function FloatingToolComposer({
                     >
                         {hint}
                     </span>
+                    {/* The model gives its name's room to a hint. */}
+                    <ModelControl dense side="top" nameHidden={!!hint} className="min-w-0 shrink" />
                     <Button
                         type="button"
                         variant="ghost"
@@ -167,3 +173,6 @@ export function FloatingToolComposer({
 
 /** Room the page leaves under the chart for the composer at its resting height. */
 FloatingToolComposer.PAGE_SPACE = "pb-36";
+
+/** Hides an element while a composer is on the page (the header's model picker). */
+FloatingToolComposer.HIDDEN_BESIDE = "[body:has([data-floating-composer])_&]:hidden";

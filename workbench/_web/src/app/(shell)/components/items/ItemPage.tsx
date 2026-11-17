@@ -20,6 +20,7 @@ import { deriveReportTitle } from "@/lib/reportTitle";
 import { cn } from "@/lib/utils";
 import { DEFAULT_CHART_NAME } from "@/types/charts";
 import { ChartExportMenu } from "../ChartExportMenu";
+import { FloatingToolComposer } from "../FloatingToolComposer";
 import { useWorkshopParticipant } from "../shell/AppShell";
 import { PageHeader } from "../shell/PageHeader";
 import { ItemActionsMenu } from "./ItemActionsMenu";
@@ -71,7 +72,11 @@ function ItemPageHeader({ item }: { item: ItemRef }) {
 
     return (
         <PageHeader
-            start={item.kind === "chart" ? <ModelControl compact /> : null}
+            start={
+                item.kind === "chart" ? (
+                    <ModelControl compact className={FloatingToolComposer.HIDDEN_BESIDE} />
+                ) : null
+            }
             center={
                 <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-sm">
                     {folderId && (

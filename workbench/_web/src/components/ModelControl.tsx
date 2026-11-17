@@ -92,10 +92,23 @@ interface ModelControlProps {
     className?: string;
     /** Below `md`, shrink the pill to its status dot so a page header's title has room. */
     compact?: boolean;
+    /** Show the model's status as its dot alone, at every width (a toolbar's pill). */
+    dense?: boolean;
+    /** Hide the model's name, leaving the status and the chevron. */
+    nameHidden?: boolean;
+    /** Which way the menu opens: up from a toolbar at the bottom of the screen. */
+    side?: "top" | "bottom";
 }
 
-export function ModelControl({ className, compact = false }: ModelControlProps) {
-    const hideCompact = compact && "max-md:hidden";
+export function ModelControl({
+    className,
+    compact = false,
+    dense = false,
+    nameHidden = false,
+    side = "bottom",
+}: ModelControlProps) {
+    const hideCompact = nameHidden ? "hidden" : compact && "max-md:hidden";
+    const heatLabel: HeatLabel = dense ? "hidden" : compact ? "desktop" : "shown";
     const { selectedModel: selectedName, setSelectedModel, jobStatus } = useWorkspace();
     const workspaceId = useWorkspaceScope()?.workspaceId;
 
@@ -189,7 +202,7 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
                             className,
                         )}
                     >
-                        <HeatBadge heat="unavailable" compact={compact} />
+                        <HeatBadge heat="unavailable" label={heatLabel} />
                         <span className={cn("text-xs px-1 text-muted-foreground", hideCompact)}>
                             no model
                         </span>
@@ -217,7 +230,7 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
                         aria-label="Model is set by the workshop"
                         className={cn(TRIGGER_CLASSES, "max-w-[28rem] cursor-default", className)}
                     >
-                        <HeatBadge heat={heat} compact={compact} />
+                        <HeatBadge heat={heat} label={heatLabel} />
                         <span className={cn(NAME_CLASSES, hideCompact)} title={selectedModel.name}>
                             {display.label}
                         </span>
@@ -255,7 +268,7 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
                     disabled={isJobActive}
                     className={cn(TRIGGER_CLASSES, "max-w-[28rem]", className)}
                 >
-                    <HeatBadge heat={heat} compact={compact} />
+                    <HeatBadge heat={heat} label={heatLabel} />
                     <span className={cn(NAME_CLASSES, hideCompact)} title={selectedModel.name}>
                         {display.label}
                     </span>
@@ -270,7 +283,7 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
             </PopoverTrigger>
             <PopoverContent
                 align="start"
-                side="bottom"
+                side={side}
                 // Never flip up — the menu caps to the room below (the shell
                 // reads --radix-popover-content-available-height) and scrolls.
                 avoidCollisions={false}
@@ -299,13 +312,20 @@ export function ModelControl({ className, compact = false }: ModelControlProps) 
 
 // ----- badges ---------------------------------------------------------------------
 
-function HeatBadge({ heat, compact = false }: { heat: ModelStatus; compact?: boolean }) {
+/** Whether a heat badge spells its status out beside the dot: always, from `md` up, or never. */
+type HeatLabel = "shown" | "desktop" | "hidden";
+
+function HeatBadge({ heat, label = "shown" }: { heat: ModelStatus; label?: HeatLabel }) {
     const m = MODEL_STATUS[heat];
     return (
         <Tooltip>
             <TooltipTrigger asChild>
                 <span
-                    className={cn(BADGE_CLASSES, compact && "max-md:px-1.5")}
+                    className={cn(
+                        BADGE_CLASSES,
+                        label === "desktop" && "max-md:px-1.5",
+                        label === "hidden" && "px-1.5",
+                    )}
                     style={{
                         backgroundColor: `color-mix(in oklab, ${m.color} 12%, transparent)`,
                         color: m.color,
@@ -315,7 +335,14 @@ function HeatBadge({ heat, compact = false }: { heat: ModelStatus; compact?: boo
                         className="w-1.5 h-1.5 rounded-full shrink-0"
                         style={{ backgroundColor: m.color }}
                     />
-                    <span className={cn(compact && "max-md:sr-only")}>{m.label}</span>
+                    <span
+                        className={cn(
+                            label === "desktop" && "max-md:sr-only",
+                            label === "hidden" && "sr-only",
+                        )}
+                    >
+                        {m.label}
+                    </span>
                 </span>
             </TooltipTrigger>
             <TooltipContent side="bottom">{m.detail}</TooltipContent>
