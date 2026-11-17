@@ -5,16 +5,7 @@ import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import {
-    ArrowRightLeft,
-    ChevronDown,
-    Loader2,
-    MoveHorizontal,
-    Play,
-    Snowflake,
-    X,
-} from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Loader2, Play, X, Snowflake, ChevronDown } from "lucide-react";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { useCapture } from "@/lib/analytics";
@@ -34,6 +25,7 @@ import {
     PATCH_COLORS,
     useActivationPatchingState,
     PatchPromptSection,
+    PatchTools,
     EnhancedPatchArrows,
     useMouseFollowingArrow,
 } from "@/components/activation-patching/toolkit";
@@ -63,117 +55,6 @@ interface ActivationPatchingControlsProps {
     /** "panel" is the side panel; "floating" is the phone's composer over the
      * chart (`FloatingToolComposer`). */
     layout?: "panel" | "floating";
-}
-
-/**
- * The patches and frozen tokens of a draft, by their text: what the phone
- * composer lists behind its patches button, where there are no arrows to show
- * which source goes where.
- */
-function PatchList({
-    srcTokens,
-    tgtTokens,
-    srcPos,
-    tgtPos,
-    tgtFreeze,
-    disabled,
-    onRemove,
-    onClear,
-}: {
-    srcTokens: Token[];
-    tgtTokens: Token[];
-    srcPos: SourcePosition[];
-    tgtPos: number[];
-    tgtFreeze: number[];
-    disabled: boolean;
-    /** Removes the patch at this index of `srcPos`. */
-    onRemove: (index: number) => void;
-    onClear: () => void;
-}) {
-    const sourceText = (pos: SourcePosition) =>
-        (typeof pos === "number" ? [srcTokens[pos]] : srcTokens.slice(pos[0], pos[1]))
-            .map((token) => token?.text ?? "")
-            .join("")
-            .trim();
-    const empty = srcPos.length === 0 && tgtFreeze.length === 0;
-
-    return (
-        <>
-            <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">Patches</h3>
-                {!empty && (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs text-muted-foreground"
-                        onClick={onClear}
-                        disabled={disabled}
-                    >
-                        Clear all
-                    </Button>
-                )}
-            </div>
-            {srcPos.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                    Tap a source token, then the target token to patch it into.
-                </p>
-            ) : (
-                <ul className="flex flex-col gap-1">
-                    {srcPos.map((pos, index) => {
-                        const color = PATCH_COLORS[index % PATCH_COLORS.length].bg;
-                        const target = tgtTokens[tgtPos[index]]?.text.trim();
-                        return (
-                            <li key={index} className="flex min-w-0 items-center gap-1.5 text-sm">
-                                <span
-                                    className="min-w-0 truncate rounded-sm px-1 text-white"
-                                    style={{ backgroundColor: color }}
-                                >
-                                    {sourceText(pos)}
-                                </span>
-                                <span aria-hidden className="shrink-0 text-muted-foreground">
-                                    →
-                                </span>
-                                {target !== undefined ? (
-                                    <span
-                                        className="min-w-0 truncate rounded-sm px-1 text-white"
-                                        style={{ backgroundColor: color }}
-                                    >
-                                        {target}
-                                    </span>
-                                ) : (
-                                    <span className="text-xs text-muted-foreground">
-                                        pick a target
-                                    </span>
-                                )}
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="ml-auto size-6"
-                                    aria-label="Remove patch"
-                                    onClick={() => onRemove(index)}
-                                    disabled={disabled}
-                                >
-                                    <X className="text-muted-foreground" />
-                                </Button>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
-            {tgtFreeze.length > 0 && (
-                <p className="flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400">
-                    <Snowflake className="size-3 shrink-0" />
-                    {tgtFreeze
-                        .slice()
-                        .sort((a, b) => a - b)
-                        .map((pos) => tgtTokens[pos]?.text.trim() ?? pos)
-                        .join(", ")}
-                </p>
-            )}
-        </>
-    );
 }
 
 // Collapsible patch configuration table component
@@ -1190,17 +1071,10 @@ export function ActivationPatchingControls({
 
     if (floating) {
         const editing = srcEditing || tgtEditing;
-        const patchCount = Math.min(srcPos.length, tgtPos.length);
-        const toggleClass =
-            "aria-pressed:bg-violet-500/15 aria-pressed:text-violet-600 dark:aria-pressed:text-violet-400";
-        let hint = "";
-        if (interactive && !editing) {
-            if (pendingRangeStart !== null) hint = "Tap the last source token";
-            else if (isConnecting)
-                hint = freezeMode ? "Turn off freeze to pick a target" : "Tap a target token";
-            else if (rangeMode) hint = "Tap the first source token";
-            else if (freezeMode) hint = "Tap target tokens to freeze";
-        }
+        const hint =
+            interactive && !editing
+                ? PatchTools.hint({ pendingRangeStart, isConnecting, rangeMode, freezeMode })
+                : "";
 
         return (
             <FloatingToolComposer
@@ -1215,73 +1089,26 @@ export function ActivationPatchingControls({
                 divided
                 hint={hint}
                 tools={
-                    <>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="px-2 tabular-nums text-muted-foreground"
-                                    aria-label={`Patches (${patchCount})`}
-                                >
-                                    <ArrowRightLeft />
-                                    {patchCount}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                                side="top"
-                                align="start"
-                                className="flex w-64 flex-col gap-3"
-                            >
-                                <PatchList
-                                    srcTokens={srcTokens}
-                                    tgtTokens={tgtTokens}
-                                    srcPos={srcPos}
-                                    tgtPos={tgtPos}
-                                    tgtFreeze={tgtFreeze}
-                                    disabled={!interactive}
-                                    onRemove={(index) => {
-                                        const pos = srcPos[index];
-                                        handleSrcTokenClick(
-                                            typeof pos === "number" ? pos : pos[0],
-                                            false,
-                                        );
-                                    }}
-                                    onClear={clearAll}
-                                />
-                            </PopoverContent>
-                        </Popover>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className={toggleClass}
-                            aria-pressed={rangeMode}
-                            aria-label="Select a range of source tokens"
-                            title="Select a range of source tokens"
-                            disabled={!interactive}
-                            onClick={() => {
-                                setRangeMode(!rangeMode);
-                                setPendingRangeStart(null);
-                            }}
-                        >
-                            <MoveHorizontal className={cn(!rangeMode && "text-muted-foreground")} />
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className={toggleClass}
-                            aria-pressed={freezeMode}
-                            aria-label="Freeze target tokens"
-                            title="Freeze target tokens"
-                            disabled={!interactive}
-                            onClick={() => setFreezeMode(!freezeMode)}
-                        >
-                            <Snowflake className={cn(!freezeMode && "text-muted-foreground")} />
-                        </Button>
-                    </>
+                    <PatchTools
+                        srcTokens={srcTokens}
+                        tgtTokens={tgtTokens}
+                        srcPos={srcPos}
+                        tgtPos={tgtPos}
+                        tgtFreeze={tgtFreeze}
+                        rangeMode={rangeMode}
+                        onRangeModeChange={(on) => {
+                            setRangeMode(on);
+                            setPendingRangeStart(null);
+                        }}
+                        freezeMode={freezeMode}
+                        onFreezeModeChange={setFreezeMode}
+                        disabled={!interactive}
+                        onRemove={(index) => {
+                            const pos = srcPos[index];
+                            handleSrcTokenClick(typeof pos === "number" ? pos : pos[0], false);
+                        }}
+                        onClear={clearAll}
+                    />
                 }
                 isExecuting={isExecuting}
                 // While a prompt is being edited Run stays enabled and ends the

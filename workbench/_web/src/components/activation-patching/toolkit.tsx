@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Snowflake } from "lucide-react";
+import { ArrowRightLeft, MoveHorizontal, Snowflake, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { encodeText } from "@/actions/tok";
 import type { Token } from "@/types/models";
@@ -46,7 +48,7 @@ export const PATCH_COLORS = [
 // Token styling constants
 const TOKEN_STYLES = {
     base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
-    /** The phone composer's tokens: 16px, like its textarea, which a phone doesn't zoom into. */
+    /** The composers' tokens: 16px, like their textarea, which a phone doesn't zoom into. */
     floating:
         "!text-base !leading-7 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
     clickable: "bg-muted/60 ring-1 ring-border/50 ring-inset",
@@ -107,7 +109,6 @@ function SelectableTokenDisplay({
     side,
     predictionToken,
     tokensClickable = true,
-    compact = false,
     floating = false,
 }: {
     tokens: Token[];
@@ -123,7 +124,7 @@ function SelectableTokenDisplay({
     label: string;
     side: "source" | "target";
     predictionToken?: string | null;
-    compact?: boolean;
+    /** The composers' tokens (Home's and the phone's), at the size of their text. */
     floating?: boolean;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
@@ -138,21 +139,13 @@ function SelectableTokenDisplay({
         }
     };
 
-    const baseStyles = compact
-        ? "text-sm whitespace-pre-wrap break-words select-none relative px-0.5 py-0.5 rounded-sm transition-all"
-        : floating
-          ? TOKEN_STYLES.floating
-          : TOKEN_STYLES.base;
+    const baseStyles = floating ? TOKEN_STYLES.floating : TOKEN_STYLES.base;
 
     return (
         <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.length === 0 ? (
                 <span className="text-muted-foreground italic text-sm">
-                    {compact
-                        ? "Enter a prompt..."
-                        : floating
-                          ? "Enter a prompt"
-                          : "Enter text and click away to tokenize"}
+                    {floating ? "Enter a prompt" : "Enter text and click away to tokenize"}
                 </span>
             ) : (
                 tokens.map((token, idx) => {
@@ -246,7 +239,6 @@ function SourceTokenDisplay({
     label,
     predictionToken,
     tokensClickable = true,
-    compact = false,
     floating = false,
 }: {
     tokens: Token[];
@@ -259,7 +251,7 @@ function SourceTokenDisplay({
     tokensClickable?: boolean;
     label: string;
     predictionToken?: string | null;
-    compact?: boolean;
+    /** The composers' tokens (Home's and the phone's), at the size of their text. */
     floating?: boolean;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
@@ -274,21 +266,13 @@ function SourceTokenDisplay({
         }
     };
 
-    const baseStyles = compact
-        ? "text-sm whitespace-pre-wrap break-words select-none relative px-0.5 py-0.5 rounded-sm transition-all"
-        : floating
-          ? TOKEN_STYLES.floating
-          : TOKEN_STYLES.base;
+    const baseStyles = floating ? TOKEN_STYLES.floating : TOKEN_STYLES.base;
 
     return (
         <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.length === 0 ? (
                 <span className="text-muted-foreground italic text-sm">
-                    {compact
-                        ? "Enter a prompt..."
-                        : floating
-                          ? "Enter a prompt"
-                          : "Enter text and click away to tokenize"}
+                    {floating ? "Enter a prompt" : "Enter text and click away to tokenize"}
                 </span>
             ) : (
                 tokens.map((token, idx) => {
@@ -884,9 +868,11 @@ export function useActivationPatchingState({
 
 interface PatchPromptSectionProps {
     variant: "source" | "target";
-    /** "compact" is Home's composer, "full" the chart's side panel, and
-     * "floating" the chart's composer on a phone (`FloatingToolComposer`), its
-     * label in a corner. There a prompt shows one line at rest, scrolled to its
+    /** "full" is the chart's side panel. "compact" (Home's composer) and
+     * "floating" (the chart's composer on a phone, `FloatingToolComposer`)
+     * share a look: no box of their own, the label in a corner. "compact"
+     * tokenizes its prompt itself and is as tall as its text, up to `40vh`.
+     * A "floating" prompt shows one line at rest, scrolled to its
      * first selected token; a few lines, scrolling, while the composer is in
      * use; and up to `30vh` while it is edited, the other prompt back to a line. */
     mode: "compact" | "full" | "floating";
@@ -962,6 +948,7 @@ export function PatchPromptSection({
 
     const isCompact = mode === "compact";
     const isFloating = mode === "floating";
+    const inComposer = isCompact || isFloating;
     const isSource = variant === "source";
     const loading = isExecuting || isTokenizing;
 
@@ -1074,8 +1061,7 @@ export function PatchPromptSection({
                     tokensClickable={tokensClickable}
                     label={label}
                     predictionToken={predictionToken}
-                    compact={isCompact}
-                    floating={isFloating}
+                    floating={isCompact || isFloating}
                 />
             );
         } else {
@@ -1092,17 +1078,16 @@ export function PatchPromptSection({
                     label={label}
                     side="target"
                     predictionToken={predictionToken}
-                    compact={isCompact}
-                    floating={isFloating}
+                    floating={isCompact || isFloating}
                 />
             );
         }
     };
 
     return (
-        <div className={isCompact || isFloating ? "" : "flex flex-col gap-2"}>
+        <div className={inComposer ? "" : "flex flex-col gap-2"}>
             {/* Label row - only show for full mode */}
-            {!isCompact && !isFloating && (
+            {!inComposer && (
                 <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium">{label}</Label>
                     {/* Pending range indicator (source only, full mode) */}
@@ -1116,8 +1101,10 @@ export function PatchPromptSection({
             <div
                 className={cn(
                     "relative",
+                    inComposer && "overflow-y-auto overscroll-contain",
+                    isCompact && "max-h-[40vh]",
                     isFloating &&
-                        "max-h-9 overflow-y-auto overscroll-contain transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-[8.5rem] group-has-[textarea:focus]/composer:max-h-9",
+                        "max-h-9 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-[8.5rem] group-has-[textarea:focus]/composer:max-h-9",
                 )}
                 ref={scrollerRef}
             >
@@ -1129,14 +1116,14 @@ export function PatchPromptSection({
                         onBlur={handleBlur}
                         placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
                         className={cn(
-                            isCompact
-                                ? "resize-none bg-background/50 border-border focus:border-primary/50 transition-colors min-h-[80px] text-sm pr-16"
-                                : isFloating
-                                  ? "min-h-9 w-full resize-none overflow-hidden rounded-none border-0 bg-transparent py-1 pl-3 pr-16 !text-base !leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent"
-                                  : "w-full !text-sm bg-input/30 min-h-24 !leading-5",
+                            inComposer
+                                ? "w-full resize-none overflow-hidden rounded-none border-0 bg-transparent pr-16 !text-base !leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent"
+                                : "w-full !text-sm bg-input/30 min-h-24 !leading-5",
+                            isCompact && "min-h-[4.25rem] py-3 pl-4",
+                            isFloating && "min-h-9 py-1 pl-3",
                         )}
                         disabled={disabled || loading}
-                        autoFocus
+                        autoFocus={!isCompact}
                     />
                 ) : (
                     <div
@@ -1144,14 +1131,14 @@ export function PatchPromptSection({
                         onClick={handleContainerClick}
                         className={cn(
                             isCompact
-                                ? "p-2.5 bg-background/50 border border-border rounded-md min-h-[80px] max-h-32 overflow-auto"
+                                ? "min-h-[4.25rem] w-full px-4 py-3"
                                 : isFloating
                                   ? "min-h-9 w-full px-3 py-1"
                                   : "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
                             loading ? "cursor-progress" : "cursor-text",
                         )}
                     >
-                        {isFloating && (
+                        {inComposer && (
                             <span className="float-right ml-2 select-none text-xs leading-7 text-muted-foreground">
                                 {label}
                             </span>
@@ -1160,15 +1147,13 @@ export function PatchPromptSection({
                     </div>
                 )}
 
-                {/* Compact mode label - bottom right overlay */}
-                {isCompact && (
-                    <span className="absolute bottom-1.5 right-2 text-[10px] font-medium text-muted-foreground/50 pointer-events-none select-none uppercase tracking-wide">
-                        {label}
-                    </span>
-                )}
-
-                {isFloating && isEditing && (
-                    <span className="pointer-events-none absolute right-3 top-1 select-none text-xs leading-7 text-muted-foreground">
+                {inComposer && isEditing && (
+                    <span
+                        className={cn(
+                            "pointer-events-none absolute select-none text-xs leading-7 text-muted-foreground",
+                            isCompact ? "right-4 top-3" : "right-3 top-1",
+                        )}
+                    >
                         {label}
                     </span>
                 )}
@@ -1189,3 +1174,239 @@ export function PatchPromptSection({
 
 /** The tallest (px) the phone composer's prompt area is at rest: one line. */
 PatchPromptSection.REST_HEIGHT = 40;
+
+// ============================================================================
+// PATCH TOOLS
+// The composers' controls for a draft's patches: Home's and the phone's
+// ============================================================================
+
+/**
+ * The patches and frozen tokens of a draft, by their text: what a composer
+ * lists behind its patches button, where there are no arrows to show which
+ * source goes where.
+ */
+function PatchList({
+    srcTokens,
+    tgtTokens,
+    srcPos,
+    tgtPos,
+    tgtFreeze,
+    disabled,
+    onRemove,
+    onClear,
+}: {
+    srcTokens: Token[];
+    tgtTokens: Token[];
+    srcPos: SourcePosition[];
+    tgtPos: number[];
+    tgtFreeze: number[];
+    disabled: boolean;
+    /** Removes the patch at this index of `srcPos`. */
+    onRemove: (index: number) => void;
+    onClear: () => void;
+}) {
+    const sourceText = (pos: SourcePosition) =>
+        (typeof pos === "number" ? [srcTokens[pos]] : srcTokens.slice(pos[0], pos[1]))
+            .map((token) => token?.text ?? "")
+            .join("")
+            .trim();
+    const empty = srcPos.length === 0 && tgtFreeze.length === 0;
+
+    return (
+        <>
+            <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">Patches</h3>
+                {!empty && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-muted-foreground"
+                        onClick={onClear}
+                        disabled={disabled}
+                    >
+                        Clear all
+                    </Button>
+                )}
+            </div>
+            {srcPos.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                    Pick a source token, then the target token to patch it into.
+                </p>
+            ) : (
+                <ul className="flex flex-col gap-1">
+                    {srcPos.map((pos, index) => {
+                        const color = PATCH_COLORS[index % PATCH_COLORS.length].bg;
+                        const target = tgtTokens[tgtPos[index]]?.text.trim();
+                        return (
+                            <li key={index} className="flex min-w-0 items-center gap-1.5 text-sm">
+                                <span
+                                    className="min-w-0 truncate rounded-sm px-1 text-white"
+                                    style={{ backgroundColor: color }}
+                                >
+                                    {sourceText(pos)}
+                                </span>
+                                <span aria-hidden className="shrink-0 text-muted-foreground">
+                                    →
+                                </span>
+                                {target !== undefined ? (
+                                    <span
+                                        className="min-w-0 truncate rounded-sm px-1 text-white"
+                                        style={{ backgroundColor: color }}
+                                    >
+                                        {target}
+                                    </span>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">
+                                        pick a target
+                                    </span>
+                                )}
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="ml-auto size-6"
+                                    aria-label="Remove patch"
+                                    onClick={() => onRemove(index)}
+                                    disabled={disabled}
+                                >
+                                    <X className="text-muted-foreground" />
+                                </Button>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+            {tgtFreeze.length > 0 && (
+                <p className="flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400">
+                    <Snowflake className="size-3 shrink-0" />
+                    {tgtFreeze
+                        .slice()
+                        .sort((a, b) => a - b)
+                        .map((pos) => tgtTokens[pos]?.text.trim() ?? pos)
+                        .join(", ")}
+                </p>
+            )}
+        </>
+    );
+}
+
+interface PatchToolsProps {
+    srcTokens: Token[];
+    tgtTokens: Token[];
+    srcPos: SourcePosition[];
+    tgtPos: number[];
+    tgtFreeze: number[];
+    /** While on, a click on a source token starts or ends a range (Shift+click). */
+    rangeMode: boolean;
+    onRangeModeChange: (on: boolean) => void;
+    /** While on, a click on a target token freezes it (⌘/Ctrl+click). */
+    freezeMode: boolean;
+    onFreezeModeChange: (on: boolean) => void;
+    disabled: boolean;
+    /** Removes the patch at this index of `srcPos`. */
+    onRemove: (index: number) => void;
+    onClear: () => void;
+}
+
+/**
+ * A composer's patch controls, as toolbar buttons: the patches so far (a count
+ * that opens `PatchList`), and two toggles that make a plain click or tap do
+ * what Shift+click and ⌘/Ctrl+click do, for a touch screen and for anyone who
+ * doesn't know the modifiers. `PatchTools.hint` words the next step.
+ */
+export function PatchTools({
+    srcTokens,
+    tgtTokens,
+    srcPos,
+    tgtPos,
+    tgtFreeze,
+    rangeMode,
+    onRangeModeChange,
+    freezeMode,
+    onFreezeModeChange,
+    disabled,
+    onRemove,
+    onClear,
+}: PatchToolsProps) {
+    const patchCount = Math.min(srcPos.length, tgtPos.length);
+    const toggleClass =
+        "aria-pressed:bg-violet-500/15 aria-pressed:text-violet-600 dark:aria-pressed:text-violet-400";
+
+    return (
+        <>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="px-2 tabular-nums text-muted-foreground"
+                        aria-label={`Patches (${patchCount})`}
+                    >
+                        <ArrowRightLeft />
+                        {patchCount}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="flex w-64 flex-col gap-3">
+                    <PatchList
+                        srcTokens={srcTokens}
+                        tgtTokens={tgtTokens}
+                        srcPos={srcPos}
+                        tgtPos={tgtPos}
+                        tgtFreeze={tgtFreeze}
+                        disabled={disabled}
+                        onRemove={onRemove}
+                        onClear={onClear}
+                    />
+                </PopoverContent>
+            </Popover>
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={toggleClass}
+                aria-pressed={rangeMode}
+                aria-label="Select a range of source tokens"
+                title="Select a range of source tokens"
+                disabled={disabled}
+                onClick={() => onRangeModeChange(!rangeMode)}
+            >
+                <MoveHorizontal className={cn(!rangeMode && "text-muted-foreground")} />
+            </Button>
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={toggleClass}
+                aria-pressed={freezeMode}
+                aria-label="Freeze target tokens"
+                title="Freeze target tokens"
+                disabled={disabled}
+                onClick={() => onFreezeModeChange(!freezeMode)}
+            >
+                <Snowflake className={cn(!freezeMode && "text-muted-foreground")} />
+            </Button>
+        </>
+    );
+}
+
+/** What the next click or tap on a token does, or "" when nothing is under way. */
+PatchTools.hint = ({
+    pendingRangeStart,
+    isConnecting,
+    rangeMode,
+    freezeMode,
+}: {
+    pendingRangeStart: number | null;
+    isConnecting: boolean;
+    rangeMode: boolean;
+    freezeMode: boolean;
+}): string => {
+    if (pendingRangeStart !== null) return "Pick the last source token";
+    if (isConnecting)
+        return freezeMode ? "Turn off freeze to pick a target" : "Pick a target token";
+    if (rangeMode) return "Pick the first source token";
+    if (freezeMode) return "Pick target tokens to freeze";
+    return "";
+};

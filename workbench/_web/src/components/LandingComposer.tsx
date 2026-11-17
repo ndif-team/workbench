@@ -610,29 +610,32 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                                 disabled={showCaptcha || isSubmitting}
                             />
                         ) : (
-                            <div className="px-4 pt-4">
-                                <ActivationPatchingLandingInput
-                                    srcPrompt={srcPrompt}
-                                    setSrcPrompt={setSrcPrompt}
-                                    tgtPrompt={tgtPrompt}
-                                    setTgtPrompt={setTgtPrompt}
-                                    srcTokens={srcTokens}
-                                    setSrcTokens={setSrcTokens}
-                                    tgtTokens={tgtTokens}
-                                    setTgtTokens={setTgtTokens}
-                                    srcPos={srcPos}
-                                    setSrcPos={setSrcPos}
-                                    tgtPos={tgtPos}
-                                    setTgtPos={setTgtPos}
-                                    tgtFreeze={tgtFreeze}
-                                    setTgtFreeze={setTgtFreeze}
-                                    selectedModel={selectedModel}
-                                    disabled={showCaptcha || isSubmitting}
-                                />
-                            </div>
+                            <ActivationPatchingLandingInput
+                                srcPrompt={srcPrompt}
+                                setSrcPrompt={setSrcPrompt}
+                                tgtPrompt={tgtPrompt}
+                                setTgtPrompt={setTgtPrompt}
+                                srcTokens={srcTokens}
+                                setSrcTokens={setSrcTokens}
+                                tgtTokens={tgtTokens}
+                                setTgtTokens={setTgtTokens}
+                                srcPos={srcPos}
+                                setSrcPos={setSrcPos}
+                                tgtPos={tgtPos}
+                                setTgtPos={setTgtPos}
+                                tgtFreeze={tgtFreeze}
+                                setTgtFreeze={setTgtFreeze}
+                                selectedModel={selectedModel}
+                                disabled={showCaptcha || isSubmitting}
+                            />
                         )}
 
-                        <div className="flex items-center gap-1.5 p-2 pl-3">
+                        <div
+                            className={cn(
+                                "flex items-center gap-1.5 p-2 pl-3",
+                                selectedTool === "Activation Patching" && "border-t",
+                            )}
+                        >
                             <ToolPill
                                 value={selectedTool}
                                 onChange={setSelectedTool}

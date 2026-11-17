@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { cn } from "@/lib/utils";
 import type { Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
 import {
     useActivationPatchingState,
     PatchPromptSection,
-    EnhancedPatchArrows,
-    useMouseFollowingArrow,
+    PatchTools,
 } from "@/components/activation-patching/toolkit";
 
 interface ActivationPatchingLandingInputProps {
@@ -30,6 +28,12 @@ interface ActivationPatchingLandingInputProps {
     disabled?: boolean;
 }
 
+/**
+ * Activation patching's part of Home's composer, in the shape of the chart's
+ * composer on a phone: the source prompt over the target, then the patch
+ * tools (`PatchTools`) with a hint for the next step. A patch's two ends share
+ * a color; there are no arrows.
+ */
 export function ActivationPatchingLandingInput({
     srcPrompt,
     setSrcPrompt,
@@ -48,11 +52,10 @@ export function ActivationPatchingLandingInput({
     selectedModel,
     disabled = false,
 }: ActivationPatchingLandingInputProps) {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const connectingArrowRef = useRef<SVGPathElement>(null);
+    const [rangeMode, setRangeMode] = useState(false);
+    const [freezeMode, setFreezeMode] = useState(false);
     const [srcEditing, setSrcEditing] = useState(!srcPrompt.trim());
     const [tgtEditing, setTgtEditing] = useState(!tgtPrompt.trim());
-    const [hoverTgtIdx, setHoverTgtIdx] = useState<number | null>(null);
 
     // Use shared hook for state management
     const {
@@ -61,6 +64,7 @@ export function ActivationPatchingLandingInput({
         handleSrcTokenClick,
         handleTgtTokenClick,
         isConnecting,
+        clearAll,
     } = useActivationPatchingState({
         srcPos,
         setSrcPos,
@@ -68,16 +72,6 @@ export function ActivationPatchingLandingInput({
         setTgtPos,
         tgtFreeze,
         setTgtFreeze,
-    });
-
-    // Use shared hook for mouse-following arrow
-    const { handleMouseMove, handleMouseLeave } = useMouseFollowingArrow({
-        containerRef,
-        connectingArrowRef,
-        isConnecting: isConnecting && !srcEditing && !tgtEditing,
-        srcPos,
-        tgtPos,
-        enabled: true,
     });
 
     // Track previous tokens to detect tokenization changes
@@ -112,39 +106,13 @@ export function ActivationPatchingLandingInput({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tgtTokens]);
 
-    // Clear stale hover when source selections change (e.g. new source added after pairing)
-    // Without this, adding a second source would snap an arrow to the previously hovered target
-    useEffect(() => {
-        setHoverTgtIdx(null);
-    }, [srcPos.length]);
-
-    // Show arrows when we have source positions selected
-    const showArrows = srcPos.length > 0 && !srcEditing && !tgtEditing;
+    const hint =
+        disabled || srcEditing || tgtEditing
+            ? ""
+            : PatchTools.hint({ pendingRangeStart, isConnecting, rangeMode, freezeMode });
 
     return (
-        <div
-            ref={containerRef}
-            className="space-y-2 relative"
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-        >
-            {/* Arrow SVG overlay */}
-            {showArrows && (
-                <EnhancedPatchArrows
-                    containerRef={containerRef}
-                    srcPos={srcPos}
-                    tgtPos={tgtPos}
-                    srcEditing={srcEditing}
-                    tgtEditing={tgtEditing}
-                    hoverTgtIdx={hoverTgtIdx}
-                    isConnecting={isConnecting && !srcEditing && !tgtEditing}
-                    enableGlow={false}
-                    enableMouseFollowing={true}
-                    connectingArrowRef={connectingArrowRef}
-                />
-            )}
-
-            {/* Source Prompt */}
+        <div className="divide-y">
             <PatchPromptSection
                 variant="source"
                 mode="compact"
@@ -155,15 +123,13 @@ export function ActivationPatchingLandingInput({
                 setTokens={setSrcTokens}
                 selectedModel={selectedModel}
                 disabled={disabled}
-                placeholder="Enter source prompt..."
+                placeholder="Enter a source prompt..."
                 isEditing={srcEditing}
                 setIsEditing={setSrcEditing}
                 selectedPositions={srcPos}
                 pendingRangeStart={pendingRangeStart}
-                onSrcTokenClick={handleSrcTokenClick}
+                onSrcTokenClick={(pos, shift) => handleSrcTokenClick(pos, shift || rangeMode)}
             />
-
-            {/* Target Prompt */}
             <PatchPromptSection
                 variant="target"
                 mode="compact"
@@ -174,59 +140,40 @@ export function ActivationPatchingLandingInput({
                 setTokens={setTgtTokens}
                 selectedModel={selectedModel}
                 disabled={disabled}
-                placeholder="Enter target prompt..."
+                placeholder="Enter a target prompt..."
                 isEditing={tgtEditing}
                 setIsEditing={setTgtEditing}
                 tgtSelectedPositions={tgtPos}
                 frozenPositions={tgtFreeze}
-                onTgtTokenClick={handleTgtTokenClick}
-                onTokenHover={
-                    isConnecting && !srcEditing && !tgtEditing ? setHoverTgtIdx : undefined
-                }
-                onTokenLeave={
-                    isConnecting && !srcEditing && !tgtEditing
-                        ? () => setHoverTgtIdx(null)
-                        : undefined
-                }
+                onTgtTokenClick={(pos, ctrl) => handleTgtTokenClick(pos, ctrl || freezeMode)}
             />
-
-            {/* Status row - compact hints and status in one line */}
-            <div className="flex items-center justify-between text-[10px]">
-                {/* Hints */}
-                <div className="flex items-center gap-3 text-muted-foreground/70">
-                    {!srcEditing && srcTokens.length > 0 && (
-                        <span>
-                            <span className="font-medium">Shift</span> for range
-                        </span>
-                    )}
-                    {!tgtEditing && tgtTokens.length > 0 && (
-                        <span>
-                            <span className="font-medium">⌘/Ctrl</span> to freeze
-                        </span>
-                    )}
-                </div>
-
-                {/* Status indicators */}
-                <div className="flex items-center gap-2">
-                    {tgtFreeze.length > 0 && (
-                        <span className="text-cyan-600 dark:text-cyan-400">
-                            ❄ {tgtFreeze.length}
-                        </span>
-                    )}
-                    {srcPos.length > 0 && (
-                        <span
-                            className={cn(
-                                srcPos.length === tgtPos.length
-                                    ? "text-emerald-600 dark:text-emerald-400"
-                                    : "text-amber-600 dark:text-amber-400",
-                            )}
-                        >
-                            {srcPos.length === tgtPos.length
-                                ? `✓ ${srcPos.length} patch${srcPos.length > 1 ? "es" : ""}`
-                                : `${srcPos.length - tgtPos.length} more target${srcPos.length - tgtPos.length > 1 ? "s" : ""}`}
-                        </span>
-                    )}
-                </div>
+            <div className="flex items-center gap-1 px-2 py-1">
+                <PatchTools
+                    srcTokens={srcTokens}
+                    tgtTokens={tgtTokens}
+                    srcPos={srcPos}
+                    tgtPos={tgtPos}
+                    tgtFreeze={tgtFreeze}
+                    rangeMode={rangeMode}
+                    onRangeModeChange={(on) => {
+                        setRangeMode(on);
+                        setPendingRangeStart(null);
+                    }}
+                    freezeMode={freezeMode}
+                    onFreezeModeChange={setFreezeMode}
+                    disabled={disabled}
+                    onRemove={(index) => {
+                        const pos = srcPos[index];
+                        handleSrcTokenClick(typeof pos === "number" ? pos : pos[0], false);
+                    }}
+                    onClear={clearAll}
+                />
+                <span
+                    aria-live="polite"
+                    className="min-w-0 flex-1 px-2 text-right text-xs text-muted-foreground"
+                >
+                    {hint}
+                </span>
             </div>
         </div>
     );
