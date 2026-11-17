@@ -175,7 +175,7 @@ FloatingToolComposer.PAGE_SPACE = "pb-36";
 FloatingToolComposer.HIDDEN_BESIDE = "[body:has([data-floating-composer])_&]:hidden";
 
 /**
- * Run's glyph: an arrow on a disc that runs from violet into the
+ * Run's glyph: an arrow on a rounded square that runs from violet into the
  * brand's purple, lifting under the pointer and sinking on a press.
  */
 function RunIcon() {
@@ -199,7 +199,7 @@ function RunIcon() {
                     <stop offset="1" className="[stop-color:theme(colors.purple.600)]" />
                 </linearGradient>
             </defs>
-            <circle cx="12" cy="12" r="11" fill={`url(#${gradient})`} />
+            <rect x="1" y="1" width="22" height="22" rx="5" fill={`url(#${gradient})`} />
             <path
                 d="M12 17V7.5M7.5 12 12 7.5l4.5 4.5"
                 fill="none"
