@@ -191,7 +191,9 @@ class AppState:
         Non-pinned models are tracked in an LRU cache. Loading a new
         non-pinned model may evict the least-recently-used one when the count
         exceeds ``max_non_pinned_models``. Already-loaded non-pinned models
-        have their LRU position bumped on each access.
+        have their LRU position bumped on each access; one whose wrapper was
+        loaded while it was pinned (NDIF has since unpinned it) joins the LRU
+        then, and may evict another.
 
         Args:
             model_name: HuggingFace repo ID.
@@ -208,14 +210,11 @@ class AppState:
         if model_name not in self.models:
             self._load_model(model_name)
 
-            if model_name not in self.pinned:
-                self._active_models[model_name] = None
-                self._evict_if_needed()
-        
-        elif model_name not in self.pinned:
-            # Already loaded; bump recency.
+        if model_name not in self.pinned:
+            self._active_models[model_name] = None
             self._active_models.move_to_end(model_name)
-        
+            self._evict_if_needed()
+
         return self.models[model_name]
 
     def _evict_if_needed(self) -> None:
