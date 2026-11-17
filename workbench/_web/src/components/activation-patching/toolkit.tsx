@@ -1403,10 +1403,9 @@ PatchTools.hint = ({
     rangeMode: boolean;
     freezeMode: boolean;
 }): string => {
-    if (pendingRangeStart !== null) return "Pick the last source token";
-    if (isConnecting)
-        return freezeMode ? "Turn off freeze to pick a target" : "Pick a target token";
-    if (rangeMode) return "Pick the first source token";
-    if (freezeMode) return "Pick target tokens to freeze";
+    if (pendingRangeStart !== null) return "Pick the range's end";
+    if (isConnecting) return freezeMode ? "Turn off freeze first" : "Pick a target";
+    if (rangeMode) return "Pick the range's start";
+    if (freezeMode) return "Pick tokens to freeze";
     return "";
 };

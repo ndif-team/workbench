@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import type { Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -29,12 +29,16 @@ interface ActivationPatchingLandingInputProps {
     setTgtFreeze: (positions: number[]) => void;
     selectedModel: string;
     disabled?: boolean;
+    /** Draws the composer's toolbar around the patch tools and the hint for
+     * the next step, so they share the pickers' row. */
+    toolbar: (tools: ReactNode, hint: string) => ReactNode;
 }
 
 /**
  * Activation patching's part of Home's composer, in the shape of the chart's
- * composer on a phone: the source prompt over the target, then the patch
- * tools (`PatchTools`) with a hint for the next step. A patch's two ends share
+ * composer on a phone: the source prompt over the target, then the
+ * composer's toolbar, which it hands the patch tools (`PatchTools`) and a hint
+ * for the next step. A patch's two ends share
  * a color, and off a phone an arrow joins them.
  */
 export function ActivationPatchingLandingInput({
@@ -54,6 +58,7 @@ export function ActivationPatchingLandingInput({
     setTgtFreeze,
     selectedModel,
     disabled = false,
+    toolbar,
 }: ActivationPatchingLandingInputProps) {
     const arrows = useIsMobile() === false;
     const containerRef = useRef<HTMLDivElement>(null);
@@ -190,7 +195,7 @@ export function ActivationPatchingLandingInput({
                 onTokenHover={arrows && connecting ? setHoverTgtIdx : undefined}
                 onTokenLeave={arrows && connecting ? () => setHoverTgtIdx(null) : undefined}
             />
-            <div className="flex items-center gap-1 px-2 py-1">
+            {toolbar(
                 <PatchTools
                     srcTokens={srcTokens}
                     tgtTokens={tgtTokens}
@@ -210,14 +215,9 @@ export function ActivationPatchingLandingInput({
                         handleSrcTokenClick(typeof pos === "number" ? pos : pos[0], false);
                     }}
                     onClear={clearAll}
-                />
-                <span
-                    aria-live="polite"
-                    className="min-w-0 flex-1 px-2 text-right text-xs text-muted-foreground"
-                >
-                    {hint}
-                </span>
-            </div>
+                />,
+                hint,
+            )}
         </div>
     );
 }

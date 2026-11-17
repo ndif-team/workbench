@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type ElementRef } from "react";
+import { useState, useRef, useEffect, type ElementRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, ChevronDown, CornerDownLeft, Loader2 } from "lucide-react";
@@ -53,6 +53,7 @@ function ModelPillOrSelect({
     disabled,
     loggedIn,
     toolType,
+    nameHiddenOnPhone,
 }: {
     modelsLoading: boolean;
     modelsError: boolean;
@@ -65,6 +66,8 @@ function ModelPillOrSelect({
     /** The selected tool (if it restricts models); models it can't run are
      * shown disabled with a reason. Null → no restriction. */
     toolType: ToolType | null;
+    /** On a phone, shrink the pill to its status dot (a hint needs its room). */
+    nameHiddenOnPhone: boolean;
 }) {
     if (modelsLoading) {
         return (
@@ -114,6 +117,7 @@ function ModelPillOrSelect({
             disabled={disabled}
             loggedIn={loggedIn}
             toolType={toolType}
+            nameHiddenOnPhone={nameHiddenOnPhone}
         />
     );
 }
@@ -131,6 +135,7 @@ function ModelTriggerPopover({
     disabled,
     loggedIn,
     toolType,
+    nameHiddenOnPhone,
 }: {
     models: Model[];
     moreCount: number;
@@ -139,6 +144,7 @@ function ModelTriggerPopover({
     disabled: boolean;
     loggedIn: boolean;
     toolType: ToolType | null;
+    nameHiddenOnPhone: boolean;
 }) {
     const [open, setOpen] = useState(false);
     const [alignOffset, setAlignOffset] = useState(0);
@@ -159,7 +165,10 @@ function ModelTriggerPopover({
                     ref={triggerRef}
                     type="button"
                     disabled={disabled}
-                    className={cn(LAUNCH_TRIGGER, "min-w-20")}
+                    className={cn(
+                        LAUNCH_TRIGGER,
+                        nameHiddenOnPhone ? "max-sm:shrink-0 sm:min-w-20" : "min-w-20",
+                    )}
                     aria-label="Select model"
                     title={selectedModel || undefined}
                 >
@@ -170,7 +179,12 @@ function ModelTriggerPopover({
                             style={{ backgroundColor: MODEL_STATUS[deriveHeat(model)].color }}
                         />
                     )}
-                    <span className="truncate font-mono text-xs">
+                    <span
+                        className={cn(
+                            "truncate font-mono text-xs",
+                            nameHiddenOnPhone && "max-sm:hidden",
+                        )}
+                    >
                         {selectedModel ? splitRepo(selectedModel).label : "Select model"}
                     </span>
                     <ChevronDown className="size-3 opacity-50 shrink-0" />
@@ -520,6 +534,73 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         }
     };
 
+    // The composer's toolbar: the pickers, then a tool's own controls and its
+    // hint for the next step (activation patching's), then Run.
+    const toolbar = (tools?: ReactNode, hint = "") => (
+        <div
+            className={cn(
+                "flex items-center gap-1.5 p-2 pl-3 max-sm:gap-1 max-sm:pl-2",
+                selectedTool === "Activation Patching" && "border-t",
+            )}
+        >
+            <ToolPill
+                value={selectedTool}
+                onChange={setSelectedTool}
+                disabled={showCaptcha || isSubmitting}
+                iconOnPhone
+            />
+            <ModelPillOrSelect
+                modelsLoading={modelsLoading}
+                modelsError={modelsError}
+                hasModels={hasModels}
+                modelsToSelect={modelsToSelect}
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+                disabled={showCaptcha || isSubmitting}
+                loggedIn={loggedIn}
+                toolType={toolTypeFromDisplay(selectedTool)}
+                nameHiddenOnPhone={!!hint}
+            />
+            {isSignedInUser && workspacesList && workspacesList.length > 0 && (
+                <span className={cn("contents", hint && "max-sm:hidden")}>
+                    <WorkspacePill
+                        value={selectedWorkspace}
+                        onChange={setSelectedWorkspace}
+                        disabled={showCaptcha || isSubmitting}
+                        workspaces={workspacesList}
+                        quietDefault
+                    />
+                </span>
+            )}
+            {tools && <div className="flex shrink-0 items-center">{tools}</div>}
+            <span
+                aria-live="polite"
+                className="min-w-0 flex-1 text-balance px-1 text-right text-xs text-muted-foreground"
+            >
+                {hint}
+            </span>
+            <Button
+                type="submit"
+                size="sm"
+                className="shrink-0 max-sm:px-2.5"
+                disabled={
+                    showCaptcha ||
+                    isSubmitting ||
+                    !hasModels ||
+                    (selectedTool === "Activation Patching"
+                        ? !srcPrompt.trim() ||
+                          !tgtPrompt.trim() ||
+                          srcPos.length === 0 ||
+                          srcPos.length !== tgtPos.length
+                        : !prompt.trim())
+                }
+            >
+                Run
+                <CornerDownLeft className="size-3.5 opacity-70 max-sm:hidden" />
+            </Button>
+        </div>
+    );
+
     return (
         // Fills its page's height and sits above center: of the room left,
         // one part goes above the hero and five below the composer.
@@ -627,61 +708,10 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                                 setTgtFreeze={setTgtFreeze}
                                 selectedModel={selectedModel}
                                 disabled={showCaptcha || isSubmitting}
+                                toolbar={toolbar}
                             />
                         )}
-
-                        <div
-                            className={cn(
-                                "flex items-center gap-1.5 p-2 pl-3",
-                                selectedTool === "Activation Patching" && "border-t",
-                            )}
-                        >
-                            <ToolPill
-                                value={selectedTool}
-                                onChange={setSelectedTool}
-                                disabled={showCaptcha || isSubmitting}
-                                iconOnPhone
-                            />
-                            <ModelPillOrSelect
-                                modelsLoading={modelsLoading}
-                                modelsError={modelsError}
-                                hasModels={hasModels}
-                                modelsToSelect={modelsToSelect}
-                                selectedModel={selectedModel}
-                                onModelChange={setSelectedModel}
-                                disabled={showCaptcha || isSubmitting}
-                                loggedIn={loggedIn}
-                                toolType={toolTypeFromDisplay(selectedTool)}
-                            />
-                            {isSignedInUser && workspacesList && workspacesList.length > 0 && (
-                                <WorkspacePill
-                                    value={selectedWorkspace}
-                                    onChange={setSelectedWorkspace}
-                                    disabled={showCaptcha || isSubmitting}
-                                    workspaces={workspacesList}
-                                    quietDefault
-                                />
-                            )}
-                            <Button
-                                type="submit"
-                                size="sm"
-                                className="ml-auto shrink-0 max-sm:px-2.5"
-                                disabled={
-                                    showCaptcha ||
-                                    isSubmitting ||
-                                    !hasModels ||
-                                    (selectedTool === "Activation Patching"
-                                        ? !srcPrompt.trim() ||
-                                          !tgtPrompt.trim() ||
-                                          srcPos.length === 0 ||
-                                          srcPos.length !== tgtPos.length
-                                        : !prompt.trim())
-                                }
-                            >
-                                Run
-                                <CornerDownLeft className="size-3.5 opacity-70 max-sm:hidden" />
-                            </Button>
-                        </div>
+                        {selectedTool !== "Activation Patching" && toolbar()}
                     </div>
 
                     {showCaptcha && (
