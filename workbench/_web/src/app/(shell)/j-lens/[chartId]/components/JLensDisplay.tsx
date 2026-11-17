@@ -130,12 +130,12 @@ export function JLensDisplay() {
                 art="lens"
                 title={
                     modelSupported
-                        ? "Watch a prediction take shape"
+                        ? "See how a prediction takes shape"
                         : "J-Lens isn't available for this model"
                 }
             >
                 {modelSupported
-                    ? "Enter a prompt and run it to see what the model would predict at every layer, read through its Jacobian lens."
+                    ? "Enter a prompt and explore the model prediction at every layer."
                     : "Pick a model with a Jacobian lens to run J-Lens."}
             </ChartPlaceholder>
         );

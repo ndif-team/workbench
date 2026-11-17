@@ -121,8 +121,8 @@ export function LogitLensDisplay() {
 
     if (!hasData) {
         return (
-            <ChartPlaceholder art="lens" title="Watch a prediction take shape">
-                Enter a prompt and run it to see what the model would predict at every layer.
+            <ChartPlaceholder art="lens" title="See how a prediction takes shape">
+                Enter a prompt and explore the model prediction at every layer.
             </ChartPlaceholder>
         );
     }

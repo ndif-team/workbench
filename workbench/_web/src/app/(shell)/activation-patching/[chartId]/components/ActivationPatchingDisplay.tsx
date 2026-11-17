@@ -158,9 +158,9 @@ export function ActivationPatchingDisplay() {
     // Empty state
     if (!hasData) {
         return (
-            <ChartPlaceholder art="patching" title="Graft one prompt into another">
-                Pick a token in the source and one in the target, then run it to see at which layers
-                the patch changes the model&apos;s answer.
+            <ChartPlaceholder art="patching" title="Localize where concepts are computed">
+                Patch from one prompt to another to determine which components have downstream
+                effects on the model prediction.
             </ChartPlaceholder>
         );
     }
