@@ -51,11 +51,10 @@ def _refresh_catalog(state: AppState) -> None:
         app_state = deployment_state.get("application_state")
         pinned = app_state == "RUNNING" and bool(deployment_state.get("pinned"))
 
-        # Workbench sends text prompts, which a text-generation deployment
-        # (or an untagged one) runs, and so does an image-text-to-text one of
-        # a model whose metadata says so (register_catalog_entry decides).
+        # An untagged deployment is a text-generation one. Every task's is
+        # kept: register_catalog_entry picks the one workbench runs on.
         task = deployment_state.get("task") or "text-generation"
-        if not repo_id or task not in ("text-generation", "image-text-to-text"):
+        if not repo_id:
             continue
 
         # A replica whose application is mid-load surfaces as DEPLOYING
