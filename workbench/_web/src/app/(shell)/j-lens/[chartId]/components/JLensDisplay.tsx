@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartPlaceholder } from "@/app/(shell)/components/ChartPlaceholder";
 import { useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
@@ -125,28 +126,18 @@ export function JLensDisplay() {
 
     if (!hasData) {
         return (
-            <div className="size-full px-3 pt-3">
-                <div className="flex size-full items-center justify-center rounded border border-dashed px-4 pb-6">
-                    <div className="text-muted-foreground text-center">
-                        {modelSupported ? (
-                            <>
-                                <p>No visualization data</p>
-                                <p className="text-sm mt-2">
-                                    Enter a prompt and click &quot;Run J-Lens&quot; to visualize
-                                </p>
-                            </>
-                        ) : (
-                            <>
-                                <p>J-Lens isn&apos;t available for this model</p>
-                                <p className="text-sm mt-2">
-                                    Select a model with a Jacobian lens from the header to run
-                                    J-Lens.
-                                </p>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
+            <ChartPlaceholder
+                art="lens"
+                title={
+                    modelSupported
+                        ? "Watch a prediction take shape"
+                        : "J-Lens isn't available for this model"
+                }
+            >
+                {modelSupported
+                    ? "Enter a prompt and run it to see what the model would predict at every layer, read through its Jacobian lens."
+                    : "Pick a model with a Jacobian lens to run J-Lens."}
+            </ChartPlaceholder>
         );
     }
 

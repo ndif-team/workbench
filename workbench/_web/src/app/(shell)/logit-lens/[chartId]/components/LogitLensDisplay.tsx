@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartPlaceholder } from "@/app/(shell)/components/ChartPlaceholder";
 import { useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
@@ -120,16 +121,9 @@ export function LogitLensDisplay() {
 
     if (!hasData) {
         return (
-            <div className="size-full px-3 pt-3">
-                <div className="flex size-full items-center justify-center rounded border border-dashed px-4 pb-6">
-                    <div className="text-muted-foreground text-center">
-                        <p>No visualization data</p>
-                        <p className="text-sm mt-2">
-                            Enter a prompt and click &quot;Run Logit Lens&quot; to visualize
-                        </p>
-                    </div>
-                </div>
-            </div>
+            <ChartPlaceholder art="lens" title="Watch a prediction take shape">
+                Enter a prompt and run it to see what the model would predict at every layer.
+            </ChartPlaceholder>
         );
     }
 

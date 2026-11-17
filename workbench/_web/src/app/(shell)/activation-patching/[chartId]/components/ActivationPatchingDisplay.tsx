@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartPlaceholder } from "@/app/(shell)/components/ChartPlaceholder";
 import { useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
@@ -157,18 +158,10 @@ export function ActivationPatchingDisplay() {
     // Empty state
     if (!hasData) {
         return (
-            <div className="size-full px-3 pt-3">
-                <div className="flex size-full items-center justify-center rounded border border-dashed px-4 pb-6">
-                    <div className="text-muted-foreground text-center max-w-md">
-                        <p className="text-lg font-medium mb-2">No visualization data</p>
-                        <p className="text-sm">
-                            Enter source and target prompts, select token positions in each, then
-                            click &quot;Run Activation Patching&quot; to visualize how activations
-                            transfer between prompts across model layers.
-                        </p>
-                    </div>
-                </div>
-            </div>
+            <ChartPlaceholder art="patching" title="Graft one prompt into another">
+                Pick a token in the source and one in the target, then run it to see at which layers
+                the patch changes the model&apos;s answer.
+            </ChartPlaceholder>
         );
     }
 
