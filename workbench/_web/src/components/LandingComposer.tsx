@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect, type ElementRef, type ReactNode } from "react";
+import { RunIcon } from "@/components/RunIcon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, ChevronDown, CornerDownLeft, Loader2 } from "lucide-react";
+import { ArrowRight, ChevronDown, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
@@ -581,8 +582,10 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             </span>
             <Button
                 type="submit"
-                size="sm"
-                className="shrink-0 max-sm:px-2.5"
+                variant="ghost"
+                size="icon"
+                className="group/run shrink-0 text-violet-500 hover:text-violet-500"
+                aria-label="Run"
                 disabled={
                     showCaptcha ||
                     isSubmitting ||
@@ -595,8 +598,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                         : !prompt.trim())
                 }
             >
-                Run
-                <CornerDownLeft className="size-3.5 opacity-70 max-sm:hidden" />
+                <RunIcon />
             </Button>
         </div>
     );
