@@ -412,8 +412,11 @@ function getTokenCenter(
     // For "top", use the first rect
     const targetRect = at === "bottom" ? rects[rects.length - 1] : rects[0];
 
+    // A token scrolled out of its prompt area is met at the area's edge.
+    const view = token.closest("[data-patch-scroller]")?.getBoundingClientRect();
+    const edge = at === "top" ? targetRect.top : targetRect.bottom;
     const x = targetRect.left + targetRect.width / 2 - containerRect.left;
-    const y = (at === "top" ? targetRect.top : targetRect.bottom) - containerRect.top;
+    const y = (view ? Math.min(Math.max(edge, view.top), view.bottom) : edge) - containerRect.top;
     return { x, y };
 }
 
@@ -575,16 +578,19 @@ export function EnhancedPatchArrows({
     // Use external ref if provided, otherwise use internal
     const connectingArrowRef = externalConnectingArrowRef ?? internalConnectingArrowRef;
 
-    // Force re-render on container resize so arrows reposition
+    // Re-render when the container resizes or a prompt inside it scrolls, so arrows reposition
     const [, setResizeTick] = useState(0);
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
-        const observer = new ResizeObserver(() => {
-            setResizeTick((t) => t + 1);
-        });
+        const reposition = () => setResizeTick((t) => t + 1);
+        const observer = new ResizeObserver(reposition);
         observer.observe(container);
-        return () => observer.disconnect();
+        container.addEventListener("scroll", reposition, { capture: true, passive: true });
+        return () => {
+            observer.disconnect();
+            container.removeEventListener("scroll", reposition, { capture: true });
+        };
     }, [containerRef]);
 
     // Don't show arrows while editing
@@ -1108,6 +1114,7 @@ export function PatchPromptSection({
                         "max-h-9 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-[8.5rem] group-has-[textarea:focus]/composer:max-h-9",
                 )}
                 ref={scrollerRef}
+                data-patch-scroller={inComposer || undefined}
             >
                 {isEditing ? (
                     <Textarea
