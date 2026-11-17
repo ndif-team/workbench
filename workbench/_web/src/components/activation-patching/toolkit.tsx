@@ -885,8 +885,10 @@ export function useActivationPatchingState({
 interface PatchPromptSectionProps {
     variant: "source" | "target";
     /** "compact" is Home's composer, "full" the chart's side panel, and
-     * "floating" the chart's composer on a phone (`FloatingToolComposer`): one
-     * line at rest, taller while the composer is in use, its label in a corner. */
+     * "floating" the chart's composer on a phone (`FloatingToolComposer`), its
+     * label in a corner. There a prompt shows one line at rest, scrolled to its
+     * first selected token; a few lines, scrolling, while the composer is in
+     * use; and up to `30vh` while it is edited, the other prompt back to a line. */
     mode: "compact" | "full" | "floating";
     label: string;
     prompt: string;
@@ -1018,6 +1020,31 @@ export function PatchPromptSection({
         }
     }, [prompt, isEditing, textareaRef, isCompact]);
 
+    // On a phone the prompt rests at one line: keep that line the one holding
+    // its first selected token, whenever the area shrinks back or the
+    // selection changes while it is at rest.
+    const scrollerRef = useRef<HTMLDivElement>(null);
+    const firstSelected = isSource
+        ? Math.min(
+              ...(selectedPositions ?? []).map((pos) => (typeof pos === "number" ? pos : pos[0])),
+          )
+        : Math.min(...(tgtSelectedPositions ?? []));
+    useEffect(() => {
+        const scroller = scrollerRef.current;
+        if (!isFloating || !scroller) return;
+        const showSelection = () => {
+            if (scroller.clientHeight > PatchPromptSection.REST_HEIGHT) return;
+            const token = Number.isFinite(firstSelected)
+                ? scroller.querySelector<HTMLElement>(`[data-token-id="${firstSelected}"]`)
+                : null;
+            scroller.scrollTop = token ? token.offsetTop - 6 : 0;
+        };
+        showSelection();
+        const observer = new ResizeObserver(showSelection);
+        observer.observe(scroller);
+        return () => observer.disconnect();
+    }, [isFloating, firstSelected, isEditing, tokens.length]);
+
     // Handle token click based on variant
     const handleTokenClick = useCallback(
         (pos: number, modifierKey: boolean) => {
@@ -1090,8 +1117,9 @@ export function PatchPromptSection({
                 className={cn(
                     "relative",
                     isFloating &&
-                        "max-h-9 overflow-y-auto overscroll-contain transition-[max-height] focus-within:max-h-[30vh] group-data-[active=true]/composer:max-h-[30vh]",
+                        "max-h-9 overflow-y-auto overscroll-contain transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-[8.5rem] group-has-[textarea:focus]/composer:max-h-9",
                 )}
+                ref={scrollerRef}
             >
                 {isEditing ? (
                     <Textarea
@@ -1158,3 +1186,6 @@ export function PatchPromptSection({
         </div>
     );
 }
+
+/** The tallest (px) the phone composer's prompt area is at rest: one line. */
+PatchPromptSection.REST_HEIGHT = 40;
