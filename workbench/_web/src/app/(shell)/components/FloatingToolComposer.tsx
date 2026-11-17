@@ -178,8 +178,8 @@ FloatingToolComposer.PAGE_SPACE = "pb-36";
 FloatingToolComposer.HIDDEN_BESIDE = "[body:has([data-floating-composer])_&]:hidden";
 
 /**
- * Run's glyph: a solid play mark that runs from the button's color into the
- * brand's purple, and leans forward under the pointer or a press.
+ * Run's glyph: an arrow on a disc that runs from the button's color into the
+ * brand's purple, lifting under the pointer and sinking on a press.
  */
 function RunIcon() {
     const gradient = useId();
@@ -187,24 +187,29 @@ function RunIcon() {
         <svg
             viewBox="0 0 24 24"
             aria-hidden
-            className="transition-transform duration-200 group-hover/run:translate-x-0.5 group-hover/run:scale-110 group-active/run:scale-95"
+            className="!size-6 transition-transform duration-200 group-hover/run:-translate-y-0.5 group-active/run:scale-90"
         >
             <defs>
                 <linearGradient
                     id={gradient}
                     gradientUnits="userSpaceOnUse"
-                    x1="5"
-                    y1="4"
-                    x2="20"
-                    y2="18"
+                    x1="3"
+                    y1="3"
+                    x2="21"
+                    y2="21"
                 >
                     <stop offset="0" stopColor="currentColor" />
                     <stop offset="1" className="[stop-color:theme(colors.purple.600)]" />
                 </linearGradient>
             </defs>
+            <circle cx="12" cy="12" r="11" fill={`url(#${gradient})`} />
             <path
-                d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"
-                fill={`url(#${gradient})`}
+                d="M12 17V7.5M7.5 12 12 7.5l4.5 4.5"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
             />
         </svg>
     );
