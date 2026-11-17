@@ -1,4 +1,4 @@
-import { BookOpen, RotateCcw } from "lucide-react";
+import { BookOpen, RefreshCw, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +18,7 @@ interface ToolPanelActionsProps {
      * inherits the primary blue; AP passes a violet class to match its Run
      * button. */
     syncClassName?: string;
-    /** Draws Reset as a bare icon, for a toolbar of icon buttons. */
+    /** Draws Reset and Sync as bare icons, for a toolbar of icon buttons. */
     iconOnly?: boolean;
     onReset: () => void;
     onSync: () => void;
@@ -90,7 +90,20 @@ export function ToolPanelActions({
                     Reset
                 </Button>
             )}
-            {showSync && (
+            {showSync && iconOnly && (
+                <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={onSync}
+                    disabled={isExecuting}
+                    aria-label="Update saved config to selected model"
+                    title="Use the selected model"
+                >
+                    <RefreshCw className="text-muted-foreground" />
+                </Button>
+            )}
+            {showSync && !iconOnly && (
                 <Button
                     type="button"
                     size="sm"
