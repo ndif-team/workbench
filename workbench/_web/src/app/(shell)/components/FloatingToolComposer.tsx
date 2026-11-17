@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Loader2, Play, SlidersHorizontal } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Loader2, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -158,12 +158,12 @@ export function FloatingToolComposer({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className={cn("text-primary hover:text-primary", runClassName)}
+                        className={cn("group/run text-primary hover:text-primary", runClassName)}
                         aria-label={`Run ${title}`}
                         onClick={onRun}
                         disabled={runDisabled}
                     >
-                        {isExecuting ? <Loader2 className="animate-spin" /> : <Play />}
+                        {isExecuting ? <Loader2 className="animate-spin" /> : <RunIcon />}
                     </Button>
                 </div>
             </section>
@@ -176,3 +176,36 @@ FloatingToolComposer.PAGE_SPACE = "pb-36";
 
 /** Hides an element while a composer is on the page (the header's model picker). */
 FloatingToolComposer.HIDDEN_BESIDE = "[body:has([data-floating-composer])_&]:hidden";
+
+/**
+ * Run's glyph: a solid play mark that runs from the button's color into the
+ * brand's purple, and leans forward under the pointer or a press.
+ */
+function RunIcon() {
+    const gradient = useId();
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            aria-hidden
+            className="transition-transform duration-200 group-hover/run:translate-x-0.5 group-hover/run:scale-110 group-active/run:scale-95"
+        >
+            <defs>
+                <linearGradient
+                    id={gradient}
+                    gradientUnits="userSpaceOnUse"
+                    x1="5"
+                    y1="4"
+                    x2="20"
+                    y2="18"
+                >
+                    <stop offset="0" stopColor="currentColor" />
+                    <stop offset="1" className="[stop-color:theme(colors.purple.600)]" />
+                </linearGradient>
+            </defs>
+            <path
+                d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"
+                fill={`url(#${gradient})`}
+            />
+        </svg>
+    );
+}
