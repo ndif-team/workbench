@@ -6,7 +6,7 @@ import { Loader2, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelControl } from "@/components/ModelControl";
-import { RunIcon } from "@/components/RunIcon";
+import { RunButton } from "@/components/RunButton";
 import { cn } from "@/lib/utils";
 import { ToolPanelActions } from "./ToolPanelHeader";
 
@@ -152,17 +152,12 @@ export function FloatingToolComposer({
                     </span>
                     {/* The model gives its name's room to a hint. */}
                     <ModelControl dense side="top" nameHidden={!!hint} className="min-w-0 shrink" />
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="group/run text-violet-500 hover:text-violet-500"
+                    <RunButton
                         aria-label={`Run ${title}`}
+                        busy={isExecuting}
                         onClick={onRun}
                         disabled={runDisabled}
-                    >
-                        {isExecuting ? <Loader2 className="animate-spin" /> : <RunIcon />}
-                    </Button>
+                    />
                 </div>
             </section>
         </div>
