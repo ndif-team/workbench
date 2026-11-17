@@ -18,6 +18,8 @@ interface ToolPanelActionsProps {
      * inherits the primary blue; AP passes a violet class to match its Run
      * button. */
     syncClassName?: string;
+    /** Draws Reset as a bare icon, for a toolbar of icon buttons. */
+    iconOnly?: boolean;
     onReset: () => void;
     onSync: () => void;
 }
@@ -41,6 +43,7 @@ export function ToolPanelActions({
     showSync,
     isExecuting,
     syncClassName,
+    iconOnly = false,
     onReset,
     onSync,
 }: ToolPanelActionsProps) {
@@ -60,7 +63,20 @@ export function ToolPanelActions({
                     View Mode
                 </span>
             )}
-            {showReset && (
+            {showReset && iconOnly && (
+                <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={onReset}
+                    disabled={isExecuting}
+                    aria-label="Discard changes"
+                    title="Discard changes"
+                >
+                    <RotateCcw className="text-muted-foreground" />
+                </Button>
+            )}
+            {showReset && !iconOnly && (
                 <Button
                     type="button"
                     size="sm"

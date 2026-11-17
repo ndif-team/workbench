@@ -67,12 +67,12 @@ export function FloatingToolComposer({
                 <div className="max-h-[4.5rem] overflow-y-auto overscroll-contain transition-[max-height] focus-within:max-h-[45vh]">
                     {prompt}
                 </div>
-                <div className="flex items-center gap-1.5 p-2">
+                <div className="flex items-center gap-1 p-2">
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
                                 type="button"
-                                variant="outline"
+                                variant="ghost"
                                 size="icon"
                                 aria-label="Parameters"
                             >
@@ -92,6 +92,7 @@ export function FloatingToolComposer({
                         showReset={showReset}
                         showSync={showSync}
                         isExecuting={isExecuting}
+                        iconOnly
                         onReset={onReset}
                         onSync={onSync}
                     />
