@@ -28,7 +28,7 @@ export function ChartPlaceholder({ art, title, children }: ChartPlaceholderProps
                     "h-auto min-h-0 w-full max-w-2xl shrink object-contain",
                     "duration-1000 ease-out animate-in fade-in zoom-in-95 motion-reduce:animate-none",
                     "[mask-image:radial-gradient(closest-side,black_70%,transparent)]",
-                    "dark:opacity-90 dark:[filter:invert(1)_hue-rotate(180deg)]",
+                    "opacity-60 dark:[filter:invert(1)_hue-rotate(180deg)]",
                 )}
             />
             <div className="-mt-2 max-w-md text-center delay-300 duration-700 ease-out animate-in fade-in slide-in-from-bottom-2 fill-mode-both motion-reduce:animate-none sm:-mt-6">
