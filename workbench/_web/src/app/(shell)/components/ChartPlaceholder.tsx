@@ -11,7 +11,8 @@ interface ChartPlaceholderProps {
 
 /**
  * A chart's page before its first run: the tool's illustration, faded into the
- * page at its edges, over a line on what the tool shows and how to start.
+ * page at its edges, over a line on what the tool shows and how to start. Both
+ * fade in, the text a beat after the illustration.
  */
 export function ChartPlaceholder({ art, title, children }: ChartPlaceholderProps) {
     return (
@@ -25,11 +26,12 @@ export function ChartPlaceholder({ art, title, children }: ChartPlaceholderProps
                 alt=""
                 className={cn(
                     "h-auto min-h-0 w-full max-w-2xl shrink object-contain",
+                    "duration-1000 ease-out animate-in fade-in zoom-in-95 motion-reduce:animate-none",
                     "[mask-image:radial-gradient(closest-side,black_70%,transparent)]",
                     "dark:opacity-90 dark:[filter:invert(1)_hue-rotate(180deg)]",
                 )}
             />
-            <div className="-mt-2 max-w-md text-center sm:-mt-6">
+            <div className="-mt-2 max-w-md text-center delay-300 duration-700 ease-out animate-in fade-in slide-in-from-bottom-2 fill-mode-both motion-reduce:animate-none sm:-mt-6">
                 <p className="text-base font-medium text-foreground">{title}</p>
                 <p className="mt-1.5 text-sm text-muted-foreground">{children}</p>
             </div>
