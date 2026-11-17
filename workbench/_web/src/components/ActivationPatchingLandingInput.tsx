@@ -3,10 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
     useActivationPatchingState,
     PatchPromptSection,
     PatchTools,
+    EnhancedPatchArrows,
+    useMouseFollowingArrow,
 } from "@/components/activation-patching/toolkit";
 
 interface ActivationPatchingLandingInputProps {
@@ -32,7 +35,7 @@ interface ActivationPatchingLandingInputProps {
  * Activation patching's part of Home's composer, in the shape of the chart's
  * composer on a phone: the source prompt over the target, then the patch
  * tools (`PatchTools`) with a hint for the next step. A patch's two ends share
- * a color; there are no arrows.
+ * a color, and off a phone an arrow joins them.
  */
 export function ActivationPatchingLandingInput({
     srcPrompt,
@@ -52,6 +55,10 @@ export function ActivationPatchingLandingInput({
     selectedModel,
     disabled = false,
 }: ActivationPatchingLandingInputProps) {
+    const arrows = useIsMobile() === false;
+    const containerRef = useRef<HTMLDivElement>(null);
+    const connectingArrowRef = useRef<SVGPathElement>(null);
+    const [hoverTgtIdx, setHoverTgtIdx] = useState<number | null>(null);
     const [rangeMode, setRangeMode] = useState(false);
     const [freezeMode, setFreezeMode] = useState(false);
     const [srcEditing, setSrcEditing] = useState(!srcPrompt.trim());
@@ -73,6 +80,21 @@ export function ActivationPatchingLandingInput({
         tgtFreeze,
         setTgtFreeze,
     });
+
+    const connecting = isConnecting && !srcEditing && !tgtEditing;
+    const { handleMouseMove, handleMouseLeave } = useMouseFollowingArrow({
+        containerRef,
+        connectingArrowRef,
+        isConnecting: connecting,
+        srcPos,
+        tgtPos,
+        enabled: arrows,
+    });
+
+    // A source added after a pairing must not snap its arrow to the target last hovered.
+    useEffect(() => {
+        setHoverTgtIdx(null);
+    }, [srcPos.length]);
 
     // Track previous tokens to detect tokenization changes
     const prevSrcTokensRef = useRef<Token[]>(srcTokens);
@@ -112,7 +134,26 @@ export function ActivationPatchingLandingInput({
             : PatchTools.hint({ pendingRangeStart, isConnecting, rangeMode, freezeMode });
 
     return (
-        <div className="divide-y">
+        <div
+            ref={containerRef}
+            className="relative divide-y"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+        >
+            {arrows && srcPos.length > 0 && !srcEditing && !tgtEditing && (
+                <EnhancedPatchArrows
+                    containerRef={containerRef}
+                    srcPos={srcPos}
+                    tgtPos={tgtPos}
+                    srcEditing={srcEditing}
+                    tgtEditing={tgtEditing}
+                    hoverTgtIdx={hoverTgtIdx}
+                    isConnecting={connecting}
+                    enableGlow={false}
+                    enableMouseFollowing={true}
+                    connectingArrowRef={connectingArrowRef}
+                />
+            )}
             <PatchPromptSection
                 variant="source"
                 mode="compact"
@@ -146,6 +187,8 @@ export function ActivationPatchingLandingInput({
                 tgtSelectedPositions={tgtPos}
                 frozenPositions={tgtFreeze}
                 onTgtTokenClick={(pos, ctrl) => handleTgtTokenClick(pos, ctrl || freezeMode)}
+                onTokenHover={arrows && connecting ? setHoverTgtIdx : undefined}
+                onTokenLeave={arrows && connecting ? () => setHoverTgtIdx(null) : undefined}
             />
             <div className="flex items-center gap-1 px-2 py-1">
                 <PatchTools
