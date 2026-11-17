@@ -59,6 +59,7 @@ export function ToolPill({
     disabled,
     triggerClassName = LAUNCH_TRIGGER,
     modal = false,
+    iconOnPhone = false,
 }: {
     value: string;
     onChange: (v: string) => void;
@@ -66,6 +67,9 @@ export function ToolPill({
     triggerClassName?: string;
     /** Set when used inside a Dialog so the menu list can scroll. */
     modal?: boolean;
+    /** On a phone, show the tool as its icon alone (the menu names each tool),
+     * for a toolbar that has to stay on one row. */
+    iconOnPhone?: boolean;
 }) {
     return (
         <PillPopover
@@ -73,16 +77,13 @@ export function ToolPill({
             onChange={onChange}
             disabled={disabled}
             ariaLabel="Select tool"
-            triggerClassName={triggerClassName}
+            triggerClassName={cn(triggerClassName, iconOnPhone && "max-sm:shrink-0")}
             compact={false}
             modal={modal}
             trigger={
                 <>
-                    {/* The name alone on a phone, where the toolbar is one tight row. */}
-                    <span className="contents max-sm:hidden">
-                        <ToolIcon tool={value} />
-                    </span>
-                    <span className="truncate">{value}</span>
+                    <ToolIcon tool={value} />
+                    <span className={cn("truncate", iconOnPhone && "max-sm:sr-only")}>{value}</span>
                 </>
             }
             showSearch={false}

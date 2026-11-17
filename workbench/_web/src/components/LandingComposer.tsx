@@ -637,6 +637,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                                 value={selectedTool}
                                 onChange={setSelectedTool}
                                 disabled={showCaptcha || isSubmitting}
+                                iconOnPhone
                             />
                             <ModelPillOrSelect
                                 modelsLoading={modelsLoading}
