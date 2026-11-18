@@ -1307,14 +1307,14 @@ function PatchList({
 
     return (
         <>
-            <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">Patches</h3>
+            <div className="flex h-6 items-center justify-between">
+                <h3 className="text-xs font-medium text-muted-foreground">Patches</h3>
                 {!empty && (
                     <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="px-2 text-xs text-muted-foreground"
+                        className="-mr-1 h-6 px-1.5 text-xs text-muted-foreground"
                         onClick={onClear}
                         disabled={disabled}
                     >
@@ -1327,7 +1327,7 @@ function PatchList({
                     Pick a source token, then the target token to patch it into.
                 </p>
             ) : (
-                <ul className="flex flex-col gap-1">
+                <ul className="flex flex-col">
                     {srcPos.map((pos, index) => {
                         const color = PATCH_COLORS[index % PATCH_COLORS.length];
                         const target = tgtTokens[tgtPos[index]]?.text.trim();
@@ -1358,7 +1358,7 @@ function PatchList({
                                     type="button"
                                     variant="ghost"
                                     size="icon"
-                                    className="ml-auto"
+                                    className="-mr-1 ml-auto size-6 [&_svg]:size-3.5"
                                     aria-label="Remove patch"
                                     onClick={() => onRemove(index)}
                                     disabled={disabled}
@@ -1440,7 +1440,11 @@ export function PatchTools({
                         {patchCount}
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent side="top" align="start" className="flex w-64 flex-col gap-3">
+                <PopoverContent
+                    side="top"
+                    align="start"
+                    className="flex w-56 flex-col gap-1.5 px-3 py-2"
+                >
                     <PatchList
                         srcTokens={srcTokens}
                         tgtTokens={tgtTokens}
