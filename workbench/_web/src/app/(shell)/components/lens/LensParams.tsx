@@ -19,37 +19,39 @@ export function LensParams({
     disabled,
 }: LensParamsProps) {
     return (
-        <>
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                    <Label htmlFor="topk" className="text-sm font-medium">
-                        Top-K Predictions
-                    </Label>
-                    <span className="text-sm text-muted-foreground">{topk}</span>
-                </div>
+        <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+                <Label htmlFor="topk" className="text-sm font-medium">
+                    Top-K Predictions
+                </Label>
+                <span className="text-sm tabular-nums text-muted-foreground">{topk}</span>
+            </div>
+            <div className="flex items-center gap-4">
                 <Slider
                     id="topk"
+                    tone="tool"
                     min={1}
                     max={10}
                     step={1}
                     value={[topk]}
                     onValueChange={([value]) => onTopkChange(value)}
                     disabled={disabled}
-                    className="w-full"
+                    className="min-w-0 flex-1"
                 />
+                <div className="flex shrink-0 items-center gap-2">
+                    <Checkbox
+                        id="entropy"
+                        aria-label="Include entropy"
+                        checked={includeEntropy}
+                        onCheckedChange={(checked) => onIncludeEntropyChange(checked === true)}
+                        disabled={disabled}
+                        className="border-tool-accent focus-visible:ring-tool-accent data-[state=checked]:bg-tool-accent data-[state=checked]:text-tool-accent-foreground"
+                    />
+                    <Label htmlFor="entropy" className="cursor-pointer text-sm font-medium">
+                        Entropy
+                    </Label>
+                </div>
             </div>
-
-            <div className="flex items-center gap-2">
-                <Checkbox
-                    id="entropy"
-                    checked={includeEntropy}
-                    onCheckedChange={(checked) => onIncludeEntropyChange(checked === true)}
-                    disabled={disabled}
-                />
-                <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">
-                    Include Entropy
-                </Label>
-            </div>
-        </>
+        </div>
     );
 }
