@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
 import { ToolRunButton } from "@/app/(shell)/components/ToolRunButton";
+import { toolMeta } from "@/app/(shell)/components/toolMeta";
 import { useLogitLens } from "@/lib/api/logitLensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { LogitLensConfigData } from "@/types/logitLens";
@@ -556,10 +557,7 @@ export function LogitLensControls({
         <>
             <ToolPanelHeader
                 title="Logit Lens"
-                reference={{
-                    href: "https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens",
-                    label: "Logit Lens reference (lesswrong.com)",
-                }}
+                reference={toolMeta("logit-lens")?.reference}
                 {...actions}
             />
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
@@ -574,10 +572,7 @@ export function LogitLensControls({
                     disabled={!interactive || !prompt.trim() || !tokensInSync}
                 />
 
-                <p className="text-xs text-muted-foreground text-center">
-                    <kbd className="px-1 py-0.5 bg-muted rounded text-xs">⌘</kbd> +{" "}
-                    <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd> to run
-                </p>
+                <ToolRunButton.Shortcut />
             </div>
         </>
     );

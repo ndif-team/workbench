@@ -157,12 +157,7 @@ export function ActivationPatchingDisplay() {
 
     // Empty state
     if (!hasData) {
-        return (
-            <ChartPlaceholder art="patching" title="Localize where concepts are computed">
-                Patch from one prompt to another to determine which components have downstream
-                effects on the model prediction.
-            </ChartPlaceholder>
-        );
+        return <ChartPlaceholder {...ChartPlaceholder.EMPTY["activation-patching"]} />;
     }
 
     const chartModel = chartModelFromConfig(patchingConfig);

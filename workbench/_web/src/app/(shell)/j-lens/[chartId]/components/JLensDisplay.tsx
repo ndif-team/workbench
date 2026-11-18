@@ -127,17 +127,14 @@ export function JLensDisplay() {
     if (!hasData) {
         return (
             <ChartPlaceholder
-                art="lens"
-                title={
-                    modelSupported
-                        ? "See how a prediction takes shape"
-                        : "J-Lens isn't available for this model"
-                }
-            >
-                {modelSupported
-                    ? "Enter a prompt and explore the model prediction at every layer."
-                    : "Pick a model with a Jacobian lens to run J-Lens."}
-            </ChartPlaceholder>
+                {...(modelSupported
+                    ? ChartPlaceholder.EMPTY.jlens
+                    : {
+                          art: "lens",
+                          title: "J-Lens isn't available for this model",
+                          text: "Pick a model with a Jacobian lens to run J-Lens.",
+                      })}
+            />
         );
     }
 

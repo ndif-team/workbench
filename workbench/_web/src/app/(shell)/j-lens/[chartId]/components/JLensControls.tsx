@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
 import { ToolRunButton } from "@/app/(shell)/components/ToolRunButton";
+import { toolMeta } from "@/app/(shell)/components/toolMeta";
 import { TriangleAlert } from "lucide-react";
 import { useJLens } from "@/lib/api/jlensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
@@ -575,14 +576,7 @@ export function JLensControls({
 
     return (
         <>
-            <ToolPanelHeader
-                title="J-Lens"
-                reference={{
-                    href: "https://transformer-circuits.pub/2026/workspace/index.html",
-                    label: "J-Lens reference (transformer-circuits.pub)",
-                }}
-                {...actions}
-            />
+            <ToolPanelHeader title="J-Lens" reference={toolMeta("jlens")?.reference} {...actions} />
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
                 {unsupportedNotice}
                 {promptEditor}
@@ -596,10 +590,7 @@ export function JLensControls({
                     disabled={!interactive || !prompt.trim() || !tokensInSync}
                 />
 
-                <p className="text-xs text-muted-foreground text-center">
-                    <kbd className="px-1 py-0.5 bg-muted rounded text-xs">⌘</kbd> +{" "}
-                    <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Enter</kbd> to run
-                </p>
+                <ToolRunButton.Shortcut />
             </div>
         </>
     );

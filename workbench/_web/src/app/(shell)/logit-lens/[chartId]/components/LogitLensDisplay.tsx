@@ -120,11 +120,7 @@ export function LogitLensDisplay() {
     }
 
     if (!hasData) {
-        return (
-            <ChartPlaceholder art="lens" title="See how a prediction takes shape">
-                Enter a prompt and explore the model prediction at every layer.
-            </ChartPlaceholder>
-        );
+        return <ChartPlaceholder {...ChartPlaceholder.EMPTY["logit-lens"]} />;
     }
 
     return (

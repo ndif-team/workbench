@@ -26,3 +26,13 @@ export function ToolRunButton({ tool, busy, className, ...props }: ToolRunButton
         </Button>
     );
 }
+
+/** The line under a panel's Run naming its keyboard shortcut. */
+ToolRunButton.Shortcut = function ToolRunShortcut() {
+    return (
+        <p className="text-center text-xs text-muted-foreground">
+            <kbd className="rounded bg-muted px-1 py-0.5 text-xs">⌘</kbd> +{" "}
+            <kbd className="rounded bg-muted px-1 py-0.5 text-xs">Enter</kbd> to run
+        </p>
+    );
+};

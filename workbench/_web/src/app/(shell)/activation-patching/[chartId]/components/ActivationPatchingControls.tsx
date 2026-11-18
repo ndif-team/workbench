@@ -6,6 +6,7 @@ import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvi
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ToolRunButton } from "@/app/(shell)/components/ToolRunButton";
+import { toolMeta } from "@/app/(shell)/components/toolMeta";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { useCapture } from "@/lib/analytics";
@@ -970,10 +971,7 @@ export function ActivationPatchingControls({
         <>
             <ToolPanelHeader
                 title="Activation Patching"
-                reference={{
-                    href: "https://rome.baulab.info/",
-                    label: "Activation Patching reference (rome.baulab.info)",
-                }}
+                reference={toolMeta("activation-patching")?.reference}
                 {...actions}
             />
             <div
