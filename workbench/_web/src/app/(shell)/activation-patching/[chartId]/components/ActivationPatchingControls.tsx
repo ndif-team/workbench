@@ -67,8 +67,6 @@ export function ActivationPatchingControls({
 }: ActivationPatchingControlsProps) {
     const floating = layout === "floating";
     // Touch stand-ins for Shift+click (a source range) and ⌘/Ctrl+click (freeze).
-    const [rangeMode, setRangeMode] = useState(false);
-    const [freezeMode, setFreezeMode] = useState(false);
     const { chartId } = useParams<{ chartId: string }>();
     const workspaceId = useScopedWorkspaceId();
     const capture = useCapture();
@@ -153,6 +151,8 @@ export function ActivationPatchingControls({
         handleTgtTokenClick,
         isConnecting,
         clearAll,
+        hint: patchHint,
+        patchTools: patchToolsProps,
     } = useActivationPatchingState({
         srcPos,
         setSrcPos,
@@ -882,11 +882,7 @@ export function ActivationPatchingControls({
             onBlur={handleSrcBlur}
             selectedPositions={srcPos}
             pendingRangeStart={pendingRangeStart}
-            onSrcTokenClick={
-                interactive
-                    ? (pos, shift) => handleSrcTokenClick(pos, shift || rangeMode)
-                    : undefined
-            }
+            onSrcTokenClick={interactive ? handleSrcTokenClick : undefined}
             predictionToken={srcPrediction}
         />
     );
@@ -910,11 +906,7 @@ export function ActivationPatchingControls({
             onBlur={handleTgtBlur}
             tgtSelectedPositions={tgtPos}
             frozenPositions={tgtFreeze}
-            onTgtTokenClick={
-                interactive
-                    ? (pos, ctrl) => handleTgtTokenClick(pos, ctrl || freezeMode)
-                    : undefined
-            }
+            onTgtTokenClick={interactive ? handleTgtTokenClick : undefined}
             onTokenHover={
                 interactive && isConnecting && !srcEditing && !tgtEditing
                     ? setHoverTgtIdx
@@ -930,30 +922,13 @@ export function ActivationPatchingControls({
     );
 
     const editing = srcEditing || tgtEditing;
-    const hint =
-        interactive && !editing
-            ? PatchTools.hint({ pendingRangeStart, isConnecting, rangeMode, freezeMode })
-            : "";
+    const hint = interactive && !editing ? patchHint : "";
     const patchTools = (
         <PatchTools
+            {...patchToolsProps}
             srcTokens={srcTokens}
             tgtTokens={tgtTokens}
-            srcPos={srcPos}
-            tgtPos={tgtPos}
-            tgtFreeze={tgtFreeze}
-            rangeMode={rangeMode}
-            onRangeModeChange={(on) => {
-                setRangeMode(on);
-                setPendingRangeStart(null);
-            }}
-            freezeMode={freezeMode}
-            onFreezeModeChange={setFreezeMode}
             disabled={!interactive}
-            onRemove={(index) => {
-                const pos = srcPos[index];
-                handleSrcTokenClick(typeof pos === "number" ? pos : pos[0], false);
-            }}
-            onClear={clearAll}
         />
     );
 

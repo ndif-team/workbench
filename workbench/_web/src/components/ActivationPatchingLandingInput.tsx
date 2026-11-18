@@ -64,8 +64,6 @@ export function ActivationPatchingLandingInput({
     const containerRef = useRef<HTMLDivElement>(null);
     const connectingArrowRef = useRef<SVGPathElement>(null);
     const [hoverTgtIdx, setHoverTgtIdx] = useState<number | null>(null);
-    const [rangeMode, setRangeMode] = useState(false);
-    const [freezeMode, setFreezeMode] = useState(false);
     const [srcEditing, setSrcEditing] = useState(!srcPrompt.trim());
     const [tgtEditing, setTgtEditing] = useState(!tgtPrompt.trim());
 
@@ -77,6 +75,8 @@ export function ActivationPatchingLandingInput({
         handleTgtTokenClick,
         isConnecting,
         clearAll,
+        hint: patchHint,
+        patchTools,
     } = useActivationPatchingState({
         srcPos,
         setSrcPos,
@@ -133,10 +133,7 @@ export function ActivationPatchingLandingInput({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tgtTokens]);
 
-    const hint =
-        disabled || srcEditing || tgtEditing
-            ? ""
-            : PatchTools.hint({ pendingRangeStart, isConnecting, rangeMode, freezeMode });
+    const hint = disabled || srcEditing || tgtEditing ? "" : patchHint;
 
     return (
         <div
@@ -174,7 +171,7 @@ export function ActivationPatchingLandingInput({
                 setIsEditing={setSrcEditing}
                 selectedPositions={srcPos}
                 pendingRangeStart={pendingRangeStart}
-                onSrcTokenClick={(pos, shift) => handleSrcTokenClick(pos, shift || rangeMode)}
+                onSrcTokenClick={handleSrcTokenClick}
             />
             <div aria-hidden className="mx-4 border-t" />
             <PatchPromptSection
@@ -192,30 +189,16 @@ export function ActivationPatchingLandingInput({
                 setIsEditing={setTgtEditing}
                 tgtSelectedPositions={tgtPos}
                 frozenPositions={tgtFreeze}
-                onTgtTokenClick={(pos, ctrl) => handleTgtTokenClick(pos, ctrl || freezeMode)}
+                onTgtTokenClick={handleTgtTokenClick}
                 onTokenHover={arrows && connecting ? setHoverTgtIdx : undefined}
                 onTokenLeave={arrows && connecting ? () => setHoverTgtIdx(null) : undefined}
             />
             {toolbar(
                 <PatchTools
+                    {...patchTools}
                     srcTokens={srcTokens}
                     tgtTokens={tgtTokens}
-                    srcPos={srcPos}
-                    tgtPos={tgtPos}
-                    tgtFreeze={tgtFreeze}
-                    rangeMode={rangeMode}
-                    onRangeModeChange={(on) => {
-                        setRangeMode(on);
-                        setPendingRangeStart(null);
-                    }}
-                    freezeMode={freezeMode}
-                    onFreezeModeChange={setFreezeMode}
                     disabled={disabled}
-                    onRemove={(index) => {
-                        const pos = srcPos[index];
-                        handleSrcTokenClick(typeof pos === "number" ? pos : pos[0], false);
-                    }}
-                    onClear={clearAll}
                 />,
                 hint,
             )}

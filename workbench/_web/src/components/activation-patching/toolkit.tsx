@@ -731,6 +731,10 @@ interface UseActivationPatchingStateReturn {
     isConnecting: boolean;
     validationMessage: string | null;
     clearAll: () => void;
+    /** What the next click or tap on a token does (`PatchTools.hint`). */
+    hint: string;
+    /** `PatchTools`' props, apart from the tokens and `disabled`. */
+    patchTools: Omit<PatchToolsProps, "srcTokens" | "tgtTokens" | "disabled">;
 }
 
 export function useActivationPatchingState({
@@ -742,6 +746,8 @@ export function useActivationPatchingState({
     setTgtFreeze,
 }: UseActivationPatchingStateProps): UseActivationPatchingStateReturn {
     const [pendingRangeStart, setPendingRangeStart] = useState<number | null>(null);
+    const [rangeMode, setRangeMode] = useState(false);
+    const [freezeMode, setFreezeMode] = useState(false);
 
     // We're in "connecting" mode when source has more selections than target
     const isConnecting = srcPos.length > tgtPos.length;
@@ -779,7 +785,7 @@ export function useActivationPatchingState({
             }
 
             // Token is not selected
-            if (shiftKey) {
+            if (shiftKey || rangeMode) {
                 // Shift is held - range selection mode
                 if (pendingRangeStart !== null) {
                     // Complete the range
@@ -798,7 +804,7 @@ export function useActivationPatchingState({
                 setSrcPos([...srcPos, pos]);
             }
         },
-        [srcPos, setSrcPos, tgtPos, setTgtPos, pendingRangeStart],
+        [srcPos, setSrcPos, tgtPos, setTgtPos, pendingRangeStart, rangeMode],
     );
 
     // Handle target token click (add/remove from array)
@@ -810,7 +816,7 @@ export function useActivationPatchingState({
             const freezeIdx = tgtFreeze.indexOf(pos);
             const isFrozen = freezeIdx !== -1;
 
-            if (ctrlKey) {
+            if (ctrlKey || freezeMode) {
                 // Ctrl+click: toggle freeze
                 if (isFrozen) {
                     // Remove from freeze
@@ -846,7 +852,7 @@ export function useActivationPatchingState({
                 }
             }
         },
-        [srcPos, setSrcPos, tgtPos, setTgtPos, tgtFreeze, setTgtFreeze],
+        [srcPos, setSrcPos, tgtPos, setTgtPos, tgtFreeze, setTgtFreeze, freezeMode],
     );
 
     // Clear all selections
@@ -865,6 +871,24 @@ export function useActivationPatchingState({
         isConnecting,
         validationMessage,
         clearAll,
+        hint: PatchTools.hint({ pendingRangeStart, isConnecting, rangeMode, freezeMode }),
+        patchTools: {
+            srcPos,
+            tgtPos,
+            tgtFreeze,
+            rangeMode,
+            onRangeModeChange: (on) => {
+                setRangeMode(on);
+                setPendingRangeStart(null);
+            },
+            freezeMode,
+            onFreezeModeChange: setFreezeMode,
+            onRemove: (index) => {
+                const pos = srcPos[index];
+                handleSrcTokenClick(typeof pos === "number" ? pos : pos[0], false);
+            },
+            onClear: clearAll,
+        },
     };
 }
 
