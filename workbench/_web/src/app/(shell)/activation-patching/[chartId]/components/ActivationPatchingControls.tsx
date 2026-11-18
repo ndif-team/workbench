@@ -782,14 +782,14 @@ export function ActivationPatchingControls({
         };
 
         try {
-            // Save config first with reset token selection — new run means new tokens.
-            // This must happen before computePatching so the widget uses [0,1] when
-            // new data arrives and triggers a rebuild.
+            // Save config first with the token selection cleared — new run means new
+            // tokens. This must happen before computePatching so the widget falls back
+            // to its default selection when new data arrives and triggers a rebuild.
             await updateConfig({
                 configId: initialConfig.id,
                 chartId,
                 config: {
-                    data: { ...config, selectedLineIndices: [0, 1] },
+                    data: { ...config, selectedLineIndices: undefined },
                     workspaceId,
                     type: "activation-patching",
                 },
@@ -874,12 +874,12 @@ export function ActivationPatchingControls({
                         tgtFreeze: initialTgtFreeze,
                     };
 
-                    // Save config with reset selection before compute
+                    // Save config with the selection cleared before compute
                     await updateConfig({
                         configId: initialConfig.id,
                         chartId,
                         config: {
-                            data: { ...config, selectedLineIndices: [0, 1] },
+                            data: { ...config, selectedLineIndices: undefined },
                             workspaceId,
                             type: "activation-patching",
                         },

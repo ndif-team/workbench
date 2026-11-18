@@ -177,7 +177,7 @@ const activationPatchingHandler: NotebookToolHandler = {
         const lines = chartData.lines as number[][] | undefined;
         if (!lines?.length) return null;
 
-        const selectedTokens = (config.selectedLineIndices as number[]) ?? [0, 1];
+        const selectedTokens = config.selectedLineIndices as number[] | undefined;
         const savedMode = config.selectedMode as string | undefined;
         const VALID_MODES = ["probability", "rank", "prob_diff"];
         const mode =
