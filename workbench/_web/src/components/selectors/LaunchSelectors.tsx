@@ -43,7 +43,7 @@ const TOOL_OPTIONS: PillPopoverOption[] = [
  * like the app's other menu buttons ("New chart"). It gives up width (its
  * label truncates) so the composer's toolbar stays on one row on a phone. */
 export const LAUNCH_TRIGGER = cn(
-    buttonVariants({ variant: "outline", size: "sm" }),
+    buttonVariants({ variant: "outline", size: "control" }),
     "min-w-12 shrink max-sm:px-2 max-sm:has-[>svg]:px-2 sm:max-w-[16rem]",
 );
 

@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import type { ToolType } from "@/types/charts";
 import { toolMeta } from "./toolMeta";
 
-interface ToolRunButtonProps extends Omit<ComponentProps<typeof Button>, "children" | "variant"> {
+interface ToolRunButtonProps
+    extends Omit<ComponentProps<typeof Button>, "children" | "variant" | "size"> {
     /** The tool it runs, whose icon it carries. */
     tool: ToolType;
     /** A run is under way: the label gives way to "Computing...". */
@@ -20,7 +21,7 @@ interface ToolRunButtonProps extends Omit<ComponentProps<typeof Button>, "childr
 export function ToolRunButton({ tool, busy, className, ...props }: ToolRunButtonProps) {
     const Icon = toolMeta(tool)?.Icon;
     return (
-        <Button variant="tool" className={cn("w-full", className)} {...props}>
+        <Button variant="tool" size="control" className={cn("w-full", className)} {...props}>
             {busy ? <Loader2 className="animate-spin" /> : Icon && <Icon />}
             {busy ? "Computing..." : "Run"}
         </Button>

@@ -24,6 +24,10 @@ const buttonVariants = cva(
                 sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
                 lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
                 icon: "size-8",
+                // The controls of a composer or a tool panel: a step smaller off
+                // a phone, where the full height is the tap target.
+                control: "h-8 md:h-7 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+                "control-icon": "size-8 md:size-7",
             },
         },
         defaultVariants: {

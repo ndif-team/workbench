@@ -1427,7 +1427,7 @@ export function PatchTools({
                     <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
+                        size="control"
                         className="px-2 tabular-nums text-muted-foreground"
                         aria-label={`Patches (${patchCount})`}
                     >
@@ -1458,7 +1458,7 @@ export function PatchTools({
             <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="control-icon"
                 className={toggleClass}
                 aria-pressed={rangeMode}
                 aria-label="Select a range of source tokens"
@@ -1471,7 +1471,7 @@ export function PatchTools({
             <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="control-icon"
                 className={toggleClass}
                 aria-pressed={freezeMode}
                 aria-label="Freeze target tokens"

@@ -18,7 +18,7 @@ export function RunButton({ busy = false, className, ...props }: RunButtonProps)
     return (
         <Button
             variant="tool"
-            size="icon"
+            size="control-icon"
             className={cn(
                 "group/run shadow-sm shadow-tool-accent/40",
                 "hover:shadow-md hover:shadow-tool-accent/40 active:scale-95",
