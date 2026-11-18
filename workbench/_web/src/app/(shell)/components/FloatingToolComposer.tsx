@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ModelControl } from "@/components/ModelControl";
 import { RunButton } from "@/components/RunButton";
 import { cn } from "@/lib/utils";
-import { ToolPanelActions } from "./ToolPanelHeader";
+import { ToolPanelActions, type ToolPanelActionsProps } from "./ToolPanelHeader";
 
 interface FloatingToolComposerProps {
     /** The tool's name ("Logit Lens"). */
@@ -21,20 +21,15 @@ interface FloatingToolComposerProps {
     tools?: ReactNode;
     /** What the next tap does, shown in the toolbar beside Run. */
     hint?: string;
-    /** Classes for the prompt area, replacing its own sizing and scrolling. */
-    promptClassName?: string;
-    /** Draws a rule between the prompt area and the toolbar. */
-    divided?: boolean;
+    /** "scroll" (the default) sizes and scrolls the prompt area. With "own" the
+     * prompt sizes itself, and a rule sets it off from the toolbar. */
+    promptArea?: "scroll" | "own";
     /** A message above the prompt (a model the tool can't run). */
     notice?: ReactNode;
-    isExecuting: boolean;
     runDisabled: boolean;
     onRun: () => void;
-    viewMode: boolean;
-    showReset: boolean;
-    showSync: boolean;
-    onReset: () => void;
-    onSync: () => void;
+    /** The tool's draft-state actions (`ToolPanelActions`), as its panel header takes them. */
+    actions: ToolPanelActionsProps;
 }
 
 /**
@@ -57,18 +52,14 @@ export function FloatingToolComposer({
     params,
     tools,
     hint,
-    promptClassName,
-    divided = false,
+    promptArea = "scroll",
     notice,
-    isExecuting,
     runDisabled,
     onRun,
-    viewMode,
-    showReset,
-    showSync,
-    onReset,
-    onSync,
+    actions,
 }: FloatingToolComposerProps) {
+    const { isExecuting } = actions;
+    const ownPromptArea = promptArea === "own";
     const sectionRef = useRef<HTMLElement>(null);
     const [active, setActive] = useState(false);
 
@@ -105,14 +96,14 @@ export function FloatingToolComposer({
             >
                 {notice && <div className="px-2 pt-2">{notice}</div>}
                 <div
-                    className={
-                        promptClassName ??
-                        "max-h-[4.5rem] overflow-y-auto overscroll-contain transition-[max-height] focus-within:max-h-[45vh]"
-                    }
+                    className={cn(
+                        !ownPromptArea &&
+                            "max-h-[4.5rem] overflow-y-auto overscroll-contain transition-[max-height] focus-within:max-h-[45vh]",
+                    )}
                 >
                     {prompt}
                 </div>
-                <div className={cn("flex items-center gap-1 p-2", divided && "border-t")}>
+                <div className={cn("flex items-center gap-1 p-2", ownPromptArea && "border-t")}>
                     {params && (
                         <Popover>
                             <PopoverTrigger asChild>
@@ -135,15 +126,7 @@ export function FloatingToolComposer({
                         </Popover>
                     )}
                     {tools}
-                    <ToolPanelActions
-                        viewMode={viewMode}
-                        showReset={showReset}
-                        showSync={showSync}
-                        isExecuting={isExecuting}
-                        iconOnly
-                        onReset={onReset}
-                        onSync={onSync}
-                    />
+                    <ToolPanelActions {...actions} iconOnly />
                     <span
                         aria-live="polite"
                         className="min-w-0 flex-1 text-balance px-1 text-right text-xs text-muted-foreground"

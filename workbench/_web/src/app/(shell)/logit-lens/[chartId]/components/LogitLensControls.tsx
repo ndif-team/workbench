@@ -535,6 +535,15 @@ export function LogitLensControls({
         />
     );
 
+    const actions = {
+        viewMode,
+        showReset,
+        showSync,
+        isExecuting,
+        onReset: resetDraft,
+        onSync: updateConfigModel,
+    };
+
     // On a phone Run tokenizes the prompt itself (`handleSubmit`), so it doesn't
     // wait for the blur that would do it: a tap on a disabled button blurs nothing.
     if (floating) {
@@ -543,14 +552,9 @@ export function LogitLensControls({
                 title="Logit Lens"
                 prompt={promptEditor}
                 params={params}
-                isExecuting={isExecuting}
                 runDisabled={!interactive || !prompt.trim()}
                 onRun={handleSubmit}
-                viewMode={viewMode}
-                showReset={showReset}
-                showSync={showSync}
-                onReset={resetDraft}
-                onSync={updateConfigModel}
+                actions={actions}
             />
         );
     }
@@ -564,12 +568,7 @@ export function LogitLensControls({
                     href: "https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens",
                     label: "Logit Lens reference (lesswrong.com)",
                 }}
-                viewMode={viewMode}
-                showReset={showReset}
-                showSync={showSync}
-                isExecuting={isExecuting}
-                onReset={resetDraft}
-                onSync={updateConfigModel}
+                {...actions}
             />
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
                 <div className="flex flex-col gap-2">

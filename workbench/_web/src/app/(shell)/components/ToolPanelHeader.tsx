@@ -2,7 +2,7 @@ import { BookOpen, RefreshCw, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface ToolPanelActionsProps {
+export interface ToolPanelActionsProps {
     /** True when models are unavailable AND not currently fetching — shows
      * the compact ⚠ View Mode indicator. */
     viewMode: boolean;

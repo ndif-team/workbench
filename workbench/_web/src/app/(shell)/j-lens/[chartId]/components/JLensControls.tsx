@@ -554,6 +554,15 @@ export function JLensControls({
         </div>
     );
 
+    const actions = {
+        viewMode,
+        showReset,
+        showSync,
+        isExecuting,
+        onReset: resetDraft,
+        onSync: updateConfigModel,
+    };
+
     // On a phone Run tokenizes the prompt itself (`handleSubmit`), so it doesn't
     // wait for the blur that would do it: a tap on a disabled button blurs nothing.
     if (floating) {
@@ -563,14 +572,9 @@ export function JLensControls({
                 prompt={promptEditor}
                 params={params}
                 notice={unsupportedNotice}
-                isExecuting={isExecuting}
                 runDisabled={!interactive || !prompt.trim()}
                 onRun={handleSubmit}
-                viewMode={viewMode}
-                showReset={showReset}
-                showSync={showSync}
-                onReset={resetDraft}
-                onSync={updateConfigModel}
+                actions={actions}
             />
         );
     }
@@ -584,12 +588,7 @@ export function JLensControls({
                     href: "https://transformer-circuits.pub/2026/workspace/index.html",
                     label: "J-Lens reference (transformer-circuits.pub)",
                 }}
-                viewMode={viewMode}
-                showReset={showReset}
-                showSync={showSync}
-                isExecuting={isExecuting}
-                onReset={resetDraft}
-                onSync={updateConfigModel}
+                {...actions}
             />
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
                 {unsupportedNotice}

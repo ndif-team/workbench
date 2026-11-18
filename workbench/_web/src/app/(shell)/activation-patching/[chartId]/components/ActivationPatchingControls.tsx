@@ -932,6 +932,15 @@ export function ActivationPatchingControls({
         />
     );
 
+    const actions = {
+        viewMode,
+        showReset,
+        showSync,
+        isExecuting,
+        onReset: resetDraft,
+        onSync: updateConfigModel,
+    };
+
     if (floating) {
         return (
             <FloatingToolComposer
@@ -943,11 +952,9 @@ export function ActivationPatchingControls({
                         {targetPrompt}
                     </>
                 }
-                promptClassName=""
-                divided
+                promptArea="own"
                 hint={hint}
                 tools={patchTools}
-                isExecuting={isExecuting}
                 // While a prompt is being edited Run stays enabled and ends the
                 // edit: a tap on a disabled button blurs nothing on a touch
                 // screen, and the blur is what tokenizes the prompt.
@@ -956,11 +963,7 @@ export function ActivationPatchingControls({
                     if (editing) (document.activeElement as HTMLElement | null)?.blur();
                     else handleSubmit();
                 }}
-                viewMode={viewMode}
-                showReset={showReset}
-                showSync={showSync}
-                onReset={resetDraft}
-                onSync={updateConfigModel}
+                actions={actions}
             />
         );
     }
@@ -973,13 +976,8 @@ export function ActivationPatchingControls({
                     href: "https://rome.baulab.info/",
                     label: "Activation Patching reference (rome.baulab.info)",
                 }}
-                viewMode={viewMode}
-                showReset={showReset}
-                showSync={showSync}
-                isExecuting={isExecuting}
-                onReset={resetDraft}
-                onSync={updateConfigModel}
                 syncClassName="bg-violet-500 hover:bg-violet-600 text-white"
+                {...actions}
             />
             <div
                 ref={controlsContainerRef}
