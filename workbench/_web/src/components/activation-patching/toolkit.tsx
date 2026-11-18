@@ -106,9 +106,12 @@ function SelectableTokenDisplay({
     tokensClickable = true,
     textClass,
     filler,
+    text,
 }: {
     /** What a plain-text prompt shows while it has no tokens. */
     filler?: string;
+    /** The prompt's text, shown as it is until its tokens arrive. */
+    text?: string;
     tokens: Token[];
     loading: boolean;
     selectedPositions: number[];
@@ -144,9 +147,15 @@ function SelectableTokenDisplay({
     return (
         <div className={PROMPT_TOKENS.list}>
             {tokens.length === 0 ? (
-                <span className={cn("text-muted-foreground", textClass ?? "italic text-sm")}>
-                    {plain ? filler : "Enter text and click away to tokenize"}
-                </span>
+                text ? (
+                    <span className={cn("whitespace-pre-wrap break-words px-0.5", textClass)}>
+                        {text}
+                    </span>
+                ) : (
+                    <span className={cn("text-muted-foreground", textClass ?? "italic text-sm")}>
+                        {plain ? filler : "Enter text and click away to tokenize"}
+                    </span>
+                )
             ) : (
                 tokens.map((token, idx) => {
                     const { result, numNewlines } = PROMPT_TOKENS.fixText(token.text);
@@ -239,9 +248,12 @@ function SourceTokenDisplay({
     tokensClickable = true,
     textClass,
     filler,
+    text,
 }: {
     /** What a plain-text prompt shows while it has no tokens. */
     filler?: string;
+    /** The prompt's text, shown as it is until its tokens arrive. */
+    text?: string;
     tokens: Token[];
     loading: boolean;
     selectedPositions: SourcePosition[];
@@ -274,9 +286,15 @@ function SourceTokenDisplay({
     return (
         <div className={PROMPT_TOKENS.list}>
             {tokens.length === 0 ? (
-                <span className={cn("text-muted-foreground", textClass ?? "italic text-sm")}>
-                    {plain ? filler : "Enter text and click away to tokenize"}
-                </span>
+                text ? (
+                    <span className={cn("whitespace-pre-wrap break-words px-0.5", textClass)}>
+                        {text}
+                    </span>
+                ) : (
+                    <span className={cn("text-muted-foreground", textClass ?? "italic text-sm")}>
+                        {plain ? filler : "Enter text and click away to tokenize"}
+                    </span>
+                )
             ) : (
                 tokens.map((token, idx) => {
                     const { result, numNewlines } = PROMPT_TOKENS.fixText(token.text);
@@ -1110,6 +1128,7 @@ export function PatchPromptSection({
                     predictionToken={predictionToken}
                     textClass={look?.text}
                     filler={filler}
+                    text={prompt}
                 />
             );
         } else {
@@ -1128,6 +1147,7 @@ export function PatchPromptSection({
                     predictionToken={predictionToken}
                     textClass={look?.text}
                     filler={filler}
+                    text={prompt}
                 />
             );
         }
