@@ -159,15 +159,15 @@
         hsl(220 22% 7%);
 }
 
-/* Activation patching's tokenized prompts: the pointer outlines the token under
-   it and its three neighbors on each side, fading with distance. */
-.patch-tokens > span:is(:hover, :hover + span, :has(+ span:hover)) > [data-token-id] {
+/* A tool's tokenized prompt: the pointer outlines the token under it and its
+   three neighbors on each side, fading with distance. */
+.prompt-tokens > span:is(:hover, :hover + span, :has(+ span:hover)) > [data-token-id] {
     --tw-ring-color: hsl(var(--border));
 }
-.patch-tokens > span:is(:hover + span + span, :has(+ span + span:hover)) > [data-token-id] {
+.prompt-tokens > span:is(:hover + span + span, :has(+ span + span:hover)) > [data-token-id] {
     --tw-ring-color: hsl(var(--border) / 0.6);
 }
-.patch-tokens
+.prompt-tokens
     > span:is(:hover + span + span + span, :has(+ span + span + span:hover))
     > [data-token-id] {
     --tw-ring-color: hsl(var(--border) / 0.3);

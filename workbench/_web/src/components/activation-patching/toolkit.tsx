@@ -9,7 +9,7 @@ import { popoverMenuShellClass } from "@/components/ui/pill-popover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { encodeText } from "@/actions/tok";
-import { PROMPT_FIELD } from "@/components/promptField";
+import { PROMPT_FIELD, PROMPT_TOKENS } from "@/components/promptField";
 import type { Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
 
@@ -52,15 +52,13 @@ export const PATCH_COLORS = [
     }, // pink
 ];
 
-// Token styling constants
+/** Patching's tokens: the shared prompt tokens (`PROMPT_TOKENS`), which can also be picked. */
 const TOKEN_STYLES = {
-    base: "!text-sm !leading-6 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
+    base: cn(PROMPT_FIELD.text, PROMPT_TOKENS.token),
     /** A plain-text prompt's tokens; the mode's look sets their size (`PatchPromptSection.LOOK`). */
-    plain: "whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
-    /** Plain text at rest; the tokens around the pointer are outlined (`patch-tokens` in
-     * `globals.css`), as are all of them in a phone's composer in use. */
-    clickable: "ring-1 ring-inset ring-transparent group-data-[active=true]/composer:ring-border",
-    hover: "hover:bg-tool-accent/20 hover:ring-1 hover:ring-tool-accent/50 hover:ring-inset cursor-pointer",
+    plain: PROMPT_TOKENS.token,
+    clickable: PROMPT_TOKENS.outline,
+    hover: cn(PROMPT_TOKENS.hover, "cursor-pointer"),
     selected: "ring-2 ring-inset",
 } as const;
 
@@ -71,17 +69,6 @@ function createCurvePath(start: { x: number; y: number }, end: { x: number; y: n
     const c2 = { x: end.x, y: midY };
     return `M ${start.x} ${start.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${end.x} ${end.y}`;
 }
-
-// Helper to fix newlines for display
-const fixTokenText = (text: string) => {
-    const numNewlines = (text.match(/\n/g) || []).length;
-    const result = text
-        .replace(/\r\n/g, "\\r\\n")
-        .replace(/\n/g, "\\n")
-        .replace(/\r/g, "\\r")
-        .replace(/\t/g, "\\t");
-    return { result, numNewlines };
-};
 
 // Helper to check if a token index is part of a source position (single or range)
 function isTokenInSourcePosition(tokenIdx: number, pos: SourcePosition): boolean {
@@ -152,14 +139,14 @@ function SelectableTokenDisplay({
     const baseStyles = plain ? cn(TOKEN_STYLES.plain, textClass) : TOKEN_STYLES.base;
 
     return (
-        <div className="patch-tokens w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
+        <div className={PROMPT_TOKENS.list}>
             {tokens.length === 0 ? (
                 <span className={cn("text-muted-foreground", textClass ?? "italic text-sm")}>
                     {plain ? "Enter a prompt" : "Enter text and click away to tokenize"}
                 </span>
             ) : (
                 tokens.map((token, idx) => {
-                    const { result, numNewlines } = fixTokenText(token.text);
+                    const { result, numNewlines } = PROMPT_TOKENS.fixText(token.text);
                     const selectionIndex = selectedPositions.indexOf(idx);
                     const isSelected = selectionIndex !== -1;
                     const isFrozen = frozenPositions.includes(idx);
@@ -227,13 +214,10 @@ function SelectableTokenDisplay({
             )}
             {predictionToken && tokens.length > 0 && (
                 <span
-                    className={cn(
-                        baseStyles,
-                        "cursor-default italic text-zinc-500 dark:text-zinc-400",
-                    )}
+                    className={cn(baseStyles, PROMPT_TOKENS.prediction)}
                     title={`Predicted next token: "${predictionToken}"`}
                 >
-                    {fixTokenText(predictionToken).result}
+                    {PROMPT_TOKENS.fixText(predictionToken).result}
                 </span>
             )}
         </div>
@@ -282,14 +266,14 @@ function SourceTokenDisplay({
     const baseStyles = plain ? cn(TOKEN_STYLES.plain, textClass) : TOKEN_STYLES.base;
 
     return (
-        <div className="patch-tokens w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
+        <div className={PROMPT_TOKENS.list}>
             {tokens.length === 0 ? (
                 <span className={cn("text-muted-foreground", textClass ?? "italic text-sm")}>
                     {plain ? "Enter a prompt" : "Enter text and click away to tokenize"}
                 </span>
             ) : (
                 tokens.map((token, idx) => {
-                    const { result, numNewlines } = fixTokenText(token.text);
+                    const { result, numNewlines } = PROMPT_TOKENS.fixText(token.text);
 
                     const selection = findSourcePositionForToken(idx, selectedPositions);
                     const isSelected = selection !== null;
@@ -379,13 +363,10 @@ function SourceTokenDisplay({
             )}
             {predictionToken && tokens.length > 0 && (
                 <span
-                    className={cn(
-                        baseStyles,
-                        "cursor-default italic text-zinc-500 dark:text-zinc-400",
-                    )}
+                    className={cn(baseStyles, PROMPT_TOKENS.prediction)}
                     title={`Predicted next token: "${predictionToken}"`}
                 >
-                    {fixTokenText(predictionToken).result}
+                    {PROMPT_TOKENS.fixText(predictionToken).result}
                 </span>
             )}
         </div>

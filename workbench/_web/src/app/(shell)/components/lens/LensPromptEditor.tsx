@@ -1,6 +1,6 @@
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { PROMPT_FIELD } from "@/components/promptField";
+import { PROMPT_FIELD, PROMPT_TOKENS } from "@/components/promptField";
 import { cn } from "@/lib/utils";
 import type { Token } from "@/types/models";
 
@@ -46,7 +46,6 @@ export function LensPromptEditor({
     onEdit,
 }: LensPromptEditorProps) {
     const floating = layout === "floating";
-    const styles = LensPromptEditor.TOKEN_STYLES;
     const text = PROMPT_FIELD.text;
 
     return (
@@ -84,20 +83,18 @@ export function LensPromptEditor({
                         if (interactive) onEdit();
                     }}
                 >
-                    <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
+                    <div className={PROMPT_TOKENS.list}>
                         {tokens.map((token, idx) => {
-                            const { result, numNewlines } = LensPromptEditor.fixTokenText(
-                                token.text,
-                            );
+                            const { result, numNewlines } = PROMPT_TOKENS.fixText(token.text);
                             return (
                                 <span key={`token-${idx}`}>
                                     <span
                                         data-token-id={idx}
                                         className={cn(
-                                            styles.base,
+                                            PROMPT_TOKENS.token,
+                                            PROMPT_TOKENS.outline,
                                             text,
-                                            "bg-transparent",
-                                            !loading && styles.hover,
+                                            !loading && PROMPT_TOKENS.hover,
                                             token.text === "\\n" ? "w-full" : "w-fit",
                                             loading ? "cursor-progress" : "cursor-default",
                                         )}
@@ -110,14 +107,10 @@ export function LensPromptEditor({
                         })}
                         {nextToken && tokens.length > 0 && (
                             <span
-                                className={cn(
-                                    styles.base,
-                                    text,
-                                    "cursor-default italic text-zinc-500 dark:text-zinc-400",
-                                )}
+                                className={cn(PROMPT_TOKENS.token, text, PROMPT_TOKENS.prediction)}
                                 title={`Predicted next token: "${nextToken}"`}
                             >
-                                {LensPromptEditor.fixTokenText(nextToken).result}
+                                {PROMPT_TOKENS.fixText(nextToken).result}
                             </span>
                         )}
                     </div>
@@ -126,19 +119,3 @@ export function LensPromptEditor({
         </div>
     );
 }
-
-LensPromptEditor.TOKEN_STYLES = {
-    base: "whitespace-pre-wrap break-words select-none !box-border relative",
-    hover: "hover:bg-primary/20 hover:ring-1 hover:ring-primary/30 hover:ring-inset",
-} as const;
-
-/** A token's text with its control characters spelled out, and how many newlines it held. */
-LensPromptEditor.fixTokenText = (text: string) => {
-    const numNewlines = (text.match(/\n/g) || []).length;
-    const result = text
-        .replace(/\r\n/g, "\\r\\n")
-        .replace(/\n/g, "\\n")
-        .replace(/\r/g, "\\r")
-        .replace(/\t/g, "\\t");
-    return { result, numNewlines };
-};
