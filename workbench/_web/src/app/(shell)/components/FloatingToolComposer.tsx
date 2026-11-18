@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { popoverMenuShellClass } from "@/components/ui/pill-popover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelControl } from "@/components/ModelControl";
 import { RunButton } from "@/components/RunButton";
@@ -119,7 +120,10 @@ export function FloatingToolComposer({
                             <PopoverContent
                                 side="top"
                                 align="start"
-                                className="flex w-64 flex-col gap-4"
+                                className={cn(
+                                    popoverMenuShellClass(false),
+                                    "flex w-64 flex-col gap-4",
+                                )}
                             >
                                 {params}
                             </PopoverContent>

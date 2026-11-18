@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ArrowRightLeft, MoveHorizontal, Snowflake, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { popoverMenuShellClass } from "@/components/ui/pill-popover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { encodeText } from "@/actions/tok";
@@ -1443,7 +1444,10 @@ export function PatchTools({
                 <PopoverContent
                     side="top"
                     align="start"
-                    className="flex w-56 flex-col gap-1.5 px-3 py-2"
+                    className={cn(
+                        popoverMenuShellClass(false),
+                        "flex w-56 flex-col gap-1.5 px-3 py-2",
+                    )}
                 >
                     <PatchList
                         srcTokens={srcTokens}
