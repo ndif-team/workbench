@@ -1,12 +1,13 @@
 "use server";
 
-import type { Chart, Config } from "@/db/schema";
+import type { Chart, Config, Workshop } from "@/db/schema";
 import { db } from "@/db/client";
 import { charts, configs, chartConfigLinks } from "@/db/schema";
 import { asc, eq, sql } from "drizzle-orm";
 import { requireUser, requireUserId } from "@/lib/auth/user";
 import type { ChartLaunchRequest } from "@/lib/chartLaunch";
 import * as chartDb from "@/lib/queries/chartDb";
+import * as workshopDb from "@/lib/queries/workshopDb";
 import { hasWorkshopClaim } from "@/lib/workshop";
 import { normalizeToolType } from "@/types/charts";
 import type { ChartData, ChartMetadata, ChartType, ToolType } from "@/types/charts";
@@ -167,11 +168,14 @@ export async function createActivationPatchingChartPair(
  * Creates the chart a `/new` launch asks for, in the signed-in user's default
  * workspace or in `request.workspaceId` when it is one of theirs (a workshop
  * participant: only their workshop workspace), and returns where to open it
- * with the chart's rows.
+ * with the chart's rows and its workspace's workshop, which the page's model
+ * picker waits on.
  */
 export async function createChartFromLaunch(
     request: ChartLaunchRequest,
-): Promise<chartDb.LaunchedChart> {
+): Promise<chartDb.LaunchedChart & { workshop: Workshop | null }> {
     const { userId, creator } = await chartCreator();
-    return chartDb.createChartFromLaunch(userId, request, creator);
+    const launched = await chartDb.createChartFromLaunch(userId, request, creator);
+    const workshop = await workshopDb.getWorkshopForWorkspace(launched.workspaceId);
+    return { ...launched, workshop };
 }

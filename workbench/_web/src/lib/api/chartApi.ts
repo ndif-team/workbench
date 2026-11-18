@@ -168,7 +168,7 @@ export const useCreatePatchLensChartPair = () => {
 
 /**
  * Creates the chart a `/new` launch describes (see `createChartFromLaunch`),
- * caches its chart and config so its page opens without fetching them, and
+ * caches its chart, config and workshop so its page opens without fetching them, and
  * marks the lists it lands in as stale. They aren't refetched right away: a
  * server action that finishes while the chart's page is loading makes Next
  * load that page a second time. They refetch once the page has opened, when
@@ -180,9 +180,10 @@ export const useCreateChartFromLaunch = () => {
     return useMutation({
         mutationKey: ["createChartFromLaunch"],
         mutationFn: (request: ChartLaunchRequest) => createChartFromLaunch(request),
-        onSuccess: ({ chartId, chart, config, workspaceId }) => {
+        onSuccess: ({ chartId, chart, config, workspaceId, workshop }) => {
             queryClient.setQueryData(queryKeys.charts.chart(chartId), chart);
             queryClient.setQueryData(queryKeys.charts.configByChart(chartId), config);
+            queryClient.setQueryData(queryKeys.workshops.byWorkspace(workspaceId), workshop);
             for (const queryKey of [
                 queryKeys.workspaces.library,
                 queryKeys.workspaces.all,
