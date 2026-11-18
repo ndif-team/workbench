@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Loader2, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -98,7 +98,7 @@ export function FloatingToolComposer({
                 <div
                     className={cn(
                         !ownPromptArea &&
-                            "max-h-[4.5rem] overflow-y-auto overscroll-contain transition-[max-height] focus-within:max-h-[45vh]",
+                            "max-h-20 overflow-y-auto overscroll-contain transition-[max-height] focus-within:max-h-[45vh]",
                     )}
                 >
                     {prompt}
