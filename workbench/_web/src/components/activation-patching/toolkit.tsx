@@ -919,7 +919,7 @@ interface PatchPromptSectionProps {
     variant: "source" | "target";
     /** "full" is Patch Lens's boxed prompt under a label. The others share a
      * look (`PatchPromptSection.LOOK`): plain-text tokens, the label in a
-     * corner. "field" is the activation-patching side panel's tinted field;
+     * corner. "field" is the activation-patching side panel's bordered field;
      * "compact" is Home's composer and "floating" the chart's composer on a
      * phone (`FloatingToolComposer`), neither with a box of its own. "compact"
      * tokenizes its prompt itself and is as tall as its text, up to about six
