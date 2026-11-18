@@ -27,6 +27,7 @@ import {
     splitRepo,
 } from "@/components/model-selector/status";
 import { LAUNCH_TRIGGER, ToolPill, WorkspacePill } from "@/components/selectors/LaunchSelectors";
+import { PROMPT_FIELD } from "@/components/promptField";
 import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
 import { CwLogoMark } from "@/components/CwLogo";
@@ -677,7 +678,12 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 className="mx-auto w-full max-w-3xl monitor:max-w-4xl wide:max-w-5xl max-sm:pt-6"
             >
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-                    <div className="rounded-md border bg-card shadow-lg transition-[border-color,box-shadow] has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 dark:bg-secondary">
+                    <div
+                        className={cn(
+                            "rounded-md border bg-card shadow-lg transition-[border-color,box-shadow] dark:bg-secondary",
+                            PROMPT_FIELD.composer,
+                        )}
+                    >
                         {selectedTool !== "Activation Patching" ? (
                             <Textarea
                                 value={prompt}

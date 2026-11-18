@@ -8,6 +8,7 @@ import { popoverMenuShellClass } from "@/components/ui/pill-popover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelControl } from "@/components/ModelControl";
 import { RunButton } from "@/components/RunButton";
+import { PROMPT_FIELD } from "@/components/promptField";
 import { cn } from "@/lib/utils";
 import { ToolPanelActions, type ToolPanelActionsProps } from "./ToolPanelHeader";
 
@@ -88,7 +89,7 @@ export function FloatingToolComposer({
                 data-active={active}
                 className={cn(
                     "group/composer pointer-events-auto w-full max-w-xl rounded-md border shadow-lg transition-[background-color,border-color,box-shadow]",
-                    "has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50",
+                    PROMPT_FIELD.composer,
                     "bg-card/70 backdrop-blur-sm dark:bg-secondary/70",
                     "focus-within:bg-card dark:focus-within:bg-secondary",
                     "data-[active=true]:bg-card dark:data-[active=true]:bg-secondary",

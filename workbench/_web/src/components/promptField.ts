@@ -12,6 +12,8 @@ export const PROMPT_FIELD = {
     /** A box around a prompt's tokens, or around a borderless textarea. */
     surface:
         "rounded-md border border-border bg-card transition-colors focus-within:border-tool-accent",
+    /** A composer card around a bare textarea: the same accent border while it is edited. */
+    composer: "has-[textarea:focus-visible]:border-tool-accent",
     /** A `Textarea` that is the field itself. */
     textarea:
         "border-border bg-card shadow-none transition-colors focus-visible:border-tool-accent focus-visible:ring-0 dark:bg-card",
