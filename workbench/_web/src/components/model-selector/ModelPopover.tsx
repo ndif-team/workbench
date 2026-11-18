@@ -68,13 +68,13 @@ type ModelGroup = "base" | "chat";
  * How far to pull the menu left of its trigger's left edge (a Radix
  * `alignOffset`, zero or negative) so it stays on screen: a host that turns
  * collision avoidance off, to keep the menu from flipping up, loses the
- * sideways shift too.
+ * sideways shift too. The widths are the menu's own (its `w-[…]` classes).
  */
-ModelPopover.alignOffsetFor = (trigger: HTMLElement | null, compact = false): number => {
+ModelPopover.alignOffsetFor = (trigger: HTMLElement | null): number => {
     if (!trigger) return 0;
     const margin = 8;
     const phone = window.matchMedia("(max-width: 639px)").matches;
-    const width = Math.min(compact ? 260 : phone ? 300 : 380, window.innerWidth - 2 * margin);
+    const width = Math.min(phone ? 300 : 380, window.innerWidth - 2 * margin);
     const overflow = trigger.getBoundingClientRect().left + width - (window.innerWidth - margin);
     return overflow > 0 ? -overflow : 0;
 };

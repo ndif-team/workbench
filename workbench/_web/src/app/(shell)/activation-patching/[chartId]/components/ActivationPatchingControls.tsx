@@ -121,8 +121,6 @@ export function ActivationPatchingControls({
     const connectingArrowRef = useRef<SVGPathElement>(null);
     const [hoverTgtIdx, setHoverTgtIdx] = useState<number | null>(null);
 
-    // Patch summary table collapsed state
-
     // Track the prompts + model from the last successful run (to show predictions).
     // Predictions are only meaningful while the prompt AND the tokenization
     // model still match what produced them; retokenizing under a different

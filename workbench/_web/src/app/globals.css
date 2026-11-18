@@ -151,8 +151,6 @@
         hsl(220 22% 7%);
 }
 
-/* The expanded sidebar's own surface (the --sidebar tokens), so the page's
- * cards, set straight on the shell's gradient, don't run into it. */
 /* Activation patching's tokenized prompts: the pointer outlines the token under
    it and its three neighbors on each side, fading with distance. */
 .patch-tokens > span:is(:hover, :hover + span, :has(+ span:hover)) > [data-token-id] {
@@ -167,6 +165,8 @@
     --tw-ring-color: hsl(var(--border) / 0.3);
 }
 
+/* The expanded sidebar's own surface (the --sidebar tokens), so the page's
+ * cards, set straight on the shell's gradient, don't run into it. */
 .sidebar-surface {
     background: hsl(var(--sidebar));
     border-right: 1px solid hsl(var(--sidebar-border));
