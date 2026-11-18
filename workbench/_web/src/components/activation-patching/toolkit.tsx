@@ -54,7 +54,7 @@ const TOKEN_STYLES = {
     /** Plain text at rest; the tokens around the pointer are outlined (`patch-tokens` in
      * `globals.css`), as are all of them in a phone's composer in use. */
     clickable: "ring-1 ring-inset ring-transparent group-data-[active=true]/composer:ring-border",
-    hover: "hover:bg-violet-500/20 hover:ring-1 hover:ring-violet-400/50 hover:ring-inset cursor-pointer",
+    hover: "hover:bg-tool-accent/20 hover:ring-1 hover:ring-tool-accent/50 hover:ring-inset cursor-pointer",
     selected: "ring-2 ring-inset text-white",
 } as const;
 
@@ -1216,7 +1216,7 @@ PatchPromptSection.LOOK = {
         label: "right-4 top-3",
     },
     field: {
-        area: "max-h-56 rounded-md border border-transparent bg-foreground/[0.04] transition-colors focus-within:border-violet-400",
+        area: "max-h-56 rounded-md border border-transparent bg-foreground/[0.04] transition-colors focus-within:border-tool-accent",
         textarea: "min-h-[4.25rem] py-2 pl-3",
         tokens: "min-h-[4.25rem] px-3 py-2",
         label: "right-3 top-2",
@@ -1387,8 +1387,7 @@ export function PatchTools({
     onClear,
 }: PatchToolsProps) {
     const patchCount = Math.min(srcPos.length, tgtPos.length);
-    const toggleClass =
-        "aria-pressed:bg-violet-500/15 aria-pressed:text-violet-600 dark:aria-pressed:text-violet-400";
+    const toggleClass = "aria-pressed:bg-tool-accent/15 aria-pressed:text-tool-accent";
 
     return (
         <>

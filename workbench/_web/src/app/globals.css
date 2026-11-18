@@ -36,6 +36,10 @@
         --sidebar-accent-foreground: 0 0% 9%;
         --sidebar-border: 220 14% 83%; /* Match border */
         --sidebar-ring: 217.2193 91.2195% 59.8039%;
+        /* The tools' accent (Run, Sync, the patch toggles): the charts' violet. */
+        --tool-accent: 258.3 89.5% 66.3%;
+        --tool-accent-hover: 262.1 83.3% 57.8%;
+        --tool-accent-foreground: 0 0% 100%;
         --font-sans: Inter, sans-serif;
         --font-serif: Source Serif 4, serif;
         --font-mono: JetBrains Mono, monospace;
@@ -84,6 +88,10 @@
         --sidebar-accent-foreground: 213.3333 96.9231% 87.2549%;
         --sidebar-border: 0 0% 24%;
         --sidebar-ring: 217.2193 91.2195% 59.8039%;
+        /* The tools' accent (Run, Sync, the patch toggles): the charts' violet. */
+        --tool-accent: 258.3 89.5% 66.3%;
+        --tool-accent-hover: 262.1 83.3% 57.8%;
+        --tool-accent-foreground: 0 0% 100%;
         --font-sans: Inter, sans-serif;
         --font-serif: Source Serif 4, serif;
         --font-mono: JetBrains Mono, monospace;
