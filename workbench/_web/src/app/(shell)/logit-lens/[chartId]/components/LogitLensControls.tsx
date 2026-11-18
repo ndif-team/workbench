@@ -3,20 +3,14 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { toolMeta } from "@/app/(shell)/components/toolMeta";
-import { Loader2, Play } from "lucide-react";
+import { ToolRunButton } from "@/app/(shell)/components/ToolRunButton";
 import { useLogitLens } from "@/lib/api/logitLensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { LogitLensConfigData } from "@/types/logitLens";
-import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
 import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { logitLensConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
 import { useDraftModel } from "@/hooks/useDraftModel";
@@ -562,7 +556,6 @@ export function LogitLensControls({
     return (
         <>
             <ToolPanelHeader
-                syncClassName="bg-violet-500 hover:bg-violet-600 text-white"
                 title="Logit Lens"
                 reference={{
                     href: "https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens",
@@ -578,23 +571,12 @@ export function LogitLensControls({
 
                 {params}
 
-                <Button
+                <ToolRunButton
+                    tool="logit-lens"
+                    busy={isExecuting}
                     onClick={handleSubmit}
                     disabled={!interactive || !prompt.trim() || !tokensInSync}
-                    className="w-full bg-violet-500 hover:bg-violet-600 text-white"
-                >
-                    {isExecuting ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Computing...
-                        </>
-                    ) : (
-                        <>
-                            <LogitLensControls.Icon className="mr-2 h-4 w-4" />
-                            Run
-                        </>
-                    )}
-                </Button>
+                />
 
                 <p className="text-xs text-muted-foreground text-center">
                     <kbd className="px-1 py-0.5 bg-muted rounded text-xs">⌘</kbd> +{" "}
@@ -604,6 +586,3 @@ export function LogitLensControls({
         </>
     );
 }
-
-/** The tool's icon, which its Run button carries. */
-LogitLensControls.Icon = toolMeta("logit-lens")!.Icon;

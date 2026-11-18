@@ -14,10 +14,6 @@ export interface ToolPanelActionsProps {
     showSync: boolean;
     /** Disables both action buttons while a mutation is in flight. */
     isExecuting: boolean;
-    /** Optional className override for the Sync button. Logit lens omits it and
-     * inherits the primary blue; AP passes a violet class to match its Run
-     * button. */
-    syncClassName?: string;
     /** Draws Reset and Sync as bare icons, for a toolbar of icon buttons. */
     iconOnly?: boolean;
     onReset: () => void;
@@ -42,7 +38,6 @@ export function ToolPanelActions({
     showReset,
     showSync,
     isExecuting,
-    syncClassName,
     iconOnly = false,
     onReset,
     onSync,
@@ -106,11 +101,12 @@ export function ToolPanelActions({
             {showSync && !iconOnly && (
                 <Button
                     type="button"
+                    variant="tool"
                     size="sm"
                     onClick={onSync}
                     disabled={isExecuting}
                     aria-label="Update saved config to selected model"
-                    className={cn("h-6 px-2.5 text-xs", syncClassName)}
+                    className="h-6 px-2.5 text-xs"
                 >
                     Sync
                 </Button>

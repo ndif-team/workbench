@@ -5,8 +5,8 @@ import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
 import { useCapture } from "@/lib/analytics";
 import { useQuery } from "@tanstack/react-query";
-import { toolMeta } from "@/app/(shell)/components/toolMeta";
-import { AlertCircle, Loader2, X } from "lucide-react";
+import { ToolRunButton } from "@/app/(shell)/components/ToolRunButton";
+import { AlertCircle, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import {
@@ -909,24 +909,13 @@ export default function PatchLensArea({
                     </p>
                 </div>
 
-                <Button
+                <ToolRunButton
+                    tool="patch-lens"
+                    busy={isRunning}
                     id="patch-lens-run"
                     onClick={handleRun}
                     disabled={!canRun}
-                    className="w-full bg-violet-500 text-white hover:bg-violet-600"
-                >
-                    {isRunning ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Computing...
-                        </>
-                    ) : (
-                        <>
-                            <PatchLensArea.Icon className="mr-2 h-4 w-4" />
-                            Run
-                        </>
-                    )}
-                </Button>
+                />
 
                 {phrasingWarning && (
                     <p
@@ -985,6 +974,3 @@ export default function PatchLensArea({
         </div>
     );
 }
-
-/** The tool's icon, which its Run button carries. */
-PatchLensArea.Icon = toolMeta("patch-lens")!.Icon;

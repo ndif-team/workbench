@@ -3,20 +3,15 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { toolMeta } from "@/app/(shell)/components/toolMeta";
-import { Loader2, TriangleAlert } from "lucide-react";
+import { ToolRunButton } from "@/app/(shell)/components/ToolRunButton";
+import { TriangleAlert } from "lucide-react";
 import { useJLens } from "@/lib/api/jlensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { JLensConfigData } from "@/types/jlens";
-import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
 import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { jlensConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
 import { useDraftModel } from "@/hooks/useDraftModel";
@@ -582,7 +577,6 @@ export function JLensControls({
     return (
         <>
             <ToolPanelHeader
-                syncClassName="bg-violet-500 hover:bg-violet-600 text-white"
                 title="J-Lens"
                 reference={{
                     href: "https://transformer-circuits.pub/2026/workspace/index.html",
@@ -599,23 +593,12 @@ export function JLensControls({
 
                 {params}
 
-                <Button
+                <ToolRunButton
+                    tool="jlens"
+                    busy={isExecuting}
                     onClick={handleSubmit}
                     disabled={!interactive || !prompt.trim() || !tokensInSync}
-                    className="w-full bg-violet-500 hover:bg-violet-600 text-white"
-                >
-                    {isExecuting ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Computing...
-                        </>
-                    ) : (
-                        <>
-                            <JLensControls.Icon className="mr-2 h-4 w-4" />
-                            Run
-                        </>
-                    )}
-                </Button>
+                />
 
                 <p className="text-xs text-muted-foreground text-center">
                     <kbd className="px-1 py-0.5 bg-muted rounded text-xs">⌘</kbd> +{" "}
@@ -625,6 +608,3 @@ export function JLensControls({
         </>
     );
 }
-
-/** The tool's icon, which its Run button carries. */
-JLensControls.Icon = toolMeta("jlens")!.Icon;

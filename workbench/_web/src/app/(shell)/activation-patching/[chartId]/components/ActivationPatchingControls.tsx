@@ -5,8 +5,7 @@ import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { toolMeta } from "@/app/(shell)/components/toolMeta";
-import { Loader2 } from "lucide-react";
+import { ToolRunButton } from "@/app/(shell)/components/ToolRunButton";
 import { useActivationPatching } from "@/lib/api/activationPatchingApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { useCapture } from "@/lib/analytics";
@@ -18,7 +17,6 @@ import {
 import { encodeText } from "@/actions/tok";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getChartById } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
@@ -976,7 +974,6 @@ export function ActivationPatchingControls({
                     href: "https://rome.baulab.info/",
                     label: "Activation Patching reference (rome.baulab.info)",
                 }}
-                syncClassName="bg-violet-500 hover:bg-violet-600 text-white"
                 {...actions}
             />
             <div
@@ -1016,27 +1013,13 @@ export function ActivationPatchingControls({
                 </div>
 
                 {/* Run Button */}
-                <Button
+                <ToolRunButton
+                    tool="activation-patching"
+                    busy={isExecuting}
                     onClick={handleSubmit}
                     disabled={!canRun}
-                    className="w-full bg-violet-500 hover:bg-violet-600 text-white"
-                >
-                    {isExecuting ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Computing...
-                        </>
-                    ) : (
-                        <>
-                            <ActivationPatchingControls.Icon className="mr-2 h-4 w-4" />
-                            Run
-                        </>
-                    )}
-                </Button>
+                />
             </div>
         </>
     );
 }
-
-/** The tool's icon, which its Run button carries. */
-ActivationPatchingControls.Icon = toolMeta("activation-patching")!.Icon;
