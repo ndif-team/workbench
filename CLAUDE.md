@@ -255,7 +255,7 @@ Defined in `src/app/globals.css`:
 - Shadow ramp: `--shadow-xs … --shadow-2xl`. Default cards use `shadow-xs` or `shadow-sm`.
 - Sidebar surfaces use `bg-secondary/80` (light) and `bg-secondary/50` (dark), bordered, with `rounded`.
 
-**Prompt type follows the surface, not the tool**: a composer's prompt (Home's and the phone's) is `text-base` on `leading-6`, with Home's growing at `monitor:` and `wide:` as its hero does; a side panel's is `text-sm` on `leading-5`. The lens tools set it in `LensPromptEditor.TOKEN_STYLES`, activation patching in `PatchPromptSection.LOOK` (`text`), and a prompt's textarea, tokens and placeholder share it.
+**One prompt style for every tool** (`PROMPT_FIELD` in `src/components/promptField.ts`): a prompt is `text-base` on `leading-7` in a side panel and in Home's composer (Home's growing at `monitor:` and `wide:` as its hero does), on a faint borderless tint in the panel that takes the tools' accent while it is edited. A phone's composer keeps `text-base`, below which iOS zooms into a focused field, on `leading-6` (`phoneText`). A prompt's textarea, tokens and placeholder share the type; `LensPromptEditor` and `PatchPromptSection` both read it from there.
 
 **Hard rules**:
 - `font-mono` ONLY on content the user reads as data: code, prompts, outputs, tabular numbers. Never UI chrome.
