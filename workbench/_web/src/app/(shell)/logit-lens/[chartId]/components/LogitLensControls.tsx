@@ -24,6 +24,8 @@ import { useFocusNewChartPrompt } from "@/hooks/useFocusNewChartPrompt";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/(shell)/components/ToolPanelHeader";
+import { LensPromptEditor } from "@/app/(shell)/components/lens/LensPromptEditor";
+import { LensParams } from "@/app/(shell)/components/lens/LensParams";
 import { FloatingToolComposer } from "@/app/(shell)/components/FloatingToolComposer";
 import { useCapture } from "@/lib/analytics";
 
@@ -47,73 +49,6 @@ interface LogitLensControlsProps {
     layout?: "panel" | "floating";
     /** The saved run's predicted next token, shown after the prompt's tokens. */
     nextToken?: string | null;
-}
-
-const TOKEN_STYLES = {
-    base: "whitespace-pre-wrap break-words select-none !box-border relative",
-    /** The floating composer's text is 16px, which a phone doesn't zoom into. */
-    size: { panel: "!text-sm !leading-5", floating: "!text-base !leading-6" },
-    hover: "hover:bg-primary/20 hover:ring-1 hover:ring-primary/30 hover:ring-inset",
-} as const;
-
-const fixTokenText = (text: string) => {
-    const numNewlines = (text.match(/\n/g) || []).length;
-    const result = text
-        .replace(/\r\n/g, "\\r\\n")
-        .replace(/\n/g, "\\n")
-        .replace(/\r/g, "\\r")
-        .replace(/\t/g, "\\t");
-    return { result, numNewlines };
-};
-
-function TokenDisplay({
-    tokens,
-    loading,
-    nextToken,
-    layout,
-}: {
-    tokens: Token[];
-    loading: boolean;
-    nextToken?: string | null;
-    layout: "panel" | "floating";
-}) {
-    return (
-        <div className="w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
-            {tokens.map((token, idx) => {
-                const { result, numNewlines } = fixTokenText(token.text);
-                return (
-                    <span key={`token-${idx}`}>
-                        <span
-                            data-token-id={idx}
-                            className={cn(
-                                TOKEN_STYLES.base,
-                                TOKEN_STYLES.size[layout],
-                                "bg-transparent",
-                                !loading && TOKEN_STYLES.hover,
-                                token.text === "\\n" ? "w-full" : "w-fit",
-                                loading ? "cursor-progress" : "cursor-default",
-                            )}
-                        >
-                            {result}
-                        </span>
-                        {numNewlines > 0 && "\n".repeat(numNewlines)}
-                    </span>
-                );
-            })}
-            {nextToken && tokens.length > 0 && (
-                <span
-                    className={cn(
-                        TOKEN_STYLES.base,
-                        TOKEN_STYLES.size[layout],
-                        "cursor-default italic text-zinc-500 dark:text-zinc-400",
-                    )}
-                    title={`Predicted next token: "${nextToken}"`}
-                >
-                    {fixTokenText(nextToken).result}
-                </span>
-            )}
-        </div>
-    );
 }
 
 export function LogitLensControls({
@@ -570,82 +505,34 @@ export function LogitLensControls({
     const floating = layout === "floating";
 
     const promptEditor = (
-        <div className="relative">
-            {editingText ? (
-                <Textarea
-                    ref={textareaRef}
-                    value={prompt}
-                    onChange={(e) => {
-                        handlePromptChange(e);
-                        autoResizeTextarea();
-                    }}
-                    onKeyDown={handleKeyDown}
-                    onBlur={handleTextareaBlur}
-                    aria-label="Prompt"
-                    className={
-                        floating
-                            ? "min-h-10 w-full resize-none overflow-hidden rounded-none border-0 bg-transparent px-4 py-2 !text-base !leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
-                            : "w-full !text-sm bg-input/30 min-h-32 !leading-5"
-                    }
-                    placeholder="Enter your prompt here..."
-                    disabled={!interactive}
-                />
-            ) : (
-                <div
-                    ref={tokenContainerRef}
-                    className={cn(
-                        "flex w-full py-2",
-                        floating ? "min-h-10 px-4" : "px-3 bg-input/30 border rounded min-h-32",
-                        isExecuting ? "cursor-progress" : "cursor-text",
-                    )}
-                    onClick={() => {
-                        if (interactive) escapeTokenArea();
-                    }}
-                >
-                    <TokenDisplay
-                        tokens={tokenData}
-                        loading={isExecuting}
-                        nextToken={showNextToken ? nextToken : null}
-                        layout={layout}
-                    />
-                </div>
-            )}
-        </div>
+        <LensPromptEditor
+            layout={layout}
+            editing={editingText}
+            prompt={prompt}
+            tokens={tokenData}
+            nextToken={showNextToken ? nextToken : null}
+            loading={isExecuting}
+            interactive={interactive}
+            textareaRef={textareaRef}
+            tokenContainerRef={tokenContainerRef}
+            onChange={(e) => {
+                handlePromptChange(e);
+                autoResizeTextarea();
+            }}
+            onKeyDown={handleKeyDown}
+            onBlur={handleTextareaBlur}
+            onEdit={escapeTokenArea}
+        />
     );
 
     const params = (
-        <>
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                    <Label htmlFor="topk" className="text-sm font-medium">
-                        Top-K Predictions
-                    </Label>
-                    <span className="text-sm text-muted-foreground">{topk}</span>
-                </div>
-                <Slider
-                    id="topk"
-                    min={1}
-                    max={10}
-                    step={1}
-                    value={[topk]}
-                    onValueChange={([value]) => setTopk(value)}
-                    disabled={!interactive}
-                    className="w-full"
-                />
-            </div>
-
-            <div className="flex items-center gap-2">
-                <Checkbox
-                    id="entropy"
-                    checked={includeEntropy}
-                    onCheckedChange={(checked) => setIncludeEntropy(checked === true)}
-                    disabled={!interactive}
-                />
-                <Label htmlFor="entropy" className="text-sm font-medium cursor-pointer">
-                    Include Entropy
-                </Label>
-            </div>
-        </>
+        <LensParams
+            topk={topk}
+            onTopkChange={setTopk}
+            includeEntropy={includeEntropy}
+            onIncludeEntropyChange={setIncludeEntropy}
+            disabled={!interactive}
+        />
     );
 
     // On a phone Run tokenizes the prompt itself (`handleSubmit`), so it doesn't
