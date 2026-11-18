@@ -15,7 +15,7 @@ import {
     ActivationPatchingData,
     SourcePosition,
 } from "@/types/activationPatching";
-import { encodeText } from "@/actions/tok";
+import { encodeText } from "@/lib/tokenize";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { toast } from "sonner";

@@ -1,6 +1,7 @@
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { PROMPT_FIELD, PROMPT_TOKENS } from "@/components/promptField";
+import { useIsTokenizing } from "@/lib/tokenize";
 import { cn } from "@/lib/utils";
 import type { Token } from "@/types/models";
 
@@ -47,9 +48,13 @@ export function LensPromptEditor({
 }: LensPromptEditorProps) {
     const floating = layout === "floating";
     const text = PROMPT_FIELD.text;
+    const awaitingTokens = useIsTokenizing(prompt);
 
     return (
-        <div className="relative">
+        <div
+            className={cn("relative", awaitingTokens && PROMPT_FIELD.tokenizing)}
+            aria-busy={awaitingTokens}
+        >
             {editing ? (
                 <Textarea
                     ref={textareaRef}

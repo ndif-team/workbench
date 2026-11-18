@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { popoverMenuShellClass } from "@/components/ui/pill-popover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { encodeText } from "@/actions/tok";
+import { encodeText, useIsTokenizing } from "@/lib/tokenize";
 import { PROMPT_FIELD, PROMPT_TOKENS } from "@/components/promptField";
 import type { Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
@@ -980,6 +980,7 @@ export function PatchPromptSection({
     onBlur: externalOnBlur,
 }: PatchPromptSectionProps) {
     const [isTokenizing, setIsTokenizing] = useState(false);
+    const awaitingTokens = useIsTokenizing(prompt);
     const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
     const internalTokenContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1168,7 +1169,9 @@ export function PatchPromptSection({
                                 : cn("min-h-24 w-full", PROMPT_FIELD.text, PROMPT_FIELD.textarea),
                             look?.text,
                             look?.textarea,
+                            awaitingTokens && PROMPT_FIELD.tokenizing,
                         )}
+                        aria-busy={awaitingTokens}
                         disabled={disabled || loading}
                         autoFocus={!isCompact}
                     />
@@ -1181,7 +1184,9 @@ export function PatchPromptSection({
                                 ? cn("w-full", look.tokens)
                                 : cn("flex min-h-24 w-full px-3 py-2", PROMPT_FIELD.surface),
                             loading ? "cursor-progress" : "cursor-text",
+                            awaitingTokens && PROMPT_FIELD.tokenizing,
                         )}
+                        aria-busy={awaitingTokens}
                     >
                         {inComposer && (
                             <span

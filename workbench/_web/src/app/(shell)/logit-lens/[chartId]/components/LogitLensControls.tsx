@@ -8,7 +8,7 @@ import { toolMeta } from "@/app/(shell)/components/toolMeta";
 import { useLogitLens } from "@/lib/api/logitLensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { LogitLensConfigData } from "@/types/logitLens";
-import { encodeText } from "@/actions/tok";
+import { encodeText } from "@/lib/tokenize";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { toast } from "sonner";

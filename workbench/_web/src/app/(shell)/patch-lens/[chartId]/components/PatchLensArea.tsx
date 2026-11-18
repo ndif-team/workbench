@@ -34,7 +34,7 @@ import { withProlificPid } from "@/lib/prolific";
 import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { selectedModelIn } from "@/components/model-selector/status";
-import { encodeText } from "@/actions/tok";
+import { encodeText } from "@/lib/tokenize";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { PatchPromptSection } from "@/components/activation-patching/toolkit";

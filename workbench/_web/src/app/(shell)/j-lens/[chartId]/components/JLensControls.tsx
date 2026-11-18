@@ -9,7 +9,7 @@ import { TriangleAlert } from "lucide-react";
 import { useJLens } from "@/lib/api/jlensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { JLensConfigData } from "@/types/jlens";
-import { encodeText } from "@/actions/tok";
+import { encodeText } from "@/lib/tokenize";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { toast } from "sonner";
