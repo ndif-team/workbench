@@ -172,7 +172,7 @@ export function ActivationPatchingLandingInput({
                 pendingRangeStart={pendingRangeStart}
                 onSrcTokenClick={handleSrcTokenClick}
             />
-            <div aria-hidden className="mx-4 border-t" />
+            <div aria-hidden className="mx-4 border-t border-border/50" />
             <PatchPromptSection
                 variant="target"
                 mode="compact"
