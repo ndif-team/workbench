@@ -21,7 +21,7 @@ export function LensParams({
     return (
         <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-                <Label htmlFor="topk" className="text-sm font-medium">
+                <Label htmlFor="topk" className="text-sm font-normal">
                     Top-K Predictions
                 </Label>
                 <span className="text-sm tabular-nums text-muted-foreground">{topk}</span>
@@ -47,7 +47,7 @@ export function LensParams({
                         disabled={disabled}
                         className="border-tool-accent focus-visible:ring-tool-accent data-[state=checked]:bg-tool-accent data-[state=checked]:text-tool-accent-foreground"
                     />
-                    <Label htmlFor="entropy" className="cursor-pointer text-sm font-medium">
+                    <Label htmlFor="entropy" className="cursor-pointer text-sm font-normal">
                         Entropy
                     </Label>
                 </div>
