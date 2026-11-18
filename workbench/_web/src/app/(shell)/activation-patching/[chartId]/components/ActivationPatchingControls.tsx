@@ -946,7 +946,7 @@ export function ActivationPatchingControls({
                 prompt={
                     <>
                         {sourcePrompt}
-                        <div aria-hidden className="mx-3 border-t" />
+                        <div aria-hidden className="mx-4 border-t" />
                         {targetPrompt}
                     </>
                 }

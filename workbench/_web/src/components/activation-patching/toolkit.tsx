@@ -53,9 +53,8 @@ export const PATCH_COLORS = [
 // Token styling constants
 const TOKEN_STYLES = {
     base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
-    /** The composers' tokens: 16px, like their textarea, which a phone doesn't zoom into. */
-    floating:
-        "!text-base !leading-7 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
+    /** A plain-text prompt's tokens; the mode's look sets their size (`PatchPromptSection.LOOK`). */
+    plain: "whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
     /** Plain text at rest; the tokens around the pointer are outlined (`patch-tokens` in
      * `globals.css`), as are all of them in a phone's composer in use. */
     clickable: "ring-1 ring-inset ring-transparent group-data-[active=true]/composer:ring-border",
@@ -116,7 +115,7 @@ function SelectableTokenDisplay({
     side,
     predictionToken,
     tokensClickable = true,
-    plain = false,
+    textClass,
 }: {
     tokens: Token[];
     loading: boolean;
@@ -132,7 +131,8 @@ function SelectableTokenDisplay({
     side: "source" | "target";
     predictionToken?: string | null;
     /** The composers' tokens (Home's and the phone's), at the size of their text. */
-    plain?: boolean;
+    /** The text size of a plain-text prompt (`PatchPromptSection.LOOK`), which draws no box around its tokens. */
+    textClass?: string;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
         // Only claim the click when clicking a token actually does something. With
@@ -146,12 +146,13 @@ function SelectableTokenDisplay({
         }
     };
 
-    const baseStyles = plain ? TOKEN_STYLES.floating : TOKEN_STYLES.base;
+    const plain = textClass !== undefined;
+    const baseStyles = plain ? cn(TOKEN_STYLES.plain, textClass) : TOKEN_STYLES.base;
 
     return (
         <div className="patch-tokens w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.length === 0 ? (
-                <span className="text-muted-foreground italic text-sm">
+                <span className={cn("text-muted-foreground", textClass ?? "italic text-sm")}>
                     {plain ? "Enter a prompt" : "Enter text and click away to tokenize"}
                 </span>
             ) : (
@@ -247,7 +248,7 @@ function SourceTokenDisplay({
     label,
     predictionToken,
     tokensClickable = true,
-    plain = false,
+    textClass,
 }: {
     tokens: Token[];
     loading: boolean;
@@ -260,7 +261,8 @@ function SourceTokenDisplay({
     label: string;
     predictionToken?: string | null;
     /** The composers' tokens (Home's and the phone's), at the size of their text. */
-    plain?: boolean;
+    /** The text size of a plain-text prompt (`PatchPromptSection.LOOK`), which draws no box around its tokens. */
+    textClass?: string;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
         // Only claim the click when clicking a token actually does something. With
@@ -274,12 +276,13 @@ function SourceTokenDisplay({
         }
     };
 
-    const baseStyles = plain ? TOKEN_STYLES.floating : TOKEN_STYLES.base;
+    const plain = textClass !== undefined;
+    const baseStyles = plain ? cn(TOKEN_STYLES.plain, textClass) : TOKEN_STYLES.base;
 
     return (
         <div className="patch-tokens w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.length === 0 ? (
-                <span className="text-muted-foreground italic text-sm">
+                <span className={cn("text-muted-foreground", textClass ?? "italic text-sm")}>
                     {plain ? "Enter a prompt" : "Enter text and click away to tokenize"}
                 </span>
             ) : (
@@ -1113,7 +1116,7 @@ export function PatchPromptSection({
                     tokensClickable={tokensClickable}
                     label={label}
                     predictionToken={predictionToken}
-                    plain={inComposer}
+                    textClass={look?.text}
                 />
             );
         } else {
@@ -1130,7 +1133,7 @@ export function PatchPromptSection({
                     label={label}
                     side="target"
                     predictionToken={predictionToken}
-                    plain={inComposer}
+                    textClass={look?.text}
                 />
             );
         }
@@ -1168,8 +1171,9 @@ export function PatchPromptSection({
                         placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
                         className={cn(
                             inComposer
-                                ? "w-full resize-none overflow-hidden rounded-none border-0 bg-transparent pr-16 !text-base !leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent"
+                                ? "w-full resize-none overflow-hidden rounded-none border-0 bg-transparent pr-16 shadow-none focus-visible:ring-0 dark:bg-transparent"
                                 : "w-full !text-sm bg-input/30 min-h-24 !leading-5",
+                            look?.text,
                             look?.textarea,
                         )}
                         disabled={disabled || loading}
@@ -1187,7 +1191,12 @@ export function PatchPromptSection({
                         )}
                     >
                         {inComposer && (
-                            <span className="float-right ml-2 select-none text-xs leading-7 text-muted-foreground">
+                            <span
+                                className={cn(
+                                    "float-right ml-2 select-none text-xs text-muted-foreground",
+                                    look?.labelLeading,
+                                )}
+                            >
                                 {label}
                             </span>
                         )}
@@ -1198,7 +1207,8 @@ export function PatchPromptSection({
                 {inComposer && isEditing && (
                     <span
                         className={cn(
-                            "pointer-events-none absolute select-none text-xs leading-7 text-muted-foreground",
+                            "pointer-events-none absolute select-none text-xs text-muted-foreground",
+                            look?.labelLeading,
                             look?.label,
                         )}
                     >
@@ -1220,31 +1230,44 @@ export function PatchPromptSection({
     );
 }
 
-/** What sets the modes without a box of their own apart: the scrolling area,
- * the textarea's and the tokens' padding, and the corner the label sits in. */
+/**
+ * What sets the modes without a box of their own apart. `text` is the prompt's
+ * type, shared by its textarea and its tokens, and follows the surface: a
+ * composer's prompt is 16px (which a phone doesn't zoom into) on 24px lines,
+ * growing with Home's hero on large monitors as Home's own prompt does; a side
+ * panel's is 14px on 20px lines, like the lens tools' there. `labelLeading`
+ * keeps the corner label on the first line. The rest is the scrolling area and
+ * the paddings; each `min-h` fits two lines, bar the phone's one.
+ */
 PatchPromptSection.LOOK = {
     compact: {
-        area: "max-h-44",
-        textarea: "min-h-[4.25rem] py-3 pl-4",
-        tokens: "min-h-[4.25rem] px-4 py-3",
+        text: "!text-base !leading-6 monitor:!text-lg monitor:!leading-7 wide:!text-xl",
+        labelLeading: "leading-6 monitor:leading-7",
+        area: "max-h-44 monitor:max-h-52 wide:max-h-60",
+        textarea: "min-h-20 py-3 pl-4",
+        tokens: "min-h-20 px-4 py-3",
         label: "right-4 top-3",
     },
     field: {
+        text: "!text-sm !leading-5",
+        labelLeading: "leading-5",
         area: "max-h-56 rounded-md border bg-input/30 transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50",
-        textarea: "min-h-[4.25rem] py-2 pl-3",
-        tokens: "min-h-[4.25rem] px-3 py-2",
+        textarea: "min-h-14 py-2 pl-3",
+        tokens: "min-h-14 px-3 py-2",
         label: "right-3 top-2",
     },
     floating: {
-        area: "my-1 max-h-7 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-28 group-has-[textarea:focus]/composer:max-h-7",
-        textarea: "min-h-7 py-0 pl-3",
-        tokens: "min-h-7 px-3",
-        label: "right-3 top-0",
+        text: "!text-base !leading-6",
+        labelLeading: "leading-6",
+        area: "my-1.5 max-h-6 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-24 group-has-[textarea:focus]/composer:max-h-6",
+        textarea: "min-h-6 py-0 pl-4",
+        tokens: "min-h-6 px-4",
+        label: "right-4 top-0",
     },
 } as const;
 
-/** A composer line's height (px, `leading-7`): the phone composer's prompt area at rest. */
-PatchPromptSection.LINE_PX = 28;
+/** A phone composer line's height (px, `leading-6`): its prompt area at rest. */
+PatchPromptSection.LINE_PX = 24;
 
 // ============================================================================
 // PATCH TOOLS
