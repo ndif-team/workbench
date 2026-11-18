@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
-import { Label } from "@/components/ui/label";
 import { ToolRunButton } from "@/app/(shell)/components/ToolRunButton";
 import { TriangleAlert } from "lucide-react";
 import { useJLens } from "@/lib/api/jlensApi";
@@ -586,10 +585,7 @@ export function JLensControls({
             />
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
                 {unsupportedNotice}
-                <div className="flex flex-col gap-2">
-                    <Label className="text-sm font-medium">Prompt</Label>
-                    {promptEditor}
-                </div>
+                {promptEditor}
 
                 {params}
 
