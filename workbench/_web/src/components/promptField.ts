@@ -14,8 +14,9 @@ export const PROMPT_FIELD = {
         "rounded-md border border-border bg-card transition-colors focus-within:border-tool-accent",
     /** A composer card around a bare textarea: the same accent border while it is edited. */
     composer: "has-[textarea:focus-visible]:border-tool-accent",
-    /** A prompt waiting on its tokens (`useIsTokenizing`): its text breathes. */
-    tokenizing: "animate-pulse cursor-progress motion-reduce:animate-none",
+    /** A prompt waiting on its tokens (`useIsTokenizing`): a highlight sweeps
+     * across it (`prompt-tokenizing` in `globals.css`). */
+    tokenizing: "prompt-tokenizing",
     /** A `Textarea` that is the field itself. */
     textarea:
         "border-border bg-card shadow-none transition-colors focus-visible:border-tool-accent focus-visible:ring-0 dark:bg-card",
