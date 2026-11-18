@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { encodeText } from "@/actions/tok";
+import { PROMPT_FIELD } from "@/components/promptField";
 import type { Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
 
@@ -52,7 +53,7 @@ export const PATCH_COLORS = [
 
 // Token styling constants
 const TOKEN_STYLES = {
-    base: "!text-sm !leading-5 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
+    base: "!text-base !leading-7 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
     /** A plain-text prompt's tokens; the mode's look sets their size (`PatchPromptSection.LOOK`). */
     plain: "whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
     /** Plain text at rest; the tokens around the pointer are outlined (`patch-tokens` in
@@ -1172,7 +1173,7 @@ export function PatchPromptSection({
                         className={cn(
                             inComposer
                                 ? "w-full resize-none overflow-hidden rounded-none border-0 bg-transparent pr-16 shadow-none focus-visible:ring-0 dark:bg-transparent"
-                                : "w-full !text-sm bg-input/30 min-h-24 !leading-5",
+                                : cn("min-h-24 w-full", PROMPT_FIELD.text, PROMPT_FIELD.textarea),
                             look?.text,
                             look?.textarea,
                         )}
@@ -1186,7 +1187,7 @@ export function PatchPromptSection({
                         className={cn(
                             look
                                 ? cn("w-full", look.tokens)
-                                : "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
+                                : cn("flex min-h-24 w-full px-3 py-2", PROMPT_FIELD.surface),
                             loading ? "cursor-progress" : "cursor-text",
                         )}
                     >
@@ -1232,39 +1233,37 @@ export function PatchPromptSection({
 
 /**
  * What sets the modes without a box of their own apart. `text` is the prompt's
- * type, shared by its textarea and its tokens, and follows the surface: a
- * composer's prompt is 16px (which a phone doesn't zoom into) on 24px lines,
- * growing with Home's hero on large monitors as Home's own prompt does; a side
- * panel's is 14px on 20px lines, like the lens tools' there. `labelLeading`
- * keeps the corner label on the first line. The rest is the scrolling area and
- * the paddings; each `min-h` fits two lines, bar the phone's one.
+ * type, shared by its textarea and its tokens: `PROMPT_FIELD.text`, or its
+ * tighter `phoneText` in the phone's composer, with Home's growing on large monitors as Home's own prompt does.
+ * `labelLeading` keeps the corner label on the first line. The rest is the
+ * scrolling area and the paddings.
  */
 PatchPromptSection.LOOK = {
     compact: {
-        text: "!text-base !leading-6 monitor:!text-lg monitor:!leading-7 wide:!text-xl",
-        labelLeading: "leading-6 monitor:leading-7",
+        text: cn(PROMPT_FIELD.text, "monitor:!text-lg wide:!text-xl wide:!leading-8"),
+        labelLeading: "leading-7 wide:leading-8",
         area: "max-h-44 monitor:max-h-52 wide:max-h-60",
         textarea: "min-h-20 py-3 pl-4",
         tokens: "min-h-20 px-4 py-3",
         label: "right-4 top-3",
     },
     field: {
-        text: "!text-sm !leading-5",
-        labelLeading: "leading-5",
-        area: "max-h-56 rounded-md border bg-input/30 transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50",
-        textarea: "min-h-14 py-2 pl-3",
-        tokens: "min-h-14 px-3 py-2",
+        text: PROMPT_FIELD.text,
+        labelLeading: "leading-7",
+        area: cn("max-h-64", PROMPT_FIELD.surface),
+        textarea: "min-h-[4.5rem] py-2 pl-3",
+        tokens: "min-h-[4.5rem] px-3 py-2",
         label: "right-3 top-2",
     },
     floating: {
-        text: "!text-base !leading-6",
+        text: PROMPT_FIELD.phoneText,
         labelLeading: "leading-6",
         area: "my-1.5 max-h-6 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-24 group-has-[textarea:focus]/composer:max-h-6",
         textarea: "min-h-6 py-0 pl-4",
         tokens: "min-h-6 px-4",
         label: "right-4 top-0",
     },
-} as const;
+};
 
 /** A phone composer line's height (px, `leading-6`): its prompt area at rest. */
 PatchPromptSection.LINE_PX = 24;

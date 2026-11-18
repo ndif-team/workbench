@@ -1,5 +1,6 @@
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { PROMPT_FIELD } from "@/components/promptField";
 import { cn } from "@/lib/utils";
 import type { Token } from "@/types/models";
 
@@ -46,6 +47,7 @@ export function LensPromptEditor({
 }: LensPromptEditorProps) {
     const floating = layout === "floating";
     const styles = LensPromptEditor.TOKEN_STYLES;
+    const text = floating ? PROMPT_FIELD.phoneText : PROMPT_FIELD.text;
 
     return (
         <div className="relative">
@@ -59,8 +61,11 @@ export function LensPromptEditor({
                     aria-label="Prompt"
                     className={
                         floating
-                            ? "min-h-10 w-full resize-none overflow-hidden rounded-none border-0 bg-transparent px-4 py-2 !text-base !leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
-                            : "w-full !text-sm bg-input/30 min-h-32 !leading-5"
+                            ? cn(
+                                  "min-h-10 w-full resize-none overflow-hidden rounded-none border-0 bg-transparent px-4 py-2 shadow-none focus-visible:ring-0 dark:bg-transparent",
+                                  PROMPT_FIELD.phoneText,
+                              )
+                            : cn("min-h-32 w-full", PROMPT_FIELD.text, PROMPT_FIELD.textarea)
                     }
                     placeholder="Enter your prompt here..."
                     disabled={!interactive}
@@ -69,8 +74,10 @@ export function LensPromptEditor({
                 <div
                     ref={tokenContainerRef}
                     className={cn(
-                        "flex w-full py-2",
-                        floating ? "min-h-10 px-4" : "px-3 bg-input/30 border rounded min-h-32",
+                        "flex w-full",
+                        floating
+                            ? "min-h-10 px-4 py-2"
+                            : cn("min-h-32 px-3 py-2", PROMPT_FIELD.surface),
                         loading ? "cursor-progress" : "cursor-text",
                     )}
                     onClick={() => {
@@ -88,7 +95,7 @@ export function LensPromptEditor({
                                         data-token-id={idx}
                                         className={cn(
                                             styles.base,
-                                            styles.size[layout],
+                                            text,
                                             "bg-transparent",
                                             !loading && styles.hover,
                                             token.text === "\\n" ? "w-full" : "w-fit",
@@ -105,7 +112,7 @@ export function LensPromptEditor({
                             <span
                                 className={cn(
                                     styles.base,
-                                    styles.size[layout],
+                                    text,
                                     "cursor-default italic text-zinc-500 dark:text-zinc-400",
                                 )}
                                 title={`Predicted next token: "${nextToken}"`}
@@ -122,8 +129,6 @@ export function LensPromptEditor({
 
 LensPromptEditor.TOKEN_STYLES = {
     base: "whitespace-pre-wrap break-words select-none !box-border relative",
-    /** The floating composer's text is 16px, which a phone doesn't zoom into. */
-    size: { panel: "!text-sm !leading-5", floating: "!text-base !leading-6" },
     hover: "hover:bg-primary/20 hover:ring-1 hover:ring-primary/30 hover:ring-inset",
 } as const;
 
