@@ -255,6 +255,8 @@ Defined in `src/app/globals.css`:
 - Shadow ramp: `--shadow-xs … --shadow-2xl`. Default cards use `shadow-xs` or `shadow-sm`.
 - Sidebar surfaces use `bg-secondary/80` (light) and `bg-secondary/50` (dark), bordered, with `rounded`.
 
+**Prompt type follows the surface, not the tool**: a composer's prompt (Home's and the phone's) is `text-base` on `leading-6`, with Home's growing at `monitor:` and `wide:` as its hero does; a side panel's is `text-sm` on `leading-5`. The lens tools set it in `LensPromptEditor.TOKEN_STYLES`, activation patching in `PatchPromptSection.LOOK` (`text`), and a prompt's textarea, tokens and placeholder share it.
+
 **Hard rules**:
 - `font-mono` ONLY on content the user reads as data: code, prompts, outputs, tabular numbers. Never UI chrome.
 - No tracked-uppercase tiny labels (`text-[10px] uppercase tracking-…`) — the rest of the app uses sentence-case `text-sm font-medium`.
