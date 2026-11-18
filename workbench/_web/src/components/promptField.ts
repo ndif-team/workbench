@@ -1,6 +1,7 @@
 /**
  * The look of a tool's prompt, shared by every tool. Its text is 14px on 24px
- * lines in a side panel, in Home's composer and on a phone. iOS zooms into a
+ * lines in a side panel and in a phone's composer; Home's composer, the page's
+ * one subject, sets it a size larger. iOS zooms into a
  * focused field under 16px, so there a prompt's textarea is 16px while it is
  * edited (`prompt-input` in `globals.css`).
  * In a side panel it sits on the card surface inside a hairline border, like

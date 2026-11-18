@@ -685,7 +685,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                                 onKeyDown={handleKeyDown}
                                 placeholder="Enter a prompt to analyze..."
                                 aria-label="Prompt"
-                                className="prompt-input min-h-24 resize-none border-0 bg-transparent px-4 pt-4 text-sm leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent md:text-sm md:leading-6 monitor:min-h-28 monitor:text-base monitor:leading-7 wide:min-h-32 wide:text-lg wide:leading-7"
+                                className="prompt-input min-h-24 resize-none border-0 bg-transparent px-4 pt-4 text-base leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent md:text-base md:leading-7 monitor:min-h-28 monitor:text-lg monitor:leading-7 wide:min-h-32 wide:text-xl wide:leading-8"
                                 disabled={showCaptcha || isSubmitting}
                             />
                         ) : (

@@ -1232,8 +1232,11 @@ export function PatchPromptSection({
  */
 PatchPromptSection.LOOK = {
     compact: {
-        text: cn(PROMPT_FIELD.text, "monitor:!text-base monitor:!leading-7 wide:!text-lg"),
-        labelLeading: "leading-6 monitor:leading-7",
+        text: cn(
+            PROMPT_FIELD.text,
+            "!text-base !leading-7 monitor:!text-lg wide:!text-xl wide:!leading-8",
+        ),
+        labelLeading: "leading-7 wide:leading-8",
         area: "max-h-44 monitor:max-h-52 wide:max-h-60",
         textarea: "min-h-20 py-3 pl-4",
         tokens: "min-h-20 px-4 py-3",
