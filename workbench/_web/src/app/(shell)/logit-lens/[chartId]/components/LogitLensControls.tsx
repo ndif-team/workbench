@@ -705,7 +705,7 @@ export function LogitLensControls({
                     ) : (
                         <>
                             <LogitLensControls.Icon className="mr-2 h-4 w-4" />
-                            Run Logit Lens
+                            Run
                         </>
                     )}
                 </Button>

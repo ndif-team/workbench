@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { useScopedWorkspaceId } from "@/components/providers/WorkspaceScopeProvider";
 import { useCapture } from "@/lib/analytics";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, Loader2, Play, X } from "lucide-react";
+import { toolMeta } from "@/app/(shell)/components/toolMeta";
+import { AlertCircle, Loader2, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import {
@@ -912,7 +913,7 @@ export default function PatchLensArea({
                     id="patch-lens-run"
                     onClick={handleRun}
                     disabled={!canRun}
-                    className="w-full"
+                    className="w-full bg-violet-500 text-white hover:bg-violet-600"
                 >
                     {isRunning ? (
                         <>
@@ -921,8 +922,8 @@ export default function PatchLensArea({
                         </>
                     ) : (
                         <>
-                            <Play className="mr-2 h-4 w-4" />
-                            Run Patch Lens
+                            <PatchLensArea.Icon className="mr-2 h-4 w-4" />
+                            Run
                         </>
                     )}
                 </Button>
@@ -984,3 +985,6 @@ export default function PatchLensArea({
         </div>
     );
 }
+
+/** The tool's icon, which its Run button carries. */
+PatchLensArea.Icon = toolMeta("patch-lens")!.Icon;

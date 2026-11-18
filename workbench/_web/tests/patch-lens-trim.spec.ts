@@ -72,7 +72,7 @@ test.describe("patch-lens prompt trimming (real NDIF)", () => {
         await expect(textarea).toHaveValue(PROMPT_WITH_SPACE);
 
         // Run against NDIF.
-        await page.getByRole("button", { name: /Run Patch Lens/i }).click();
+        await page.getByRole("button", { name: "Run", exact: true }).click();
         // Wait for the run to finish (the button reverts from "Computing...").
         await expect(page.getByText(/Computing/i)).toHaveCount(0, {
             timeout: REAL_NDIF_TIMEOUT_MS,

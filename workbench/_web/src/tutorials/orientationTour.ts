@@ -50,7 +50,7 @@ export function orientationTourSteps({ docked }: OrientationTourOptions): Extend
             selector: "#patch-lens-run",
             stepId: "tour-run",
             content:
-                "Click Run Patch Lens. It takes a few seconds. The model runs on a shared research cluster, so you might wait in a short queue.",
+                "Click Run. It takes a few seconds. The model runs on a shared research cluster, so you might wait in a short queue.",
             // Wait for the run to finish, not just the click: the next step talks
             // about a heatmap, and advancing on the click would point at a skeleton.
             trigger: { type: "runCompleted" },

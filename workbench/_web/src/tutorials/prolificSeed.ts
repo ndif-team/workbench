@@ -176,7 +176,7 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             id: TUTORIAL_STEP_IDS.orientation,
             kind: "lens",
             title: "Read one prediction",
-            task: "Click Run Patch Lens. Then find the bottom-right cell of the heatmap, at the last layer and the last position. That one cell is the model's prediction for what comes next.",
+            task: "Click Run. Then find the bottom-right cell of the heatmap, at the last layer and the last position. That one cell is the model's prediction for what comes next.",
             concept:
                 "The model predicts one token at a time, and nothing more. A token is usually a whole word, sometimes a piece of one or a bit of punctuation. Everything in the heatmap is the model working its way toward that single next token, layer by layer, left to right.",
             why: "Every AI writing tool you have used is doing this one step, over and over — autocomplete, a chat assistant, a coding assistant. If you can read one prediction, you can read all of them.",
@@ -186,7 +186,7 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             hints: [
                 {
                     stage: 1,
-                    text: "Click Run Patch Lens, then look at the last row: that's the model working on the word that comes after your prompt.",
+                    text: "Click Run, then look at the last row: that's the model working on the word that comes after your prompt.",
                 },
                 {
                     stage: 2,
@@ -194,7 +194,7 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
                 },
                 {
                     stage: 3,
-                    text: "Nothing showing up? Load the starter prompt into the 'source' box, then click Run Patch Lens. The heatmap only appears after a run.",
+                    text: "Nothing showing up? Load the starter prompt into the 'source' box, then click Run. The heatmap only appears after a run.",
                     insertPrompt: EIFFEL,
                 },
             ],
@@ -243,7 +243,7 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
             hints: [
                 {
                     stage: 1,
-                    text: "Click into the 'source' box, type the predicted token at the end of the prompt, then click Run Patch Lens again.",
+                    text: "Click into the 'source' box, type the predicted token at the end of the prompt, then click Run again.",
                 },
                 {
                     stage: 2,
@@ -517,7 +517,7 @@ export const PROLIFIC_TUTORIAL_SEED: TutorialContent = {
         {
             id: TUTORIAL_STEP_IDS.compare,
             kind: "patch",
-            task: "There are now two prompts: a 'source' box and a 'target' box, each with its own heatmap. Click 'Load both prompts and run' (or Run Patch Lens) to build both. Read the bottom-right cell of each one, and find the row in each heatmap that holds the landmark's name. Don't move anything yet.",
+            task: "There are now two prompts: a 'source' box and a 'target' box, each with its own heatmap. Click 'Load both prompts and run' (or Run) to build both. Read the bottom-right cell of each one, and find the row in each heatmap that holds the landmark's name. Don't move anything yet.",
             title: "Compare two prompts",
             concept:
                 "Each prompt gets its own heatmap, and each reaches its own answer independently. The two are not connected yet. These two sentences are identical apart from the landmark, so the landmark is the only thing that can explain why one answers Paris and the other Rome — and the row holding that name is where the difference has to live. Finding that row in each grid is what makes the next step possible.",

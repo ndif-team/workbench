@@ -27,7 +27,7 @@ test.beforeEach(async ({ page }) => {
  *     - <textarea placeholder="Enter your prompt here...">
  *     - "Top-K Predictions" Slider (1..10)
  *     - "Include Entropy" Checkbox
- *     - "Run Logit Lens" Button (turns into "Computing..." while running)
+ *     - "Run" Button (turns into "Computing..." while running)
  *     - Submit shortcut is Cmd/Ctrl + Enter (plain Enter just inserts a newline)
  *
  *   Display panel (LogitLensDisplay.tsx):
@@ -51,7 +51,7 @@ async function runOnce(page: import("@playwright/test").Page) {
         await editor.focus();
         await editor.press("ControlOrMeta+Enter");
     } else {
-        await page.getByRole("button", { name: /Run Logit Lens/i }).click();
+        await page.getByRole("button", { name: "Run", exact: true }).click();
     }
 
     // The widget Empty-state copy is the most stable signal that no

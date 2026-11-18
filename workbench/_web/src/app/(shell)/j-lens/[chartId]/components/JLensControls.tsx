@@ -708,7 +708,7 @@ export function JLensControls({
                     ) : (
                         <>
                             <JLensControls.Icon className="mr-2 h-4 w-4" />
-                            Run J-Lens
+                            Run
                         </>
                     )}
                 </Button>
