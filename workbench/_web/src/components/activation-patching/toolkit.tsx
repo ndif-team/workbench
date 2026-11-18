@@ -54,7 +54,7 @@ export const PATCH_COLORS = [
 
 // Token styling constants
 const TOKEN_STYLES = {
-    base: "!text-base !leading-7 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
+    base: "!text-sm !leading-6 whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
     /** A plain-text prompt's tokens; the mode's look sets their size (`PatchPromptSection.LOOK`). */
     plain: "whitespace-pre-wrap break-words select-none !box-border relative px-0.5 py-0.5 rounded-sm transition-all",
     /** Plain text at rest; the tokens around the pointer are outlined (`patch-tokens` in
@@ -1234,15 +1234,15 @@ export function PatchPromptSection({
 
 /**
  * What sets the modes without a box of their own apart. `text` is the prompt's
- * type, shared by its textarea and its tokens: `PROMPT_FIELD.text`, or its
- * tighter `phoneText` in the phone's composer, with Home's growing on large monitors as Home's own prompt does.
+ * type, shared by its textarea and its tokens: `PROMPT_FIELD.text`, with
+ * Home's growing on large monitors as Home's own prompt does.
  * `labelLeading` keeps the corner label on the first line. The rest is the
  * scrolling area and the paddings.
  */
 PatchPromptSection.LOOK = {
     compact: {
-        text: cn(PROMPT_FIELD.text, "monitor:!text-lg wide:!text-xl wide:!leading-8"),
-        labelLeading: "leading-7 wide:leading-8",
+        text: cn(PROMPT_FIELD.text, "monitor:!text-base monitor:!leading-7 wide:!text-lg"),
+        labelLeading: "leading-6 monitor:leading-7",
         area: "max-h-44 monitor:max-h-52 wide:max-h-60",
         textarea: "min-h-20 py-3 pl-4",
         tokens: "min-h-20 px-4 py-3",
@@ -1250,14 +1250,14 @@ PatchPromptSection.LOOK = {
     },
     field: {
         text: PROMPT_FIELD.text,
-        labelLeading: "leading-7",
+        labelLeading: "leading-6",
         area: cn("max-h-64", PROMPT_FIELD.surface),
         textarea: "min-h-[4.5rem] py-2 pl-3",
         tokens: "min-h-[4.5rem] px-3 py-2",
         label: "right-3 top-2",
     },
     floating: {
-        text: PROMPT_FIELD.phoneText,
+        text: PROMPT_FIELD.text,
         labelLeading: "leading-6",
         area: "my-1.5 max-h-6 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-24 group-has-[textarea:focus]/composer:max-h-6",
         textarea: "min-h-6 py-0 pl-4",

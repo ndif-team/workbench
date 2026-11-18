@@ -47,7 +47,7 @@ export function LensPromptEditor({
 }: LensPromptEditorProps) {
     const floating = layout === "floating";
     const styles = LensPromptEditor.TOKEN_STYLES;
-    const text = floating ? PROMPT_FIELD.phoneText : PROMPT_FIELD.text;
+    const text = PROMPT_FIELD.text;
 
     return (
         <div className="relative">
@@ -63,7 +63,7 @@ export function LensPromptEditor({
                         floating
                             ? cn(
                                   "min-h-10 w-full resize-none overflow-hidden rounded-none border-0 bg-transparent px-4 py-2 shadow-none focus-visible:ring-0 dark:bg-transparent",
-                                  PROMPT_FIELD.phoneText,
+                                  PROMPT_FIELD.text,
                               )
                             : cn("min-h-32 w-full", PROMPT_FIELD.text, PROMPT_FIELD.textarea)
                     }

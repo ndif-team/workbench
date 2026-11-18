@@ -173,6 +173,14 @@
     --tw-ring-color: hsl(var(--border) / 0.3);
 }
 
+/* iOS zooms the page into a focused field under 16px, so a prompt's textarea
+ * is 16px there while it is edited. */
+@supports (-webkit-touch-callout: none) {
+    textarea.prompt-input {
+        font-size: 1rem !important;
+    }
+}
+
 /* The expanded sidebar's own surface (the --sidebar tokens), so the page's
  * cards, set straight on the shell's gradient, don't run into it. */
 .sidebar-surface {
