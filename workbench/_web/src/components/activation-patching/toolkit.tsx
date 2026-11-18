@@ -111,7 +111,7 @@ function SelectableTokenDisplay({
     side,
     predictionToken,
     tokensClickable = true,
-    floating = false,
+    plain = false,
 }: {
     tokens: Token[];
     loading: boolean;
@@ -127,7 +127,7 @@ function SelectableTokenDisplay({
     side: "source" | "target";
     predictionToken?: string | null;
     /** The composers' tokens (Home's and the phone's), at the size of their text. */
-    floating?: boolean;
+    plain?: boolean;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
         // Only claim the click when clicking a token actually does something. With
@@ -141,13 +141,13 @@ function SelectableTokenDisplay({
         }
     };
 
-    const baseStyles = floating ? TOKEN_STYLES.floating : TOKEN_STYLES.base;
+    const baseStyles = plain ? TOKEN_STYLES.floating : TOKEN_STYLES.base;
 
     return (
         <div className="patch-tokens w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.length === 0 ? (
                 <span className="text-muted-foreground italic text-sm">
-                    {floating ? "Enter a prompt" : "Enter text and click away to tokenize"}
+                    {plain ? "Enter a prompt" : "Enter text and click away to tokenize"}
                 </span>
             ) : (
                 tokens.map((token, idx) => {
@@ -241,7 +241,7 @@ function SourceTokenDisplay({
     label,
     predictionToken,
     tokensClickable = true,
-    floating = false,
+    plain = false,
 }: {
     tokens: Token[];
     loading: boolean;
@@ -254,7 +254,7 @@ function SourceTokenDisplay({
     label: string;
     predictionToken?: string | null;
     /** The composers' tokens (Home's and the phone's), at the size of their text. */
-    floating?: boolean;
+    plain?: boolean;
 }) {
     const handleTokenClick = (e: React.MouseEvent, idx: number) => {
         // Only claim the click when clicking a token actually does something. With
@@ -268,13 +268,13 @@ function SourceTokenDisplay({
         }
     };
 
-    const baseStyles = floating ? TOKEN_STYLES.floating : TOKEN_STYLES.base;
+    const baseStyles = plain ? TOKEN_STYLES.floating : TOKEN_STYLES.base;
 
     return (
         <div className="patch-tokens w-full custom-scrollbar select-none whitespace-pre-wrap break-words">
             {tokens.length === 0 ? (
                 <span className="text-muted-foreground italic text-sm">
-                    {floating ? "Enter a prompt" : "Enter text and click away to tokenize"}
+                    {plain ? "Enter a prompt" : "Enter text and click away to tokenize"}
                 </span>
             ) : (
                 tokens.map((token, idx) => {
@@ -895,14 +895,16 @@ export function useActivationPatchingState({
 // ============================================================================
 // UNIFIED PROMPT SECTION COMPONENT
 // Handles both source (with range selection) and target (with freeze) variants
-// Supports compact mode (landing page) and full mode (chart page)
+// Its `mode` picks the look: see PatchPromptSectionProps
 // ============================================================================
 
 interface PatchPromptSectionProps {
     variant: "source" | "target";
-    /** "full" is the chart's side panel. "compact" (Home's composer) and
-     * "floating" (the chart's composer on a phone, `FloatingToolComposer`)
-     * share a look: no box of their own, the label in a corner. "compact"
+    /** "full" is Patch Lens's boxed prompt under a label. The others share a
+     * look (`PatchPromptSection.LOOK`): plain-text tokens, the label in a
+     * corner. "field" is the activation-patching side panel's tinted field;
+     * "compact" is Home's composer and "floating" the chart's composer on a
+     * phone (`FloatingToolComposer`), neither with a box of its own. "compact"
      * tokenizes its prompt itself and is as tall as its text, up to about six
      * lines, where it scrolls.
      * A "floating" prompt shows one line at rest, scrolled to its
@@ -981,8 +983,8 @@ export function PatchPromptSection({
 
     const isCompact = mode === "compact";
     const isFloating = mode === "floating";
-    const isField = mode === "field";
-    const inComposer = isCompact || isFloating || isField;
+    const look = mode === "full" ? null : PatchPromptSection.LOOK[mode];
+    const inComposer = look !== null;
     const isSource = variant === "source";
     const loading = isExecuting || isTokenizing;
 
@@ -1045,11 +1047,13 @@ export function PatchPromptSection({
     // its first selected token, whenever the area shrinks back or the
     // selection changes while it is at rest.
     const scrollerRef = useRef<HTMLDivElement>(null);
-    const firstSelected = isSource
-        ? Math.min(
-              ...(selectedPositions ?? []).map((pos) => (typeof pos === "number" ? pos : pos[0])),
-          )
-        : Math.min(...(tgtSelectedPositions ?? []));
+    const firstSelected = !isFloating
+        ? Infinity
+        : isSource
+          ? Math.min(
+                ...(selectedPositions ?? []).map((pos) => (typeof pos === "number" ? pos : pos[0])),
+            )
+          : Math.min(...(tgtSelectedPositions ?? []));
     useEffect(() => {
         const scroller = scrollerRef.current;
         if (!isFloating || !scroller) return;
@@ -1095,7 +1099,7 @@ export function PatchPromptSection({
                     tokensClickable={tokensClickable}
                     label={label}
                     predictionToken={predictionToken}
-                    floating={inComposer}
+                    plain={inComposer}
                 />
             );
         } else {
@@ -1112,7 +1116,7 @@ export function PatchPromptSection({
                     label={label}
                     side="target"
                     predictionToken={predictionToken}
-                    floating={inComposer}
+                    plain={inComposer}
                 />
             );
         }
@@ -1120,7 +1124,7 @@ export function PatchPromptSection({
 
     return (
         <div className={inComposer ? "" : "flex flex-col gap-2"}>
-            {/* Label row - only show for full mode */}
+            {/* Label row: full mode only; the others put the label in a corner */}
             {!inComposer && (
                 <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium">{label}</Label>
@@ -1136,11 +1140,7 @@ export function PatchPromptSection({
                 className={cn(
                     "relative",
                     inComposer && "overflow-y-auto overscroll-contain",
-                    isCompact && "max-h-44",
-                    isField &&
-                        "max-h-56 rounded-md border border-transparent bg-foreground/[0.04] transition-colors focus-within:border-violet-400",
-                    isFloating &&
-                        "max-h-9 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-[8.5rem] group-has-[textarea:focus]/composer:max-h-9",
+                    look?.area,
                 )}
                 ref={scrollerRef}
                 data-patch-scroller={inComposer || undefined}
@@ -1156,9 +1156,7 @@ export function PatchPromptSection({
                             inComposer
                                 ? "w-full resize-none overflow-hidden rounded-none border-0 bg-transparent pr-16 !text-base !leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent"
                                 : "w-full !text-sm bg-input/30 min-h-24 !leading-5",
-                            isCompact && "min-h-[4.25rem] py-3 pl-4",
-                            isField && "min-h-[4.25rem] py-2 pl-3",
-                            isFloating && "min-h-9 py-1 pl-3",
+                            look?.textarea,
                         )}
                         disabled={disabled || loading}
                         autoFocus={!isCompact}
@@ -1168,13 +1166,9 @@ export function PatchPromptSection({
                         ref={tokenContainerRef as React.RefObject<HTMLDivElement>}
                         onClick={handleContainerClick}
                         className={cn(
-                            isCompact
-                                ? "min-h-[4.25rem] w-full px-4 py-3"
-                                : isField
-                                  ? "min-h-[4.25rem] w-full px-3 py-2"
-                                  : isFloating
-                                    ? "min-h-9 w-full px-3 py-1"
-                                    : "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
+                            look
+                                ? cn("w-full", look.tokens)
+                                : "flex w-full px-3 py-2 bg-input/30 border rounded min-h-24",
                             loading ? "cursor-progress" : "cursor-text",
                         )}
                     >
@@ -1191,11 +1185,7 @@ export function PatchPromptSection({
                     <span
                         className={cn(
                             "pointer-events-none absolute select-none text-xs leading-7 text-muted-foreground",
-                            isCompact
-                                ? "right-4 top-3"
-                                : isField
-                                  ? "right-3 top-2"
-                                  : "right-3 top-1",
+                            look?.label,
                         )}
                     >
                         {label}
@@ -1215,6 +1205,29 @@ export function PatchPromptSection({
         </div>
     );
 }
+
+/** What sets the modes without a box of their own apart: the scrolling area,
+ * the textarea's and the tokens' padding, and the corner the label sits in. */
+PatchPromptSection.LOOK = {
+    compact: {
+        area: "max-h-44",
+        textarea: "min-h-[4.25rem] py-3 pl-4",
+        tokens: "min-h-[4.25rem] px-4 py-3",
+        label: "right-4 top-3",
+    },
+    field: {
+        area: "max-h-56 rounded-md border border-transparent bg-foreground/[0.04] transition-colors focus-within:border-violet-400",
+        textarea: "min-h-[4.25rem] py-2 pl-3",
+        tokens: "min-h-[4.25rem] px-3 py-2",
+        label: "right-3 top-2",
+    },
+    floating: {
+        area: "max-h-9 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-[8.5rem] group-has-[textarea:focus]/composer:max-h-9",
+        textarea: "min-h-9 py-1 pl-3",
+        tokens: "min-h-9 px-3 py-1",
+        label: "right-3 top-1",
+    },
+} as const;
 
 /** The tallest (px) the phone composer's prompt area is at rest: one line. */
 PatchPromptSection.REST_HEIGHT = 40;
