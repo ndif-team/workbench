@@ -24,7 +24,7 @@ test.beforeEach(async ({ page }) => {
  * src/app/(shell)/logit-lens/[chartId]/components/LogitLens*.tsx):
  *
  *   Controls panel:
- *     - <textarea placeholder="Enter your prompt here...">
+ *     - <textarea placeholder="Enter a prompt...">
  *     - "Top-K Predictions" Slider (1..10)
  *     - "Include Entropy" Checkbox
  *     - "Run" Button (turns into "Computing..." while running)
@@ -46,7 +46,7 @@ async function runOnce(page: import("@playwright/test").Page) {
     // directly, which tokenizes and runs in one step regardless of the button's
     // enabled state. Fall back to clicking Run if the editor already collapsed
     // to the token view (in which case Run is enabled).
-    const editor = page.getByPlaceholder(/Enter your prompt here/);
+    const editor = page.getByPlaceholder(/Enter a prompt\.\.\.$/);
     if ((await editor.count()) > 0) {
         await editor.focus();
         await editor.press("ControlOrMeta+Enter");
@@ -73,7 +73,7 @@ test.describe("Logit Lens (real NDIF)", () => {
     test("enter prompt and run, widget renders", async ({ workbenchPage: page }) => {
         await gotoFreshLensChart(page);
 
-        const textarea = page.getByPlaceholder(/Enter your prompt here/);
+        const textarea = page.getByPlaceholder(/Enter a prompt\.\.\.$/);
         await expect(textarea).toBeVisible({ timeout: 15_000 });
         await textarea.fill(PROMPT);
 
@@ -85,7 +85,7 @@ test.describe("Logit Lens (real NDIF)", () => {
     test("run with higher Top-K", async ({ workbenchPage: page }) => {
         await gotoFreshLensChart(page);
 
-        const textarea = page.getByPlaceholder(/Enter your prompt here/);
+        const textarea = page.getByPlaceholder(/Enter a prompt\.\.\.$/);
         await expect(textarea).toBeVisible({ timeout: 15_000 });
         await textarea.fill(PROMPT);
 
@@ -105,7 +105,7 @@ test.describe("Logit Lens (real NDIF)", () => {
     test("run with Include Entropy enabled", async ({ workbenchPage: page }) => {
         await gotoFreshLensChart(page);
 
-        const textarea = page.getByPlaceholder(/Enter your prompt here/);
+        const textarea = page.getByPlaceholder(/Enter a prompt\.\.\.$/);
         await expect(textarea).toBeVisible({ timeout: 15_000 });
         await textarea.fill(PROMPT);
 

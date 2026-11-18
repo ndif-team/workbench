@@ -166,7 +166,6 @@ export function ActivationPatchingLandingInput({
                 setTokens={setSrcTokens}
                 selectedModel={selectedModel}
                 disabled={disabled}
-                placeholder="Enter a source prompt..."
                 isEditing={srcEditing}
                 setIsEditing={setSrcEditing}
                 selectedPositions={srcPos}
@@ -184,7 +183,6 @@ export function ActivationPatchingLandingInput({
                 setTokens={setTgtTokens}
                 selectedModel={selectedModel}
                 disabled={disabled}
-                placeholder="Enter a target prompt..."
                 isEditing={tgtEditing}
                 setIsEditing={setTgtEditing}
                 tgtSelectedPositions={tgtPos}

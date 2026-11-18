@@ -105,7 +105,10 @@ function SelectableTokenDisplay({
     predictionToken,
     tokensClickable = true,
     textClass,
+    filler,
 }: {
+    /** What a plain-text prompt shows while it has no tokens. */
+    filler?: string;
     tokens: Token[];
     loading: boolean;
     selectedPositions: number[];
@@ -142,7 +145,7 @@ function SelectableTokenDisplay({
         <div className={PROMPT_TOKENS.list}>
             {tokens.length === 0 ? (
                 <span className={cn("text-muted-foreground", textClass ?? "italic text-sm")}>
-                    {plain ? "Enter a prompt" : "Enter text and click away to tokenize"}
+                    {plain ? filler : "Enter text and click away to tokenize"}
                 </span>
             ) : (
                 tokens.map((token, idx) => {
@@ -235,7 +238,10 @@ function SourceTokenDisplay({
     predictionToken,
     tokensClickable = true,
     textClass,
+    filler,
 }: {
+    /** What a plain-text prompt shows while it has no tokens. */
+    filler?: string;
     tokens: Token[];
     loading: boolean;
     selectedPositions: SourcePosition[];
@@ -269,7 +275,7 @@ function SourceTokenDisplay({
         <div className={PROMPT_TOKENS.list}>
             {tokens.length === 0 ? (
                 <span className={cn("text-muted-foreground", textClass ?? "italic text-sm")}>
-                    {plain ? "Enter a prompt" : "Enter text and click away to tokenize"}
+                    {plain ? filler : "Enter text and click away to tokenize"}
                 </span>
             ) : (
                 tokens.map((token, idx) => {
@@ -1086,6 +1092,8 @@ export function PatchPromptSection({
     // read-only, so its clicks must reach the container that opens the editor.
     const tokensClickable = isSource ? !!onSrcTokenClick : !!onTgtTokenClick;
 
+    const filler = placeholder || `Enter ${variant} prompt...`;
+
     // Render token display based on variant
     const renderTokenDisplay = () => {
         if (isSource) {
@@ -1100,6 +1108,7 @@ export function PatchPromptSection({
                     label={label}
                     predictionToken={predictionToken}
                     textClass={look?.text}
+                    filler={filler}
                 />
             );
         } else {
@@ -1117,6 +1126,7 @@ export function PatchPromptSection({
                     side="target"
                     predictionToken={predictionToken}
                     textClass={look?.text}
+                    filler={filler}
                 />
             );
         }
@@ -1151,7 +1161,7 @@ export function PatchPromptSection({
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         onBlur={handleBlur}
-                        placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
+                        placeholder={filler}
                         className={cn(
                             inComposer
                                 ? "w-full resize-none overflow-hidden rounded-none border-0 bg-transparent pr-16 shadow-none focus-visible:ring-0 dark:bg-transparent"

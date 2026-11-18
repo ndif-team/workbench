@@ -66,7 +66,7 @@ export function LensPromptEditor({
                               )
                             : cn("min-h-32 w-full", PROMPT_FIELD.text, PROMPT_FIELD.textarea)
                     }
-                    placeholder="Enter your prompt here..."
+                    placeholder="Enter a prompt..."
                     disabled={!interactive}
                 />
             ) : (

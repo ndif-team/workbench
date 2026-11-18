@@ -116,14 +116,14 @@ test.describe("app shell", () => {
         const chartId = new URL(page.url()).pathname.split("/")[2];
 
         await expect(chartRow(page, chartId)).toHaveAttribute("aria-current", "page");
-        await expect(page.getByPlaceholder("Enter your prompt here...")).toBeFocused({
+        await expect(page.getByPlaceholder("Enter a prompt...")).toBeFocused({
             timeout: 30_000,
         });
 
         // Picking the tool again focuses the same chart's prompt once the launch is done.
         await page.getByRole("button", { name: "New chart" }).first().click();
         await page.getByRole("menuitem", { name: "Logit Lens" }).click();
-        await expect(page.getByPlaceholder("Enter your prompt here...")).toBeFocused({
+        await expect(page.getByPlaceholder("Enter a prompt...")).toBeFocused({
             timeout: 30_000,
         });
         expect(new URL(page.url()).pathname).toBe(`/logit-lens/${chartId}`);
@@ -230,7 +230,7 @@ test.describe("app shell", () => {
             .getByRole("link", { name: workspace });
         await expect(crumb).toBeVisible();
         // A blank chart focuses its prompt once loaded, which would close a menu opened before.
-        const prompt = page.getByPlaceholder("Enter your prompt here...");
+        const prompt = page.getByPlaceholder("Enter a prompt...");
         await expect(prompt).toBeFocused({ timeout: 30_000 });
 
         await page.getByRole("button", { name: "New chart" }).first().click();
@@ -703,7 +703,7 @@ test.describe("app shell", () => {
         const workspaceId = new URL(page.url()).pathname.split("/")[2];
         await page.goto(`/new?tool=logit-lens&workspaceId=${workspaceId}`);
         await page.waitForURL(/\/logit-lens\/[0-9a-f-]{36}$/, { timeout: 60_000 });
-        await expect(page.getByPlaceholder("Enter your prompt here...")).toBeFocused({
+        await expect(page.getByPlaceholder("Enter a prompt...")).toBeFocused({
             timeout: 30_000,
         });
 

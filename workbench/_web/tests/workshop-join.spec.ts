@@ -42,7 +42,7 @@ test.describe("workshop join flow (seeded)", () => {
         // no existing data, so the logit lens auto-runs on open and collapses the editable
         // textarea into the tokenized chip view — reveal the editor (click the
         // chip container when the textarea isn't showing) before asserting value.
-        const promptBox = page.getByPlaceholder(/Enter your prompt here/);
+        const promptBox = page.getByPlaceholder(/Enter a prompt\.\.\.$/);
         const tokenBox = page.locator("div.min-h-32.cursor-text, div.min-h-32.cursor-progress");
         await expect(promptBox.or(tokenBox).first()).toBeVisible({ timeout: 30_000 });
         await expect(async () => {
