@@ -11,34 +11,39 @@ import { encodeText } from "@/actions/tok";
 import type { Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
 
-// Shared colors for patch arrows and token selection
+// Shared colors for patch arrows and token selection; `fg` is the text color that reads on `bg`
 export const PATCH_COLORS = [
     {
         bg: "#8b5cf6",
+        fg: "#ffffff",
         ring: "#8b5cf6",
         hover: "rgba(139, 92, 246, 0.2)",
         hoverRing: "rgba(139, 92, 246, 0.5)",
     }, // violet
     {
         bg: "#f59e0b",
+        fg: "#171717",
         ring: "#f59e0b",
         hover: "rgba(245, 158, 11, 0.2)",
         hoverRing: "rgba(245, 158, 11, 0.5)",
     }, // amber
     {
         bg: "#10b981",
+        fg: "#171717",
         ring: "#10b981",
         hover: "rgba(16, 185, 129, 0.2)",
         hoverRing: "rgba(16, 185, 129, 0.5)",
     }, // emerald
     {
         bg: "#ef4444",
+        fg: "#171717",
         ring: "#ef4444",
         hover: "rgba(239, 68, 68, 0.2)",
         hoverRing: "rgba(239, 68, 68, 0.5)",
     }, // red
     {
         bg: "#ec4899",
+        fg: "#171717",
         ring: "#ec4899",
         hover: "rgba(236, 72, 153, 0.2)",
         hoverRing: "rgba(236, 72, 153, 0.5)",
@@ -55,7 +60,7 @@ const TOKEN_STYLES = {
      * `globals.css`), as are all of them in a phone's composer in use. */
     clickable: "ring-1 ring-inset ring-transparent group-data-[active=true]/composer:ring-border",
     hover: "hover:bg-tool-accent/20 hover:ring-1 hover:ring-tool-accent/50 hover:ring-inset cursor-pointer",
-    selected: "ring-2 ring-inset text-white",
+    selected: "ring-2 ring-inset",
 } as const;
 
 // Create a smooth bezier curve path between two points
@@ -171,6 +176,7 @@ function SelectableTokenDisplay({
                     } else if (isSelected && patchColor) {
                         tokenStyle = {
                             backgroundColor: patchColor.bg,
+                            color: patchColor.fg,
                             boxShadow: `inset 0 0 0 2px ${patchColor.ring}`,
                         };
                     }
@@ -322,6 +328,13 @@ function SourceTokenDisplay({
                                 style={
                                     isSelected || isPendingStart
                                         ? {
+                                              color: (isPendingStart && !isSelected
+                                                  ? PATCH_COLORS[
+                                                        selectedPositions.length %
+                                                            PATCH_COLORS.length
+                                                    ]
+                                                  : patchColor
+                                              )?.fg,
                                               backgroundColor:
                                                   isPendingStart && !isSelected
                                                       ? PATCH_COLORS[
@@ -1058,11 +1071,12 @@ export function PatchPromptSection({
         const scroller = scrollerRef.current;
         if (!isFloating || !scroller) return;
         const showSelection = () => {
-            if (scroller.clientHeight > PatchPromptSection.REST_HEIGHT) return;
+            if (scroller.clientHeight > PatchPromptSection.LINE_PX) return;
             const token = Number.isFinite(firstSelected)
                 ? scroller.querySelector<HTMLElement>(`[data-token-id="${firstSelected}"]`)
                 : null;
-            scroller.scrollTop = token ? token.offsetTop - 6 : 0;
+            const line = PatchPromptSection.LINE_PX;
+            scroller.scrollTop = token ? Math.floor(token.offsetTop / line) * line : 0;
         };
         showSelection();
         const observer = new ResizeObserver(showSelection);
@@ -1216,21 +1230,21 @@ PatchPromptSection.LOOK = {
         label: "right-4 top-3",
     },
     field: {
-        area: "max-h-56 rounded-md border border-transparent bg-foreground/[0.04] transition-colors focus-within:border-tool-accent",
+        area: "max-h-56 rounded-md border bg-input/30 transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50",
         textarea: "min-h-[4.25rem] py-2 pl-3",
         tokens: "min-h-[4.25rem] px-3 py-2",
         label: "right-3 top-2",
     },
     floating: {
-        area: "max-h-9 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-[8.5rem] group-has-[textarea:focus]/composer:max-h-9",
-        textarea: "min-h-9 py-1 pl-3",
-        tokens: "min-h-9 px-3 py-1",
-        label: "right-3 top-1",
+        area: "my-1 max-h-7 transition-[max-height] focus-within:!max-h-[30vh] group-data-[active=true]/composer:max-h-28 group-has-[textarea:focus]/composer:max-h-7",
+        textarea: "min-h-7 py-0 pl-3",
+        tokens: "min-h-7 px-3",
+        label: "right-3 top-0",
     },
 } as const;
 
-/** The tallest (px) the phone composer's prompt area is at rest: one line. */
-PatchPromptSection.REST_HEIGHT = 40;
+/** A composer line's height (px, `leading-7`): the phone composer's prompt area at rest. */
+PatchPromptSection.LINE_PX = 28;
 
 // ============================================================================
 // PATCH TOOLS
@@ -1278,7 +1292,7 @@ function PatchList({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-2 text-xs text-muted-foreground"
+                        className="px-2 text-xs text-muted-foreground"
                         onClick={onClear}
                         disabled={disabled}
                     >
@@ -1293,13 +1307,13 @@ function PatchList({
             ) : (
                 <ul className="flex flex-col gap-1">
                     {srcPos.map((pos, index) => {
-                        const color = PATCH_COLORS[index % PATCH_COLORS.length].bg;
+                        const color = PATCH_COLORS[index % PATCH_COLORS.length];
                         const target = tgtTokens[tgtPos[index]]?.text.trim();
                         return (
                             <li key={index} className="flex min-w-0 items-center gap-1.5 text-sm">
                                 <span
-                                    className="min-w-0 truncate rounded-sm px-1 text-white"
-                                    style={{ backgroundColor: color }}
+                                    className="min-w-0 truncate rounded-sm px-1"
+                                    style={{ backgroundColor: color.bg, color: color.fg }}
                                 >
                                     {sourceText(pos)}
                                 </span>
@@ -1308,8 +1322,8 @@ function PatchList({
                                 </span>
                                 {target !== undefined ? (
                                     <span
-                                        className="min-w-0 truncate rounded-sm px-1 text-white"
-                                        style={{ backgroundColor: color }}
+                                        className="min-w-0 truncate rounded-sm px-1"
+                                        style={{ backgroundColor: color.bg, color: color.fg }}
                                     >
                                         {target}
                                     </span>
@@ -1322,7 +1336,7 @@ function PatchList({
                                     type="button"
                                     variant="ghost"
                                     size="icon"
-                                    className="ml-auto size-6"
+                                    className="ml-auto"
                                     aria-label="Remove patch"
                                     onClick={() => onRemove(index)}
                                     disabled={disabled}
@@ -1335,7 +1349,7 @@ function PatchList({
                 </ul>
             )}
             {tgtFreeze.length > 0 && (
-                <p className="flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400">
+                <p className="flex items-center gap-1 text-xs text-cyan-700 dark:text-cyan-400">
                     <Snowflake className="size-3 shrink-0" />
                     {tgtFreeze
                         .slice()
