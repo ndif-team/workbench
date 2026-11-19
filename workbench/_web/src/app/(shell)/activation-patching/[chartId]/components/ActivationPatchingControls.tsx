@@ -16,7 +16,6 @@ import {
     SourcePosition,
 } from "@/types/activationPatching";
 import { encodeText } from "@/lib/tokenize";
-import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { toast } from "sonner";
 import { getChartById } from "@/lib/queries/chartQueries";
@@ -625,36 +624,8 @@ export function ActivationPatchingControls({
         }
 
         // The picked positions index the tokens on screen, so a run needs those
-        // tokens current; tokenize only when they are not.
-        if (!srcTokensInSync || !tgtTokensInSync) {
-            let srcToks: Token[];
-            let tgtToks: Token[];
-            try {
-                srcToks = await encodeText(srcPrompt, selectedModel);
-                tgtToks = await encodeText(tgtPrompt, selectedModel);
-            } catch (error) {
-                if (error instanceof TokenizerLoadError) {
-                    toast.error(
-                        `Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`,
-                    );
-                } else {
-                    toast.error("Failed to tokenize prompts.");
-                }
-                return;
-            }
-
-            if (srcToks.length <= 1 || tgtToks.length <= 1) {
-                toast.error("Please enter longer prompts.");
-                return;
-            }
-
-            setSrcTokens(srcToks);
-            setTgtTokens(tgtToks);
-            setSrcTokenizedModel(selectedModel);
-            setTgtTokenizedModel(selectedModel);
-            lastTokenizedSrcPromptRef.current = srcPrompt;
-            lastTokenizedTgtPromptRef.current = tgtPrompt;
-        }
+        // tokens current (`canRun`).
+        if (!srcTokensInSync || !tgtTokensInSync) return;
 
         const config: ActivationPatchingConfigData = {
             ...initialConfig.data,
@@ -965,14 +936,8 @@ export function ActivationPatchingControls({
                 promptArea="own"
                 hint={hint}
                 tools={patchTools}
-                // While a prompt is being edited Run stays enabled and ends the
-                // edit: a tap on a disabled button blurs nothing on a touch
-                // screen, and the blur is what tokenizes the prompt.
-                runDisabled={!canRun && !(editing && interactive)}
-                onRun={() => {
-                    if (editing) (document.activeElement as HTMLElement | null)?.blur();
-                    else handleSubmit();
-                }}
+                runDisabled={!canRun}
+                onRun={handleSubmit}
                 actions={actions}
             />
         );
