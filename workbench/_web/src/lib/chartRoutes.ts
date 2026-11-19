@@ -38,6 +38,11 @@ export function chartPath(
     return workspaceId ? openWorkspacePath(workspaceId) : "/";
 }
 
+/** A chat's page. */
+export function chatPath(chatId: string): string {
+    return `/chat/${chatId}`;
+}
+
 /** Report editor. */
 export function reportPath(reportId: string): string {
     return `/reports/${reportId}`;

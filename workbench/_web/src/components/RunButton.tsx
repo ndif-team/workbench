@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowUp, Loader2, type LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -7,14 +7,16 @@ import { cn } from "@/lib/utils";
 interface RunButtonProps extends Omit<ComponentProps<typeof Button>, "children" | "size"> {
     /** A run is under way: the arrow gives way to a spinner. */
     busy?: boolean;
+    /** A mark in the arrow's place (a chat's Continue). */
+    icon?: LucideIcon;
 }
 
 /**
- * The composers' Run (Home's and the phone's): an arrow on a square of the
- * tools' accent, as tall as the pickers beside it. It is grey while there is
- * nothing to run and keeps its color while a run is under way.
+ * The composers' Run (Home's and the phone's) and a chat's Send: an arrow on
+ * a square of the tools' accent, as tall as the pickers beside it. It is grey
+ * while there is nothing to run and keeps its color while a run is under way.
  */
-export function RunButton({ busy = false, className, ...props }: RunButtonProps) {
+export function RunButton({ busy = false, icon: Icon, className, ...props }: RunButtonProps) {
     return (
         <Button
             variant="tool"
@@ -31,6 +33,8 @@ export function RunButton({ busy = false, className, ...props }: RunButtonProps)
         >
             {busy ? (
                 <Loader2 className="animate-spin" />
+            ) : Icon ? (
+                <Icon strokeWidth={2.5} />
             ) : (
                 <ArrowUp
                     strokeWidth={2.5}

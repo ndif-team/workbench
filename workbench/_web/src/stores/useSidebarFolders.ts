@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-/** The global sidebar's two collapsible sections. */
+/** The global sidebar's two collapsible sections; "charts" is Recent, persisted under its old name. */
 type SidebarSection = "workspaces" | "charts";
 
 interface SidebarFoldersState {

@@ -18,9 +18,10 @@ import { useWorkspaceScope } from "@/components/providers/WorkspaceScopeProvider
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 import type { WorkshopParticipant } from "@/lib/workshop";
-import { usePendingChart } from "@/stores/usePendingChart";
+import { usePendingItem } from "@/stores/usePendingItem";
 import { AppSidebar } from "./AppSidebar";
 import { PendingChartPage } from "./PendingChartPage";
+import { PendingChatPage } from "./PendingChatPage";
 import { SidebarResizeHandle } from "./SidebarResizeHandle";
 import { writeSidebarCollapsed, writeSidebarWidth } from "./sidebarCookie";
 
@@ -202,25 +203,26 @@ export function AppShell({
 }
 
 /**
- * The shell's page area. While a chart launched from the page is being
- * created (`usePendingChart`), it shows that chart's empty page
- * (`PendingChartPage`) in the page's place; the page stays mounted underneath,
- * so a failed launch returns to it as it was. Any page change ends the
- * launch, and the next page shows from its first render. It subscribes on
- * its own so a launch doesn't re-render the sidebar.
+ * The shell's page area. While a chart or chat launched from the page is
+ * being created (`usePendingItem`), it shows that item's page as it starts
+ * (`PendingChartPage`, `PendingChatPage`) in the page's place; the page stays
+ * mounted underneath, so a failed launch returns to it as it was. Any page
+ * change ends the launch, and the next page shows from its first render. It
+ * subscribes on its own so a launch doesn't re-render the sidebar.
  */
 function ShellPage({ children }: { children: ReactNode }) {
     const pathname = usePathname();
-    const pending = usePendingChart((s) => s.pending);
-    const pendingChart = pending?.from === pathname ? pending : null;
+    const pending = usePendingItem((s) => s.pending);
+    const launch = pending?.from === pathname ? pending : null;
     useEffect(() => {
-        usePendingChart.getState().clear();
+        usePendingItem.getState().clear();
     }, [pathname]);
 
     return (
         <>
-            {pendingChart && <PendingChartPage request={pendingChart.request} />}
-            <div className={pendingChart ? "hidden" : "contents"}>{children}</div>
+            {launch?.kind === "chart" && <PendingChartPage request={launch.request} />}
+            {launch?.kind === "chat" && <PendingChatPage chat={launch.chat} />}
+            <div className={launch ? "hidden" : "contents"}>{children}</div>
         </>
     );
 }

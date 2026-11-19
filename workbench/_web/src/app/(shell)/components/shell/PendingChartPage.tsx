@@ -1,12 +1,10 @@
 "use client";
 
 import { useRef, type ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
 
 import { PatchPromptSection, PatchTools } from "@/components/activation-patching/toolkit";
 import { ModelControl } from "@/components/ModelControl";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { useWorkspaceLibrary } from "@/lib/api/workspaceApi";
 import { launchTool, type ChartLaunchRequest } from "@/lib/chartLaunch";
 import { cn } from "@/lib/utils";
 import type { ToolType } from "@/types/charts";
@@ -17,13 +15,13 @@ import { LensPromptEditor } from "../lens/LensPromptEditor";
 import { ToolPanelHeader } from "../ToolPanelHeader";
 import { ToolRunButton } from "../ToolRunButton";
 import { toolMeta } from "../toolMeta";
-import { PageHeader } from "./PageHeader";
+import { PendingItemHeader } from "./PendingItemHeader";
 
 type ComposerTool = Exclude<ToolType, "patch-lens">;
 
 /**
  * The page of a chart that is being created, shown from the moment it's asked
- * for until the chart's own page opens (`usePendingChart`, and `/new`): the
+ * for until the chart's own page opens (`usePendingItem`, and `/new`): the
  * chart page's header and its tool's page before a run, built from that page's
  * own parts (its prompt fields, parameters, Run and placeholder, or on a phone
  * its composer) and holding the prompts it was launched with, so the page
@@ -33,8 +31,6 @@ type ComposerTool = Exclude<ToolType, "patch-lens">;
 export function PendingChartPage({ request }: { request: ChartLaunchRequest }) {
     const tool = launchTool(request.tool);
     const isMobile = useIsMobile();
-    const { data: library } = useWorkspaceLibrary({ enabled: !!request.workspaceId });
-    const folderName = library?.workspaces.find((w) => w.id === request.workspaceId)?.name;
     const prompts =
         request.deploy === "true"
             ? []
@@ -47,26 +43,11 @@ export function PendingChartPage({ request }: { request: ChartLaunchRequest }) {
             <span role="status" className="sr-only">
                 Creating chart…
             </span>
-            <PageHeader
+            <PendingItemHeader
                 start={<ModelControl compact className={FloatingToolComposer.HIDDEN_BESIDE} />}
-                center={
-                    <div className="flex min-w-0 items-center gap-1 text-sm">
-                        {folderName && (
-                            <>
-                                <span className="hidden min-w-0 max-w-[12rem] truncate px-1 text-muted-foreground md:block">
-                                    {folderName}
-                                </span>
-                                <ChevronRight
-                                    aria-hidden
-                                    className="hidden size-3.5 shrink-0 text-muted-foreground md:block"
-                                />
-                            </>
-                        )}
-                        <span className="min-w-0 truncate px-1 font-medium text-muted-foreground">
-                            Untitled chart
-                        </span>
-                    </div>
-                }
+                workspaceId={request.workspaceId}
+                title="Untitled chart"
+                placeholder
             />
             <div inert className="min-h-0 flex-1">
                 {isMobile === undefined ? null : tool === "patch-lens" ? (

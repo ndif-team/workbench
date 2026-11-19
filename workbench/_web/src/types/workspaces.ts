@@ -14,8 +14,8 @@ export type WorkspaceScope = {
     isDefault: boolean;
 };
 
-/** What a workspace holds: charts and reports. */
-export type WorkspaceItemKind = "chart" | "report";
+/** What a workspace holds: charts, chats and reports. */
+export type WorkspaceItemKind = "chart" | "chat" | "report";
 
 export type LibraryChartItem = {
     kind: "chart";
@@ -47,7 +47,19 @@ export type LibraryReportItem = {
     updatedAt: Date;
 };
 
-export type LibraryItem = LibraryChartItem | LibraryReportItem;
+export type LibraryChatItem = {
+    kind: "chat";
+    id: string;
+    workspaceId: string;
+    name: string;
+    /** The chat's current model. */
+    model: string;
+    position: number;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type LibraryItem = LibraryChartItem | LibraryChatItem | LibraryReportItem;
 
 export type LibraryWorkspace = {
     id: string;
@@ -56,7 +68,7 @@ export type LibraryWorkspace = {
     isWorkshop: boolean;
     createdAt: Date;
     updatedAt: Date;
-    /** Charts and reports in position order. */
+    /** Charts, chats and reports in position order. */
     items: LibraryItem[];
 };
 
@@ -64,7 +76,7 @@ export type LibraryWorkspace = {
 export type WorkspaceLibrary = {
     /** Null only for a workshop participant, who has no default workspace. */
     defaultWorkspaceId: string | null;
-    /** The default workspace's charts and reports, most recently updated first. */
+    /** The default workspace's charts, chats and reports, most recently updated first. */
     defaultItems: LibraryItem[];
     /** Every other workspace (folder), most recently updated first. */
     workspaces: LibraryWorkspace[];

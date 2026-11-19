@@ -6,6 +6,7 @@ import {
     deleteUserWorkspace,
     getWorkspaceLibrary,
     moveChart,
+    moveChat,
     moveReport,
     renameUserWorkspace,
     reorderWorkspaceItems,
@@ -17,7 +18,7 @@ import type { DocumentListItem } from "@/lib/queries/documentQueries";
 import type { LibraryItem, WorkspaceItemKind, WorkspaceLibrary } from "@/types/workspaces";
 
 /**
- * The signed-in user's workspaces with their charts and reports (global
+ * The signed-in user's workspaces with their charts, chats and reports (global
  * sidebar). Reading it creates the user's default workspace, so leave it
  * disabled where only a workshop workspace is in view.
  */
@@ -28,7 +29,7 @@ export const useWorkspaceLibrary = ({ enabled = true }: { enabled?: boolean } = 
         enabled,
     });
 
-/** The library's entry for a chart or report, wherever it is filed. */
+/** The library's entry for a chart, chat or report, wherever it is filed. */
 export const findLibraryItem = (
     library: WorkspaceLibrary,
     kind: WorkspaceItemKind,
@@ -117,6 +118,18 @@ export class ItemAnalytics {
         return {};
     }
 
+    /** A chat's workspace and model. */
+    static chat(
+        queryClient: QueryClient,
+        chatId: string,
+    ): { workspace_id?: string; model?: string } {
+        const library = ItemAnalytics.library(queryClient);
+        const listed = library && findLibraryItem(library, "chat", chatId);
+        return listed?.kind === "chat"
+            ? { workspace_id: listed.workspaceId, model: listed.model }
+            : {};
+    }
+
     /** Where a move takes an item; a null target is the default workspace. */
     static move(queryClient: QueryClient, from: string | undefined, to: string | null) {
         const defaultId = ItemAnalytics.library(queryClient)?.defaultWorkspaceId ?? undefined;
@@ -128,13 +141,17 @@ export class ItemAnalytics {
         };
     }
 
-    /** How many charts and reports a workspace holds. */
+    /** How many charts, chats and reports a workspace holds. */
     static contents(queryClient: QueryClient, workspaceId: string) {
         const items =
             ItemAnalytics.library(queryClient)?.workspaces.find((w) => w.id === workspaceId)
                 ?.items ?? [];
-        const charts = items.filter((i) => i.kind === "chart").length;
-        return { chart_count: charts, report_count: items.length - charts };
+        const count = (kind: WorkspaceItemKind) => items.filter((i) => i.kind === kind).length;
+        return {
+            chart_count: count("chart"),
+            chat_count: count("chat"),
+            report_count: count("report"),
+        };
     }
 }
 
@@ -185,6 +202,38 @@ export const useMoveChart = () => {
             router.refresh();
         },
         onError: () => toast.error("Couldn't move the chart"),
+    });
+};
+
+/** Moves a chat to a workspace; a null target is the default workspace. */
+export const useMoveChat = () => {
+    const queryClient = useQueryClient();
+    const router = useRouter();
+    const capture = useCapture();
+
+    return useMutation({
+        mutationKey: ["moveChat"],
+        mutationFn: ({
+            chatId,
+            targetWorkspaceId,
+        }: {
+            chatId: string;
+            targetWorkspaceId: string | null;
+            via: MoveVia;
+        }) => moveChat(chatId, targetWorkspaceId),
+        onMutate: ({ chatId }) => ItemAnalytics.chat(queryClient, chatId),
+        onSuccess: (_, { chatId, targetWorkspaceId, via }, chat) => {
+            capture("chat_moved", {
+                chat_id: chatId,
+                model: chat.model,
+                via,
+                ...ItemAnalytics.move(queryClient, chat.workspace_id, targetWorkspaceId),
+            });
+            invalidateItemLists(queryClient);
+            queryClient.invalidateQueries({ queryKey: queryKeys.chats.chat(chatId) });
+            router.refresh();
+        },
+        onError: () => toast.error("Couldn't move the chat"),
     });
 };
 

@@ -4,6 +4,7 @@ import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
 import type { TutorialContent } from "@/types/tutorial-content";
+import type { ChatData, ChatMessageData } from "@/types/chats";
 
 // Helper function to generate UUIDs for SQLite
 const generateUUID = () => {
@@ -149,6 +150,45 @@ export const documents = sqliteTable("documents", {
         .notNull()
         .$onUpdate(() => new Date()),
 });
+
+// Chats and their messages. Mirror the pg tables; see schema.pg.ts.
+export const chats = sqliteTable("chats", {
+    id: text("id").primaryKey().$defaultFn(generateUUID),
+    workspaceId: text("workspace_id").notNull(),
+    name: text("name").notNull().default("New chat"),
+    model: text("model").notNull(),
+    mode: text("mode").notNull().default("chat"),
+    data: text("data", { mode: "json" }).$type<ChatData>().notNull(),
+    headMessageId: text("head_message_id"),
+    position: real("position").default(0).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+        .$defaultFn(() => new Date())
+        .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+        .$defaultFn(() => new Date())
+        .notNull()
+        .$onUpdate(() => new Date()),
+});
+
+export const chatMessages = sqliteTable(
+    "chat_messages",
+    {
+        id: text("id").primaryKey().$defaultFn(generateUUID),
+        chatId: text("chat_id").notNull(),
+        parentId: text("parent_id"),
+        content: text("content").notNull().default(""),
+        position: integer("position").notNull(),
+        data: text("data", { mode: "json" }).$type<ChatMessageData>().notNull(),
+        createdAt: integer("created_at", { mode: "timestamp_ms" })
+            .$defaultFn(() => new Date())
+            .notNull(),
+        updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+            .$defaultFn(() => new Date())
+            .notNull()
+            .$onUpdate(() => new Date()),
+    },
+    (table) => [index("chat_messages_chat_idx").on(table.chatId)],
+);
 
 // F1 prompt history: one row per successful patch-lens lens run. Mirrors the
 // plain-column convention of the other sqlite tables (no FK refs; the pg
