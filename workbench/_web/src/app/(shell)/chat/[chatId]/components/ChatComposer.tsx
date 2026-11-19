@@ -1,9 +1,11 @@
 import { useLayoutEffect, useRef, useState, type Ref } from "react";
 import { ChevronsRight } from "lucide-react";
 
+import { ModelControl } from "@/components/ModelControl";
 import { RunButton } from "@/components/RunButton";
 import { PROMPT_FIELD } from "@/components/promptField";
 import { Textarea } from "@/components/ui/textarea";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 import type { ChatMode, GenerationParams } from "@/types/chats";
 import { GenerationSettings, type ModeFixed } from "@/components/selectors/GenerationSettings";
@@ -13,7 +15,11 @@ import { GenerationSettings, type ModeFixed } from "@/components/selectors/Gener
  * row with the chat's settings (mode included, `GenerationSettings`) and Send,
  * in the look of Home's composer, which glides into it when a chat starts
  * there: Send is the composers' `RunButton`, and the box takes the tools'
- * accent while its text is edited (`PROMPT_FIELD.composer`).
+ * accent while its text is edited (`PROMPT_FIELD.composer`). On a phone it is
+ * also the page's model picker, as a tool's composer is there
+ * (`FloatingToolComposer`): the picker sits before Send, opening upward, and
+ * the item header hides its own (`FloatingToolComposer.HIDDEN_BESIDE`, which
+ * looks for `data-floating-composer`).
  * ⌘/Ctrl-Enter sends; plain Enter is a newline. In completion mode an empty
  * box continues the text. The draft comes back when a send fails.
  */
@@ -51,6 +57,7 @@ export function ChatComposer({
     onParamsChange: (params: GenerationParams) => void;
 }) {
     const [draft, setDraft] = useState("");
+    const isMobile = useIsMobile();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     useLayoutEffect(() => fitHeight(textareaRef.current), [draft]);
     const content = mode === "chat" ? draft.trim() : draft;
@@ -67,6 +74,7 @@ export function ChatComposer({
     return (
         <form
             ref={formRef}
+            data-floating-composer={isMobile || undefined}
             onSubmit={(e) => {
                 e.preventDefault();
                 submit();
@@ -107,6 +115,7 @@ export function ChatComposer({
                     disabled={disabled || busy}
                     modeFixed={modeFixed}
                 />
+                {isMobile && <ModelControl dense side="top" className="min-w-0 shrink" />}
                 <RunButton
                     type="submit"
                     disabled={!canSend}

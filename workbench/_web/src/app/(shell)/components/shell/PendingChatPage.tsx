@@ -15,6 +15,7 @@ import { ChatColumns } from "../../chat/[chatId]/components/ChatColumns";
 import { ChatComposer } from "../../chat/[chatId]/components/ChatComposer";
 import { ChatThread } from "../../chat/[chatId]/components/ChatThread";
 import { CompletionDocument } from "../../chat/[chatId]/components/CompletionDocument";
+import { FloatingToolComposer } from "../FloatingToolComposer";
 import { PendingItemHeader } from "./PendingItemHeader";
 
 /** How long the composer takes to glide into place; a launch shows this page at least that long. */
@@ -43,7 +44,7 @@ export function PendingChatPage({ chat }: { chat: ChatDraft }) {
                 Starting the chat…
             </span>
             <PendingItemHeader
-                start={<ModelControl compact />}
+                start={<ModelControl compact className={FloatingToolComposer.HIDDEN_BESIDE} />}
                 workspaceId={chat.workspaceId}
                 title={chat.content ? chatTitleFrom(chat.content) : DEFAULT_CHAT_NAME}
                 placeholder={!chat.content}
