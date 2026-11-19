@@ -1183,6 +1183,7 @@ export function PatchPromptSection({
                         onChange={(e) => setPrompt(e.target.value)}
                         onBlur={handleBlur}
                         placeholder={filler}
+                        rows={inComposer ? 1 : undefined}
                         className={cn(
                             inComposer
                                 ? "w-full resize-none overflow-hidden rounded-none border-0 bg-transparent pr-16 shadow-none focus-visible:ring-0 dark:bg-transparent"
@@ -1263,8 +1264,8 @@ PatchPromptSection.LOOK = {
         ),
         labelLeading: "leading-7 wide:leading-8",
         area: "max-h-44 monitor:max-h-52 wide:max-h-60",
-        textarea: "min-h-20 py-3 pl-4",
-        tokens: "min-h-20 px-4 py-3",
+        textarea: "min-h-[4.25rem] py-3 pl-4",
+        tokens: "min-h-[4.25rem] px-4 py-3",
         label: "right-4 top-3",
     },
     field: {

@@ -26,7 +26,11 @@ import {
     MODEL_STATUS,
     splitRepo,
 } from "@/components/model-selector/status";
-import { LAUNCH_TRIGGER, ToolPill, WorkspacePill } from "@/components/selectors/LaunchSelectors";
+import {
+    LAUNCH_TRIGGER_QUIET,
+    ToolPill,
+    WorkspacePill,
+} from "@/components/selectors/LaunchSelectors";
 import { PROMPT_FIELD } from "@/components/promptField";
 import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
@@ -55,7 +59,6 @@ function ModelPillOrSelect({
     disabled,
     loggedIn,
     toolType,
-    nameHiddenOnPhone,
 }: {
     modelsLoading: boolean;
     modelsError: boolean;
@@ -68,15 +71,13 @@ function ModelPillOrSelect({
     /** The selected tool (if it restricts models); models it can't run are
      * shown disabled with a reason. Null → no restriction. */
     toolType: ToolType | null;
-    /** On a phone, shrink the pill to its status dot (a hint needs its room). */
-    nameHiddenOnPhone: boolean;
 }) {
     if (modelsLoading) {
         return (
             <Button
                 type="button"
-                variant="outline"
-                size="sm"
+                variant="ghost"
+                size="control"
                 disabled
                 aria-label="Select model"
                 className="min-w-12 shrink"
@@ -91,8 +92,8 @@ function ModelPillOrSelect({
         return (
             <Button
                 type="button"
-                variant="outline"
-                size="sm"
+                variant="ghost"
+                size="control"
                 disabled
                 aria-label="Select model"
                 className="min-w-12 shrink text-destructive"
@@ -119,7 +120,6 @@ function ModelPillOrSelect({
             disabled={disabled}
             loggedIn={loggedIn}
             toolType={toolType}
-            nameHiddenOnPhone={nameHiddenOnPhone}
         />
     );
 }
@@ -137,7 +137,6 @@ function ModelTriggerPopover({
     disabled,
     loggedIn,
     toolType,
-    nameHiddenOnPhone,
 }: {
     models: Model[];
     moreCount: number;
@@ -146,7 +145,6 @@ function ModelTriggerPopover({
     disabled: boolean;
     loggedIn: boolean;
     toolType: ToolType | null;
-    nameHiddenOnPhone: boolean;
 }) {
     const [open, setOpen] = useState(false);
     const [alignOffset, setAlignOffset] = useState(0);
@@ -167,10 +165,7 @@ function ModelTriggerPopover({
                     ref={triggerRef}
                     type="button"
                     disabled={disabled}
-                    className={cn(
-                        LAUNCH_TRIGGER,
-                        nameHiddenOnPhone ? "max-sm:shrink-0 sm:min-w-20" : "min-w-20",
-                    )}
+                    className={cn(LAUNCH_TRIGGER_QUIET, "min-w-20")}
                     aria-label="Select model"
                     title={selectedModel || undefined}
                 >
@@ -181,12 +176,7 @@ function ModelTriggerPopover({
                             style={{ backgroundColor: MODEL_STATUS[deriveHeat(model)].color }}
                         />
                     )}
-                    <span
-                        className={cn(
-                            "truncate font-mono text-xs",
-                            nameHiddenOnPhone && "max-sm:hidden",
-                        )}
-                    >
+                    <span className="truncate font-mono text-xs">
                         {selectedModel ? splitRepo(selectedModel).label : "Select model"}
                     </span>
                     <ChevronDown className="size-3 opacity-50 shrink-0" />
@@ -272,6 +262,15 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     const [selectedTool, setSelectedTool] = useState<string>("Logit Lens");
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const captchaRef = useRef<ElementRef<typeof HCaptcha> | null>(null);
+    const promptRef = useRef<HTMLTextAreaElement>(null);
+
+    // The lens prompt rests at one line and grows with its text.
+    useEffect(() => {
+        const el = promptRef.current;
+        if (!el) return;
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+    }, [prompt, selectedTool]);
     // A prebuilt `/new?…` query to redirect to after anonymous sign-in.
     // Set by the one-click launches (e.g. Discover J-Lens) that don't go through
     // the prompt form; null → fall back to building params from the form state.
@@ -536,20 +535,20 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         }
     };
 
-    // The composer's toolbar: the pickers, then a tool's own controls and its
-    // hint for the next step (activation patching's), then Run.
-    const toolbar = (tools?: ReactNode, hint = "") => (
-        <div
-            className={cn(
-                "flex items-center gap-1.5 p-2 pl-3 max-sm:gap-1 max-sm:pl-2",
-                selectedTool === "Activation Patching" && "border-t",
-            )}
-        >
+    const box = cn(
+        "rounded-md border bg-card shadow-lg transition-[border-color,box-shadow] dark:bg-secondary",
+        PROMPT_FIELD.composer,
+    );
+
+    // Under the composer's box: what the run is of (tool, model) and where it
+    // lands (workspace).
+    const pickers = (
+        <div className="flex items-center gap-0.5 px-1.5">
             <ToolPill
                 value={selectedTool}
                 onChange={setSelectedTool}
                 disabled={showCaptcha || isSubmitting}
-                iconOnPhone
+                triggerClassName={cn(LAUNCH_TRIGGER_QUIET, "shrink-0")}
             />
             <ModelPillOrSelect
                 modelsLoading={modelsLoading}
@@ -561,26 +560,38 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 disabled={showCaptcha || isSubmitting}
                 loggedIn={loggedIn}
                 toolType={toolTypeFromDisplay(selectedTool)}
-                nameHiddenOnPhone={!!hint}
             />
             {isSignedInUser && workspacesList && workspacesList.length > 0 && (
-                <span className={cn("contents", hint && "max-sm:hidden")}>
-                    <WorkspacePill
-                        value={selectedWorkspace}
-                        onChange={setSelectedWorkspace}
-                        disabled={showCaptcha || isSubmitting}
-                        workspaces={workspacesList}
-                        quietDefault
-                    />
+                <WorkspacePill
+                    value={selectedWorkspace}
+                    onChange={setSelectedWorkspace}
+                    disabled={showCaptcha || isSubmitting}
+                    workspaces={workspacesList}
+                    triggerClassName={LAUNCH_TRIGGER_QUIET}
+                    quietDefault
+                />
+            )}
+        </div>
+    );
+
+    // The box's last row: a tool's own controls and its hint for the next
+    // step (activation patching's), then Run.
+    const toolbar = (tools?: ReactNode, hint = "") => (
+        <div
+            className={cn(
+                "flex items-center gap-1.5 p-2",
+                selectedTool !== "Activation Patching" && "p-2.5 md:p-3",
+            )}
+        >
+            {tools && <div className="flex shrink-0 items-center">{tools}</div>}
+            {tools && (
+                <span
+                    aria-live="polite"
+                    className="min-w-0 flex-1 text-balance px-1 text-right text-xs text-muted-foreground"
+                >
+                    {hint}
                 </span>
             )}
-            {tools && <div className="flex shrink-0 items-center">{tools}</div>}
-            <span
-                aria-live="polite"
-                className="min-w-0 flex-1 text-balance px-1 text-right text-xs text-muted-foreground"
-            >
-                {hint}
-            </span>
             <RunButton
                 type="submit"
                 aria-label="Run"
@@ -668,55 +679,54 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 <PromptVisualization />
             </motion.div>
 
-            {/* Composer: one box, the prompt over a toolbar of pickers and Run */}
+            {/* Composer: a box of the prompt over Run, then the pickers under it */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
                 // Narrower than the hero's column. On a phone the example above
                 // wraps, and its prediction's probability hangs below it.
-                className="mx-auto w-full max-w-3xl monitor:max-w-4xl wide:max-w-5xl max-sm:pt-6"
+                className="mx-auto w-full max-w-3xl monitor:max-w-4xl wide:max-w-5xl pt-8 max-sm:pt-10"
             >
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-                    <div
-                        className={cn(
-                            "rounded-md border bg-card shadow-lg transition-[border-color,box-shadow] dark:bg-secondary",
-                            PROMPT_FIELD.composer,
-                        )}
-                    >
-                        {selectedTool !== "Activation Patching" ? (
+                    {selectedTool !== "Activation Patching" ? (
+                        <div className={cn(box, "flex items-end")}>
                             <Textarea
+                                ref={promptRef}
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Enter a prompt to analyze..."
                                 aria-label="Prompt"
-                                className="prompt-input min-h-24 resize-none border-0 bg-transparent px-4 pt-4 text-base leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent md:text-base md:leading-7 monitor:min-h-28 monitor:text-lg monitor:leading-7 wide:min-h-32 wide:text-xl wide:leading-8"
+                                rows={1}
+                                className="prompt-input custom-scrollbar max-h-44 min-h-20 flex-1 resize-none border-0 bg-transparent py-3 pl-4 pr-0 text-base leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent md:text-base md:leading-7 monitor:max-h-52 monitor:text-lg monitor:leading-7 wide:max-h-60 wide:text-xl wide:leading-8"
                                 disabled={showCaptcha || isSubmitting}
                             />
-                        ) : (
-                            <ActivationPatchingLandingInput
-                                srcPrompt={srcPrompt}
-                                setSrcPrompt={setSrcPrompt}
-                                tgtPrompt={tgtPrompt}
-                                setTgtPrompt={setTgtPrompt}
-                                srcTokens={srcTokens}
-                                setSrcTokens={setSrcTokens}
-                                tgtTokens={tgtTokens}
-                                setTgtTokens={setTgtTokens}
-                                srcPos={srcPos}
-                                setSrcPos={setSrcPos}
-                                tgtPos={tgtPos}
-                                setTgtPos={setTgtPos}
-                                tgtFreeze={tgtFreeze}
-                                setTgtFreeze={setTgtFreeze}
-                                selectedModel={selectedModel}
-                                disabled={showCaptcha || isSubmitting}
-                                toolbar={toolbar}
-                            />
-                        )}
-                        {selectedTool !== "Activation Patching" && toolbar()}
-                    </div>
+                            {toolbar()}
+                        </div>
+                    ) : (
+                        <ActivationPatchingLandingInput
+                            srcPrompt={srcPrompt}
+                            setSrcPrompt={setSrcPrompt}
+                            tgtPrompt={tgtPrompt}
+                            setTgtPrompt={setTgtPrompt}
+                            srcTokens={srcTokens}
+                            setSrcTokens={setSrcTokens}
+                            tgtTokens={tgtTokens}
+                            setTgtTokens={setTgtTokens}
+                            srcPos={srcPos}
+                            setSrcPos={setSrcPos}
+                            tgtPos={tgtPos}
+                            setTgtPos={setTgtPos}
+                            tgtFreeze={tgtFreeze}
+                            setTgtFreeze={setTgtFreeze}
+                            selectedModel={selectedModel}
+                            disabled={showCaptcha || isSubmitting}
+                            toolbar={toolbar}
+                            box={box}
+                        />
+                    )}
+                    {pickers}
 
                     {showCaptcha && (
                         <div className="flex flex-col items-center gap-2">

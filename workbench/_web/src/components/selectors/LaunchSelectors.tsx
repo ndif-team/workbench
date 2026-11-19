@@ -47,6 +47,13 @@ export const LAUNCH_TRIGGER = cn(
     "min-w-12 shrink max-sm:px-2 max-sm:has-[>svg]:px-2 sm:max-w-[16rem]",
 );
 
+/** The launch selectors on the page itself, under the composer's box: no
+ * outline or fill of their own, and muted until pointed at. */
+export const LAUNCH_TRIGGER_QUIET = cn(
+    buttonVariants({ variant: "ghost", size: "control" }),
+    "min-w-12 shrink text-muted-foreground hover:text-foreground aria-expanded:text-foreground sm:max-w-[16rem]",
+);
+
 /** Neutral trigger that mirrors the shadcn `SelectTrigger` — `rounded-md`,
  * `border-input`, no gradient. For surfaces (dialogs) where the brand-gradient
  * pill is too loud; keeps the PillPopover behavior, just calmer chrome. */
@@ -59,7 +66,6 @@ export function ToolPill({
     disabled,
     triggerClassName = LAUNCH_TRIGGER,
     modal = false,
-    iconOnPhone = false,
 }: {
     value: string;
     onChange: (v: string) => void;
@@ -67,9 +73,6 @@ export function ToolPill({
     triggerClassName?: string;
     /** Set when used inside a Dialog so the menu list can scroll. */
     modal?: boolean;
-    /** On a phone, show the tool as its icon alone (the menu names each tool),
-     * for a toolbar that has to stay on one row. */
-    iconOnPhone?: boolean;
 }) {
     return (
         <PillPopover
@@ -77,13 +80,13 @@ export function ToolPill({
             onChange={onChange}
             disabled={disabled}
             ariaLabel="Select tool"
-            triggerClassName={cn(triggerClassName, iconOnPhone && "max-sm:shrink-0")}
+            triggerClassName={triggerClassName}
             compact={false}
             modal={modal}
             trigger={
                 <>
                     <ToolIcon tool={value} />
-                    <span className={cn("truncate", iconOnPhone && "max-sm:sr-only")}>{value}</span>
+                    <span className="truncate">{value}</span>
                 </>
             }
             showSearch={false}

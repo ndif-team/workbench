@@ -32,6 +32,9 @@ interface ActivationPatchingLandingInputProps {
     /** Draws the composer's toolbar around the patch tools and the hint for
      * the next step, so they share the pickers' row. */
     toolbar: (tools: ReactNode, hint: string) => ReactNode;
+    /** Chrome of a composer box: the source gets one, the target and the
+     * toolbar share the other. */
+    box: string;
 }
 
 /**
@@ -59,6 +62,7 @@ export function ActivationPatchingLandingInput({
     selectedModel,
     disabled = false,
     toolbar,
+    box,
 }: ActivationPatchingLandingInputProps) {
     const arrows = useIsMobile() === false;
     const containerRef = useRef<HTMLDivElement>(null);
@@ -138,7 +142,7 @@ export function ActivationPatchingLandingInput({
     return (
         <div
             ref={containerRef}
-            className="relative"
+            className="relative flex flex-col gap-2"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
@@ -156,50 +160,53 @@ export function ActivationPatchingLandingInput({
                     connectingArrowRef={connectingArrowRef}
                 />
             )}
-            <PatchPromptSection
-                variant="source"
-                mode="compact"
-                label="Source"
-                prompt={srcPrompt}
-                setPrompt={setSrcPrompt}
-                tokens={srcTokens}
-                setTokens={setSrcTokens}
-                selectedModel={selectedModel}
-                disabled={disabled}
-                isEditing={srcEditing}
-                setIsEditing={setSrcEditing}
-                selectedPositions={srcPos}
-                pendingRangeStart={pendingRangeStart}
-                onSrcTokenClick={handleSrcTokenClick}
-            />
-            <div aria-hidden className="mx-4 border-t border-border/50" />
-            <PatchPromptSection
-                variant="target"
-                mode="compact"
-                label="Target"
-                prompt={tgtPrompt}
-                setPrompt={setTgtPrompt}
-                tokens={tgtTokens}
-                setTokens={setTgtTokens}
-                selectedModel={selectedModel}
-                disabled={disabled}
-                isEditing={tgtEditing}
-                setIsEditing={setTgtEditing}
-                tgtSelectedPositions={tgtPos}
-                frozenPositions={tgtFreeze}
-                onTgtTokenClick={handleTgtTokenClick}
-                onTokenHover={arrows && connecting ? setHoverTgtIdx : undefined}
-                onTokenLeave={arrows && connecting ? () => setHoverTgtIdx(null) : undefined}
-            />
-            {toolbar(
-                <PatchTools
-                    {...patchTools}
-                    srcTokens={srcTokens}
-                    tgtTokens={tgtTokens}
+            <div className={box}>
+                <PatchPromptSection
+                    variant="source"
+                    mode="compact"
+                    label="Source"
+                    prompt={srcPrompt}
+                    setPrompt={setSrcPrompt}
+                    tokens={srcTokens}
+                    setTokens={setSrcTokens}
+                    selectedModel={selectedModel}
                     disabled={disabled}
-                />,
-                hint,
-            )}
+                    isEditing={srcEditing}
+                    setIsEditing={setSrcEditing}
+                    selectedPositions={srcPos}
+                    pendingRangeStart={pendingRangeStart}
+                    onSrcTokenClick={handleSrcTokenClick}
+                />
+            </div>
+            <div className={box}>
+                <PatchPromptSection
+                    variant="target"
+                    mode="compact"
+                    label="Target"
+                    prompt={tgtPrompt}
+                    setPrompt={setTgtPrompt}
+                    tokens={tgtTokens}
+                    setTokens={setTgtTokens}
+                    selectedModel={selectedModel}
+                    disabled={disabled}
+                    isEditing={tgtEditing}
+                    setIsEditing={setTgtEditing}
+                    tgtSelectedPositions={tgtPos}
+                    frozenPositions={tgtFreeze}
+                    onTgtTokenClick={handleTgtTokenClick}
+                    onTokenHover={arrows && connecting ? setHoverTgtIdx : undefined}
+                    onTokenLeave={arrows && connecting ? () => setHoverTgtIdx(null) : undefined}
+                />
+                {toolbar(
+                    <PatchTools
+                        {...patchTools}
+                        srcTokens={srcTokens}
+                        tgtTokens={tgtTokens}
+                        disabled={disabled}
+                    />,
+                    hint,
+                )}
+            </div>
         </div>
     );
 }
