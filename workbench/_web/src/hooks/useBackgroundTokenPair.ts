@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { encodeText } from "@/actions/tok";
+import { encodeTextQuietly } from "@/lib/tokenize";
 import type { Token } from "@/types/models";
 
 /**
@@ -31,7 +31,7 @@ export function useBackgroundTokenPair(
             return;
         }
         let cancelled = false;
-        encodeText(prompt, savedModel)
+        encodeTextQuietly(prompt, savedModel)
             .then((tokens) => {
                 if (!cancelled) setUnderSaved(tokens);
             })
@@ -49,7 +49,7 @@ export function useBackgroundTokenPair(
             return;
         }
         let cancelled = false;
-        encodeText(prompt, selectedModel)
+        encodeTextQuietly(prompt, selectedModel)
             .then((tokens) => {
                 if (!cancelled) setUnderSelected(tokens);
             })

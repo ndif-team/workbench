@@ -19,21 +19,65 @@ const useTokenizing = create<TokenizingState>()((set) => ({
         }),
 }));
 
+type TokenRequest = Parameters<typeof requestTokens>;
+
+/**
+ * The tokens already asked for in this tab, by prompt and model. A prompt's
+ * tokens never change, so a prompt tokenized on Home is not sent again by the
+ * chart it opens, and repeated requests for one prompt share a single call.
+ */
+class TokenCache {
+    private static readonly LIMIT = 200;
+    private static readonly entries = new Map<string, Promise<Token[]>>();
+    private static readonly settled = new Set<string>();
+
+    /** Whether these tokens have arrived, so asking for them is no wait. */
+    static has(args: TokenRequest): boolean {
+        return this.settled.has(JSON.stringify(args));
+    }
+
+    static get(args: TokenRequest): Promise<Token[]> {
+        const key = JSON.stringify(args);
+        const cached = this.entries.get(key);
+        if (cached) return cached;
+        const tokens = requestTokens(...args);
+        this.entries.set(key, tokens);
+        tokens.then(
+            () => this.settled.add(key),
+            () => this.entries.delete(key),
+        );
+        if (this.entries.size > this.LIMIT) {
+            const oldest = this.entries.keys().next().value as string;
+            this.entries.delete(oldest);
+            this.settled.delete(oldest);
+        }
+        return tokens;
+    }
+}
+
 /**
  * Tokenizes a prompt on the server (`encodeText` in `actions/tok`), marking it
  * as waiting meanwhile so that whichever prompt area shows it can say so
  * (`useIsTokenizing`). A tool's prompts tokenize through this one.
  */
-export async function encodeText(...args: Parameters<typeof requestTokens>) {
+export async function encodeText(...args: TokenRequest): Promise<Token[]> {
     const prompt = args[0].trim();
     if (!prompt) return requestTokens(...args);
+    if (TokenCache.has(args)) return TokenCache.get(args);
     const { count } = useTokenizing.getState();
     count(prompt, 1);
     try {
-        return await requestTokens(...args);
+        return await TokenCache.get(args);
     } finally {
         count(prompt, -1);
     }
+}
+
+/** Tokenizes a prompt without marking it as waiting, for tokens no prompt
+ * area shows (a comparison under another model). */
+export function encodeTextQuietly(...args: TokenRequest): Promise<Token[]> {
+    if (!args[0].trim()) return requestTokens(...args);
+    return TokenCache.get(args);
 }
 
 /** Whether this prompt is waiting on its tokens. */
