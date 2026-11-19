@@ -9,9 +9,7 @@ import { useLogitLens } from "@/lib/api/logitLensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { LogitLensConfigData } from "@/types/logitLens";
 import { encodeText, resultTokens } from "@/lib/tokenize";
-import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
-import { toast } from "sonner";
 import { logitLensConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
 import { useDraftModel } from "@/hooks/useDraftModel";
 import { useFocusNewChartPrompt } from "@/hooks/useFocusNewChartPrompt";
@@ -259,25 +257,22 @@ export function LogitLensControls({
         }, 0);
     }, []);
 
+    /** Counts runs, so a preview that started before one can tell it is stale. */
+    const runCountRef = useRef(0);
+    const blurTokenize = useBlurTokenizeScheduler();
+
+    /** The preview after the prompt loses focus. A run does not depend on it,
+     * so its failure is silent, and one that a run overtakes is dropped. */
     const handleTokenize = useCallback(async () => {
-        if (!prompt.trim()) {
-            toast.error("Please enter a prompt.");
-            return;
-        }
+        if (!prompt.trim()) return;
+        const runsBefore = runCountRef.current;
         let tokens: Token[];
         try {
             tokens = await encodeText(prompt, selectedModel);
-        } catch (error) {
-            if (error instanceof TokenizerLoadError) {
-                toast.error(
-                    `Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`,
-                );
-            } else {
-                toast.error("Failed to tokenize prompt.");
-            }
+        } catch {
             return;
         }
-        if (tokens.length === 0) return;
+        if (tokens.length === 0 || runCountRef.current !== runsBefore) return;
         const promptChanged = prompt !== lastTokenizedPromptRef.current;
         const modelChanged = tokenizedModel !== null && tokenizedModel !== selectedModel;
         setTokenData(tokens);
@@ -298,6 +293,8 @@ export function LogitLensControls({
         // token and collapses the model's prediction onto whitespace/digits.
         const trimmedPrompt = prompt.trim();
         if (!trimmedPrompt) return;
+        blurTokenize.cancel();
+        runCountRef.current += 1;
 
         const config: LogitLensConfigData = {
             model: selectedModel,
@@ -337,6 +334,7 @@ export function LogitLensControls({
         computeLogitLens,
         updateConfig,
         showRunTokens,
+        blurTokenize,
     ]);
 
     const handlePromptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -352,8 +350,6 @@ export function LogitLensControls({
         },
         [handleSubmit],
     );
-
-    const blurTokenize = useBlurTokenizeScheduler();
 
     const handleTextareaBlur = useCallback(() => {
         blurTokenize.schedule(() => {
