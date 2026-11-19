@@ -15,10 +15,17 @@ dependencies = [
     "influxdb-client>=1.49.0",
     "uvicorn>=0.33.0",
     "torch>=2.9.0",
+    # A wrapper for an image-text-to-text deployment loads the model's
+    # processor, whose image and video processors need these.
+    "torchvision>=0.24.0",
+    "pillow>=12.0.0",
     # Pulled in transitively by nnsight/nnterp, but pinned here so recent model
     # architectures land in our env: OLMo 3, recent Gemma, etc.
     "transformers>=5.11.0",
     "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git@cc759fb61844387c6a37da84e693512cefb1022a",
+    # The backend wraps every model in nnterp's StandardizedTransformer;
+    # 2.0.0rc1 is nnterp's first release on nnsight 0.8.
+    "nnterp==2.0.0rc1",
     "requests>=2.32.5",
     # nnsightful's tools return pydantic objects built on NDIF, which only
     # unpickle with the pydantic-core version NDIF's server runs; keep in step.
@@ -54,3 +61,11 @@ torchvision = [
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
+
+[tool.uv]
+# nnsightful pins nnterp to a git commit from before its nnsight 0.8 release;
+# use the release instead.
+override-dependencies = ["nnterp==2.0.0rc1"]
+# The PyTorch CPU index serves Linux x86_64 its own torch and torchvision
+# builds (`+cpu`); without this, torchvision can lock to a build with none.
+required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]

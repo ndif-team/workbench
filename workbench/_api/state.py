@@ -40,9 +40,13 @@ class AppState:
     Instance attributes:
         remote: Whether inference runs against NDIF rather than locally.
         models: Loaded ``StandardizedTransformer`` wrappers keyed by repo ID.
-        catalog: NDIF deployment roster mapping repo ID to ``ModelHeat``. This
-            drives the frontend model list; whether a model is actually loaded
-            here is a separate concern.
+        catalog: NDIF deployment roster mapping repo ID to the ``ModelHeat``
+            of the deployment workbench runs it on. This drives the frontend
+            model list; whether a model is actually loaded here is a separate
+            concern.
+        tasks: The pipeline task of that deployment, keyed by repo ID
+            (``text-generation`` or ``image-text-to-text``). A wrapper is built
+            with it, so its model key names that deployment.
         pinned: Repo IDs that must never be LRU-evicted. Populated from TOML in
             local mode, or from NDIF pin status in remote mode.
         _metadata: Disk-backed metadata cache; owns HuggingFace fetch/persist.
@@ -61,6 +65,7 @@ class AppState:
         self.models: dict[str, StandardizedTransformer] = {}
         self._metadata = MetadataCache()
         self.catalog: dict[str, ModelHeat] = {}
+        self.tasks: dict[str, str] = {}
 
         self.remote = self._load_backend_config()
         self.pinned = set(self._load_pinned_config()) if not self.remote else set()
@@ -80,21 +85,31 @@ class AppState:
 
     # ----- catalog (what NDIF currently deploys, surfaced to the frontend) ---
 
-    def register_catalog_entry(self, model_name: str, heat: ModelHeat, pinned: bool = False) -> None:
+    def register_catalog_entry(
+        self, model_name: str, deployments: dict[str, tuple[ModelHeat, bool]]
+    ) -> None:
         """Add or update a catalog entry for a model NDIF currently deploys.
 
         Fetches and caches metadata on first sight. Does **not** load the
         nnsight wrapper — that happens lazily via ``get_model`` when a request
         actually needs the model.
 
+        The entry takes the heat and pin of the deployment workbench runs the
+        model on: the hottest of those whose task the metadata's ``tasks``
+        lists (the task listed first on a tie). A model NDIF deploys only for
+        other tasks is listed as cold on its first task, the deployment a
+        request to it starts. A wrapper built for another task is unloaded,
+        so the next ``get_model`` builds one for this deployment.
+
         Silently skips unsupported models (LoRA adapters, vision models,
         ``trust_remote_code`` repos) and ``Meta-Llama-*`` legacy aliases.
 
         Args:
             model_name: HuggingFace repo ID.
-            heat: Current NDIF deployment heat for this model.
-            pinned: NDIF-reported pin status. Pinned models are never
-                LRU-evicted; unpinned models participate in eviction once loaded.
+            deployments: NDIF's deployments of the repo by task (whatever
+                the task), each as its heat and NDIF-reported pin status.
+                Pinned models are never LRU-evicted; unpinned models
+                participate in eviction once loaded.
         """
         # Legacy Meta-Llama-* repos duplicate Llama-* names since 3.1; skip
         # them so the catalog does not list both variants.
@@ -103,13 +118,23 @@ class AppState:
             return
 
         try:
-            self._metadata.fetch_metadata(model_name)
+            meta = self._metadata.fetch_metadata(model_name)
         except UnsupportedModel:
             # Cache already logged and persisted the verdict.
             return
         except Exception as e:
             logger.warning(f"Failed to fetch metadata for {model_name}, skipping catalog entry: {e}")
             return
+
+        usable = {
+            task: deployment for task, deployment in deployments.items() if task in meta.tasks
+        } or {meta.tasks[0]: (ModelHeat.COLD, False)}
+        task, (heat, pinned) = min(
+            usable.items(), key=lambda item: (item[1][0].rank, meta.tasks.index(item[0]))
+        )
+        if self.tasks.get(model_name, task) != task:
+            self._unload_model(model_name)
+        self.tasks[model_name] = task
 
         self.catalog[model_name] = heat
         if pinned:
@@ -166,7 +191,9 @@ class AppState:
         Non-pinned models are tracked in an LRU cache. Loading a new
         non-pinned model may evict the least-recently-used one when the count
         exceeds ``max_non_pinned_models``. Already-loaded non-pinned models
-        have their LRU position bumped on each access.
+        have their LRU position bumped on each access; one whose wrapper was
+        loaded while it was pinned (NDIF has since unpinned it) joins the LRU
+        then, and may evict another.
 
         Args:
             model_name: HuggingFace repo ID.
@@ -183,14 +210,11 @@ class AppState:
         if model_name not in self.models:
             self._load_model(model_name)
 
-            if model_name not in self.pinned:
-                self._active_models[model_name] = None
-                self._evict_if_needed()
-        
-        elif model_name not in self.pinned:
-            # Already loaded; bump recency.
+        if model_name not in self.pinned:
+            self._active_models[model_name] = None
             self._active_models.move_to_end(model_name)
-        
+            self._evict_if_needed()
+
         return self.models[model_name]
 
     def _evict_if_needed(self) -> None:
@@ -299,9 +323,10 @@ class AppState:
 
         if not self.remote:
             for model_name in pinned:
-                self._metadata.fetch_metadata(model_name)
+                meta = self._metadata.fetch_metadata(model_name)
                 model = StandardizedTransformer(
                     model_name,
+                    task=meta.tasks[0],
                     device_map="auto",
                     torch_dtype=torch.bfloat16,
                     remote=self.remote,
@@ -312,16 +337,19 @@ class AppState:
     def _load_model(self, model_name: str):
         """Load a single model wrapper on demand.
 
-        Ensures metadata is cached, then constructs a ``StandardizedTransformer``.
+        Ensures metadata is cached, then constructs a ``StandardizedTransformer``
+        for the task of the deployment the catalog picked (``tasks``), or the
+        model's first task outside the catalog.
         In remote mode the wrapper is used for tokenization and dispatch only;
         weights are not loaded locally.
         """
         logger.info(f"Loading model: {model_name}")
 
-        self._metadata.fetch_metadata(model_name)
+        meta = self._metadata.fetch_metadata(model_name)
 
         model = StandardizedTransformer(
             model_name,
+            task=self.tasks.get(model_name, meta.tasks[0]),
             device_map="auto",
             torch_dtype=torch.bfloat16,
             remote=False,

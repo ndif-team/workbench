@@ -17,8 +17,9 @@ Public API:
 
     ``UnsupportedModel``
         Raised for repos outside workbench support: LoRA adapters, vision /
-        multimodal architectures, ``trust_remote_code`` models, or configs
-        that cannot be loaded.
+        multimodal architectures that text prompts can't run (all but those
+        that load as a text-only causal LM, Gemma 3 and 4, and Qwen3-VL),
+        ``trust_remote_code`` models, or configs that cannot be loaded.
 
     ``MetadataCache``
         In-memory registry backed by the JSON file. ``fetch_metadata(name)``
@@ -84,6 +85,19 @@ VISION_MODEL_TYPES = {
     "video_llava", "vipllava",
     "git",
 }
+
+# Multimodal `config.model_type` values that load whole (as their
+# `...ForConditionalGeneration` wrapper) yet run text prompts: nnterp
+# standardizes the wrapper's language model, so the tools see a causal LM.
+TEXT_PROMPTED_VISION_MODEL_TYPES = {"gemma3", "gemma4", "gemma4_unified"}
+
+# Multimodal `config.model_type` values whose image-text-to-text deployment on
+# NDIF runs text prompts: nnterp standardizes the wrapper, and text prompts
+# tokenize and batch as a text model's do (see `ModelMetadata.tasks`).
+# Qwen3-VL has no text-generation class, so it runs on this task only.
+# Gemma 4 isn't one: its processors' image fields pad on the right and its
+# tokenizer on the left, so two prompts don't batch.
+IMAGE_TASK_MODEL_TYPES = {"gemma3", "qwen3_5", "qwen3_5_moe", "qwen3_vl", "qwen3_vl_moe"}
 
 # Chat/instruct classification is name-based, NOT tokenizer-chat-template-based.
 # The tokenizer signal is unreliable: several families (notably Qwen) bundle a
@@ -187,6 +201,11 @@ class ModelMetadata(BaseModel):
             ``MetadataCache`` fills it in from its one record per account and
             saves the model without it; ``None`` until the account has been
             looked up, which never holds the model back.
+        tasks: The pipeline tasks whose NDIF deployments of the repo run
+            workbench's text prompts, preferred first: ``text-generation``
+            when transformers has a text-generation class that runs them,
+            then ``image-text-to-text`` for the types in
+            ``IMAGE_TASK_MODEL_TYPES``. Never empty.
     """
 
     name: str
@@ -195,6 +214,7 @@ class ModelMetadata(BaseModel):
     params: str
     gated: bool
     org: OrgMetadata | None = None
+    tasks: list[str] = ["text-generation"]
 
 
 # ----- raw fetch + helpers -----------------------------------------------
@@ -260,6 +280,18 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
     architecture is a standard causal LM, rejects vision/multimodal configs,
     and reads parameter count from safetensors headers.
 
+    A multimodal config passes when ``AutoModelForCausalLM`` builds only its
+    language model: Qwen3.5's checkpoints carry an image encoder but load as
+    ``Qwen3_5ForCausalLM``, which text prompts drive like any causal LM.
+    Gemma 3 and 4 load whole (``Gemma3ForConditionalGeneration``,
+    ``Gemma4ForConditionalGeneration``) and pass too, as
+    ``TEXT_PROMPTED_VISION_MODEL_TYPES``: nnterp standardizes the wrapper's
+    language model. Qwen3-VL has no text-generation class but passes as an
+    ``IMAGE_TASK_MODEL_TYPES`` type, run on its image-text-to-text task.
+    Any other wrapper that loads whole, and the types in
+    ``VISION_MODEL_TYPES``, stay unsupported. The tasks a model runs on are
+    its ``ModelMetadata.tasks``.
+
     Args:
         model_name: HuggingFace repo ID.
 
@@ -288,28 +320,34 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
             f"{model_name} is not a standard text-to-text transformer (config load failed: {e})"
         ) from e
 
-    # Must be a model_type that `AutoModelForCausalLM` knows how to instantiate.
-    # Using transformers' own registry instead of string-matching the
-    # architectures field — GPT-2 et al. use `GPT2LMHeadModel` (no
-    # "ForCausalLM" suffix) so suffix matching would wrongly exclude them.
-    if config.model_type not in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES:
+    # Must be a model_type that `AutoModelForCausalLM` knows how to instantiate,
+    # or one that runs on its image-text-to-text task. Using transformers' own
+    # registry instead of string-matching the architectures field — GPT-2 et
+    # al. use `GPT2LMHeadModel` (no "ForCausalLM" suffix) so suffix matching
+    # would wrongly exclude them.
+    text_class = MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.get(config.model_type)
+    image_task = config.model_type in IMAGE_TASK_MODEL_TYPES
+    if text_class is None and not image_task:
         raise UnsupportedModel(
             f"{model_name} is not a causal LM (model_type: {config.model_type})"
         )
 
-    # Defense in depth: some VLMs register a ForCausalLM head but still carry
-    # a vision tower in the config (the LLM half of an LLaVA-style stack).
-    # Reject those too — workbench can't drive them with text-only prompts.
-    if (
+    has_vision = (
         hasattr(config, "vision_config")
         or hasattr(config, "vision_tower")
         or hasattr(config, "image_token_index")
         or hasattr(config, "image_token_id")
-        or getattr(config, "model_type", None) in VISION_MODEL_TYPES
-    ):
+    )
+    text_task = text_class is not None and (
+        not has_vision
+        or text_class.endswith("ForCausalLM")
+        or config.model_type in TEXT_PROMPTED_VISION_MODEL_TYPES
+    )
+    if config.model_type in VISION_MODEL_TYPES or not (text_task or image_task):
         raise UnsupportedModel(f"{model_name} has a vision component ({config.model_type})")
 
-    n_layers = getattr(config, "num_hidden_layers", None) or getattr(config, "n_layer", 0)
+    text_config = config.get_text_config()
+    n_layers = getattr(text_config, "num_hidden_layers", None) or getattr(text_config, "n_layer", 0)
 
     # Parameter count from safetensors header (no weights download)
     try:
@@ -331,6 +369,11 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
         n_layers=n_layers,
         params=_format_params(num_params) if num_params > 0 else "unknown",
         gated=gated,
+        tasks=[
+            task
+            for task, runs in (("text-generation", text_task), ("image-text-to-text", image_task))
+            if runs
+        ],
     )
 
 

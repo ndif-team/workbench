@@ -38,9 +38,10 @@ def _refresh_catalog(state: AppState) -> None:
 
     data = status_resp.json()
 
-    # Pass 1: figure out which models NDIF currently serves, their heat, and
-    # whether each is pinned (per NDIF deployment_state — not config).
-    model_roster: dict[str, tuple[ModelHeat, bool]] = {}
+    # Pass 1: figure out which models NDIF currently serves, per task (each
+    # task of a repo is its own deployment), their heat, and whether each is
+    # pinned (per NDIF deployment_state — not config).
+    model_roster: dict[str, dict[str, tuple[ModelHeat, bool]]] = {}
     for deployment_state in data["deployments"].values():
         if deployment_state == {"application_state": "UNHEALTHY"}:
             continue
@@ -50,6 +51,9 @@ def _refresh_catalog(state: AppState) -> None:
         app_state = deployment_state.get("application_state")
         pinned = app_state == "RUNNING" and bool(deployment_state.get("pinned"))
 
+        # An untagged deployment is a text-generation one. Every task's is
+        # kept: register_catalog_entry picks the one workbench runs on.
+        task = deployment_state.get("task") or "text-generation"
         if not repo_id:
             continue
 
@@ -62,11 +66,12 @@ def _refresh_catalog(state: AppState) -> None:
             heat = ModelHeat(level.lower())
         else:
             continue
-        if repo_id not in model_roster:
-            model_roster[repo_id] = (heat, pinned)
+        deployments = model_roster.setdefault(repo_id, {})
+        if task not in deployments:
+            deployments[task] = (heat, pinned)
         else:
-            existing_heat, existing_pinned = model_roster[repo_id]
-            model_roster[repo_id] = (
+            existing_heat, existing_pinned = deployments[task]
+            deployments[task] = (
                 ModelHeat.hotter(heat, existing_heat),
                 pinned or existing_pinned,
             )
@@ -78,8 +83,8 @@ def _refresh_catalog(state: AppState) -> None:
 
     # Pass 3: register everything NDIF currently serves. register_catalog_entry
     # caches metadata on first sight, no-op for already-known models.
-    for repo_id, (heat, pinned) in model_roster.items():
-        state.register_catalog_entry(repo_id, heat, pinned=pinned)
+    for repo_id, deployments in model_roster.items():
+        state.register_catalog_entry(repo_id, deployments)
 
 
 def get_remote_models(state: AppState, is_user_signed_in: bool):
