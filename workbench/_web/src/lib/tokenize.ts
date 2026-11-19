@@ -28,30 +28,34 @@ type TokenRequest = Parameters<typeof requestTokens>;
  */
 class TokenCache {
     private static readonly LIMIT = 200;
-    private static readonly entries = new Map<string, Promise<Token[]>>();
-    private static readonly settled = new Set<string>();
+    private static readonly entries = new Map<
+        string,
+        { tokens: Promise<Token[]>; settled: boolean }
+    >();
 
     /** Whether these tokens have arrived, so asking for them is no wait. */
     static has(args: TokenRequest): boolean {
-        return this.settled.has(JSON.stringify(args));
+        return this.entries.get(JSON.stringify(args))?.settled ?? false;
     }
 
     static get(args: TokenRequest): Promise<Token[]> {
         const key = JSON.stringify(args);
         const cached = this.entries.get(key);
-        if (cached) return cached;
-        const tokens = requestTokens(...args);
-        this.entries.set(key, tokens);
-        tokens.then(
-            () => this.settled.add(key),
-            () => this.entries.delete(key),
+        if (cached) return cached.tokens;
+        const entry = { tokens: requestTokens(...args), settled: false };
+        this.entries.set(key, entry);
+        entry.tokens.then(
+            () => {
+                entry.settled = true;
+            },
+            () => {
+                if (this.entries.get(key) === entry) this.entries.delete(key);
+            },
         );
         if (this.entries.size > this.LIMIT) {
-            const oldest = this.entries.keys().next().value as string;
-            this.entries.delete(oldest);
-            this.settled.delete(oldest);
+            this.entries.delete(this.entries.keys().next().value as string);
         }
-        return tokens;
+        return entry.tokens;
     }
 }
 
