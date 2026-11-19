@@ -596,6 +596,17 @@ export function ActivationPatchingControls({
         });
     }, [tgtPrompt, handleTgtTokenize, tgtBlurTokenize]);
 
+    // Both prompts must be tokenized under the selected model AND the
+    // tokenizations must reflect the current prompt text (no pending edits).
+    const srcTokensInSync =
+        srcTokens.length > 0 &&
+        srcTokenizedModel === selectedModel &&
+        lastTokenizedSrcPromptRef.current === srcPrompt;
+    const tgtTokensInSync =
+        tgtTokens.length > 0 &&
+        tgtTokenizedModel === selectedModel &&
+        lastTokenizedTgtPromptRef.current === tgtPrompt;
+
     // Handle form submission
     const handleSubmit = useCallback(async () => {
         if (!srcPrompt || !tgtPrompt) {
@@ -613,34 +624,37 @@ export function ActivationPatchingControls({
             return;
         }
 
-        // Tokenize both prompts to ensure they're in sync
-        let srcToks: Token[];
-        let tgtToks: Token[];
-        try {
-            srcToks = await encodeText(srcPrompt, selectedModel);
-            tgtToks = await encodeText(tgtPrompt, selectedModel);
-        } catch (error) {
-            if (error instanceof TokenizerLoadError) {
-                toast.error(
-                    `Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`,
-                );
-            } else {
-                toast.error("Failed to tokenize prompts.");
+        // The picked positions index the tokens on screen, so a run needs those
+        // tokens current; tokenize only when they are not.
+        if (!srcTokensInSync || !tgtTokensInSync) {
+            let srcToks: Token[];
+            let tgtToks: Token[];
+            try {
+                srcToks = await encodeText(srcPrompt, selectedModel);
+                tgtToks = await encodeText(tgtPrompt, selectedModel);
+            } catch (error) {
+                if (error instanceof TokenizerLoadError) {
+                    toast.error(
+                        `Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`,
+                    );
+                } else {
+                    toast.error("Failed to tokenize prompts.");
+                }
+                return;
             }
-            return;
-        }
 
-        if (srcToks.length <= 1 || tgtToks.length <= 1) {
-            toast.error("Please enter longer prompts.");
-            return;
-        }
+            if (srcToks.length <= 1 || tgtToks.length <= 1) {
+                toast.error("Please enter longer prompts.");
+                return;
+            }
 
-        setSrcTokens(srcToks);
-        setTgtTokens(tgtToks);
-        setSrcTokenizedModel(selectedModel);
-        setTgtTokenizedModel(selectedModel);
-        lastTokenizedSrcPromptRef.current = srcPrompt;
-        lastTokenizedTgtPromptRef.current = tgtPrompt;
+            setSrcTokens(srcToks);
+            setTgtTokens(tgtToks);
+            setSrcTokenizedModel(selectedModel);
+            setTgtTokenizedModel(selectedModel);
+            lastTokenizedSrcPromptRef.current = srcPrompt;
+            lastTokenizedTgtPromptRef.current = tgtPrompt;
+        }
 
         const config: ActivationPatchingConfigData = {
             ...initialConfig.data,
@@ -699,6 +713,8 @@ export function ActivationPatchingControls({
         workspaceId,
         computePatching,
         updateConfig,
+        srcTokensInSync,
+        tgtTokensInSync,
     ]);
 
     // Auto-run effect for when coming from landing page
@@ -720,19 +736,24 @@ export function ActivationPatchingControls({
                 shouldAutoRunRef.current = false;
 
                 try {
-                    const srcToks = await encodeText(initialSrcPrompt, selectedModel);
-                    const tgtToks = await encodeText(initialTgtPrompt, selectedModel);
+                    // Home picked the positions on these prompts' tokens under
+                    // the launch's model, so the run needs no tokens of its own;
+                    // the token view loads beside it. Another model retokenizes.
+                    if (selectedModel !== savedModel) {
+                        const srcToks = await encodeText(initialSrcPrompt, selectedModel);
+                        const tgtToks = await encodeText(initialTgtPrompt, selectedModel);
 
-                    if (srcToks.length <= 1 || tgtToks.length <= 1) return;
+                        if (srcToks.length <= 1 || tgtToks.length <= 1) return;
 
-                    setSrcTokens(srcToks);
-                    setTgtTokens(tgtToks);
-                    setSrcTokenizedModel(selectedModel);
-                    setTgtTokenizedModel(selectedModel);
-                    setSrcEditing(false);
-                    setTgtEditing(false);
-                    lastTokenizedSrcPromptRef.current = initialSrcPrompt;
-                    lastTokenizedTgtPromptRef.current = initialTgtPrompt;
+                        setSrcTokens(srcToks);
+                        setTgtTokens(tgtToks);
+                        setSrcTokenizedModel(selectedModel);
+                        setTgtTokenizedModel(selectedModel);
+                        setSrcEditing(false);
+                        setTgtEditing(false);
+                        lastTokenizedSrcPromptRef.current = initialSrcPrompt;
+                        lastTokenizedTgtPromptRef.current = initialTgtPrompt;
+                    }
 
                     const config: ActivationPatchingConfigData = {
                         ...initialConfig.data,
@@ -778,6 +799,7 @@ export function ActivationPatchingControls({
         return () => clearTimeout(timer);
     }, [
         selectedModel,
+        savedModel,
         isExecuting,
         initialSrcPrompt,
         initialTgtPrompt,
@@ -790,17 +812,6 @@ export function ActivationPatchingControls({
         computePatching,
         updateConfig,
     ]);
-
-    // Both prompts must be tokenized under the selected model AND the
-    // tokenizations must reflect the current prompt text (no pending edits).
-    const srcTokensInSync =
-        srcTokens.length > 0 &&
-        srcTokenizedModel === selectedModel &&
-        lastTokenizedSrcPromptRef.current === srcPrompt;
-    const tgtTokensInSync =
-        tgtTokens.length > 0 &&
-        tgtTokenizedModel === selectedModel &&
-        lastTokenizedTgtPromptRef.current === tgtPrompt;
 
     // Check if ready to run - requires equal number of source and target positions
     const canRun =
