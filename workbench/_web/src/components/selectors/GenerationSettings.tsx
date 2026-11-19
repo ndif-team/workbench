@@ -3,6 +3,7 @@ import { SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { popoverMenuShellClass } from "@/components/ui/pill-popover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -25,10 +26,11 @@ const MODES: { mode: ChatMode; label: string; description: string }[] = [
 ];
 
 /**
- * A chat's settings behind an icon, in its composer and in Home's when Chat
- * is picked: its mode, temperature and the reply's token limit, the sliders
- * saved when let go. The icon's tooltip sums them up, and a dot on it marks
- * sampling changed from the defaults. `modeFixed` keeps the mode from being
+ * A chat's settings behind an icon, beside Send in its composer and in Home's
+ * when Chat is picked: its mode, temperature and the reply's token limit, the
+ * sliders saved when let go. The icon is a composer control's size, as tall as
+ * Send, and its popover has the composer menus' shell. Its tooltip sums the
+ * settings up, and a dot on it marks sampling changed from the defaults. `modeFixed` keeps the mode from being
  * switched, with a note saying why.
  */
 export function GenerationSettings({
@@ -63,7 +65,7 @@ export function GenerationSettings({
                 <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
+                    size="control-icon"
                     disabled={disabled}
                     title={summary}
                     aria-label={`Settings: ${summary}`}
@@ -71,11 +73,15 @@ export function GenerationSettings({
                 >
                     <SlidersHorizontal />
                     {changed && (
-                        <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-primary" />
+                        <span className="absolute right-1 top-1 size-1.5 rounded-full bg-primary" />
                     )}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent side="top" align="end" className="w-56 space-y-3 p-3">
+            <PopoverContent
+                side="top"
+                align="end"
+                className={cn(popoverMenuShellClass(false), "w-56 space-y-3 p-3")}
+            >
                 <div className="space-y-1.5">
                     <div
                         role="group"
