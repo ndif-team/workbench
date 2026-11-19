@@ -8,7 +8,7 @@ import { toolMeta } from "@/app/(shell)/components/toolMeta";
 import { useLogitLens } from "@/lib/api/logitLensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
 import { LogitLensConfigData } from "@/types/logitLens";
-import { encodeText } from "@/lib/tokenize";
+import { encodeText, resultTokens } from "@/lib/tokenize";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
 import { toast } from "sonner";
@@ -100,6 +100,14 @@ export function LogitLensControls({
     // under a swapped model).
     const lastTokenizedPromptRef = useRef<string>("");
 
+    /** Shows a finished run's own tokens, so a run never waits on the tokenizer. */
+    const showRunTokens = useCallback((input: string[], model: string, ranPrompt: string) => {
+        setTokenData(resultTokens(input));
+        setTokenizedModel(model);
+        setEditingText(false);
+        lastTokenizedPromptRef.current = ranPrompt;
+    }, []);
+
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const tokenContainerRef = useRef<HTMLDivElement>(null);
 
@@ -121,9 +129,8 @@ export function LogitLensControls({
     // Auto-retokenize on selected-model change when the chart has no data
     // yet. During initial composition the user has no committed visualization
     // to protect, so swapping the global model selector should immediately
-    // re-tokenize under the new model and align draftModel — otherwise the
-    // Run button stays disabled and the explicit Sync action is hidden by
-    // its !hasExistingData guard.
+    // re-tokenize under the new model and align draftModel — the explicit
+    // Sync action is hidden by its !hasExistingData guard.
     useEffect(() => {
         if (hasExistingData) return;
         if (editingText) return; // user is mid-typing; blur will handle it
@@ -186,28 +193,20 @@ export function LogitLensControls({
                 // auto-run on open) is a second submit path and must not send a
                 // trailing-space prompt either.
                 const trimmedPrompt = savedPrompt.trim();
-                const tokens = await encodeText(trimmedPrompt, selectedModel);
-                if (isCancelled || tokens.length <= 1) return;
-                setTokenData(tokens);
-                setTokenizedModel(selectedModel);
-                setEditingText(false);
-                // Keep the textarea state aligned with the trimmed value so
-                // tokensInSync (which compares against `prompt`) and the Run
-                // button stay correct after auto-run.
                 setPrompt(trimmedPrompt);
-                lastTokenizedPromptRef.current = trimmedPrompt;
                 const config: LogitLensConfigData = {
                     model: selectedModel,
                     prompt: trimmedPrompt,
                     topk: savedTopk,
                     includeEntropy: savedIncludeEntropy,
                 };
-                await computeLogitLens({
+                const data = await computeLogitLens({
                     lensRequest: { completion: config, chartId },
                     configId: initialConfig.id,
                     trigger: "launch",
                 });
                 if (isCancelled) return;
+                showRunTokens(data.input, selectedModel, trimmedPrompt);
                 await updateConfig({
                     configId: initialConfig.id,
                     chartId,
@@ -235,6 +234,7 @@ export function LogitLensControls({
         workspaceId,
         computeLogitLens,
         updateConfig,
+        showRunTokens,
     ]);
 
     const autoResizeTextarea = useCallback(() => {
@@ -277,10 +277,7 @@ export function LogitLensControls({
             }
             return;
         }
-        if (tokens.length <= 1) {
-            toast.error("Please enter a longer prompt.");
-            return;
-        }
+        if (tokens.length === 0) return;
         const promptChanged = prompt !== lastTokenizedPromptRef.current;
         const modelChanged = tokenizedModel !== null && tokenizedModel !== selectedModel;
         setTokenData(tokens);
@@ -301,26 +298,6 @@ export function LogitLensControls({
         // token and collapses the model's prediction onto whitespace/digits.
         const trimmedPrompt = prompt.trim();
         if (!trimmedPrompt) return;
-        let tokens: Token[];
-        try {
-            tokens = await encodeText(trimmedPrompt, selectedModel);
-        } catch (error) {
-            if (error instanceof TokenizerLoadError) {
-                toast.error(
-                    `Could not load tokenizer for ${selectedModel}. The model may be gated and require authentication.`,
-                );
-            } else {
-                toast.error("Failed to tokenize prompt.");
-            }
-            return;
-        }
-        if (tokens.length <= 1) {
-            toast.error("Please enter a longer prompt.");
-            return;
-        }
-        setTokenData(tokens);
-        setTokenizedModel(selectedModel);
-        lastTokenizedPromptRef.current = trimmedPrompt;
 
         const config: LogitLensConfigData = {
             model: selectedModel,
@@ -330,11 +307,12 @@ export function LogitLensControls({
         };
 
         try {
-            await computeLogitLens({
+            const data = await computeLogitLens({
                 lensRequest: { completion: config, chartId },
                 configId: initialConfig.id,
                 trigger: "run",
             });
+            showRunTokens(data.input, selectedModel, trimmedPrompt);
             await updateConfig({
                 configId: initialConfig.id,
                 chartId,
@@ -348,7 +326,6 @@ export function LogitLensControls({
         // doesn't flash between the run completing and the refetch arriving.
         setDraftModel(selectedModel);
         lastSyncedPromptRef.current = trimmedPrompt;
-        setEditingText(false);
     }, [
         prompt,
         topk,
@@ -359,6 +336,7 @@ export function LogitLensControls({
         workspaceId,
         computeLogitLens,
         updateConfig,
+        showRunTokens,
     ]);
 
     const handlePromptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -484,14 +462,6 @@ export function LogitLensControls({
     const showSync = modelMismatchVsConfig;
     const viewMode = !modelsAvailable && !modelsLoading;
 
-    // Run is only enabled when the visible tokens (a) were produced by the
-    // selected model and (b) correspond to the current prompt — i.e. there
-    // are no pending edits or model swaps waiting on retokenization.
-    const tokensInSync =
-        tokenData.length > 0 &&
-        tokenizedModel === selectedModel &&
-        lastTokenizedPromptRef.current === prompt;
-
     // The next token belongs to the saved run, so show it only on that run's tokens
     const showNextToken =
         tokenizedModel === savedModel && lastTokenizedPromptRef.current === savedPrompt;
@@ -538,8 +508,6 @@ export function LogitLensControls({
         onSync: updateConfigModel,
     };
 
-    // On a phone Run tokenizes the prompt itself (`handleSubmit`), so it doesn't
-    // wait for the blur that would do it: a tap on a disabled button blurs nothing.
     if (floating) {
         return (
             <FloatingToolComposer
@@ -569,7 +537,7 @@ export function LogitLensControls({
                     tool="logit-lens"
                     busy={isExecuting}
                     onClick={handleSubmit}
-                    disabled={!interactive || !prompt.trim() || !tokensInSync}
+                    disabled={!interactive || !prompt.trim()}
                 />
 
                 <ToolRunButton.Shortcut />

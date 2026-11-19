@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { encodeText as requestTokens } from "@/actions/tok";
+import type { Token } from "@/types/models";
 
 interface TokenizingState {
     /** How many requests are under way for each prompt (trimmed). */
@@ -38,4 +39,10 @@ export async function encodeText(...args: Parameters<typeof requestTokens>) {
 /** Whether this prompt is waiting on its tokens. */
 export function useIsTokenizing(prompt: string): boolean {
     return useTokenizing((s) => (s.pending[prompt.trim()] ?? 0) > 0);
+}
+
+/** A lens result's `input` (the prompt's tokens as text) as prompt tokens. The
+ * result carries no vocabulary ids, so each `id` is -1. */
+export function resultTokens(input: string[]): Token[] {
+    return input.map((text, idx) => ({ idx, id: -1, text }));
 }

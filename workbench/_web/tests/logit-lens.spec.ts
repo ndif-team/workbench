@@ -40,12 +40,8 @@ test.beforeEach(async ({ page }) => {
  */
 
 async function runOnce(page: import("@playwright/test").Page) {
-    // The Run button is gated behind a blur-driven tokenization step
-    // (`tokensInSync`) that's awkward to trigger reliably from a test. Submit
-    // via the documented Cmd/Ctrl+Enter shortcut instead — it calls handleSubmit
-    // directly, which tokenizes and runs in one step regardless of the button's
-    // enabled state. Fall back to clicking Run if the editor already collapsed
-    // to the token view (in which case Run is enabled).
+    // Submit with the Cmd/Ctrl+Enter shortcut while the prompt is being edited;
+    // click Run if the editor already collapsed to the token view.
     const editor = page.getByPlaceholder(/Enter a prompt\.\.\.$/);
     if ((await editor.count()) > 0) {
         await editor.focus();
