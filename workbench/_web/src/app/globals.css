@@ -293,11 +293,10 @@
 }
 
 /* A model card's surface on that background: polished steel with a slight
- * blue cast, soft bright and dim bands running across the card, and a
- * highlight along the top edge. It carries none of the background's own
- * colours, so the cards stand off the marbling. */
+ * blue cast, soft bright and dim bands running across the card, a highlight
+ * along the top edge and a soft shadow. It carries none of the background's
+ * own colours, so the cards stand off the marbling. */
 .steel-surface {
-    border-color: hsl(216 12% 83%);
     background: linear-gradient(
         112deg,
         hsl(216 33% 97%) 0%,
@@ -308,11 +307,11 @@
         hsl(216 33% 97%) 100%
     );
     box-shadow:
-        inset 0 1px 0 hsl(0 0% 100% / 0.95),
-        0 1px 2px hsl(0 0% 0% / 0.1);
+        inset 0 1px 0 hsl(0 0% 100%),
+        0 1px 2px hsl(226 57% 21% / 0.12),
+        0 6px 16px -6px hsl(226 57% 21% / 0.3);
 }
-:where(.dark) .steel-surface {
-    border-color: hsl(218 6% 36%);
+.dark .steel-surface {
     background: linear-gradient(
         112deg,
         hsl(218 13% 24%) 0%,
@@ -323,8 +322,9 @@
         hsl(219 13% 26%) 100%
     );
     box-shadow:
-        inset 0 1px 0 hsl(0 0% 100% / 0.14),
-        0 1px 2px hsl(0 0% 0% / 0.5);
+        inset 0 1px 0 hsl(0 0% 100% / 0.12),
+        0 1px 2px hsl(0 0% 0% / 0.5),
+        0 6px 16px -6px hsl(0 0% 0% / 0.8);
 }
 
 /* A scrolling list whose content fades out over its top and bottom 12px
