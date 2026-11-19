@@ -29,8 +29,10 @@ const MODES: { mode: ChatMode; label: string; description: string }[] = [
  * A chat's settings behind an icon, beside Send in its composer and in Home's
  * when Chat is picked: its mode, temperature and the reply's token limit, the
  * sliders saved when let go. The icon is a composer control's size, as tall as
- * Send, and its popover has the composer menus' shell. Its tooltip sums the
- * settings up, and a dot on it marks sampling changed from the defaults. `modeFixed` keeps the mode from being
+ * Send, and its popover has the composer menus' shell; the mode picked and the
+ * sliders take the tools' accent, as the lens parameters and patch toggles do.
+ * Its tooltip sums the settings up, and a dot on it marks sampling changed
+ * from the defaults. `modeFixed` keeps the mode from being
  * switched, with a note saying why.
  */
 export function GenerationSettings({
@@ -73,7 +75,7 @@ export function GenerationSettings({
                 >
                     <SlidersHorizontal />
                     {changed && (
-                        <span className="absolute right-1 top-1 size-1.5 rounded-full bg-primary" />
+                        <span className="absolute right-1 top-1 size-1.5 rounded-full bg-tool-accent" />
                     )}
                 </Button>
             </PopoverTrigger>
@@ -101,9 +103,9 @@ export function GenerationSettings({
                                 title={m.description}
                                 onClick={() => m.mode !== mode && onModeChange(m.mode)}
                                 className={cn(
-                                    "h-6 rounded-sm text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                                    "h-6 rounded-sm text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-tool-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
                                     m.mode === mode
-                                        ? "bg-accent text-accent-foreground"
+                                        ? "bg-tool-accent/15 text-tool-accent"
                                         : "text-muted-foreground enabled:hover:text-foreground",
                                 )}
                             >
@@ -178,6 +180,7 @@ function SettingSlider({
             </div>
             <Slider
                 id={id}
+                tone="tool"
                 {...range}
                 value={[value]}
                 onValueChange={([next]) => onChange(next)}
