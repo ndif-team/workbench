@@ -1,14 +1,19 @@
 import { useLayoutEffect, useRef, useState, type Ref } from "react";
-import { ArrowUp, ChevronsRight } from "lucide-react";
+import { ChevronsRight } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { RunButton } from "@/components/RunButton";
+import { PROMPT_FIELD } from "@/components/promptField";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import type { ChatMode, GenerationParams } from "@/types/chats";
 import { GenerationSettings, type ModeFixed } from "@/components/selectors/GenerationSettings";
 
 /**
  * The message box under a chat: the text, which grows as it's written, over a
- * row with the chat's settings (mode included, `GenerationSettings`) and Send.
+ * row with the chat's settings (mode included, `GenerationSettings`) and Send,
+ * in the look of Home's composer, which glides into it when a chat starts
+ * there: Send is the composers' `RunButton`, and the box takes the tools'
+ * accent while its text is edited (`PROMPT_FIELD.composer`).
  * ⌘/Ctrl-Enter sends; plain Enter is a newline. In completion mode an empty
  * box continues the text. The draft comes back when a send fails.
  */
@@ -66,7 +71,10 @@ export function ChatComposer({
                 e.preventDefault();
                 submit();
             }}
-            className="rounded-md border bg-card shadow-sm transition-[border-color,box-shadow] has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-[3px] has-[textarea:focus-visible]:ring-ring/50 dark:bg-secondary"
+            className={cn(
+                "rounded-md border bg-card shadow-sm transition-[border-color,box-shadow] dark:bg-secondary",
+                PROMPT_FIELD.composer,
+            )}
         >
             <Textarea
                 ref={textareaRef}
@@ -88,7 +96,7 @@ export function ChatComposer({
                 disabled={disabled}
                 autoFocus={autoFocus}
                 readOnly={readOnly}
-                className="max-h-60 min-h-0 resize-none border-0 bg-transparent px-3 pb-1 pt-2.5 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
+                className="prompt-input max-h-60 min-h-0 resize-none border-0 bg-transparent px-3 pb-1 pt-2.5 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
             <div className="flex items-center justify-end gap-1 p-1.5 pt-0">
                 <GenerationSettings
@@ -99,15 +107,13 @@ export function ChatComposer({
                     disabled={disabled || busy}
                     modeFixed={modeFixed}
                 />
-                <Button
+                <RunButton
                     type="submit"
-                    size="icon"
                     disabled={!canSend}
                     aria-label={action}
                     title={`${action} (⌘↵)`}
-                >
-                    {continuing ? <ChevronsRight /> : <ArrowUp />}
-                </Button>
+                    icon={continuing ? ChevronsRight : undefined}
+                />
             </div>
         </form>
     );
