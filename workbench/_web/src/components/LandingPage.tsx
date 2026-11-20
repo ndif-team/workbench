@@ -4,16 +4,19 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { LandingComposer } from "@/components/LandingComposer";
 
 /**
  * The landing page at `/` for visitors who aren't signed in: the partner
  * logos, Log In, and the hero and composer (`LandingComposer`, which Home
- * shares). Once signed in, `/` is Home instead.
+ * shares), under the announcement when there is one. Once signed in, `/` is
+ * Home instead.
  */
-export function LandingPage() {
+export function LandingPage({ announcement = false }: { announcement?: boolean }) {
     return (
         <div className="h-screen w-screen aurora-bg relative overflow-hidden flex flex-col">
+            {announcement && <AnnouncementBanner />}
             {/* Header */}
             <header className="relative z-10 flex justify-between items-center p-6 w-full shrink-0">
                 <motion.div
