@@ -1,16 +1,20 @@
 import {
     boolean,
+    integer,
     jsonb,
     pgTable,
+    text,
     varchar,
     uuid,
     timestamp,
     real,
     uniqueIndex,
     index,
+    type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type { ConfigData, ChartData } from "@/types/charts";
+import { chatModes, type ChatData, type ChatMessageData } from "@/types/chats";
 import type { LensRunSummary, LensRunHeatmaps } from "@/types/lensRun";
 import type { ProlificParams } from "@/lib/prolific";
 import type { TutorialEventPayload, TutorialEventType } from "@/types/tutorialEvents";
@@ -164,6 +168,57 @@ export const documents = pgTable("documents", {
         .notNull()
         .$onUpdate(() => new Date()),
 });
+
+// A chat with a model: its messages live in chat_messages. `model`, `mode` and
+// `data` (sampling settings) are the chat's current settings; each reply records
+// the ones it ran with. `mode` tells chats (chat template) from base-model
+// completions. `head_message_id` is the last message of the branch on screen.
+export const chats = pgTable("chats", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+        .references(() => workspaces.id, { onDelete: "cascade" })
+        .notNull(),
+
+    name: varchar("name", { length: 256 }).notNull().default("New chat"),
+    model: varchar("model", { length: 256 }).notNull(),
+    mode: varchar("mode", { enum: chatModes, length: 32 }).notNull().default("chat"),
+    data: jsonb("data").$type<ChatData>().notNull(),
+    headMessageId: uuid("head_message_id").references((): AnyPgColumn => chatMessages.id, {
+        onDelete: "set null",
+    }),
+    position: real("position").default(0).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+        .defaultNow()
+        .notNull()
+        .$onUpdate(() => new Date()),
+});
+
+// One row per message. Messages form a tree: each points at the message it
+// follows (`parent_id`, null for a chat's first), so a regenerated reply or an
+// edit is a sibling and nothing is overwritten. `position` is the depth. `data`
+// holds the role and, for a reply, its run: pending, complete or failed.
+export const chatMessages = pgTable(
+    "chat_messages",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        chatId: uuid("chat_id")
+            .references(() => chats.id, { onDelete: "cascade" })
+            .notNull(),
+        parentId: uuid("parent_id").references((): AnyPgColumn => chatMessages.id, {
+            onDelete: "cascade",
+        }),
+        content: text("content").notNull().default(""),
+        position: integer("position").notNull(),
+        data: jsonb("data").$type<ChatMessageData>().notNull(),
+        createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+        updatedAt: timestamp("updated_at", { mode: "date" })
+            .defaultNow()
+            .notNull()
+            .$onUpdate(() => new Date()),
+    },
+    (table) => [index("chat_messages_chat_idx").on(table.chatId)],
+);
 
 // F1 prompt history: one row per successful patch-lens lens run; cascades through
 // workspace/chart like configs. Split storage: `summary` is the compact slice

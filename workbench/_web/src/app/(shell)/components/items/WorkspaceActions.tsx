@@ -26,7 +26,7 @@ import { describeContents } from "./workspaceContents";
 
 /**
  * A workspace's Rename and Delete. Delete confirms in a dialog that says what
- * goes with the workspace, since its charts and reports are deleted too. Not
+ * goes with the workspace, since its charts, chats and reports are deleted too. Not
  * for workshop workspaces, which can't be renamed or deleted. Both move focus
  * elsewhere, so they run once the menu has closed (`afterCloseRef`), in place
  * of its return of focus to the trigger. `className` sizes the trigger.

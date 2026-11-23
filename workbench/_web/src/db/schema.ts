@@ -5,6 +5,8 @@ import {
     configs as sqliteConfigs,
     chartConfigLinks as sqliteChartConfigLinks,
     documents as sqliteDocuments,
+    chats as sqliteChats,
+    chatMessages as sqliteChatMessages,
     lensRuns as sqliteLensRuns,
     workshops as sqliteWorkshops,
     tutorials as sqliteTutorials,
@@ -16,6 +18,8 @@ import {
     configs as pgConfigs,
     chartConfigLinks as pgChartConfigLinks,
     documents as pgDocuments,
+    chats as pgChats,
+    chatMessages as pgChatMessages,
     lensRuns as pgLensRuns,
     workshops as pgWorkshops,
     tutorials as pgTutorials,
@@ -30,6 +34,8 @@ export const charts = isLocal ? sqliteCharts : pgCharts;
 export const configs = isLocal ? sqliteConfigs : pgConfigs;
 export const chartConfigLinks = isLocal ? sqliteChartConfigLinks : pgChartConfigLinks;
 export const documents = isLocal ? sqliteDocuments : pgDocuments;
+export const chats = isLocal ? sqliteChats : pgChats;
+export const chatMessages = isLocal ? sqliteChatMessages : pgChatMessages;
 export const lensRuns = isLocal ? sqliteLensRuns : pgLensRuns;
 export const workshops = isLocal ? sqliteWorkshops : pgWorkshops;
 export const tutorials = isLocal ? sqliteTutorials : pgTutorials;
@@ -68,6 +74,9 @@ export type NewChartConfigLink = typeof chartConfigLinks.$inferInsert;
 
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
+
+export type Chat = typeof pgChats.$inferSelect;
+export type ChatMessage = typeof pgChatMessages.$inferSelect;
 
 export type LensRun = typeof lensRuns.$inferSelect;
 export type NewLensRun = typeof lensRuns.$inferInsert;

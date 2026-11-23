@@ -6,22 +6,24 @@
  * wrappers in workspaceQueries.ts only resolve the signed-in user before
  * calling these). Covers idempotent default creation, adoption of the
  * old flow's "Default Workspace", the one-default-per-user index, library
- * grouping, ordering and chart prompts, chart and report moves (config and lens runs follow
- * the chart), refused moves, and the default workspace staying out of folder
- * lists and out of reach of rename/delete.
+ * grouping and ordering of charts, chats and reports, chart prompts, chart
+ * and report moves (config and lens runs follow the chart; chat moves are in
+ * chats.test.ts), refused moves, and the default workspace staying out of
+ * folder lists and out of reach of rename/delete.
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import type { SerializedEditorState } from "lexical";
 import { db, clearDatabase } from "../client";
-import { charts, configs, documents, isUuid, lensRuns, workspaces } from "../schema";
+import { charts, chats, configs, documents, isUuid, lensRuns, workspaces } from "../schema";
 import {
     DEFAULT_WORKSPACE_NAME,
     MAX_WORKSPACE_NAME_LENGTH,
     createWorkspace,
     deleteWorkspace,
     getChartWorkspaceScope,
+    getChatWorkspaceScope,
     getOrCreateDefaultWorkspace,
     getReportWorkspaceScope,
     getWorkspaceById,
@@ -34,11 +36,13 @@ import {
 } from "@/lib/queries/workspaceDb";
 import { getConfigForChart } from "@/lib/queries/chartQueries";
 import { createLogitLensChartPair, createPatchLensChartPair } from "@/lib/queries/chartDb";
+import { addChatTurn, createChat } from "@/lib/queries/chatDb";
 import { createDocument, updateDocument } from "@/lib/queries/documentDb";
 import { setConfig } from "@/lib/queries/configDb";
 import { createLensRun } from "@/lib/queries/lensRunDb";
 import { ensureSeedTutorial } from "@/lib/queries/tutorialContentDb";
 import { createWorkshop } from "@/lib/queries/workshopDb";
+import { DEFAULT_GENERATION_PARAMS } from "@/types/chats";
 import type { LensRunHeatmaps, LensRunSummary } from "@/types/lensRun";
 import type { LibraryItem } from "@/types/workspaces";
 
@@ -65,6 +69,15 @@ const setChartUpdatedAt = (chartId: string, secondsAgo: number) =>
         .update(charts)
         .set({ updatedAt: new Date(Date.now() - secondsAgo * 1000) })
         .where(eq(charts.id, chartId));
+
+const newChat = (workspaceId?: string, model = "gpt2") =>
+    createChat(USER, { model, mode: "chat", workspaceId });
+
+const setChatUpdatedAt = (chatId: string, secondsAgo: number) =>
+    db
+        .update(chats)
+        .set({ updatedAt: new Date(Date.now() - secondsAgo * 1000) })
+        .where(eq(chats.id, chatId));
 
 const reportWithTitle = (title: string) =>
     ({
@@ -421,6 +434,61 @@ describe("workspace library", () => {
         expect(fresh).toMatchObject({ kind: "chart", hasData: false });
     });
 
+    it("lists chats beside charts and reports: newest first unfiled, in position order in a folder", async () => {
+        const def = await getOrCreateDefaultWorkspace(USER);
+        const folder = await createWorkspace(USER, "Folder");
+        await createChat(OTHER, { model: "gpt2", mode: "chat" });
+
+        const chart = await createChart(def.id, "Chart");
+        const chat = (await newChat(undefined, "meta-llama/Llama-3.2-1B-Instruct")).id;
+        const named = (await newChat()).id;
+        await addChatTurn(USER, named, {
+            content: "What is the capital of France?",
+            reply: { status: "pending", model: "gpt2", params: DEFAULT_GENERATION_PARAMS },
+        });
+        const report = await createDocument(USER, def.id);
+        await setChartUpdatedAt(chart, 300);
+        await setChatUpdatedAt(chat, 60);
+        await setChatUpdatedAt(named, 400);
+        await db
+            .update(documents)
+            .set({ updatedAt: new Date(Date.now() - 120_000) })
+            .where(eq(documents.id, report.id));
+
+        const first = await createChart(folder.id, "First");
+        const folderChat = (await newChat(folder.id)).id;
+        const folderReport = await createDocument(USER, folder.id);
+        await setChatUpdatedAt(folderChat, 900);
+
+        const library = await getWorkspaceLibrary(USER);
+
+        expect(ids(library.defaultItems)).toEqual([chat, report.id, chart, named]);
+        expect(library.defaultItems[0]).toMatchObject({
+            kind: "chat",
+            workspaceId: def.id,
+            name: "New chat",
+            model: "meta-llama/Llama-3.2-1B-Instruct",
+        });
+        expect(library.defaultItems.find((i) => i.id === named)).toMatchObject({
+            kind: "chat",
+            name: "What is the capital of France?",
+        });
+
+        const [listed] = library.workspaces;
+        expect(ids(listed.items)).toEqual([first, folderChat, folderReport.id]);
+        expect(listed.items.map((i) => [i.kind, i.position])).toEqual([
+            ["chart", 0],
+            ["chat", 1],
+            ["report", 2],
+        ]);
+        expect((await getWorkspaces(USER))[0]).toMatchObject({
+            id: folder.id,
+            chartCount: 1,
+            chatCount: 1,
+            documentCount: 1,
+        });
+    });
+
     it("carries each chart's prompt: the config's, or Patch Lens's source prompt", async () => {
         const def = await getOrCreateDefaultWorkspace(USER);
         const lens = await createChart(def.id, "Untitled Chart");
@@ -448,16 +516,21 @@ describe("workspace library", () => {
         const folder = await createWorkspace(USER, "Folder");
         const first = await createChart(folder.id, "First");
         const second = await createChart(folder.id, "Second");
+        const chat = (await newChat(folder.id)).id;
         const report = await createDocument(USER, folder.id);
+        await setChatUpdatedAt(chat, 600);
 
         await reorderWorkspaceItems(USER, folder.id, [
             { kind: "report", id: report.id },
             { kind: "chart", id: second },
+            { kind: "chat", id: chat },
             { kind: "chart", id: first },
         ]);
 
         const library = await getWorkspaceLibrary(USER);
-        expect(ids(library.workspaces[0].items)).toEqual([report.id, second, first]);
+        expect(ids(library.workspaces[0].items)).toEqual([report.id, second, chat, first]);
+        const [row] = await db.select().from(chats).where(eq(chats.id, chat));
+        expect(Date.now() - row.updatedAt.getTime()).toBeGreaterThanOrEqual(590_000);
     });
 
     it("reorders only the user's own workspace, and only the items in it", async () => {
@@ -699,14 +772,17 @@ describe("lookups by an id from a URL", () => {
         const ws = await createWorkspace(USER, "Folder");
         const chartId = await createChart(ws.id, "Chart");
         const report = await createDocument(USER, ws.id);
+        const chat = await newChat(ws.id);
 
         expect(await getWorkspaceById(ws.id)).not.toBeNull();
         expect(await getChartWorkspaceScope(chartId)).not.toBeNull();
         expect(await getReportWorkspaceScope(report.id)).not.toBeNull();
+        expect(await getChatWorkspaceScope(chat.id)).not.toBeNull();
         for (const malformed of ["not-a-uuid", `${chartId}'`, "%E2%80%A6"]) {
             expect(await getWorkspaceById(malformed)).toBeNull();
             expect(await getChartWorkspaceScope(malformed)).toBeNull();
             expect(await getReportWorkspaceScope(malformed)).toBeNull();
+            expect(await getChatWorkspaceScope(malformed)).toBeNull();
         }
     });
 });

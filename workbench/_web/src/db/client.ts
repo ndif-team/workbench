@@ -44,6 +44,8 @@ export const clearDatabase = async () => {
     const clearStatements = `
         DELETE FROM tutorial_events;
         DELETE FROM lens_runs;
+        DELETE FROM chat_messages;
+        DELETE FROM chats;
         DELETE FROM chart_config_links;
         DELETE FROM documents;
         DELETE FROM configs;

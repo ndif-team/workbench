@@ -16,6 +16,8 @@ const config = {
 
         runActivationPatching: "/activation_patching/run",
 
+        chatGenerate: "/chat/generate",
+
         startGenerate: "/models/start-generate",
 
         models: "/models/",

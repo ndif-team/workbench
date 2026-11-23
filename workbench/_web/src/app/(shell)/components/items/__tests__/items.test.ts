@@ -3,7 +3,7 @@ import { describe, expect, it } from "bun:test";
 import type { LibraryItem, WorkspaceLibrary } from "@/types/workspaces";
 import { coverPlacement, folderCover } from "../covers";
 import { formatUpdated, recencyGroup } from "../formatUpdated";
-import { chartLabel, chartName, itemLabel } from "../itemLabel";
+import { chartLabel, chartName, itemLabel, itemPath, nameField } from "../itemLabel";
 import { describeContents, neighborInList } from "../workspaceContents";
 
 const chart = (name: string, prompt: string | null): LibraryItem => ({
@@ -15,6 +15,17 @@ const chart = (name: string, prompt: string | null): LibraryItem => ({
     model: null,
     prompt,
     hasData: false,
+    position: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+});
+
+const chat = (name: string): LibraryItem => ({
+    kind: "chat",
+    id: "h1",
+    workspaceId: "w1",
+    name,
+    model: "meta-llama/Llama-3.2-1B-Instruct",
     position: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -54,6 +65,23 @@ describe("itemLabel", () => {
         expect(chartName("Untitled Chart")).toBe("");
         expect(chartName("  Logit lens  ")).toBe("Logit lens");
     });
+
+    it("labels a chat by its name, muted while it is still New chat", () => {
+        expect(itemLabel(chat("Capitals of Europe"))).toEqual({
+            text: "Capitals of Europe",
+            placeholder: false,
+        });
+        expect(itemLabel(chat("New chat"))).toEqual({ text: "New chat", placeholder: true });
+    });
+
+    it("opens a chat at its own page and renames it from its name", () => {
+        expect(itemPath(chat("Capitals"))).toBe("/chat/h1");
+        expect(nameField(chat("Capitals"))).toMatchObject({
+            value: "Capitals",
+            ariaLabel: "Chat name",
+        });
+        expect(nameField(chart("Untitled Chart", "Paris"))).toMatchObject({ value: "" });
+    });
 });
 
 describe("dates", () => {
@@ -80,7 +108,7 @@ describe("dates", () => {
 });
 
 describe("workspace contents", () => {
-    const item = (id: string, workspaceId: string, kind: "chart" | "report" = "chart") =>
+    const item = (id: string, workspaceId: string, kind: LibraryItem["kind"] = "chart") =>
         ({ ...chart("", null), id, workspaceId, kind }) as LibraryItem;
     const folder = (id: string, items: LibraryItem[]) => ({
         id,
@@ -99,6 +127,17 @@ describe("workspace contents", () => {
     it("reads a workspace's contents in words", () => {
         expect(describeContents(library.workspaces[0])).toBe("1 chart and 1 report");
         expect(describeContents(folder("f", [item("p", "f"), item("q", "f")]))).toBe("2 charts");
+        expect(describeContents(folder("f", [item("p", "f", "chat")]))).toBe("1 chat");
+        expect(
+            describeContents(
+                folder("f", [
+                    item("p", "f"),
+                    item("q", "f", "chat"),
+                    item("r", "f", "chat"),
+                    item("s", "f", "report"),
+                ]),
+            ),
+        ).toBe("1 chart, 2 chats and 1 report");
         expect(describeContents(library.workspaces[1])).toBe("");
     });
 

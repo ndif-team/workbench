@@ -16,6 +16,7 @@ import { db } from "@/db/client";
 import {
     chartConfigLinks,
     charts,
+    chats,
     configs,
     documents,
     isUuid,
@@ -138,8 +139,14 @@ export const setWorkspaceProlificIfEmpty = async (
         .where(and(eq(workspaces.id, workspaceId), isNull(workspaces.prolific)));
 };
 
-/** The user's workspaces (folders) with item counts. Excludes the default workspace. */
+/**
+ * The user's workspaces (folders) with item counts. Excludes the default
+ * workspace. Each count is its own subquery, so a folder's rows don't
+ * multiply across the item tables as joins would.
+ */
 export const getWorkspaces = async (userId: string) => {
+    const countIn = (table: typeof charts | typeof chats | typeof documents) =>
+        sql<number>`(select cast(count(*) as integer) from ${table} where ${table}."workspace_id" = ${workspaces}."id")`;
     const workspaceList = await db
         .select({
             id: workspaces.id,
@@ -147,14 +154,12 @@ export const getWorkspaces = async (userId: string) => {
             name: workspaces.name,
             public: workspaces.public,
             updatedAt: workspaces.updatedAt,
-            chartCount: sql<number>`cast(count(distinct ${charts.id}) as integer)`,
-            documentCount: sql<number>`cast(count(distinct ${documents.id}) as integer)`,
+            chartCount: countIn(charts),
+            documentCount: countIn(documents),
+            chatCount: countIn(chats),
         })
         .from(workspaces)
-        .leftJoin(charts, eq(workspaces.id, charts.workspaceId))
-        .leftJoin(documents, eq(workspaces.id, documents.workspaceId))
         .where(and(eq(workspaces.userId, userId), eq(workspaces.isDefault, false)))
-        .groupBy(workspaces.id)
         .orderBy(desc(workspaces.updatedAt));
 
     return workspaceList;
@@ -236,6 +241,13 @@ export const reorderWorkspaceItems = async (
             .set({ position: chartOrder.position, updatedAt: sql`${charts.updatedAt}` })
             .where(and(inArray(charts.id, chartOrder.ids), eq(charts.workspaceId, workspaceId)));
     }
+    const chatOrder = orderOf("chat", chats.id);
+    if (chatOrder.ids.length > 0) {
+        await db
+            .update(chats)
+            .set({ position: chatOrder.position, updatedAt: sql`${chats.updatedAt}` })
+            .where(and(inArray(chats.id, chatOrder.ids), eq(chats.workspaceId, workspaceId)));
+    }
     const reportOrder = orderOf("report", documents.id);
     if (reportOrder.ids.length > 0) {
         await db
@@ -254,19 +266,15 @@ export const touchWorkspace = async (workspaceId: string) => {
         .where(eq(workspaces.id, workspaceId));
 };
 
-/** Position just past the last chart or report in a workspace. */
+/** Position just past the last chart, chat or report in a workspace. */
 export const getNextWorkspaceItemPosition = async (workspaceId: string): Promise<number> => {
-    const [chartRows, docRows] = await Promise.all([
+    const maxIn = (table: typeof charts | typeof chats | typeof documents) =>
         db
-            .select({ max: sql<number | null>`max(${charts.position})` })
-            .from(charts)
-            .where(eq(charts.workspaceId, workspaceId)),
-        db
-            .select({ max: sql<number | null>`max(${documents.position})` })
-            .from(documents)
-            .where(eq(documents.workspaceId, workspaceId)),
-    ]);
-    const maxPos = Math.max(Number(chartRows[0]?.max ?? -1), Number(docRows[0]?.max ?? -1));
+            .select({ max: sql<number | null>`max(${table.position})` })
+            .from(table)
+            .where(eq(table.workspaceId, workspaceId));
+    const rows = await Promise.all([maxIn(charts), maxIn(chats), maxIn(documents)]);
+    const maxPos = Math.max(...rows.map(([row]) => Number(row?.max ?? -1)));
     return maxPos + 1;
 };
 
@@ -345,6 +353,16 @@ type LibraryChartRow = {
     updatedAt: Date;
 };
 
+type LibraryChatRow = {
+    id: string;
+    workspaceId: string;
+    name: string;
+    model: string;
+    position: number;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
 type LibraryReportRow = {
     id: string;
     workspaceId: string;
@@ -355,12 +373,13 @@ type LibraryReportRow = {
 };
 
 /**
- * Every workspace of the user with its charts and reports, for the global
+ * Every workspace of the user with its charts, chats and reports, for the global
  * sidebar. Only a Patch Lens chart's `data` is read into (for its source
  * prompt); other tools' results can be large and only their presence is
  * selected. Creates the default workspace on first read unless `createDefault`
  * is false (a workshop participant never gets one). Batched per user: one
- * query each for workspaces, charts and reports, whatever the folder count.
+ * query each for workspaces, charts, chats and reports, whatever the folder
+ * count.
  */
 export const getWorkspaceLibrary = async (
     userId: string,
@@ -374,7 +393,7 @@ export const getWorkspaceLibrary = async (
     const sourcePrompt = jsonTextField(charts.data, "sourcePrompt");
     const patchLensPrompt = sql<string | null>`case when ${isPatchLens} then ${sourcePrompt} end`;
 
-    const [workspaceRows, chartRows, reportRows] = (await Promise.all([
+    const [workspaceRows, chartRows, chatRows, reportRows] = (await Promise.all([
         db
             .select({
                 id: workspaces.id,
@@ -408,6 +427,19 @@ export const getWorkspaceLibrary = async (
             .where(eq(workspaces.userId, userId)),
         db
             .select({
+                id: chats.id,
+                workspaceId: chats.workspaceId,
+                name: chats.name,
+                model: chats.model,
+                position: chats.position,
+                createdAt: chats.createdAt,
+                updatedAt: chats.updatedAt,
+            })
+            .from(chats)
+            .innerJoin(workspaces, eq(chats.workspaceId, workspaces.id))
+            .where(eq(workspaces.userId, userId)),
+        db
+            .select({
                 id: documents.id,
                 workspaceId: documents.workspaceId,
                 content: documents.content,
@@ -428,6 +460,7 @@ export const getWorkspaceLibrary = async (
             updatedAt: Date;
         }>,
         LibraryChartRow[],
+        LibraryChatRow[],
         LibraryReportRow[],
     ];
 
@@ -453,6 +486,7 @@ export const getWorkspaceLibrary = async (
             updatedAt: c.updatedAt,
         });
     }
+    for (const c of chatRows) add({ kind: "chat", ...c });
     for (const r of reportRows) {
         add({
             kind: "report",
@@ -590,6 +624,31 @@ export const moveReport = async (
     await Promise.all([touchWorkspace(sourceId), touchWorkspace(targetId)]);
 };
 
+/** Moves a chat (its messages follow it) to the end of another of the user's workspaces (null: the default workspace). */
+export const moveChat = async (
+    userId: string,
+    chatId: string,
+    targetWorkspaceId: string | null,
+): Promise<void> => {
+    const [chat] = await db
+        .select({ workspaceId: chats.workspaceId })
+        .from(chats)
+        .where(eq(chats.id, chatId))
+        .limit(1);
+    if (!chat) throw new Error("Chat not found");
+
+    const sourceId: string = chat.workspaceId;
+    const targetId = await resolveMoveTarget(userId, sourceId, targetWorkspaceId);
+    if (targetId === sourceId) return;
+
+    const position = await getNextWorkspaceItemPosition(targetId);
+    await db
+        .update(chats)
+        .set({ workspaceId: targetId, position, updatedAt: sql`${chats.updatedAt}` })
+        .where(eq(chats.id, chatId));
+    await Promise.all([touchWorkspace(sourceId), touchWorkspace(targetId)]);
+};
+
 /** The scope of the workspace whose id `workspaceId` selects (an item's workspace_id), or null. */
 const getWorkspaceScope = async (workspaceId: SQLWrapper): Promise<WorkspaceScope | null> => {
     const [workspace] = await db
@@ -632,5 +691,13 @@ export const getReportWorkspaceScope = async (
                   .select({ id: documents.workspaceId })
                   .from(documents)
                   .where(eq(documents.id, documentId)),
+          )
+        : null;
+
+/** The workspace a chat page renders in, or null when the chat doesn't exist (or the id isn't a UUID). */
+export const getChatWorkspaceScope = async (chatId: string): Promise<WorkspaceScope | null> =>
+    isUuid(chatId)
+        ? getWorkspaceScope(
+              db.select({ id: chats.workspaceId }).from(chats).where(eq(chats.id, chatId)),
           )
         : null;

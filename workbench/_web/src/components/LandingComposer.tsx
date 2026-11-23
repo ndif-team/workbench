@@ -18,6 +18,9 @@ import { newChartPath } from "@/lib/chartRoutes";
 import { ChartOrigins, launchTool, type ChartOrigin } from "@/lib/chartLaunch";
 import { useCapture } from "@/lib/analytics";
 import { useLaunchChart } from "@/hooks/useLaunchChart";
+import { useLaunchChat } from "@/hooks/useLaunchChat";
+import { ChatLaunch } from "@/lib/chatLaunch";
+import { chatModeFor } from "@/lib/chats";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
 import {
@@ -31,7 +34,9 @@ import {
     ToolPill,
     WorkspacePill,
 } from "@/components/selectors/LaunchSelectors";
+import { GenerationSettings } from "@/components/selectors/GenerationSettings";
 import { PROMPT_FIELD } from "@/components/promptField";
+import { DEFAULT_GENERATION_PARAMS, type ChatMode } from "@/types/chats";
 import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
 import { CwLogoMark } from "@/components/CwLogo";
@@ -243,7 +248,11 @@ function ModelTriggerPopover({
 /**
  * The landing page's hero and chart composer: a prompt, the tool, model and
  * (for a signed-in user with folders) workspace pickers, and Run, which
- * launches the chart (`useLaunchChart`). A visitor who isn't signed in passes a
+ * launches the chart (`useLaunchChart`). Its tool picker also offers Chat,
+ * which starts a chat with the prompt as its first message (`useLaunchChat`):
+ * the composer glides down to become the chat's, which runs in its model's
+ * mode (a base model's text is continued), and picking Chat moves the pick to
+ * a chat model. A visitor who isn't signed in passes a
  * captcha and is signed in anonymously first; a gated model sends them to
  * sign in. The app's Home page renders the same component; `loggedIn` (a
  * session) tells the two apart in analytics, as `surface`.
@@ -256,6 +265,9 @@ function ModelTriggerPopover({
  */
 export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     const [prompt, setPrompt] = useState("");
+    const [chatParams, setChatParams] = useState(DEFAULT_GENERATION_PARAMS);
+    // A mode picked in Chat's settings, for the model it was picked on.
+    const [modePick, setModePick] = useState<{ model: string; mode: ChatMode } | null>(null);
     const [showCaptcha, setShowCaptcha] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedModel, setSelectedModel] = useState<string>("");
@@ -277,7 +289,9 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     const pendingLaunchRef = useRef<{ query: string; origin: ChartOrigin } | null>(null);
     const router = useRouter();
     const launchChart = useLaunchChart();
+    const launchChat = useLaunchChat();
     const capture = useCapture();
+    const composerRef = useRef<HTMLDivElement>(null);
     const surface = loggedIn ? "home" : "landing";
 
     // Activation patching state
@@ -349,31 +363,8 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             } else {
                 // A one-click launch (Discover J-Lens) prebuilt its target;
                 // otherwise build from the prompt-form state.
-                let qs = pendingLaunchRef.current?.query;
+                const qs = pendingLaunchRef.current?.query ?? formParams().toString();
                 const origin = pendingLaunchRef.current?.origin ?? surface;
-                if (!qs) {
-                    const params = new URLSearchParams({
-                        model: selectedModel,
-                        tool: selectedTool,
-                    });
-
-                    if (selectedTool === "Activation Patching") {
-                        params.set("srcPrompt", srcPrompt);
-                        params.set("tgtPrompt", tgtPrompt);
-                        params.set("srcPos", JSON.stringify(srcPos));
-                        params.set("tgtPos", JSON.stringify(tgtPos));
-                        if (tgtFreeze.length > 0) {
-                            params.set("tgtFreeze", JSON.stringify(tgtFreeze));
-                        }
-                    } else {
-                        params.set("prompt", prompt);
-                    }
-
-                    if (selectedWorkspace) {
-                        params.set("workspaceId", selectedWorkspace);
-                    }
-                    qs = params.toString();
-                }
                 pendingLaunchRef.current = null;
                 window.location.href = ChartOrigins.tag(newChartPath(qs), origin);
             }
@@ -390,6 +381,45 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     const isSelectedModelGated = (): boolean => {
         const model = modelsToSelect.find((m) => m.name === selectedModel);
         return model?.gated === true && model?.allowed === false;
+    };
+
+    const chatting = selectedTool === ChatLaunch.TOOL;
+    const chatModel = modelsToSelect.find((m) => m.name === selectedModel);
+    const chatMode = modePick?.model === selectedModel ? modePick.mode : chatModeFor(chatModel);
+    // A chat's first message: trimmed in chat mode, as typed for a text to continue.
+    const chatContent = chatMode === "chat" ? prompt.trim() : prompt;
+
+    /** The launch the form describes, as `/new` takes it. */
+    const formParams = () => {
+        const params = new URLSearchParams({ model: selectedModel, tool: selectedTool });
+        if (selectedWorkspace) params.set("workspaceId", selectedWorkspace);
+        if (selectedTool === "Activation Patching") {
+            params.set("srcPrompt", srcPrompt);
+            params.set("tgtPrompt", tgtPrompt);
+            params.set("srcPos", JSON.stringify(srcPos));
+            params.set("tgtPos", JSON.stringify(tgtPos));
+            if (tgtFreeze.length > 0) {
+                params.set("tgtFreeze", JSON.stringify(tgtFreeze));
+            }
+        } else if (chatting) {
+            params.set("prompt", chatContent);
+            params.set("mode", chatMode);
+            ChatLaunch.tagParams(params, chatParams);
+        } else {
+            params.set("prompt", prompt);
+        }
+        return params;
+    };
+
+    // Chat runs a chat model's template; picking it moves a base-model pick
+    // to the chat model a new chat would start on, when one is on offer.
+    const handleToolChange = (tool: string) => {
+        setSelectedTool(tool);
+        if (tool !== ChatLaunch.TOOL) return;
+        if (modelsToSelect.find((m) => m.name === selectedModel)?.is_chat) return;
+        const hot = modelsToSelect.filter((m) => m.status === "hot");
+        const model = defaultModel(hot, (m) => m.is_chat);
+        if (model?.is_chat) setSelectedModel(model.name);
     };
 
     // The launch's own selection, as the composer's events report it.
@@ -423,7 +453,8 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         const submitted = patching ? srcPrompt : prompt;
         capture("landing_submission", {
             ...launchProperties(modelsToSelect.find((m) => m.name === selectedModel)),
-            tool: launchTool(selectedTool),
+            tool: chatting ? "chat" : launchTool(selectedTool),
+            ...(chatting && { chat_mode: chatMode }),
             prompt: submitted,
             prompt_length: submitted.length,
             ...(patching && {
@@ -435,51 +466,37 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         // Check if user is trying to use a gated model without being logged in
         if (isSelectedModelGated() && (!loggedIn || !currentUser || currentUser.is_anonymous)) {
             // Redirect to login with the full tool context so the request can resume post-auth
-            const params = new URLSearchParams({
-                model: selectedModel,
-                tool: selectedTool,
-                gatedModel: "true",
-            });
-            if (selectedTool === "Activation Patching") {
-                params.set("srcPrompt", srcPrompt);
-                params.set("tgtPrompt", tgtPrompt);
-                params.set("srcPos", JSON.stringify(srcPos));
-                params.set("tgtPos", JSON.stringify(tgtPos));
-                if (tgtFreeze.length > 0) {
-                    params.set("tgtFreeze", JSON.stringify(tgtFreeze));
-                }
-            } else {
-                params.set("prompt", prompt);
-            }
+            const params = formParams();
+            params.set("gatedModel", "true");
             router.push(`/login?${params.toString()}`);
             return;
         }
 
-        // Build params based on tool type
-        const params = new URLSearchParams({
-            model: selectedModel,
-            tool: selectedTool,
-        });
-
-        if (selectedWorkspace) {
-            params.set("workspaceId", selectedWorkspace);
-        }
-
-        if (selectedTool === "Activation Patching") {
-            params.set("srcPrompt", srcPrompt);
-            params.set("tgtPrompt", tgtPrompt);
-            params.set("srcPos", JSON.stringify(srcPos));
-            params.set("tgtPos", JSON.stringify(tgtPos));
-            if (tgtFreeze.length > 0) {
-                params.set("tgtFreeze", JSON.stringify(tgtFreeze));
-            }
-        } else {
-            params.set("prompt", prompt);
-        }
-
-        // If user is logged in (not anonymous), create the chart directly
+        // If user is logged in (not anonymous), create the chart or chat directly
         if (loggedIn && currentUser && !currentUser.is_anonymous) {
-            launchChart(params, surface);
+            if (chatting) {
+                const box = composerRef.current?.getBoundingClientRect();
+                launchChat(
+                    {
+                        model: selectedModel,
+                        mode: chatMode,
+                        content: chatContent,
+                        params: chatParams,
+                        ...(selectedWorkspace && { workspaceId: selectedWorkspace }),
+                        ...(box && {
+                            composerRect: {
+                                top: box.top,
+                                left: box.left,
+                                width: box.width,
+                                height: box.height,
+                            },
+                        }),
+                    },
+                    surface,
+                );
+            } else {
+                launchChart(formParams(), surface);
+            }
         } else {
             // Show captcha for anonymous/non-logged-in users
             setShowCaptcha(true);
@@ -540,15 +557,28 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         PROMPT_FIELD.composer,
     );
 
+    // Chat's settings (its mode, temperature and token limit), beside Send.
+    const chatSettings = (
+        <GenerationSettings
+            mode={chatMode}
+            params={chatParams}
+            onModeChange={(mode) => setModePick({ model: selectedModel, mode })}
+            onChange={setChatParams}
+            disabled={showCaptcha || isSubmitting}
+            modeFixed={chatModel && !chatModel.is_chat ? "base" : undefined}
+        />
+    );
+
     // Under the composer's box: what the run is of (tool, model) and where it
     // lands (workspace).
     const pickers = (
         <div className="flex items-center gap-0.5 px-1.5">
             <ToolPill
                 value={selectedTool}
-                onChange={setSelectedTool}
+                onChange={handleToolChange}
                 disabled={showCaptcha || isSubmitting}
                 triggerClassName={cn(LAUNCH_TRIGGER_QUIET, "shrink-0")}
+                withChat
             />
             <ModelPillOrSelect
                 modelsLoading={modelsLoading}
@@ -576,7 +606,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
 
     // The box's last row: a tool's own controls and its hint for the next
     // step (activation patching's), then Run.
-    const toolbar = (tools?: ReactNode, hint = "") => (
+    const toolbar = (tools?: ReactNode, hint?: string) => (
         <div
             className={cn(
                 "flex items-center gap-1.5 p-2",
@@ -584,7 +614,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             )}
         >
             {tools && <div className="flex shrink-0 items-center">{tools}</div>}
-            {tools && (
+            {hint !== undefined && (
                 <span
                     aria-live="polite"
                     className="min-w-0 flex-1 text-balance px-1 text-right text-xs text-muted-foreground"
@@ -594,7 +624,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             )}
             <RunButton
                 type="submit"
-                aria-label="Run"
+                aria-label={chatting ? "Send" : "Run"}
                 busy={isSubmitting}
                 disabled={
                     showCaptcha ||
@@ -690,19 +720,25 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             >
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                     {selectedTool !== "Activation Patching" ? (
-                        <div className={cn(box, "flex items-end")}>
+                        <div ref={composerRef} className={cn(box, "flex items-end")}>
                             <Textarea
                                 ref={promptRef}
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Enter a prompt to analyze..."
-                                aria-label="Prompt"
+                                placeholder={
+                                    !chatting
+                                        ? "Enter a prompt to analyze..."
+                                        : chatMode === "chat"
+                                          ? `Message ${splitRepo(selectedModel).label}…`
+                                          : `Write the start of a text for ${splitRepo(selectedModel).label} to continue…`
+                                }
+                                aria-label={chatting ? "Message" : "Prompt"}
                                 rows={1}
                                 className="prompt-input custom-scrollbar max-h-44 min-h-20 flex-1 resize-none border-0 bg-transparent py-3 pl-4 pr-0 text-base leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent md:text-base md:leading-7 monitor:max-h-52 monitor:text-lg monitor:leading-7 wide:max-h-60 wide:text-xl wide:leading-8"
                                 disabled={showCaptcha || isSubmitting}
                             />
-                            {toolbar()}
+                            {toolbar(chatting ? chatSettings : undefined)}
                         </div>
                     ) : (
                         <ActivationPatchingLandingInput
