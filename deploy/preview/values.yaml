@@ -31,6 +31,13 @@ ingress:
   # See k8s/apps/workbench-preview-auth/ in the cluster repo. Set
   # enabled=false to expose a preview publicly (e.g. for an external
   # collaborator who can't be added to the org).
+  #
+  # On CI this is driven by the `preview-public` PR label (or the
+  # `public` input on a workflow_dispatch run) — see the `auth_gate`
+  # output in .github/workflows/preview-deploy.yml. Note that a public
+  # preview also exposes /admin (the ADMIN_EMAILS allowlist below
+  # matches the stub user every anonymous visitor gets) and lets anyone
+  # drive NDIF inference through this deploy's NDIF_API_KEY.
   authGate:
     enabled: true
     host: auth.ndif-preview.ripley.cloud
