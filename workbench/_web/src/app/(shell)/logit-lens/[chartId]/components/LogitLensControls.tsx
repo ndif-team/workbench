@@ -18,8 +18,7 @@ import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/(shell)/components/ToolPanelHeader";
 import { LensPromptEditor } from "@/app/(shell)/components/lens/LensPromptEditor";
 import { LensParams } from "@/app/(shell)/components/lens/LensParams";
-import { Label } from "@/components/ui/label";
-import { LoopedLensSwitch } from "./LoopedLensSwitch";
+import { CodaLensCheck } from "./CodaLensCheck";
 import { FloatingToolComposer } from "@/app/(shell)/components/FloatingToolComposer";
 import { useCapture } from "@/lib/analytics";
 
@@ -503,17 +502,8 @@ export function LogitLensControls({
         />
     );
 
-    const lensSwitch = (explain: "hover" | "inline") => (
-        <LoopedLensSwitch
-            value={lens}
-            onChange={setLens}
-            disabled={!interactive}
-            explain={explain}
-        />
-    );
-
-    /** The run's parameters; a looped model's lens joins them. In the phone's
-     * popover the switch takes a row of its own, its pick explained under it. */
+    /** The run's parameters; a looped model's coda lens joins them. The phone's
+     * popover explains it under its check, the side panel in a tooltip. */
     const params = (explain: "hover" | "inline") => (
         <>
             <LensParams
@@ -524,16 +514,12 @@ export function LogitLensControls({
                 disabled={!interactive}
             />
             {looped && (
-                <div
-                    className={
-                        explain === "inline"
-                            ? "flex flex-col gap-2"
-                            : "flex items-center justify-between gap-3"
-                    }
-                >
-                    <Label className="text-sm font-normal">Lens</Label>
-                    {lensSwitch(explain)}
-                </div>
+                <CodaLensCheck
+                    value={lens}
+                    onChange={setLens}
+                    disabled={!interactive}
+                    explain={explain}
+                />
             )}
         </>
     );
