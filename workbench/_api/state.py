@@ -6,8 +6,10 @@ from collections import OrderedDict
 from fastapi import Request
 
 from nnsight import CONFIG
+from nnsightful import LoopedTransformer
 from nnterp import StandardizedTransformer
 from nnsight.intervention.backends.remote import RemoteBackend
+from transformers import AutoConfig
 
 from .data_models import ModelHeat
 
@@ -30,8 +32,9 @@ class AppState:
        ``/models`` poll).
     2. **Metadata** — static HuggingFace info (gated, layer count, etc.),
        cached to disk via ``MetadataCache``.
-    3. **Loaded wrappers** — in-memory ``StandardizedTransformer`` instances,
-       created lazily and LRU-evicted for non-pinned models.
+    3. **Loaded wrappers** — in-memory ``StandardizedTransformer`` instances
+       (nnsightful's ``LoopedTransformer`` for the looped models nnterp does
+       not standardize), created lazily and LRU-evicted for non-pinned models.
 
     Class attributes:
         max_non_pinned_models: Maximum concurrently loaded non-pinned models.
@@ -39,7 +42,7 @@ class AppState:
 
     Instance attributes:
         remote: Whether inference runs against NDIF rather than locally.
-        models: Loaded ``StandardizedTransformer`` wrappers keyed by repo ID.
+        models: Loaded model wrappers keyed by repo ID.
         catalog: NDIF deployment roster mapping repo ID to the ``ModelHeat``
             of the deployment workbench runs it on. This drives the frontend
             model list; whether a model is actually loaded here is a separate
@@ -62,7 +65,7 @@ class AppState:
     def __init__(self):
         """Initialize backend config, load TOML, and preload pinned models locally."""
 
-        self.models: dict[str, StandardizedTransformer] = {}
+        self.models: dict[str, StandardizedTransformer | LoopedTransformer] = {}
         self._metadata = MetadataCache()
         self.catalog: dict[str, ModelHeat] = {}
         self.tasks: dict[str, str] = {}
@@ -339,7 +342,10 @@ class AppState:
 
         Ensures metadata is cached, then constructs a ``StandardizedTransformer``
         for the task of the deployment the catalog picked (``tasks``), or the
-        model's first task outside the catalog.
+        model's first task outside the catalog. A looped model (Inkling 2
+        Mini, TML-d24-varloop-research) gets nnsightful's ``LoopedTransformer``
+        instead: nnterp does not standardize those, and nnsightful's tools
+        run their own implementation on that wrapper.
         In remote mode the wrapper is used for tokenization and dispatch only;
         weights are not loaded locally.
         """
@@ -347,15 +353,24 @@ class AppState:
 
         meta = self._metadata.fetch_metadata(model_name)
 
-        model = StandardizedTransformer(
-            model_name,
-            task=self.tasks.get(model_name, meta.tasks[0]),
-            device_map="auto",
-            torch_dtype=torch.bfloat16,
-            remote=False,
-            allow_dispatch=not self.remote,
-            check_renaming=not self.remote,
-        )
+        task = self.tasks.get(model_name, meta.tasks[0])
+        if LoopedTransformer.supports(AutoConfig.from_pretrained(model_name)):
+            model = LoopedTransformer(
+                model_name,
+                task=task,
+                device_map="auto",
+                torch_dtype=torch.bfloat16,
+            )
+        else:
+            model = StandardizedTransformer(
+                model_name,
+                task=task,
+                device_map="auto",
+                torch_dtype=torch.bfloat16,
+                remote=False,
+                allow_dispatch=not self.remote,
+                check_renaming=not self.remote,
+            )
 
         self.models[model_name] = model
 

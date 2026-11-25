@@ -18,8 +18,9 @@ Public API:
     ``UnsupportedModel``
         Raised for repos outside workbench support: LoRA adapters, vision /
         multimodal architectures that text prompts can't run (all but those
-        that load as a text-only causal LM, Gemma 3 and 4, and Qwen3-VL),
-        ``trust_remote_code`` models, or configs that cannot be loaded.
+        that load as a text-only causal LM, Gemma 3 and 4, Qwen3-VL and the
+        looped Inkling 2 models), ``trust_remote_code`` models, or configs
+        that cannot be loaded.
 
     ``MetadataCache``
         In-memory registry backed by the JSON file. ``fetch_metadata(name)``
@@ -44,6 +45,7 @@ from urllib.parse import quote
 
 import requests
 from huggingface_hub import get_safetensors_metadata
+from nnsightful import LoopedTransformer
 from pydantic import BaseModel
 from transformers import AutoConfig
 from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
@@ -197,6 +199,9 @@ class ModelMetadata(BaseModel):
         gated: Workbench access-control flag. True when parameter count is at
             or above ``GATED_THRESHOLD_PARAMS`` (guests cannot use gated
             models). This replaces HuggingFace Hub's native gated field.
+        looped: Whether it is one of the looped models, which workbench runs
+            through nnsightful's ``LoopedTransformer``. Their tools count
+            layer visits, and their activation patching takes a ``patch``.
         org: The account the model is published under. Optional:
             ``MetadataCache`` fills it in from its one record per account and
             saves the model without it; ``None`` until the account has been
@@ -213,6 +218,7 @@ class ModelMetadata(BaseModel):
     n_layers: int
     params: str
     gated: bool
+    looped: bool = False
     org: OrgMetadata | None = None
     tasks: list[str] = ["text-generation"]
 
@@ -292,6 +298,12 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
     ``VISION_MODEL_TYPES``, stay unsupported. The tasks a model runs on are
     its ``ModelMetadata.tasks``.
 
+    The looped Inkling 2 models (Inkling 2 Mini, TML-d24-varloop-research)
+    pass the way Qwen3-VL does: they have no text-generation class and run
+    text prompts on their image-text-to-text task. nnterp does not
+    standardize them, so they are marked ``looped`` and workbench wraps them
+    in nnsightful's ``LoopedTransformer`` (see ``AppState._load_model``).
+
     Args:
         model_name: HuggingFace repo ID.
 
@@ -325,8 +337,9 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
     # registry instead of string-matching the architectures field — GPT-2 et
     # al. use `GPT2LMHeadModel` (no "ForCausalLM" suffix) so suffix matching
     # would wrongly exclude them.
+    looped = LoopedTransformer.supports(config)
     text_class = MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.get(config.model_type)
-    image_task = config.model_type in IMAGE_TASK_MODEL_TYPES
+    image_task = config.model_type in IMAGE_TASK_MODEL_TYPES or looped
     if text_class is None and not image_task:
         raise UnsupportedModel(
             f"{model_name} is not a causal LM (model_type: {config.model_type})"
@@ -374,6 +387,7 @@ def fetch_model_metadata(model_name: str) -> ModelMetadata:
             for task, runs in (("text-generation", text_task), ("image-text-to-text", image_task))
             if runs
         ],
+        looped=looped,
     )
 
 
