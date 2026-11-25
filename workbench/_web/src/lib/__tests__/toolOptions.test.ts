@@ -39,6 +39,7 @@ describe("ToolOptions.of", () => {
         expect(ToolOptions.of(model({ "logit-lens": [LENS] }), "jlens")).toEqual([]);
         expect(ToolOptions.of(model(), "logit-lens")).toEqual([]);
         expect(ToolOptions.of(undefined, "logit-lens")).toEqual([]);
+        expect(ToolOptions.of(model({ "logit-lens": [LENS] }), null)).toEqual([]);
     });
 
     it("gives the same empty list each time, so a hook depending on it holds still", () => {

@@ -39,6 +39,9 @@ import { CwLogoMark } from "@/components/CwLogo";
 import { LoopBadge } from "@/components/LoopBadge";
 import { LoopMark } from "@/components/LoopMark";
 import { FeaturedLaunch } from "@/lib/featuredLaunch";
+import { ToolOptions } from "@/lib/toolOptions";
+import { useToolOptions } from "@/hooks/useToolOptions";
+import { ToolOptionControls } from "@/app/(shell)/components/ToolOptionControls";
 import { useModelDeployment } from "@/stores/useModelDeployment";
 import type { Model, Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
@@ -246,7 +249,9 @@ function ModelTriggerPopover({
 /**
  * The landing page's hero and chart composer: a prompt, the tool, model and
  * (for a signed-in user with folders) workspace pickers, and Run, which
- * launches the chart (`useLaunchChart`). A visitor who isn't signed in passes a
+ * launches the chart (`useLaunchChart`). When the selected model's tool takes
+ * options (`ToolOptions`), they sit at the end of the pickers' row and the
+ * launch carries the picks. A visitor who isn't signed in passes a
  * captcha and is signed in anonymously first; a gated model sends them to
  * sign in. The app's Home page renders the same component; `loggedIn` (a
  * session) tells the two apart in analytics, as `surface`.
@@ -323,6 +328,19 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     const modelsToSelect: Model[] = models && models.length > 0 ? models : [];
     const hasModels = modelsToSelect.length > 0;
 
+    // The options the selected tool takes on the selected model, picked here
+    // and sent with the launch, whichever way it goes.
+    const toolOptions = useToolOptions(
+        ToolOptions.of(
+            modelsToSelect.find((m) => m.name === selectedModel),
+            toolTypeFromDisplay(selectedTool),
+        ),
+        undefined,
+    );
+    const addOptions = (params: URLSearchParams) => {
+        if (toolOptions.values) params.set("options", JSON.stringify(toolOptions.values));
+    };
+
     // Default to the model a blank chart starts on when models load
     // (`defaultModel`: a hot one the current user can run, skipping gated
     // models a guest can't use).
@@ -375,6 +393,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                     } else {
                         params.set("prompt", prompt);
                     }
+                    addOptions(params);
 
                     if (selectedWorkspace) {
                         params.set("workspaceId", selectedWorkspace);
@@ -433,6 +452,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             tool: launchTool(selectedTool),
             prompt: submitted,
             prompt_length: submitted.length,
+            options: toolOptions.values,
             ...(patching && {
                 target_prompt: tgtPrompt,
                 target_prompt_length: tgtPrompt.length,
@@ -458,6 +478,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             } else {
                 params.set("prompt", prompt);
             }
+            addOptions(params);
             router.push(`/login?${params.toString()}`);
             return;
         }
@@ -483,6 +504,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         } else {
             params.set("prompt", prompt);
         }
+        addOptions(params);
 
         // If user is logged in (not anonymous), create the chart directly
         if (loggedIn && currentUser && !currentUser.is_anonymous) {
@@ -509,6 +531,9 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         // Reflect the choice in the composer either way.
         setSelectedTool(FeaturedLaunch.TOOL);
         setSelectedModel(featuredModel.name);
+        for (const [name, value] of Object.entries(FeaturedLaunch.OPTIONS)) {
+            toolOptions.pick(name, value);
+        }
 
         capture("featured_launch", {
             ...launchProperties(featuredModel),
@@ -545,10 +570,11 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         PROMPT_FIELD.composer,
     );
 
-    // Under the composer's box: what the run is of (tool, model) and where it
-    // lands (workspace).
+    // Under the composer's box: what the run is of (tool, model), where it
+    // lands (workspace), and at the row's end the options the model's tool
+    // takes, which go under the pickers when the row is too narrow for them.
     const pickers = (
-        <div className="flex items-center gap-0.5 px-1.5">
+        <div className="flex flex-wrap items-center gap-x-0.5 gap-y-2 px-1.5">
             <ToolPill
                 value={selectedTool}
                 onChange={setSelectedTool}
@@ -575,6 +601,16 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                     triggerClassName={LAUNCH_TRIGGER_QUIET}
                     quietDefault
                 />
+            )}
+            {toolOptions.options.length > 0 && (
+                <div className="flex items-center gap-3 px-2 sm:ml-auto">
+                    <ToolOptionControls
+                        options={toolOptions.options}
+                        values={toolOptions.values}
+                        onPick={toolOptions.pick}
+                        disabled={showCaptcha || isSubmitting}
+                    />
+                </div>
             )}
         </div>
     );
