@@ -1625,8 +1625,8 @@ wheels = [
 
 [[package]]
 name = "transformers"
-version = "5.24.0.dev0"
-source = { git = "https://github.com/huggingface/transformers.git?rev=6173a2f679ff4ed393afc499aefc569da7e68bc1#6173a2f679ff4ed393afc499aefc569da7e68bc1" }
+version = "5.24.1"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
     { name = "numpy" },
@@ -1638,6 +1638,10 @@ dependencies = [
     { name = "tqdm" },
     { name = "typer", version = "0.16.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
     { name = "typer", version = "0.26.7", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'darwin'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cb/35/b341c8fddb57f9b404438d048ff0d41d6523b3c6440f8eeed0bb3f4e1725/transformers-5.24.1.tar.gz", hash = "sha256:71fae247d9ad61f553fb84de2089f427f5ff2c080686f9deb51e660487e8c270", size = 10758394, upload-time = "2026-11-24T16:11:46.481Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1c/45/8aa25aeec09086bfd5fa094b91917ff52025c55907363fc94022eac4a0df/transformers-5.24.1-py3-none-any.whl", hash = "sha256:505b39d3e45a3715f3acb81b858eb245ce1a462373b7f99e26f0dcd41ed4cd0f", size = 13556588, upload-time = "2026-11-24T16:11:43.459Z" },
 ]
 
 [[package]]
@@ -1872,7 +1876,7 @@ requires-dist = [
     { name = "toml", specifier = ">=0.10.2" },
     { name = "torch", specifier = ">=2.9.0", index = "https://download.pytorch.org/whl/cpu" },
     { name = "torchvision", specifier = ">=0.24.0", index = "https://download.pytorch.org/whl/cpu" },
-    { name = "transformers", git = "https://github.com/huggingface/transformers.git?rev=6173a2f679ff4ed393afc499aefc569da7e68bc1" },
+    { name = "transformers", specifier = ">=5.24.0" },
     { name = "uvicorn", specifier = ">=0.33.0" },
 ]
 provides-extras = ["dev"]

@@ -240,12 +240,9 @@ interface NotebookModelKind {
 
 const loopedModelKind: NotebookModelKind = {
     matches: (model) => model.looped === true,
-    // The transformers commit the workbench backend runs (pyproject.toml),
-    // until a release has the architecture; its processor needs torchvision.
-    requirements: [
-        "git+https://github.com/huggingface/transformers.git@6173a2f679ff4ed393afc499aefc569da7e68bc1",
-        "torchvision",
-    ],
+    // The first transformers release with the architecture, as the backend
+    // requires (pyproject.toml); its processor needs torchvision.
+    requirements: ["transformers>=5.24.0", "torchvision"],
     loadSource: [
         "from nnsightful import LoopedTransformer",
         "",
@@ -285,13 +282,18 @@ function withoutMarker(source: string, marker: string): string {
     return source.trimStart().slice(marker.length).replace(/^\n/, "");
 }
 
-/** The setup cell with a kind's requirements installed after its last `%pip install`. */
+/**
+ * The setup cell with a kind's requirements installed after its last
+ * `%pip install`, each quoted: the line goes through a shell, where a version
+ * specifier's `>` would redirect.
+ */
 function setupSource(source: string, requirements: string[]): string {
     const lines = withoutMarker(source, SETUP_MARKER).split("\n");
     const last = lines.findLastIndex((line) => line.trimStart().startsWith("%pip install"));
     if (requirements.length === 0 || last === -1) return lines.join("\n");
     const indent = lines[last].slice(0, lines[last].length - lines[last].trimStart().length);
-    lines.splice(last + 1, 0, `${indent}%pip install ${requirements.join(" ")}`);
+    const quoted = requirements.map((requirement) => JSON.stringify(requirement));
+    lines.splice(last + 1, 0, `${indent}%pip install ${quoted.join(" ")}`);
     return lines.join("\n");
 }
 
