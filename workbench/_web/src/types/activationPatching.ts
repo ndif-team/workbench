@@ -3,6 +3,8 @@
  * Types for the activation patching visualization tool
  */
 
+import type { LinePlotSection } from "nnsightful";
+
 /**
  * A source position can be either:
  * - A single token index (number)
@@ -47,6 +49,9 @@ export interface ActivationPatchingData {
     ranks: number[][]; // Each line is [rank_layer_0, rank_layer_1, ...] for a tracked token
     prob_diffs: number[][]; // Each line is [prob_diff_layer_0, prob_diff_layer_1, ...] (patched - clean)
     tokenLabels?: string[]; // Optional labels for the lines (e.g., token text)
+    /** Spans of the layer axis the plot marks as bands: a looped model's
+     *  prelude, passes and coda (nnsightful's `LinePlotSection`). */
+    sections?: LinePlotSection[] | null;
 }
 
 /**
