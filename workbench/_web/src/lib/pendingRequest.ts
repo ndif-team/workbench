@@ -18,6 +18,8 @@ export interface PendingRequest {
     srcPos?: string;
     tgtPos?: string;
     tgtFreeze?: string;
+    options?: string;
+    deploy?: string;
     timestamp: number;
 }
 
@@ -59,5 +61,7 @@ export function pendingRequestPath(request: PendingRequest): string {
     if (request.srcPos) params.set("srcPos", request.srcPos);
     if (request.tgtPos) params.set("tgtPos", request.tgtPos);
     if (request.tgtFreeze) params.set("tgtFreeze", request.tgtFreeze);
+    if (request.options) params.set("options", request.options);
+    if (request.deploy) params.set("deploy", request.deploy);
     return newChartPath(params);
 }

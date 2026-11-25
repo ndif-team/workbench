@@ -168,6 +168,25 @@ describe("createChartFromLaunch", () => {
             expect(reopened.updatedAt.getTime()).toBeGreaterThanOrEqual(other.updatedAt.getTime());
         });
 
+        it("reopens a blank chart only when its model and option picks are the launch's", async () => {
+            const featured = {
+                tool: "logit-lens",
+                model: "org/looped",
+                options: JSON.stringify({ lens: "coda" }),
+                deploy: "true",
+            };
+            const plain = await createChartFromLaunch(USER, { tool: "logit-lens" });
+            const first = await createChartFromLaunch(USER, featured);
+            const again = await createChartFromLaunch(USER, featured);
+
+            expect(first.chartId).not.toBe(plain.chartId);
+            expect(first.config.data).toMatchObject({
+                model: "org/looped",
+                options: { lens: "coda" },
+            });
+            expect(again).toMatchObject({ chartId: first.chartId, reused: true });
+        });
+
         it("adds a chart when the blank one has been named, run, edited or filed", async () => {
             const named = await createChartFromLaunch(USER, blank);
             await db.update(charts).set({ name: "Mine" }).where(eq(charts.id, named.chartId));

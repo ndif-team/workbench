@@ -49,6 +49,8 @@ function LoginContent() {
                 srcPos: searchParams.get("srcPos") ?? undefined,
                 tgtPos: searchParams.get("tgtPos") ?? undefined,
                 tgtFreeze: searchParams.get("tgtFreeze") ?? undefined,
+                options: searchParams.get("options") ?? undefined,
+                deploy: searchParams.get("deploy") ?? undefined,
             });
         }
     }, [isGatedModelRequest, pendingModel, searchParams]);

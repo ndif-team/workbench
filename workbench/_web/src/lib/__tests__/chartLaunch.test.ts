@@ -85,6 +85,42 @@ describe("chart launch", () => {
         });
     });
 
+    it("carries a launch's option picks on the tools that take options", () => {
+        const options = JSON.stringify({ lens: "coda" });
+        expect(chartLaunchFromSearchParams({ tool: "Logit Lens", options })).toEqual({
+            tool: "Logit Lens",
+            options,
+        });
+        expect(
+            planChartLaunch({ tool: "Logit Lens", model: "org/looped", options, deploy: "true" }),
+        ).toEqual({
+            type: "logit-lens",
+            data: {
+                model: "org/looped",
+                prompt: "",
+                topk: 5,
+                includeEntropy: false,
+                options: { lens: "coda" },
+            },
+        });
+        expect(
+            planChartLaunch({
+                tool: "Activation Patching",
+                options: JSON.stringify({ patch: "live_state" }),
+            }).data,
+        ).toMatchObject({ options: { patch: "live_state" } });
+        expect(planChartLaunch({ tool: "J-Lens", options }).data).not.toHaveProperty("options");
+        expect(planChartLaunch({ tool: "Logit Lens", options: "{}" }).data).not.toHaveProperty(
+            "options",
+        );
+    });
+
+    it("refuses option picks that are not a JSON object of strings", () => {
+        for (const options of ["[1]", '"coda"', '{"lens":1}', "{"]) {
+            expect(() => planChartLaunch({ tool: "Logit Lens", options })).toThrow();
+        }
+    });
+
     it("seeds patch lens prompts on the chart row", () => {
         expect(planChartLaunch({ tool: "patch-lens", prompt: "src" })).toEqual({
             type: "patch-lens",
