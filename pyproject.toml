@@ -6,7 +6,7 @@ requires-python = "==3.12.*"
 dependencies = [
     "fastapi>=0.115.6",
     "python-dotenv>=1.0.1",
-    "nnsight>=0.8.1",
+    "nnsight>=0.8.3",
     # Required for .uv_sync on Modal image
     "modal>=0.65.66",
     # Needed bc nnsight 0.5 requires 3.10 which does not have tomllib in stdlib
@@ -20,8 +20,10 @@ dependencies = [
     "torchvision>=0.24.0",
     "pillow>=12.0.0",
     # Pulled in transitively by nnsight/nnterp, but pinned here so recent model
-    # architectures land in our env: OLMo 3, recent Gemma, etc.
-    "transformers>=5.11.0",
+    # architectures land in our env: OLMo 3, recent Gemma, etc. On the branch
+    # that adds the looped Inkling 2 models (Inkling 2 Mini,
+    # TML-d24-varloop-research) until a release has them.
+    "transformers @ git+https://github.com/huggingface/transformers.git@6173a2f679ff4ed393afc499aefc569da7e68bc1",
     "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git@cc759fb61844387c6a37da84e693512cefb1022a",
     # The backend wraps every model in nnterp's StandardizedTransformer;
     # 2.0.0rc1 is nnterp's first release on nnsight 0.8.
