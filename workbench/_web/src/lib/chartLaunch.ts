@@ -45,7 +45,7 @@ export type ChartLaunchPlan =
 /**
  * Where a chart launch started, reported as `chart_created`'s `origin`: New
  * chart in the sidebar or on a workspace page, Home's or the landing page's
- * composer, Discover J-Lens, the models page's launch dialog, the workshop
+ * composer, the hero's featured launch, the models page's launch dialog, the workshop
  * sidebar, a `/new` link, a launch resumed after sign-in, and the charts the
  * server creates: opening an empty workspace, and joining a workshop.
  */
@@ -58,7 +58,7 @@ export class ChartOrigins {
         "workspace_page",
         "home",
         "landing",
-        "jlens_discovery",
+        "featured_launch",
         "model_launch",
         "workshop_sidebar",
         "new_link",

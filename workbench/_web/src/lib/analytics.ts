@@ -45,10 +45,10 @@ type AnalyticsEvent =
     | "param_changed"
     | "cell_expanded"
     | "patch_lens_intervention_reset"
-    // Getting to a chart: the landing page and Home's composer, the Discover
-    // J-Lens launch, the models page's launch dialog, and cold-model warmups
+    // Getting to a chart: the landing page and Home's composer, the hero's
+    // featured launch, the models page's launch dialog, and cold-model warmups
     | "landing_submission"
-    | "jlens_discovery"
+    | "featured_launch"
     | "model_launch"
     | "model_warmup_started"
     | "model_warmup_completed"
