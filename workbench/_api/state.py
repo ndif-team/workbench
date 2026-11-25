@@ -9,7 +9,6 @@ from nnsight import CONFIG
 from nnsightful import LoopedTransformer
 from nnterp import StandardizedTransformer
 from nnsight.intervention.backends.remote import RemoteBackend
-from transformers import AutoConfig
 
 from .data_models import ModelHeat
 
@@ -354,7 +353,7 @@ class AppState:
         meta = self._metadata.fetch_metadata(model_name)
 
         task = self.tasks.get(model_name, meta.tasks[0])
-        if LoopedTransformer.supports(AutoConfig.from_pretrained(model_name)):
+        if meta.looped:
             model = LoopedTransformer(
                 model_name,
                 task=task,
