@@ -201,7 +201,7 @@ class ModelMetadata(BaseModel):
             models). This replaces HuggingFace Hub's native gated field.
         looped: Whether it is one of the looped models, which workbench runs
             through nnsightful's ``LoopedTransformer``. Their tools count
-            layer visits, and their activation patching takes a ``patch``.
+            layer visits and take options of their own (``ToolOptions``).
         org: The account the model is published under. Optional:
             ``MetadataCache`` fills it in from its one record per account and
             saves the model without it; ``None`` until the account has been

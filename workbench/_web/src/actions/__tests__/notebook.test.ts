@@ -49,7 +49,7 @@ describe("generateNotebook", () => {
     it("a looped model gets its own wrapper, packages and options", async () => {
         const nb = await cells({
             model: { looped: true },
-            configData: { ...CONFIG, patch: "active_block" },
+            configData: { ...CONFIG, options: { patch: "active_block" } },
         });
         expect(nb.model.source).toContain("LoopedTransformer(MODEL_NAME");
         expect(nb.model.source).not.toContain("StandardizedTransformer");

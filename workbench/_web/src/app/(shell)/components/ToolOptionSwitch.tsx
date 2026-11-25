@@ -1,94 +1,76 @@
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import type { ToolChoice } from "@/types/models";
 
-/** One value of a tool option: what it is called and what it does. */
-export interface ToolOption<Value extends string> {
-    value: Value;
-    label: string;
-    description: string;
-}
-
-interface ToolOptionSwitchProps<Value extends string> {
+interface ToolOptionSwitchProps {
     /** The group's DOM id. */
     id: string;
     /** What the option is called, for assistive technology. */
     name: string;
-    options: readonly ToolOption<Value>[];
-    value: Value;
-    onChange: (value: Value) => void;
+    choices: readonly ToolChoice[];
+    value: string;
+    onChange: (value: string) => void;
     disabled: boolean;
-    /** Where what a value does is written: a tooltip over its segment, or
-     *  under the switch for the picked one, for a touch screen. */
-    explain?: "hover" | "inline";
+    /** On a touch screen the segments have no tooltips and share the width
+     *  they are given; what the picked one does is written elsewhere
+     *  (`ToolOptionNotes`). */
+    touch?: boolean;
 }
 
 /**
- * A tool option with a few named values, as a row of segments in a tool's
- * controls: the picked one tinted like the patch tools' pressed toggles. With
- * `explain="inline"` the segments share the width they are given.
+ * A tool option with several named values, as a row of segments in a tool's
+ * controls: the picked one tinted like the patch tools' pressed toggles, each
+ * explaining its value in a tooltip.
  */
-export function ToolOptionSwitch<Value extends string>({
+export function ToolOptionSwitch({
     id,
     name,
-    options,
+    choices,
     value,
     onChange,
     disabled,
-    explain = "hover",
-}: ToolOptionSwitchProps<Value>) {
-    const inline = explain === "inline";
-
-    const segment = (option: ToolOption<Value>) => (
+    touch = false,
+}: ToolOptionSwitchProps) {
+    const segment = (choice: ToolChoice) => (
         <Button
-            key={option.value}
+            key={choice.value}
             type="button"
             variant="ghost"
-            aria-pressed={value === option.value}
+            aria-pressed={value === choice.value}
             disabled={disabled}
-            onClick={() => onChange(option.value)}
+            onClick={() => onChange(choice.value)}
             className={cn(
                 "h-full rounded-sm text-xs text-muted-foreground aria-pressed:bg-tool-accent/15 aria-pressed:text-tool-accent",
-                inline ? "flex-1 px-1" : "px-2",
+                touch ? "flex-1 px-1" : "px-2",
             )}
         >
-            {option.label}
+            {choice.label}
         </Button>
     );
 
-    const group = (
+    return (
         <div
             id={id}
             role="group"
             aria-label={name}
             className={cn(
                 "h-8 shrink-0 items-center gap-0.5 rounded-md border bg-card p-0.5 shadow-xs dark:bg-input/30 md:h-7",
-                inline ? "flex w-full" : "inline-flex",
+                touch ? "flex w-full" : "inline-flex",
             )}
         >
-            {options.map((option) =>
-                inline ? (
-                    segment(option)
+            {choices.map((choice) =>
+                touch ? (
+                    segment(choice)
                 ) : (
-                    <Tooltip key={option.value} disableHoverableContent>
-                        <TooltipTrigger asChild>{segment(option)}</TooltipTrigger>
+                    <Tooltip key={choice.value} disableHoverableContent>
+                        <TooltipTrigger asChild>{segment(choice)}</TooltipTrigger>
                         <TooltipContent side="bottom" className="max-w-64 text-pretty">
-                            {option.description}
+                            {choice.description}
                         </TooltipContent>
                     </Tooltip>
                 ),
             )}
-        </div>
-    );
-
-    if (!inline) return group;
-
-    return (
-        <div className="flex flex-col gap-2">
-            {group}
-            <p aria-live="polite" className="text-pretty text-xs text-muted-foreground">
-                {options.find((option) => option.value === value)?.description}
-            </p>
         </div>
     );
 }

@@ -244,6 +244,19 @@ class AppState:
         """
         return self._metadata.metadata[model_name]
 
+    def model_class(self, model_name: str) -> type:
+        """Return the class ``model_name`` is loaded with, without loading it.
+
+        ``LoopedTransformer`` for a looped model and ``StandardizedTransformer``
+        otherwise, as in ``_load_model``. nnsightful's tools go by it: a class
+        can bring its own implementation of a tool, with its own options.
+
+        Raises:
+            KeyError: If metadata has not been fetched for this model.
+        """
+        looped = self.get_model_metadata(model_name).looped
+        return LoopedTransformer if looped else StandardizedTransformer
+
     def get_all_model_list(self) -> list[dict]:
         """Return every model with cached metadata (local mode).
 
