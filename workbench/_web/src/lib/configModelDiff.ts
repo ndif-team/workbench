@@ -1,6 +1,10 @@
 import type { LogitLensConfigData } from "@/types/logitLens";
 import type { JLensConfigData } from "@/types/jlens";
-import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
+import {
+    DEFAULT_LOOPED_PATCH,
+    type ActivationPatchingConfigData,
+    type SourcePosition,
+} from "@/types/activationPatching";
 import type { Token } from "@/types/models";
 
 // ---- chart/config model resolution -------------------------------------------------
@@ -116,7 +120,7 @@ export function apConfigEqualsExceptModel(
     draft:
         | Pick<
               ActivationPatchingConfigData,
-              "srcPrompt" | "tgtPrompt" | "srcPos" | "tgtPos" | "tgtFreeze"
+              "srcPrompt" | "tgtPrompt" | "srcPos" | "tgtPos" | "tgtFreeze" | "patch"
           >
         | null
         | undefined,
@@ -125,7 +129,11 @@ export function apConfigEqualsExceptModel(
     const scalarsEqual = configFieldsEqual(
         saved as ActivationPatchingConfigData,
         draft as ActivationPatchingConfigData,
-        [(c) => c.srcPrompt ?? "", (c) => c.tgtPrompt ?? ""],
+        [
+            (c) => c.srcPrompt ?? "",
+            (c) => c.tgtPrompt ?? "",
+            (c) => c.patch ?? DEFAULT_LOOPED_PATCH,
+        ],
     );
     if (!scalarsEqual) return false;
     return (

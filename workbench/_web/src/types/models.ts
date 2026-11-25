@@ -26,6 +26,9 @@ export interface Model {
     /** Whether a Jacobian lens checkpoint exists for this model, i.e. whether
      * the j-lens tool can run against it. Stamped by the backend /models route. */
     has_jacobian?: boolean;
+    /** Whether it is a looped model: its tools count layer visits, and its
+     * activation patching offers two patches (`LoopedPatch`). */
+    looped?: boolean;
     /** The account that publishes it, or null while the backend hasn't been
      * able to look it up. */
     org?: ModelOrg | null;
