@@ -45,7 +45,7 @@ The backend speaks `nnsight` to either NDIF (remote model deployments) or local 
 | Charts | Nivo (`@nivo/line`, admin analytics only), nnsightful widgets (LogitLensWidget, ActivationPatchingWidget), `edulogitlens` (CausalMediationExplorer, LogitLensGrid) for Patch Lens |
 | Database | Drizzle ORM 0.44 with **two backends** chosen at runtime by `NEXT_PUBLIC_LOCAL_DB`: <br>• Postgres via `postgres-js` (Supabase) <br>• SQLite via `better-sqlite3` (local dev) or `bun:sqlite` (under bun test) |
 | Auth | Supabase SSR (`@supabase/ssr`); short-circuited to a stub user when `NEXT_PUBLIC_DISABLE_AUTH=true` |
-| Backend | FastAPI on Python 3.12, nnsight ≥0.8.1 + nnterp 2.0.0rc1 (PyPI; `pyproject.toml` overrides nnsightful's git pin of it) + transformers ≥5.11, deployed via Docker / Modal |
+| Backend | FastAPI on Python 3.12, nnsight ≥0.8.3 + nnterp 2.0.0rc1 (PyPI; `pyproject.toml` overrides nnsightful's git pin of it) + transformers (git, the branch with the looped Inkling 2 models), deployed via Docker / Modal |
 | Telemetry | PostHog: product analytics and error tracking, client (`posthog-js`) and server (`posthog-node`); see §7. InfluxDB client in the backend (off) |
 | Toasts | `sonner` |
 | Testing | `bun:test` for DB integration and unit tests (`src/**/__tests__`); Playwright for e2e (`tests/`) |
@@ -74,8 +74,8 @@ workbench/                          # repo root
 ├── workbench/_api/                 # Python backend
 │   ├── main.py                     # FastAPI app + CORS + router mounts
 │   ├── auth.py                     # X-User-Email header → user identity
-│   ├── state.py                    # AppState: model registry, NDIF backend factory, model metadata
-│   ├── metadata.py                 # HuggingFace metadata + support checks + organizations (OrgMetadata: logo), cached in _metadata_cache.json
+│   ├── state.py                    # AppState: model registry (nnterp wrappers; LoopedTransformer for looped models), NDIF backend factory, model metadata
+│   ├── metadata.py                 # HuggingFace metadata + support checks (looped models excepted) + organizations (OrgMetadata: logo), cached in _metadata_cache.json
 │   ├── sse.py                      # ToolEventStream: runs a tool, streams status/data/error events
 │   ├── data_models.py              # NDIFResponse, Token, ModelHeat shared types
 │   ├── telemetry.py                # InfluxDB telemetry client
@@ -630,6 +630,17 @@ The contract between workbench and nnsightful is: **workbench wires tools to UI;
 - `types/logitLens.ts` holds the workbench-side `LogitLensConfigData`; logit-lens data and UI state use nnsightful's own `LogitLensData` / `LogitLensUIState`, imported from `nnsightful` directly.
 - `actions/notebook.ts` reads `node_modules/nnsightful/src/nnsightful/viz/charts.js` and inlines it into exported `.ipynb` files; the HTML embedding mirrors `nnsightful.viz._widget_html()` defaults (`DEFAULT_WIDTH = "90%"`, per-tool aspect ratios).
 - `notebook-templates/activation-patching.ipynb` instructs users to `pip install git+https://github.com/AdamBelfki3/nnsightful.git` and `from nnsightful import activation_patching`.
+
+### Looped models
+
+Inkling 2 Mini and TML-d24-varloop-research (`model_type: inkling2_loop`) run their middle layers several times and keep no single residual stream, so nnterp does not standardize them. nnsightful has its own wrapper for them, `LoopedTransformer`, and its own logit lens and activation patching for that wrapper (`nnsightful/tools/looped.py`); `logit_lens(model, ...)` and `activation_patching(model, ...)` pick those up from the model, so the routes are the same for every model.
+
+- `AppState._load_model` builds a `LoopedTransformer` when `LoopedTransformer.supports(config)`, and a `StandardizedTransformer` otherwise.
+- `fetch_model_metadata` lets these models past the causal-LM and vision checks: they are image-text-to-text checkpoints, run here on text prompts. `n_layers` is the model's own layer count (24).
+- The tools count layer *visits*, not layers: a logit-lens chart has 48 rows on these models and an activation-patching line 48 points, the looped layers appearing once per pass.
+- Their activation patching takes a `patch`: `"state"` (the default) replaces everything a visit leaves at the token, `"output"` only what the visit's layer returns. `/models` marks these models `looped` (`ModelMetadata.looped`), and for them the chart's controls show a two-segment switch (`LoopedPatchSwitch`): in the side panel on the patch tools' row, each segment explaining its patch in a tooltip, and behind the parameters button of the phone's composer, with the picked patch explained under it. The pick is saved as the config's `patch` and sent to `/activation_patching/run`, which hands it to the tool. No other model's config or run carries one: their tool takes no such argument. A chart launched from Home runs the default.
+- They load through their processor, hence `torchvision` in `pyproject.toml`, and need a `transformers` that has the architecture, hence its git pin there.
+- Patch Lens (`routes/causal_mediation.py`) is written against nnterp's names and does not run on them.
 
 ### Workbench's wrappers around nnsightful
 
