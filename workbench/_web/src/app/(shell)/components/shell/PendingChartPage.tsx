@@ -35,12 +35,12 @@ export function PendingChartPage({ request }: { request: ChartLaunchRequest }) {
     const isMobile = useIsMobile();
     const { data: library } = useWorkspaceLibrary({ enabled: !!request.workspaceId });
     const folderName = library?.workspaces.find((w) => w.id === request.workspaceId)?.name;
+    // A deploy launch's chart opens empty, whatever prompts its request names.
+    const kept = (prompt: string | undefined) => (request.deploy === "true" ? "" : (prompt ?? ""));
     const prompts =
-        request.deploy === "true"
-            ? []
-            : tool === "activation-patching"
-              ? [request.srcPrompt ?? "", request.tgtPrompt ?? ""]
-              : [request.prompt ?? ""];
+        tool === "activation-patching"
+            ? [kept(request.srcPrompt), kept(request.tgtPrompt)]
+            : [kept(request.prompt)];
 
     return (
         <div className="flex size-full min-h-0 flex-col" aria-busy="true">
