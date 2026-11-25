@@ -124,6 +124,13 @@ interface NotebookToolHandler {
     buildConfigSource?(config: Record<string, unknown>): string;
 
     /**
+     * Config keys that are options of the model's version of the tool (a
+     * looped model's `patch`). Those set go into the parameters cell as
+     * `tool_options`, which the template's call spreads as keyword arguments.
+     */
+    optionKeys: string[];
+
+    /**
      * Extract visualization data from chart data for embedding.
      * Return null to skip embedding (e.g. chart hasn't been computed yet).
      */
@@ -151,6 +158,7 @@ function formatSrcPos(positions: SourcePosition[]): string {
 
 const activationPatchingHandler: NotebookToolHandler = {
     templateName: "activation-patching",
+    optionKeys: ["patch"],
 
     buildParameterSource(config) {
         const srcPrompt = escapePythonTripleDoubleQuoted((config.srcPrompt as string) ?? "");
@@ -191,6 +199,7 @@ const activationPatchingHandler: NotebookToolHandler = {
                 ranks: chartData.ranks ?? [],
                 prob_diffs: chartData.prob_diffs ?? [],
                 tokenLabels: chartData.tokenLabels ?? [],
+                ...(chartData.sections ? { sections: chartData.sections } : {}),
             },
             options: { mode, selectedTokens },
         };
@@ -204,16 +213,103 @@ const toolHandlers: Record<string, NotebookToolHandler> = {
     "activation-patching": activationPatchingHandler,
 };
 
+// ── Model kinds ──────────────────────────────────────────────────────
+// How a notebook installs and loads the chart's model. A model nnterp
+// standardizes needs nothing beyond the template; add a kind here for one
+// that needs its own wrapper or packages, the most specific first.
+
+/** The catalog's facts about a chart's model that decide its kind. */
+interface NotebookModel {
+    looped?: boolean;
+}
+
+interface NotebookModelKind {
+    /** Whether a model is of this kind; the first kind that matches is used. */
+    matches(model: NotebookModel): boolean;
+
+    /** pip requirements the setup cell installs after nnsightful. */
+    requirements: string[];
+
+    /**
+     * Python source of the cell that builds `model` from `MODEL_NAME` and
+     * `REMOTE`. Replaces the entire `# MODEL` cell; without it the template's
+     * own cell stays.
+     */
+    loadSource?: string;
+}
+
+const loopedModelKind: NotebookModelKind = {
+    matches: (model) => model.looped === true,
+    // The transformers commit the workbench backend runs (pyproject.toml),
+    // until a release has the architecture; its processor needs torchvision.
+    requirements: [
+        "git+https://github.com/huggingface/transformers.git@6173a2f679ff4ed393afc499aefc569da7e68bc1",
+        "torchvision",
+    ],
+    loadSource: [
+        "from nnsightful import LoopedTransformer",
+        "",
+        "# A looped model: its tools count layer visits where others count layers.",
+        'model = LoopedTransformer(MODEL_NAME, device_map="auto")',
+    ].join("\n"),
+};
+
+const standardModelKind: NotebookModelKind = {
+    matches: () => true,
+    requirements: [],
+};
+
+const modelKinds: NotebookModelKind[] = [loopedModelKind, standardModelKind];
+
+// ── Cell sources ─────────────────────────────────────────────────────
+
+/** A config value as a Python literal, or null for one a notebook can't carry. */
+function pythonLiteral(value: unknown): string | null {
+    if (typeof value === "string") return JSON.stringify(value);
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    if (typeof value === "boolean") return value ? "True" : "False";
+    return null;
+}
+
+/** The parameters cell's `tool_options` line: the handler's option keys the config sets. */
+function toolOptionsSource(handler: NotebookToolHandler, config: Record<string, unknown>): string {
+    const entries = handler.optionKeys.flatMap((key) => {
+        const literal = pythonLiteral(config[key]);
+        return literal === null ? [] : [`${JSON.stringify(key)}: ${literal}`];
+    });
+    return `tool_options = {${entries.join(", ")}}`;
+}
+
+/** A cell's source without its marker line. */
+function withoutMarker(source: string, marker: string): string {
+    return source.trimStart().slice(marker.length).replace(/^\n/, "");
+}
+
+/** The setup cell with a kind's requirements installed after its last `%pip install`. */
+function setupSource(source: string, requirements: string[]): string {
+    const lines = withoutMarker(source, SETUP_MARKER).split("\n");
+    const last = lines.findLastIndex((line) => line.trimStart().startsWith("%pip install"));
+    if (requirements.length === 0 || last === -1) return lines.join("\n");
+    const indent = lines[last].slice(0, lines[last].length - lines[last].trimStart().length);
+    lines.splice(last + 1, 0, `${indent}%pip install ${requirements.join(" ")}`);
+    return lines.join("\n");
+}
+
 // ── Public API ───────────────────────────────────────────────────────
 
 const PARAMETER_MARKER = "# PARAMETERS";
 const CONFIG_MARKER = "# CONFIG";
+const SETUP_MARKER = "# SETUP";
+const MODEL_MARKER = "# MODEL";
 const VISUALIZATION_MARKER = "# VISUALIZATION";
 
 interface GenerateNotebookInput {
     configType: string;
     configData: Record<string, unknown>;
     chartData?: Record<string, unknown> | null;
+    /** The chart's model as the catalog lists it, which decides how the
+     *  notebook installs and loads it. Absent for a model no longer listed. */
+    model?: NotebookModel;
     workspaceName?: string;
     chartName?: string;
     displayMode?: string;
@@ -221,11 +317,12 @@ interface GenerateNotebookInput {
 
 /**
  * Server action: generate a Jupyter notebook (.ipynb) from a template,
- * injecting parameters from config and optionally embedding a
- * pre-rendered chart visualization.
+ * injecting parameters from config, the setup and loading of the model's
+ * kind, and optionally a pre-rendered chart visualization.
  */
 export async function generateNotebook(input: GenerateNotebookInput): Promise<string> {
     const { configType, configData, chartData, workspaceName, chartName, displayMode } = input;
+    const modelKind = modelKinds.find((kind) => kind.matches(input.model ?? {}))!;
 
     const handler = toolHandlers[configType];
     if (!handler) {
@@ -235,7 +332,11 @@ export async function generateNotebook(input: GenerateNotebookInput): Promise<st
     const template = await readTemplate(handler.templateName);
 
     // Build parameter source
-    const parameterSource = `# Parameters\n${handler.buildParameterSource(configData)}`;
+    const parameterSource = [
+        "# Parameters",
+        handler.buildParameterSource(configData),
+        toolOptionsSource(handler, configData),
+    ].join("\n");
 
     // Build config source (if handler supports it)
     const configSource = handler.buildConfigSource ? handler.buildConfigSource(configData) : null;
@@ -272,6 +373,26 @@ export async function generateNotebook(input: GenerateNotebookInput): Promise<st
             return {
                 ...cell,
                 source: configSource,
+                outputs: [],
+                execution_count: null,
+            };
+        }
+
+        // Install the model kind's requirements in the setup cell
+        if (cell.cell_type === "code" && source.trimStart().startsWith(SETUP_MARKER)) {
+            return {
+                ...cell,
+                source: setupSource(source, modelKind.requirements),
+                outputs: [],
+                execution_count: null,
+            };
+        }
+
+        // Load the model the way its kind does
+        if (cell.cell_type === "code" && source.trimStart().startsWith(MODEL_MARKER)) {
+            return {
+                ...cell,
+                source: modelKind.loadSource ?? withoutMarker(source, MODEL_MARKER),
                 outputs: [],
                 execution_count: null,
             };

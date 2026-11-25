@@ -5,6 +5,8 @@ import { ArrowUpRight, ChevronDown, FileCode, ImageDown, Loader2 } from "lucide-
 import { toast } from "sonner";
 import { snapshotChart } from "nnsightful";
 
+import { useQuery } from "@tanstack/react-query";
+
 import { generateNotebook } from "@/actions/notebook";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,8 +16,10 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { normalizeTool, useCapture } from "@/lib/analytics";
+import { getModels } from "@/lib/api/modelsApi";
 import { captureError } from "@/lib/errorTracking";
 import { chartFigure, chartPrompt } from "@/lib/report/chartFigure";
+import type { Model } from "@/types/models";
 import { chartLabel } from "./items/itemLabel";
 import { toolMeta } from "./toolMeta";
 
@@ -55,12 +59,19 @@ class ChartExport {
         return shot.toBlob();
     }
 
-    /** A Jupyter notebook that reruns the chart, with its result embedded. */
-    static async notebook(chart: ChartRow, config: ConfigRow, workspaceName?: string) {
+    /** A Jupyter notebook that reruns the chart, with its result embedded.
+     *  `model` is the chart's model as the catalog lists it, if it does. */
+    static async notebook(
+        chart: ChartRow,
+        config: ConfigRow,
+        model: Model | undefined,
+        workspaceName?: string,
+    ) {
         const notebookJson = await generateNotebook({
             configType: config.type ?? "",
             configData: (config.data ?? {}) as Record<string, unknown>,
             chartData: (chart.data ?? null) as Record<string, unknown> | null,
+            model: model && { looped: model.looped },
             chartName: chart.name ?? undefined,
             workspaceName,
         });
@@ -115,6 +126,10 @@ export function ChartExportMenu({ chart, config, darkMode, workspaceName }: Char
     const capture = useCapture();
     const notebookConfig =
         config && ChartExport.NOTEBOOK_TOOLS.has(config.type ?? "") ? config : null;
+    const { data: models } = useQuery({ queryKey: ["models"], queryFn: getModels });
+    const notebookModel = models?.find(
+        (m) => m.name === (notebookConfig?.data as { model?: string } | undefined)?.model,
+    );
 
     const run = async (format: ExportFormat, make: () => Promise<Blob>) => {
         const { extension, what } = ChartExport.FORMATS[format];
@@ -152,7 +167,12 @@ export function ChartExportMenu({ chart, config, darkMode, workspaceName }: Char
                     <DropdownMenuItem
                         onSelect={() =>
                             run("notebook", () =>
-                                ChartExport.notebook(chart, notebookConfig, workspaceName),
+                                ChartExport.notebook(
+                                    chart,
+                                    notebookConfig,
+                                    notebookModel,
+                                    workspaceName,
+                                ),
                             )
                         }
                     >
