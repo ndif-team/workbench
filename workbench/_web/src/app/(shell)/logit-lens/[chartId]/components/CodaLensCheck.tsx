@@ -7,19 +7,20 @@ interface CodaLensCheckProps {
     value: LoopedLens;
     onChange: (lens: LoopedLens) => void;
     disabled: boolean;
-    /** Where what the coda lens does is written: a tooltip over the check, or
-     *  under it, for a touch screen. */
+    /** "hover" explains the coda lens in a tooltip over the check; "inline"
+     *  leaves it to the caller, for a touch screen (`DESCRIPTION`). */
     explain?: "hover" | "inline";
 }
 
 /**
  * Turns the coda lens on for a looped model's logit lens: checked is the
- * `"coda"` lens, unchecked the plain `"logit"` one. Shown only for those
- * models: any other has no layers after a loop to run a state through.
+ * `"coda"` lens, unchecked the plain `"logit"` one. It sits on the entropy
+ * check's line (`LensParams`' children), and only for those models: any other
+ * has no layers after a loop to run a state through.
  */
 export function CodaLensCheck({ value, onChange, disabled, explain = "hover" }: CodaLensCheckProps) {
     const check = (
-        <div className="flex w-fit items-center gap-2">
+        <div className="flex items-center gap-2">
             <Checkbox
                 id="coda-lens"
                 checked={value === "coda"}
@@ -33,21 +34,12 @@ export function CodaLensCheck({ value, onChange, disabled, explain = "hover" }: 
         </div>
     );
 
-    if (explain === "inline") {
-        return (
-            <div className="flex flex-col gap-2">
-                {check}
-                <p className="text-pretty text-xs text-muted-foreground">
-                    {CodaLensCheck.DESCRIPTION}
-                </p>
-            </div>
-        );
-    }
+    if (explain === "inline") return check;
 
     return (
         <Tooltip disableHoverableContent>
             <TooltipTrigger asChild>{check}</TooltipTrigger>
-            <TooltipContent side="bottom" align="start" className="max-w-64 text-pretty">
+            <TooltipContent side="bottom" align="end" className="max-w-64 text-pretty">
                 {CodaLensCheck.DESCRIPTION}
             </TooltipContent>
         </Tooltip>
