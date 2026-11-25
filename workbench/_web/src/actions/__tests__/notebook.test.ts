@@ -53,10 +53,9 @@ describe("generateNotebook", () => {
         });
         expect(nb.model.source).toContain("LoopedTransformer(MODEL_NAME");
         expect(nb.model.source).not.toContain("StandardizedTransformer");
-        expect(nb.setup.source).toContain("huggingface/transformers.git@");
-        expect(nb.setup.source).toContain("torchvision");
+        expect(nb.setup.source).toContain('%pip install "transformers>=5.24.0" "torchvision"');
         expect(nb.setup.source.indexOf("nnsightful.git")).toBeLessThan(
-            nb.setup.source.indexOf("transformers.git"),
+            nb.setup.source.indexOf("transformers>="),
         );
         expect(nb.parameters.source).toContain('tool_options = {"patch": "output"}');
     });
