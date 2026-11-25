@@ -1,4 +1,4 @@
-import type { LogitLensConfigData } from "@/types/logitLens";
+import { DEFAULT_LOOPED_LENS, type LogitLensConfigData } from "@/types/logitLens";
 import type { JLensConfigData } from "@/types/jlens";
 import {
     DEFAULT_LOOPED_PATCH,
@@ -88,6 +88,7 @@ export function logitLensConfigEqualsExceptModel(
         (c) => c.prompt ?? "",
         (c) => c.topk ?? 5,
         (c) => c.includeEntropy ?? true,
+        (c) => c.lens ?? DEFAULT_LOOPED_LENS,
     ]);
 }
 

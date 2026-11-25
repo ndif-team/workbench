@@ -28,12 +28,14 @@ export default function LogitLensArea({ layout = "panel" }: { layout?: "panel" |
         config,
         chart,
         isChartLoading,
+        models,
         modelsAvailable,
         modelsFetching,
         effectiveModel,
         hasExistingData,
         modelRunnable,
     } = useToolArea<LogitLensConfig, LogitLensChart>();
+    const looped = models?.find((m) => m.name === effectiveModel)?.looped === true;
 
     if (!config || isChartLoading) {
         if (layout === "floating") return null;
@@ -53,6 +55,7 @@ export default function LogitLensArea({ layout = "panel" }: { layout?: "panel" |
                 key={config.id}
                 initialConfig={config}
                 selectedModel={effectiveModel}
+                looped={looped}
                 // Treat a non-runnable (cold/gone) saved model as read-only,
                 // reusing the existing models-unavailable path. The saved
                 // result still renders read-only in the Display.
