@@ -11,10 +11,10 @@ import type { Model, ToolChoice, ToolOption, ToolOptionValues } from "@/types/mo
 export class ToolOptions {
     private static readonly NONE: ToolOption[] = [];
 
-    /** The options `tool` takes on `model`: none on most models, and none
-     *  while the catalog has not listed the model. */
-    static of(model: Model | undefined, tool: ToolType): ToolOption[] {
-        return model?.tool_options?.[tool] ?? ToolOptions.NONE;
+    /** The options `tool` takes on `model`: none on most models, none while
+     *  the catalog has not listed the model, and none without a tool. */
+    static of(model: Model | undefined, tool: ToolType | null | undefined): ToolOption[] {
+        return (tool && model?.tool_options?.[tool]) || ToolOptions.NONE;
     }
 
     /**
