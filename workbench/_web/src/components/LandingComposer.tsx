@@ -23,6 +23,7 @@ import { ModelPopover } from "@/components/model-selector/ModelPopover";
 import {
     defaultModel,
     deriveHeat,
+    isModelCold,
     MODEL_STATUS,
     splitRepo,
 } from "@/components/model-selector/status";
@@ -35,8 +36,10 @@ import { PROMPT_FIELD } from "@/components/promptField";
 import { cn } from "@/lib/utils";
 import PromptVisualization from "@/components/PromptVisualization";
 import { CwLogoMark } from "@/components/CwLogo";
-import { JLensIcon } from "@/components/JLensIcon";
-import { SparkBadge } from "@/components/SparkBadge";
+import { LoopBadge } from "@/components/LoopBadge";
+import { LoopMark } from "@/components/LoopMark";
+import { FeaturedLaunch } from "@/lib/featuredLaunch";
+import { useModelDeployment } from "@/stores/useModelDeployment";
 import type { Model, Token } from "@/types/models";
 import type { SourcePosition } from "@/types/activationPatching";
 import type { ToolType } from "@/types/charts";
@@ -248,11 +251,14 @@ function ModelTriggerPopover({
  * sign in. The app's Home page renders the same component; `loggedIn` (a
  * session) tells the two apart in analytics, as `surface`.
  *
- * `landing_submission` and `jlens_discovery` are captured at intent, before
+ * Above the hero's title, one line invites the visitor to try what is
+ * featured (`FeaturedLaunch`) and launches it in a click.
+ *
+ * `landing_submission` and `featured_launch` are captured at intent, before
  * the captcha and sign-in gates, so the drop-off between asking for a chart
  * and reaching one is visible; `chart_created` follows once it exists. The
- * Discover J-Lens chart is empty and never runs by itself, so its event may be
- * the only record that J-Lens was asked for.
+ * featured chart is empty and never runs by itself, so its event may be the
+ * only record that it was asked for.
  */
 export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
     const [prompt, setPrompt] = useState("");
@@ -272,11 +278,12 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         el.style.height = `${el.scrollHeight}px`;
     }, [prompt, selectedTool]);
     // A prebuilt `/new?…` query to redirect to after anonymous sign-in.
-    // Set by the one-click launches (e.g. Discover J-Lens) that don't go through
+    // Set by the one-click launches (the featured one) that don't go through
     // the prompt form; null → fall back to building params from the form state.
     const pendingLaunchRef = useRef<{ query: string; origin: ChartOrigin } | null>(null);
     const router = useRouter();
     const launchChart = useLaunchChart();
+    const startDeployment = useModelDeployment((s) => s.start);
     const capture = useCapture();
     const surface = loggedIn ? "home" : "landing";
 
@@ -347,7 +354,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 setIsSubmitting(false);
                 pendingLaunchRef.current = null;
             } else {
-                // A one-click launch (Discover J-Lens) prebuilt its target;
+                // A one-click launch (the featured one) prebuilt its target;
                 // otherwise build from the prompt-form state.
                 let qs = pendingLaunchRef.current?.query;
                 const origin = pendingLaunchRef.current?.origin ?? surface;
@@ -486,44 +493,42 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         }
     };
 
-    // One-click launch of the new J-Lens tool: pick a J-Lens-supported model
-    // (the one already selected if it qualifies, else the best available hot
-    // one), then launch an empty J-Lens chart (`useLaunchChart`) — signing in
-    // anonymously first if the visitor isn't authenticated.
-    const handleDiscoverJLens = () => {
-        // "Usable" = the current user can actually run it: supports j-lens AND
-        // is allowed for this session. `allowed` is false for gated models when
-        // signed out, so this never lands an anonymous user on a gated model
-        // (which the deploy flow can't handle — it has no /login gate).
-        const usable = (m: Model) => m.allowed && isToolSupportedForModel("jlens", m);
-        const current = modelsToSelect.find((m) => m.name === selectedModel);
-        const model =
-            current && usable(current)
-                ? current
-                : (modelsToSelect.find((m) => m.status === "hot" && usable(m)) ??
-                  modelsToSelect.find(usable));
+    // The featured model as the catalog lists it; the hero's line shows only
+    // once it does, since a model NDIF does not serve cannot be launched.
+    const featuredModel = modelsToSelect.find((m) => m.name === FeaturedLaunch.MODEL);
+
+    // One-click launch of the featured chart (`FeaturedLaunch`): its tool on
+    // its model, with its options picked. A visitor the model is gated for
+    // signs in first and the launch resumes after; a signed-in user's launch
+    // starts deploying a model that is cold, so the chart opens on its
+    // deploying state; anyone else passes the captcha and is signed in
+    // anonymously first.
+    const handleFeaturedLaunch = () => {
+        if (!featuredModel) return;
 
         // Reflect the choice in the composer either way.
-        setSelectedTool("J-Lens");
-        if (model) setSelectedModel(model.name);
+        setSelectedTool(FeaturedLaunch.TOOL);
+        setSelectedModel(featuredModel.name);
 
-        // No J-Lens-supported model in the catalog — leave the tool selected so
-        // the composer shows it; nothing to launch.
-        if (!model) return;
+        capture("featured_launch", {
+            ...launchProperties(featuredModel),
+            tool: launchTool(FeaturedLaunch.TOOL),
+            feature: FeaturedLaunch.ID,
+        });
 
-        capture("jlens_discovery", { ...launchProperties(model), tool: "jlens" });
+        const params = FeaturedLaunch.params(selectedWorkspace || undefined);
+        const signedIn = loggedIn && !!currentUser && !currentUser.is_anonymous;
+        const gated = featuredModel.gated === true && featuredModel.allowed === false;
 
-        // Empty chart (no prompt), mirroring the model launch dialog's deploy flow.
-        const params = new URLSearchParams({ model: model.name, tool: "J-Lens", deploy: "true" });
-        if (selectedWorkspace) {
-            params.set("workspaceId", selectedWorkspace);
-        }
-
-        if (loggedIn && currentUser && !currentUser.is_anonymous) {
-            launchChart(params, "jlens_discovery");
+        if (gated && !signedIn) {
+            params.delete("workspaceId");
+            params.set("gatedModel", "true");
+            router.push(`/login?${params.toString()}`);
+        } else if (signedIn) {
+            if (isModelCold(featuredModel)) startDeployment(featuredModel.name);
+            launchChart(params, "featured_launch");
         } else {
-            // Anonymous / signed-out — sign in via captcha, then resume here.
-            pendingLaunchRef.current = { query: params.toString(), origin: "jlens_discovery" };
+            pendingLaunchRef.current = { query: params.toString(), origin: "featured_launch" };
             setShowCaptcha(true);
         }
     };
@@ -623,21 +628,35 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 transition={{ duration: 0.6, delay: 0.2 }}
                 className="text-center space-y-4 mb-8 md:mb-12"
             >
-                {/* J-Lens announcement — the tool's own icon + its name in
-                    the hero gradient. Clicking selects it in the composer. */}
-                <button
-                    type="button"
-                    onClick={handleDiscoverJLens}
-                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                >
-                    <SparkBadge text="New" fontSize={46} className="h-6 w-9 shrink-0 -rotate-12" />
-                    <span>Discover our</span>
-                    <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text font-semibold text-transparent">
-                        J-Lens
-                    </span>
-                    <JLensIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                    <span>tool</span>
-                </button>
+                {/* What is featured: the looped Inkling, launched in a click.
+                    The line keeps its room while the catalog loads, and
+                    stays out when the catalog does not list the model. On a
+                    phone it breaks before the model's name. */}
+                <div className="flex min-h-7 items-center justify-center">
+                    {featuredModel && (
+                        <button
+                            type="button"
+                            onClick={handleFeaturedLaunch}
+                            disabled={showCaptcha || isSubmitting}
+                            className="inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                <LoopBadge
+                                    text="NEW"
+                                    label="New"
+                                    className="h-7 w-11 shrink-0 -rotate-12"
+                                />
+                                Explore Looped Transformer model
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                <span className="font-semibold text-foreground">
+                                    Inkling 2 Mini
+                                </span>
+                                <LoopMark className="h-4 w-8 shrink-0" />
+                            </span>
+                        </button>
+                    )}
+                </div>
 
                 <h1 className="flex items-center justify-center gap-3 text-5xl lg:gap-4 lg:text-7xl monitor:gap-5 monitor:text-8xl wide:gap-6 wide:text-9xl font-bold tracking-tight pt-2">
                     {/* <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/80 bg-clip-text text-transparent">

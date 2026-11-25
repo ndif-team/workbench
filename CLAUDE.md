@@ -154,6 +154,7 @@ workbench/                          # repo root
         │   ├── providers/          # QueryProvider, ThemeProvider, TourProvider, TutorialEventProvider
         │   ├── ModelControl.tsx    # header model pill + picker; its job badge shows useWorkspace.jobStatus
         │   ├── LandingPage.tsx (signed out), LandingComposer.tsx (its hero + composer, also Home's)
+        │   ├── LoopBadge.tsx, LoopMark.tsx  # the hero's featured line: its "New" sticker and its animated loop
         │   ├── CwLogo.tsx          # the workbench mosaic, self-contained (inline styles); its mark sits beside
         │   │                   #   the product name in the hero and the sidebar, and expands the rail
         │   ├── UserDropdown.tsx, CreateWorkspaceDialog.tsx
@@ -191,6 +192,7 @@ workbench/                          # repo root
         │   ├── errorTracking.ts    # captureError: handled failures → PostHog error tracking
         │   ├── errorRedaction.ts   # cuts a failed query's bound values out of reported errors
         │   ├── chartRoutes.ts      # chart tool type ↔ its page route (unknown/retired types → workspace root)
+        │   ├── featuredLaunch.ts   # FeaturedLaunch: the chart Home's hero invites a visitor to try (tool, model, option picks)
         │   ├── toolSupport.ts      # which tools a model supports (j-lens needs `has_jacobian`)
         │   ├── toolOptions.ts      # ToolOptions: the options a tool takes on a model (`Model.tool_options`), and the values a run sends
         │   ├── utils.ts            # cn(), resolveThemeCssVars()
@@ -657,7 +659,8 @@ A tool's implementation for a kind of model can take options the tool takes nowh
 - **Backend** (`_api/tool_options.py`, `ToolOptions`): `/models` gives each model a `tool_options` map from the frontend's tool type to the options that tool takes on it (`ToolOptions.offered`, from the class the model is loaded with, `AppState.model_class`, so no model is loaded for it); a tool that takes none is left out. A tool route's request carries the picks as `options` (name to value), which `ToolOptions.picked` checks against what the tool declares for that model before the run starts: an unknown name or value is a 422. They reach the tool as keyword arguments.
 - **Frontend**: `ToolOptions.of(model, tool)` (`lib/toolOptions.ts`) reads what a tool takes on the selected model, the tool's `*Area` hands it to its Controls, and `useToolOptions` holds the picks. Its `values` is what a config saves and a run sends, as `options`: every offered option at its pick or its default, and `undefined` for a model that offers none, so no other model's config or run carries any. A saved pick the selected model does not offer is kept in the draft but not sent. `matchesSaved` is the options' part of the unsaved-changes check; the per-tool comparers in `configModelDiff.ts` leave options out.
 - **Controls**: `ToolOptionControls` (`(shell)/components`) draws one control per option wherever a tool's Controls place it: a check for an option with two values, named after the value that is not its default (checked is that value), and `ToolOptionSwitch`, a row of segments, for one with more. Each explains itself in a tooltip. On a phone (`touch`) there are no tooltips and the Controls put `ToolOptionNotes` under the parameters instead. Logit lens places them on the entropy check's line (`LensParams`' children), activation patching on the patch tools' row and behind the phone composer's parameters button.
-- A run's analytics carry the picks as `options` on `run_submitted`. A chart launched from Home runs every option at its default.
+- A run's analytics carry the picks as `options` on `run_submitted`. A chart launched from Home's composer runs every option at its default. A launch can name picks itself: `/new?…&options=<JSON object>` (`planChartLaunch`) puts them on the new chart's config, and they survive a sign-in the launch had to wait for (`PendingRequest`).
+- **Featured launch** (`lib/featuredLaunch.ts`): the line above the hero's title on the landing page and Home invites the visitor to try one chart, the looped Inkling 2 Mini under the coda lens, and launches it in a click: its tool on its model with its options picked, as an empty chart. A signed-in user's click starts deploying the model if it is cold, so the chart opens on its deploying state; a visitor the model is gated for signs in first and the launch resumes after, where a cold model shows its Deploy button. The line shows only once the catalog lists the model. The click is `featured_launch` (with `feature`), which is also the chart's `origin`. To feature something else, change `FeaturedLaunch` and the line's copy in `LandingComposer`.
 
 ### Workbench's wrappers around nnsightful
 
