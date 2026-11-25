@@ -10,7 +10,12 @@ const CONFIG = {
     tgtPos: [3],
     tgtFreeze: [],
 };
-const CHART = { lines: [[0.1, 0.9]], ranks: [[1, 0]], prob_diffs: [[0, 0.8]], tokenLabels: [" Paris"] };
+const CHART = {
+    lines: [[0.1, 0.9]],
+    ranks: [[1, 0]],
+    prob_diffs: [[0, 0.8]],
+    tokenLabels: [" Paris"],
+};
 
 /** The code cells of a generated notebook, by what each one does. */
 async function cells(input: Partial<Parameters<typeof generateNotebook>[0]>) {
