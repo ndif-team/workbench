@@ -3,15 +3,17 @@ import type { LogitLensConfigData } from "@/types/logitLens";
 import type { JLensConfigData } from "@/types/jlens";
 import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 import type { PatchLensChartData } from "@/types/patchLens";
+import type { ToolOptionValues } from "@/types/models";
 import { toolTypeFromDisplay } from "@/lib/toolSupport";
 
 /**
  * Chart-creation parameters carried in `/new?…` URLs (the landing composer, the
  * model launch dialog, the post-login resume). `tool` is a picker display name
  * ("Logit Lens") or a tool type ("patch-lens"); `srcPos`, `tgtPos` and
- * `tgtFreeze` are JSON arrays; `deploy=true` creates an empty chart for a model
- * that is being deployed; `workspaceId` files the chart in that workspace
- * instead of the default one.
+ * `tgtFreeze` are JSON arrays; `options` is a JSON object of the picks for the
+ * options the tool takes on the model (`ToolOptionValues`); `deploy=true`
+ * creates an empty chart for a model that is being deployed; `workspaceId`
+ * files the chart in that workspace instead of the default one.
  */
 const CHART_LAUNCH_PARAMS = [
     "tool",
@@ -22,6 +24,7 @@ const CHART_LAUNCH_PARAMS = [
     "srcPos",
     "tgtPos",
     "tgtFreeze",
+    "options",
     "deploy",
     "workspaceId",
 ] as const;
@@ -106,16 +109,33 @@ const parsePositions = <T>(json: string | undefined): T[] => {
     return parsed as T[];
 };
 
+/** A launch's option picks, or undefined when it names none. */
+const parseOptions = (json: string | undefined): ToolOptionValues | undefined => {
+    if (!json) return undefined;
+    const parsed: unknown = JSON.parse(json);
+    const picks =
+        parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+            ? Object.entries(parsed)
+            : null;
+    if (!picks || picks.some(([, value]) => typeof value !== "string")) {
+        throw new Error("Expected a JSON object of option picks");
+    }
+    return picks.length > 0 ? (Object.fromEntries(picks) as ToolOptionValues) : undefined;
+};
+
 /**
  * What to create for a launch request. Prompts and positions are carried over
- * as given; a request without them yields a blank chart of the tool. Deploy
- * launches create an empty chart pinned to the model (gpt2 when none is given)
- * so it shows that model's deploying state. Throws on malformed position JSON.
+ * as given; a request without them yields a blank chart of the tool. Option
+ * picks go on a logit-lens or activation-patching config, the tools that take
+ * options. Deploy launches create an empty chart pinned to the model (gpt2
+ * when none is given) so it shows that model's deploying state. Throws on
+ * malformed position or option JSON.
  */
 export function planChartLaunch(request: ChartLaunchRequest): ChartLaunchPlan {
     const tool = launchTool(request.tool);
     const deploy = request.deploy === "true";
     const model = request.model || (deploy ? "openai-community/gpt2" : "");
+    const options = parseOptions(request.options);
 
     if (tool === "activation-patching") {
         return {
@@ -127,6 +147,7 @@ export function planChartLaunch(request: ChartLaunchRequest): ChartLaunchPlan {
                 srcPos: deploy ? [] : parsePositions<SourcePosition>(request.srcPos),
                 tgtPos: deploy ? [] : parsePositions<number>(request.tgtPos),
                 tgtFreeze: deploy ? [] : parsePositions<number>(request.tgtFreeze),
+                ...(options && { options }),
             },
         };
     }
@@ -150,13 +171,16 @@ export function planChartLaunch(request: ChartLaunchRequest): ChartLaunchPlan {
         topk: 5,
         includeEntropy: false,
     };
+    if (tool === "logit-lens")
+        return { type: tool, data: { ...data, ...(options && { options }) } };
     return { type: tool, data };
 }
 
 /**
- * Whether a plan asks for nothing but a tool (and maybe a model): no prompt,
- * token positions or patch-lens prompts. Such a launch reuses an untouched
- * chart rather than adding another (`createChartFromLaunch`).
+ * Whether a plan asks for nothing but a tool (and maybe a model and option
+ * picks): no prompt, token positions or patch-lens prompts. Such a launch
+ * reuses an untouched chart with the same config rather than adding another
+ * (`createChartFromLaunch`).
  */
 export function isBlankPlan(plan: ChartLaunchPlan): boolean {
     switch (plan.type) {
