@@ -902,7 +902,7 @@ wheels = [
 [[package]]
 name = "nnsightful"
 version = "0.1.0"
-source = { git = "https://github.com/AdamBelfki3/nnsightful.git?rev=00cdec0f6e3d6a831752b26a819adbe6d92f0c27#00cdec0f6e3d6a831752b26a819adbe6d92f0c27" }
+source = { git = "https://github.com/AdamBelfki3/nnsightful.git?rev=64e917e3684773a37c0ea70ecd04cf6d5d2bb99a#64e917e3684773a37c0ea70ecd04cf6d5d2bb99a" }
 dependencies = [
     { name = "hf-xet" },
     { name = "ipython" },
@@ -1867,7 +1867,7 @@ requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.6.16" },
     { name = "modal", specifier = ">=0.65.66" },
     { name = "nnsight", specifier = ">=0.8.3" },
-    { name = "nnsightful", git = "https://github.com/AdamBelfki3/nnsightful.git?rev=00cdec0f6e3d6a831752b26a819adbe6d92f0c27" },
+    { name = "nnsightful", git = "https://github.com/AdamBelfki3/nnsightful.git?rev=64e917e3684773a37c0ea70ecd04cf6d5d2bb99a" },
     { name = "nnterp", specifier = "==2.0.0rc1" },
     { name = "pillow", specifier = ">=12.0.0" },
     { name = "pydantic", specifier = "==2.14.0" },
