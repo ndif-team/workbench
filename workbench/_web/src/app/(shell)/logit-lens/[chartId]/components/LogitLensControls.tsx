@@ -502,8 +502,9 @@ export function LogitLensControls({
         />
     );
 
-    /** The run's parameters; a looped model's coda lens joins them. The phone's
-     * popover explains it under its check, the side panel in a tooltip. */
+    /** The run's parameters; a looped model's coda lens joins the entropy
+     * check. The side panel explains it in a tooltip, the phone's popover
+     * under the parameters. */
     const params = (explain: "hover" | "inline") => (
         <>
             <LensParams
@@ -512,14 +513,20 @@ export function LogitLensControls({
                 includeEntropy={includeEntropy}
                 onIncludeEntropyChange={setIncludeEntropy}
                 disabled={!interactive}
-            />
-            {looped && (
-                <CodaLensCheck
-                    value={lens}
-                    onChange={setLens}
-                    disabled={!interactive}
-                    explain={explain}
-                />
+            >
+                {looped && (
+                    <CodaLensCheck
+                        value={lens}
+                        onChange={setLens}
+                        disabled={!interactive}
+                        explain={explain}
+                    />
+                )}
+            </LensParams>
+            {looped && explain === "inline" && (
+                <p className="text-pretty text-xs text-muted-foreground">
+                    <span className="font-medium">Coda lens.</span> {CodaLensCheck.DESCRIPTION}
+                </p>
             )}
         </>
     );
