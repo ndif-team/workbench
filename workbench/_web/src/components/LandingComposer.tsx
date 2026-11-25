@@ -250,9 +250,9 @@ function ModelTriggerPopover({
  * The landing page's hero and chart composer: a prompt, the tool, model and
  * (for a signed-in user with folders) workspace pickers, and Run, which
  * launches the chart (`useLaunchChart`). When the selected model's tool takes
- * options (`ToolOptions`), they sit in the box's last row, where activation
- * patching keeps its tools, and the launch carries the picks. A visitor who
- * isn't signed in passes a
+ * options (`ToolOptions`), they sit in the box beside Run (after the patch
+ * tools, for activation patching) and the launch carries the picks. A visitor
+ * who isn't signed in passes a
  * captcha and is signed in anonymously first; a gated model sends them to
  * sign in. The app's Home page renders the same component; `loggedIn` (a
  * session) tells the two apart in analytics, as `surface`.
@@ -605,15 +605,18 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
         </div>
     );
 
-    // The box's last row: a tool's own controls (activation patching's), the
+    // The box's end: a tool's own controls (activation patching's), the
     // options the model's tool takes, the hint for the next step, then Run.
-    // On a phone, where a tool's controls and the options don't share a
-    // line, the options take one of their own above them.
+    // Without tools (a lens) it is the options and Run alone, in the box's
+    // corner, so the box keeps its height. With them, on a phone, where the
+    // tools and the options don't share a line, the options take one of
+    // their own above the tools.
     const offersOptions = toolOptions.options.length > 0;
     const toolbar = (tools?: ReactNode, hint = "") => (
         <div
             className={cn(
-                "flex flex-wrap items-center gap-1.5 p-2",
+                "flex items-center gap-1.5 p-2",
+                tools ? "flex-wrap" : "shrink-0",
                 selectedTool !== "Activation Patching" && "p-2.5 md:p-3",
             )}
         >
@@ -621,10 +624,8 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             {offersOptions && (
                 <div
                     className={cn(
-                        "flex shrink-0 items-center gap-3",
-                        tools
-                            ? "max-sm:order-first max-sm:basis-full max-sm:pl-2"
-                            : "pl-1.5 md:pl-1",
+                        "flex shrink-0 items-center gap-1",
+                        tools && "max-sm:order-first max-sm:basis-full max-sm:pl-2",
                     )}
                 >
                     <ToolOptionControls
@@ -632,10 +633,11 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                         values={toolOptions.values}
                         onPick={toolOptions.pick}
                         disabled={showCaptcha || isSubmitting}
+                        quiet
                     />
                 </div>
             )}
-            {(tools || offersOptions) && (
+            {tools && (
                 <span
                     aria-live="polite"
                     className="min-w-0 flex-1 text-balance px-1 text-right text-xs text-muted-foreground"
@@ -755,9 +757,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
             >
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                     {selectedTool !== "Activation Patching" ? (
-                        // With options to offer, the box grows a last row for
-                        // them and Run, as activation patching's has.
-                        <div className={cn(box, "flex", offersOptions ? "flex-col" : "items-end")}>
+                        <div className={cn(box, "flex items-end")}>
                             <Textarea
                                 ref={promptRef}
                                 value={prompt}
@@ -766,10 +766,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                                 placeholder="Enter a prompt to analyze..."
                                 aria-label="Prompt"
                                 rows={1}
-                                className={cn(
-                                    "prompt-input custom-scrollbar max-h-44 min-h-20 flex-1 resize-none border-0 bg-transparent py-3 pl-4 text-base leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent md:text-base md:leading-7 monitor:max-h-52 monitor:text-lg monitor:leading-7 wide:max-h-60 wide:text-xl wide:leading-8",
-                                    offersOptions ? "pr-4" : "pr-0",
-                                )}
+                                className="prompt-input custom-scrollbar max-h-44 min-h-20 min-w-0 flex-1 resize-none border-0 bg-transparent py-3 pl-4 pr-0 text-base leading-7 shadow-none focus-visible:ring-0 dark:bg-transparent md:text-base md:leading-7 monitor:max-h-52 monitor:text-lg monitor:leading-7 wide:max-h-60 wide:text-xl wide:leading-8"
                                 disabled={showCaptcha || isSubmitting}
                             />
                             {toolbar()}

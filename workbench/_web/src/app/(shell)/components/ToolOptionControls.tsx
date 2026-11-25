@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -16,12 +17,17 @@ interface ToolOptionControlsProps {
      *  without tooltips, a switch as wide as its container, and the caller
      *  puts `ToolOptionNotes` under them. */
     touch?: boolean;
+    /** Where the controls are a detail beside the main action (Home's
+     *  composer, next to Run), an on/off option is a quiet text toggle that
+     *  tints when on, as the patch tools' toggles do, instead of a check. */
+    quiet?: boolean;
 }
 
 /**
  * A control for each option a tool's model offers, to sit in the tool's
- * Controls among its own: a check for an option that is on or off, a row of
- * segments for one with several values. Each explains itself in a tooltip.
+ * Controls among its own: a check for an option that is on or off (a text
+ * toggle where `quiet`), a row of segments for one with several values. Each
+ * explains itself in a tooltip.
  * Renders nothing for a model that offers no option.
  */
 export function ToolOptionControls({
@@ -30,14 +36,16 @@ export function ToolOptionControls({
     onPick,
     disabled,
     touch = false,
+    quiet = false,
 }: ToolOptionControlsProps) {
+    const OnOff = quiet ? ToolOptionToggle : ToolOptionCheck;
     return (
         <>
             {options.map((option) => {
                 const value = values?.[option.name] ?? option.default;
                 const pick = (picked: string) => onPick(option.name, picked);
                 return ToolOptions.isToggle(option) ? (
-                    <ToolOptionCheck
+                    <OnOff
                         key={option.name}
                         option={option}
                         value={value}
@@ -65,7 +73,7 @@ export function ToolOptionControls({
 /** The DOM id of an option's control. */
 ToolOptionControls.idOf = (option: ToolOption) => `tool-option-${option.name}`;
 
-interface ToolOptionCheckProps {
+interface ToolOptionOnOffProps {
     option: ToolOption;
     value: string;
     onChange: (value: string) => void;
@@ -73,8 +81,40 @@ interface ToolOptionCheckProps {
     touch: boolean;
 }
 
+/** An on/off option as a quiet text toggle, named after what it is when on. */
+function ToolOptionToggle({ option, value, onChange, disabled, touch }: ToolOptionOnOffProps) {
+    const on = ToolOptions.on(option);
+    const pressed = value === on.value;
+
+    const toggle = (
+        <Button
+            id={ToolOptionControls.idOf(option)}
+            type="button"
+            variant="ghost"
+            size="control"
+            aria-pressed={pressed}
+            disabled={disabled}
+            onClick={() => onChange(pressed ? option.default : on.value)}
+            className="px-2 text-xs font-normal text-muted-foreground aria-pressed:bg-tool-accent/15 aria-pressed:text-tool-accent"
+        >
+            {on.label}
+        </Button>
+    );
+
+    if (touch) return toggle;
+
+    return (
+        <Tooltip disableHoverableContent>
+            <TooltipTrigger asChild>{toggle}</TooltipTrigger>
+            <TooltipContent side="bottom" align="end" className="max-w-64 text-pretty">
+                {on.description}
+            </TooltipContent>
+        </Tooltip>
+    );
+}
+
 /** An on/off option as a check, named after what it is when on. */
-function ToolOptionCheck({ option, value, onChange, disabled, touch }: ToolOptionCheckProps) {
+function ToolOptionCheck({ option, value, onChange, disabled, touch }: ToolOptionOnOffProps) {
     const on = ToolOptions.on(option);
     const id = ToolOptionControls.idOf(option);
 
