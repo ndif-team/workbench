@@ -29,12 +29,14 @@ export default function ActivationPatchingArea({
     const {
         config,
         isChartLoading,
+        models,
         modelsAvailable,
         modelsFetching,
         effectiveModel,
         hasExistingData,
         modelRunnable,
     } = useToolArea<ActivationPatchingConfig, ActivationPatchingChart>();
+    const looped = models?.find((m) => m.name === effectiveModel)?.looped === true;
 
     if (!config || isChartLoading) {
         if (layout === "floating") return null;
@@ -54,6 +56,7 @@ export default function ActivationPatchingArea({
                 key={config.id}
                 initialConfig={config}
                 selectedModel={effectiveModel}
+                looped={looped}
                 // Cold/gone saved model → read-only (reuses the existing
                 // models-unavailable path); the saved result still renders.
                 modelsAvailable={modelsAvailable && modelRunnable}

@@ -13,9 +13,13 @@ import { useCapture } from "@/lib/analytics";
 import {
     ActivationPatchingConfigData,
     ActivationPatchingData,
+    DEFAULT_LOOPED_PATCH,
+    LoopedPatch,
     SourcePosition,
 } from "@/types/activationPatching";
+import { LoopedPatchSwitch } from "./LoopedPatchSwitch";
 import { encodeText } from "@/lib/tokenize";
+import { cn } from "@/lib/utils";
 import { Token } from "@/types/models";
 import { toast } from "sonner";
 import { getChartById } from "@/lib/queries/chartQueries";
@@ -44,6 +48,9 @@ interface ActivationPatchingConfig {
 interface ActivationPatchingControlsProps {
     initialConfig: ActivationPatchingConfig;
     selectedModel: string;
+    /** Whether the selected model is a looped one, whose run takes a patch
+     * (`LoopedPatch`) picked here. */
+    looped: boolean;
     modelsAvailable: boolean;
     /** True while the models query is in flight. Used to suppress the
      * "unavailable" banner during a fetch — even if the previous state was
@@ -58,6 +65,7 @@ interface ActivationPatchingControlsProps {
 export function ActivationPatchingControls({
     initialConfig,
     selectedModel,
+    looped,
     modelsAvailable,
     modelsLoading = false,
     hasExistingData = false,
@@ -107,6 +115,13 @@ export function ActivationPatchingControls({
     const [tgtPos, setTgtPos] = useState<number[]>(initialTgtPos);
     const [tgtFreeze, setTgtFreeze] = useState<number[]>(initialTgtFreeze);
     const lastTokenizedTgtPromptRef = useRef<string>("");
+
+    // What a looped model's run replaces at each visit. Kept while another
+    // model is selected, but only a looped model's config and run carry it.
+    const [patch, setPatch] = useState<LoopedPatch>(
+        initialConfig.data?.patch ?? DEFAULT_LOOPED_PATCH,
+    );
+    const runPatch = looped ? patch : undefined;
     const [tgtEditing, setTgtEditing] = useState(!initialTgtPrompt); // Start in view mode if prompt exists
     const [tgtTokenizedModel, setTgtTokenizedModel] = useState<string | null>(null);
     const tgtTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -221,6 +236,7 @@ export function ActivationPatchingControls({
         setSrcPos(initialConfig.data?.srcPos ?? []);
         setTgtPos(initialConfig.data?.tgtPos ?? []);
         setTgtFreeze(initialConfig.data?.tgtFreeze ?? []);
+        setPatch(initialConfig.data?.patch ?? DEFAULT_LOOPED_PATCH);
         setDraftModel(m);
         restoreWorkspaceModel(m);
 
@@ -635,6 +651,7 @@ export function ActivationPatchingControls({
             srcPos,
             tgtPos,
             tgtFreeze,
+            patch: runPatch,
         };
 
         try {
@@ -677,6 +694,7 @@ export function ActivationPatchingControls({
         srcPos,
         tgtPos,
         tgtFreeze,
+        runPatch,
         selectedModel,
         chartId,
         initialConfig.id,
@@ -734,6 +752,7 @@ export function ActivationPatchingControls({
                         srcPos: initialSrcPos,
                         tgtPos: initialTgtPos,
                         tgtFreeze: initialTgtFreeze,
+                        patch: runPatch,
                     };
 
                     // Save config with the selection cleared before compute
@@ -777,6 +796,7 @@ export function ActivationPatchingControls({
         initialSrcPos,
         initialTgtPos,
         initialTgtFreeze,
+        runPatch,
         chartId,
         initialConfig.id,
         initialConfig.data,
@@ -805,8 +825,9 @@ export function ActivationPatchingControls({
                 srcPos,
                 tgtPos,
                 tgtFreeze,
+                patch: runPatch,
             }),
-        [initialConfig.data, srcPrompt, tgtPrompt, srcPos, tgtPos, tgtFreeze],
+        [initialConfig.data, srcPrompt, tgtPrompt, srcPos, tgtPos, tgtFreeze, runPatch],
     );
 
     // Draft is dirty if any non-model field differs OR the draft model differs
@@ -922,10 +943,21 @@ export function ActivationPatchingControls({
         onSync: updateConfigModel,
     };
 
+    const patchSwitch = (explain: "hover" | "inline") =>
+        looped ? (
+            <LoopedPatchSwitch
+                value={patch}
+                onChange={setPatch}
+                disabled={!interactive}
+                explain={explain}
+            />
+        ) : undefined;
+
     if (floating) {
         return (
             <FloatingToolComposer
                 title="Activation Patching"
+                params={patchSwitch("inline")}
                 prompt={
                     <>
                         {sourcePrompt}
@@ -975,12 +1007,21 @@ export function ActivationPatchingControls({
                 {sourcePrompt}
                 {targetPrompt}
 
-                {/* The patch tools and the hint for the next pick, on a row of their own */}
-                <div className="-my-1.5 flex items-center gap-1">
-                    {patchTools}
+                {/* The patch tools, a looped model's patch switch, and the hint for the next pick, on a row
+                    of their own; in a panel too narrow for all three, the hint goes under the controls. */}
+                <div
+                    className={cn(
+                        "-my-1.5 flex flex-wrap items-center gap-x-1",
+                        looped && "min-h-8",
+                    )}
+                >
+                    <div className="flex shrink-0 items-center gap-1">
+                        {patchTools}
+                        {looped && <span className="ml-1">{patchSwitch("hover")}</span>}
+                    </div>
                     <span
                         aria-live="polite"
-                        className="min-w-0 flex-1 text-balance text-right text-xs text-muted-foreground"
+                        className="min-w-24 flex-1 text-balance text-right text-xs text-muted-foreground"
                     >
                         {hint}
                     </span>
