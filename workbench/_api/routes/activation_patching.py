@@ -17,11 +17,11 @@ class ActivationPatchingRequest(BaseModel):
     """One activation-patching run.
 
     Attributes:
-        patch: Which of a looped model's two patches to run: ``"state"``
-            (everything a layer visit leaves) or ``"output"`` (what its layer
-            returns). nnsightful's looped tool checks the value and defaults
-            to ``"state"``. Leave it unset for any other model: their
-            patching has one form and takes no such argument.
+        patch: How much of what a looped model holds at a token a patch
+            replaces: ``"full_state"``, ``"live_state"`` or
+            ``"active_block"``. nnsightful's looped tool checks the value and
+            defaults to ``"full_state"``. Leave it unset for any other model:
+            their patching has one form and takes no such argument.
     """
 
     model_name: str

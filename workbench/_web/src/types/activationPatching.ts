@@ -13,17 +13,20 @@ import type { LinePlotSection } from "nnsightful";
 export type SourcePosition = number | [number, number];
 
 /**
- * What a patch replaces at a layer visit of a looped model (`Model.looped`),
- * which keeps several tensors per token where other models keep one:
- * - "state": everything the visit leaves at the token
- * - "output": only what the visit's layer returns
+ * How much of what a looped model (`Model.looped`) holds at a token a patch
+ * replaces at a layer visit. Such a model keeps several tensors per token
+ * where other models keep one:
+ * - "full_state": everything the visit leaves, with the copy of the pre-loop
+ *   state that later passes restart from
+ * - "live_state": what the visit's pass is working with, without that copy
+ * - "active_block": only what the visit's layer returns
  * These are nnsightful's `LoopedActivationPatchingTool.PATCHES`. Other models'
  * patching has one form and takes no such option.
  */
-export type LoopedPatch = "state" | "output";
+export type LoopedPatch = "full_state" | "live_state" | "active_block";
 
 /** The patch a looped model's run uses when none is picked, as in nnsightful. */
-export const DEFAULT_LOOPED_PATCH: LoopedPatch = "state";
+export const DEFAULT_LOOPED_PATCH: LoopedPatch = "full_state";
 
 /**
  * Configuration data for activation patching

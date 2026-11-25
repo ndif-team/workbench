@@ -49,7 +49,7 @@ describe("generateNotebook", () => {
     it("a looped model gets its own wrapper, packages and options", async () => {
         const nb = await cells({
             model: { looped: true },
-            configData: { ...CONFIG, patch: "output" },
+            configData: { ...CONFIG, patch: "active_block" },
         });
         expect(nb.model.source).toContain("LoopedTransformer(MODEL_NAME");
         expect(nb.model.source).not.toContain("StandardizedTransformer");
@@ -57,7 +57,7 @@ describe("generateNotebook", () => {
         expect(nb.setup.source.indexOf("nnsightful.git")).toBeLessThan(
             nb.setup.source.indexOf("transformers>="),
         );
-        expect(nb.parameters.source).toContain('tool_options = {"patch": "output"}');
+        expect(nb.parameters.source).toContain('tool_options = {"patch": "active_block"}');
     });
 
     it("a model the catalog no longer lists is loaded as a standard one", async () => {
