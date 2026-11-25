@@ -28,7 +28,13 @@ type ToolSupport =
 const TOOL_SUPPORT: Record<ToolType, ToolSupport> = {
     "logit-lens": { supportsAll: true },
     "activation-patching": { supportsAll: true },
-    "patch-lens": { supportsAll: true },
+    "patch-lens": {
+        supportsAll: false,
+        // Patch Lens runs on the single residual stream nnterp standardizes,
+        // which a looped model (`model.looped`) does not have.
+        isSupported: (model) => !model.looped,
+        unsupportedReason: "Patch Lens does not run on looped models.",
+    },
     jlens: {
         supportsAll: false,
         // `has_jacobian` is optional; a missing value means the backend couldn't

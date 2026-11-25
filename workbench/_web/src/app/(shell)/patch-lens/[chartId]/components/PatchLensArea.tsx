@@ -34,6 +34,7 @@ import { withProlificPid } from "@/lib/prolific";
 import { queryKeys } from "@/lib/queryKeys";
 import { useWorkspace } from "@/stores/useWorkspace";
 import { selectedModelIn } from "@/components/model-selector/status";
+import { isToolSupportedForModel, unsupportedReasonFor } from "@/lib/toolSupport";
 import { encodeText } from "@/lib/tokenize";
 import { TokenizerLoadError } from "@/actions/errors";
 import { Token } from "@/types/models";
@@ -514,7 +515,12 @@ export default function PatchLensArea({
     // Target is optional: when blank, Patch Lens runs in single-prompt mode and
     // only computes the source lens. The widget hides the target heatmap and
     // disables drag-and-drop patching in that mode.
-    const canRun = !!selectedModel && !!sourcePrompt.trim() && !isRunning;
+    // A model in the catalog that Patch Lens cannot run on (see `toolSupport`)
+    // blocks Run and says why; the header's picker disables it the same way.
+    const selectedModelObj = selectedModelIn(models, selectedName);
+    const modelSupported =
+        !selectedModelObj || isToolSupportedForModel("patch-lens", selectedModelObj);
+    const canRun = !!selectedModel && modelSupported && !!sourcePrompt.trim() && !isRunning;
 
     // Core run: computes the lens for explicit prompts. handleRun wraps it with
     // the current editor state; the tutorial's "Try a prompt" path calls it with
@@ -916,6 +922,19 @@ export default function PatchLensArea({
                     onClick={handleRun}
                     disabled={!canRun}
                 />
+
+                {!modelSupported && (
+                    <p
+                        role="status"
+                        className="flex items-start gap-1.5 text-xs text-yellow-600 dark:text-yellow-500 leading-snug"
+                    >
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                        <span>
+                            {unsupportedReasonFor("patch-lens")} Pick another model from the header
+                            to run it.
+                        </span>
+                    </p>
+                )}
 
                 {phrasingWarning && (
                     <p
