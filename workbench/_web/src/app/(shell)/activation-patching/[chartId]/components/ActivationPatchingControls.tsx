@@ -1008,17 +1008,15 @@ export function ActivationPatchingControls({
                 {targetPrompt}
 
                 {/* The patch tools, a looped model's patch switch, and the hint for the next pick, on a row
-                    of their own; in a panel too narrow for all three, the hint goes under the controls. */}
+                    of their own; what a panel is too narrow for goes under the tools. */}
                 <div
                     className={cn(
                         "-my-1.5 flex flex-wrap items-center gap-x-1",
                         looped && "min-h-8",
                     )}
                 >
-                    <div className="flex shrink-0 items-center gap-1">
-                        {patchTools}
-                        {looped && <span className="ml-1">{patchSwitch("hover")}</span>}
-                    </div>
+                    {patchTools}
+                    {looped && <span className="ml-1">{patchSwitch("hover")}</span>}
                     <span
                         aria-live="polite"
                         className="min-w-24 flex-1 text-balance text-right text-xs text-muted-foreground"
