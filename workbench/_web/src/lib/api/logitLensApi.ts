@@ -29,12 +29,12 @@ interface LogitLensVariables {
 }
 
 /** The backend request for a logit lens config. */
-const toRequest = ({ model, prompt, topk, includeEntropy, lens }: LogitLensConfigData) => ({
+const toRequest = ({ model, prompt, topk, includeEntropy, options }: LogitLensConfigData) => ({
     model,
     prompt,
     topk: topk ?? 5,
     include_entropy: includeEntropy ?? false,
-    ...(lens && { lens }),
+    ...(options && { options }),
 });
 
 /**
@@ -73,7 +73,7 @@ export const useLogitLens = () => {
                     prompt_length: request.prompt.length,
                     topk: request.topk,
                     include_entropy: request.include_entropy,
-                    lens: lensRequest.completion.lens,
+                    options: request.options,
                 },
                 async (jobs) => {
                     const headers = await createUserHeadersAction();

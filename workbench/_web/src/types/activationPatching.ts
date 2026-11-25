@@ -4,6 +4,7 @@
  */
 
 import type { LinePlotSection } from "nnsightful";
+import type { ToolOptionValues } from "./models";
 
 /**
  * A source position can be either:
@@ -11,22 +12,6 @@ import type { LinePlotSection } from "nnsightful";
  * - A range of tokens [startIndex, endIndex] (tuple) - activations are averaged
  */
 export type SourcePosition = number | [number, number];
-
-/**
- * How much of what a looped model (`Model.looped`) holds at a token a patch
- * replaces at a layer visit. Such a model keeps several tensors per token
- * where other models keep one:
- * - "full_state": everything the visit leaves, with the copy of the pre-loop
- *   state that later passes restart from
- * - "live_state": what the visit's pass is working with, without that copy
- * - "active_block": only what the visit's layer returns
- * These are nnsightful's `LoopedActivationPatchingTool.PATCHES`. Other models'
- * patching has one form and takes no such option.
- */
-export type LoopedPatch = "full_state" | "live_state" | "active_block";
-
-/** The patch a looped model's run uses when none is picked, as in nnsightful. */
-export const DEFAULT_LOOPED_PATCH: LoopedPatch = "full_state";
 
 /**
  * Configuration data for activation patching
@@ -38,7 +23,9 @@ export interface ActivationPatchingConfigData {
     srcPos: SourcePosition[]; // Selected token positions in source prompt (can include ranges)
     tgtPos: number[]; // Selected token positions in target prompt (must match srcPos length)
     tgtFreeze: number[]; // Token positions in target prompt to freeze (keep clean activations)
-    patch?: LoopedPatch; // Looped models only; unset on any other model
+    /** The options patching takes on this model (`ToolOptions`), such as a
+     * looped model's `patch`; unset on a model whose patching takes none. */
+    options?: ToolOptionValues;
     selectedLineIndices?: number[]; // Indices of lines to display in the chart
     selectedMode?: string; // Display mode: "probability" | "rank" | "prob_diff"
 }
@@ -68,5 +55,5 @@ export interface ActivationPatchingApiRequest {
     tgt_pos: number[]; // List of target token positions (must match src_pos length)
     tgt_freeze: number[]; // Token positions in target prompt to freeze
     token_ids: number[]; // Token IDs to track
-    patch?: LoopedPatch; // Sent for looped models only
+    options?: ToolOptionValues; // Sent for a model whose patching takes options
 }

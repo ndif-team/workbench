@@ -12,6 +12,7 @@ from ..auth import get_user_email, require_user_email, user_has_model_access
 from ..data_models import NDIFResponse, Token, ModelHeat
 from ..telemetry import TelemetryClient, RequestStatus
 from ..state import AppState, get_state
+from ..tool_options import ToolOptions
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +125,10 @@ async def get_models(
             model["has_jacobian"] = name.rsplit("/", 1)[-1] in lens_models
     except Exception as e:
         logger.warning(f"Failed to fetch Jacobian lens availability: {e}")
+
+    ## The options each tool takes on the model, declared by nnsightful
+    for model in models:
+        model["tool_options"] = ToolOptions.offered(state.model_class(model["name"]))
 
     return models
 

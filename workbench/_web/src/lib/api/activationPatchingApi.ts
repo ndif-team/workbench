@@ -50,8 +50,8 @@ const getActivationPatching = async (
         tgt_pos: request.completion.tgtPos ?? [],
         tgt_freeze: request.completion.tgtFreeze ?? [],
         token_ids: [], // Backend will use src_pred and clean_pred from results
-        // Only a looped model's patching takes one; the config carries it for those alone.
-        ...(request.completion.patch && { patch: request.completion.patch }),
+        // The config carries options only for a model whose patching takes some.
+        ...(request.completion.options && { options: request.completion.options }),
     };
 
     return await runAndStream<ActivationPatchingData>(
@@ -104,7 +104,7 @@ export const useActivationPatching = () => {
                     tgt_pos_count: completion.tgtPos?.length ?? 0,
                     tgt_freeze: completion.tgtFreeze ?? [],
                     tgt_freeze_count: completion.tgtFreeze?.length ?? 0,
-                    patch: completion.patch,
+                    options: completion.options,
                 },
                 async (jobs) => {
                     const response = await getActivationPatching(request, jobs);

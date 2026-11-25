@@ -8,7 +8,7 @@ interface LensParamsProps {
     includeEntropy: boolean;
     onIncludeEntropyChange: (on: boolean) => void;
     disabled: boolean;
-    /** A tool's own checks, which join the entropy check on its line. */
+    /** The tool's own option controls, which join the entropy check on its line. */
     children?: React.ReactNode;
 }
 

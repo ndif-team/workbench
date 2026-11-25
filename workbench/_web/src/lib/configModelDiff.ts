@@ -1,10 +1,6 @@
-import { DEFAULT_LOOPED_LENS, type LogitLensConfigData } from "@/types/logitLens";
+import type { LogitLensConfigData } from "@/types/logitLens";
 import type { JLensConfigData } from "@/types/jlens";
-import {
-    DEFAULT_LOOPED_PATCH,
-    type ActivationPatchingConfigData,
-    type SourcePosition,
-} from "@/types/activationPatching";
+import type { ActivationPatchingConfigData, SourcePosition } from "@/types/activationPatching";
 import type { Token } from "@/types/models";
 
 // ---- chart/config model resolution -------------------------------------------------
@@ -78,17 +74,18 @@ const numberArrayEqual = (a: number[], b: number[]): boolean =>
 // ---- per-tool draft-vs-saved comparators -------------------------------------------
 
 /**
- * Compare a logit lens draft against its saved config, excluding model.
+ * Compare a logit lens draft against its saved config, excluding the model
+ * and the model's own options (`useToolOptions` compares those, against what
+ * the selected model offers).
  */
 export function logitLensConfigEqualsExceptModel(
     saved: LogitLensConfigData | undefined | null,
-    draft: Omit<LogitLensConfigData, "model"> | null | undefined,
+    draft: Omit<LogitLensConfigData, "model" | "options"> | null | undefined,
 ): boolean {
     return configFieldsEqual(saved as LogitLensConfigData, draft as LogitLensConfigData, [
         (c) => c.prompt ?? "",
         (c) => c.topk ?? 5,
         (c) => c.includeEntropy ?? true,
-        (c) => c.lens ?? DEFAULT_LOOPED_LENS,
     ]);
 }
 
@@ -109,7 +106,8 @@ export function jlensConfigEqualsExceptModel(
 
 /**
  * Compare an activation-patching draft against its saved config, excluding
- * model. Display-only fields (`selectedLineIndices`, `selectedMode`) are also
+ * the model and the model's own options (`useToolOptions` compares those).
+ * Display-only fields (`selectedLineIndices`, `selectedMode`) are also
  * excluded — those auto-save from the Display side and never trip the
  * "unsaved changes" state.
  *
@@ -121,7 +119,7 @@ export function apConfigEqualsExceptModel(
     draft:
         | Pick<
               ActivationPatchingConfigData,
-              "srcPrompt" | "tgtPrompt" | "srcPos" | "tgtPos" | "tgtFreeze" | "patch"
+              "srcPrompt" | "tgtPrompt" | "srcPos" | "tgtPos" | "tgtFreeze"
           >
         | null
         | undefined,
@@ -130,11 +128,7 @@ export function apConfigEqualsExceptModel(
     const scalarsEqual = configFieldsEqual(
         saved as ActivationPatchingConfigData,
         draft as ActivationPatchingConfigData,
-        [
-            (c) => c.srcPrompt ?? "",
-            (c) => c.tgtPrompt ?? "",
-            (c) => c.patch ?? DEFAULT_LOOPED_PATCH,
-        ],
+        [(c) => c.srcPrompt ?? "", (c) => c.tgtPrompt ?? ""],
     );
     if (!scalarsEqual) return false;
     return (

@@ -7,18 +7,19 @@ import { ToolRunButton } from "@/app/(shell)/components/ToolRunButton";
 import { toolMeta } from "@/app/(shell)/components/toolMeta";
 import { useLogitLens } from "@/lib/api/logitLensApi";
 import { useUpdateChartConfig } from "@/lib/api/configApi";
-import { DEFAULT_LOOPED_LENS, LogitLensConfigData, LoopedLens } from "@/types/logitLens";
+import { LogitLensConfigData } from "@/types/logitLens";
 import { encodeText, resultTokens } from "@/lib/tokenize";
-import { Token } from "@/types/models";
+import { Token, ToolOption } from "@/types/models";
 import { logitLensConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
 import { useDraftModel } from "@/hooks/useDraftModel";
+import { useToolOptions } from "@/hooks/useToolOptions";
 import { useFocusNewChartPrompt } from "@/hooks/useFocusNewChartPrompt";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
 import { ToolPanelHeader } from "@/app/(shell)/components/ToolPanelHeader";
 import { LensPromptEditor } from "@/app/(shell)/components/lens/LensPromptEditor";
 import { LensParams } from "@/app/(shell)/components/lens/LensParams";
-import { CodaLensCheck } from "./CodaLensCheck";
+import { ToolOptionControls, ToolOptionNotes } from "@/app/(shell)/components/ToolOptionControls";
 import { FloatingToolComposer } from "@/app/(shell)/components/FloatingToolComposer";
 import { useCapture } from "@/lib/analytics";
 
@@ -31,9 +32,9 @@ interface LogitLensConfig {
 interface LogitLensControlsProps {
     initialConfig: LogitLensConfig;
     selectedModel: string;
-    /** Whether the selected model is a looped one, whose run takes a lens
-     * (`LoopedLens`) picked here. */
-    looped: boolean;
+    /** The options the lens takes on the selected model (`ToolOptions.of`),
+     * picked here and sent with a run. */
+    options: ToolOption[];
     modelsAvailable: boolean;
     /** True while the models query is in flight. Used to suppress the
      * "unavailable" banner during a fetch — even if the previous state was
@@ -50,7 +51,7 @@ interface LogitLensControlsProps {
 export function LogitLensControls({
     initialConfig,
     selectedModel,
-    looped,
+    options,
     modelsAvailable,
     modelsLoading = false,
     hasExistingData = false,
@@ -72,15 +73,12 @@ export function LogitLensControls({
     const savedTopk = initialConfig.data?.topk ?? 5;
     const savedIncludeEntropy = initialConfig.data?.includeEntropy ?? false;
     const savedModel = initialConfig.data?.model ?? "";
-    const savedLens = initialConfig.data?.lens ?? DEFAULT_LOOPED_LENS;
 
     const [prompt, setPrompt] = useState(savedPrompt);
     const [topk, setTopk] = useState(savedTopk);
     const [includeEntropy, setIncludeEntropy] = useState(savedIncludeEntropy);
-    // How a looped model's run reads a visit. Kept while another model is
-    // selected, but only a looped model's config and run carry it.
-    const [lens, setLens] = useState<LoopedLens>(savedLens);
-    const runLens = looped ? lens : undefined;
+    const toolOptions = useToolOptions(options, initialConfig.data?.options);
+    const { reset: resetOptions } = toolOptions;
     const { draftModel, setDraftModel, restoreWorkspaceModel } = useDraftModel(
         savedModel,
         initialConfig.id,
@@ -207,7 +205,7 @@ export function LogitLensControls({
                     prompt: trimmedPrompt,
                     topk: savedTopk,
                     includeEntropy: savedIncludeEntropy,
-                    lens: looped ? savedLens : undefined,
+                    options: toolOptions.values,
                 };
                 const data = await computeLogitLens({
                     lensRequest: { completion: config, chartId },
@@ -238,8 +236,7 @@ export function LogitLensControls({
         savedPrompt,
         savedTopk,
         savedIncludeEntropy,
-        looped,
-        savedLens,
+        toolOptions.values,
         chartId,
         initialConfig.id,
         workspaceId,
@@ -314,7 +311,7 @@ export function LogitLensControls({
             prompt: trimmedPrompt,
             topk,
             includeEntropy,
-            lens: runLens,
+            options: toolOptions.values,
         };
 
         try {
@@ -341,7 +338,7 @@ export function LogitLensControls({
         prompt,
         topk,
         includeEntropy,
-        runLens,
+        toolOptions.values,
         selectedModel,
         chartId,
         initialConfig.id,
@@ -382,7 +379,7 @@ export function LogitLensControls({
         setPrompt(savedPrompt);
         setTopk(savedTopk);
         setIncludeEntropy(savedIncludeEntropy);
-        setLens(savedLens);
+        resetOptions();
         setDraftModel(savedModel);
         restoreWorkspaceModel(savedModel);
         lastSyncedPromptRef.current = savedPrompt;
@@ -407,6 +404,7 @@ export function LogitLensControls({
         savedTopk,
         savedIncludeEntropy,
         savedModel,
+        resetOptions,
         blurTokenize,
         setDraftModel,
         restoreWorkspaceModel,
@@ -442,9 +440,8 @@ export function LogitLensControls({
                 prompt,
                 topk,
                 includeEntropy,
-                lens: runLens,
-            }),
-        [initialConfig.data, prompt, topk, includeEntropy, runLens],
+            }) && toolOptions.matchesSaved,
+        [initialConfig.data, prompt, topk, includeEntropy, toolOptions.matchesSaved],
     );
 
     // Draft is dirty if any non-model field differs OR the draft model differs
@@ -502,10 +499,10 @@ export function LogitLensControls({
         />
     );
 
-    /** The run's parameters; a looped model's coda lens joins the entropy
-     * check. The side panel explains it in a tooltip, the phone's popover
-     * under the parameters. */
-    const params = (explain: "hover" | "inline") => (
+    /** The run's parameters; the options the model's lens takes join the
+     * entropy check. The side panel explains them in tooltips, the phone's
+     * popover (`touch`) under the parameters. */
+    const params = (touch: boolean) => (
         <>
             <LensParams
                 topk={topk}
@@ -514,20 +511,15 @@ export function LogitLensControls({
                 onIncludeEntropyChange={setIncludeEntropy}
                 disabled={!interactive}
             >
-                {looped && (
-                    <CodaLensCheck
-                        value={lens}
-                        onChange={setLens}
-                        disabled={!interactive}
-                        explain={explain}
-                    />
-                )}
+                <ToolOptionControls
+                    options={toolOptions.options}
+                    values={toolOptions.values}
+                    onPick={toolOptions.pick}
+                    disabled={!interactive}
+                    touch={touch}
+                />
             </LensParams>
-            {looped && explain === "inline" && (
-                <p className="text-pretty text-xs text-muted-foreground">
-                    <span className="font-medium">Coda lens.</span> {CodaLensCheck.DESCRIPTION}
-                </p>
-            )}
+            {touch && <ToolOptionNotes options={toolOptions.options} values={toolOptions.values} />}
         </>
     );
 
@@ -545,7 +537,7 @@ export function LogitLensControls({
             <FloatingToolComposer
                 title="Logit Lens"
                 prompt={promptEditor}
-                params={params("inline")}
+                params={params(true)}
                 runDisabled={!interactive || !prompt.trim()}
                 onRun={handleSubmit}
                 actions={actions}
@@ -563,7 +555,7 @@ export function LogitLensControls({
             <div className="p-3 flex-1 overflow-auto flex flex-col gap-4">
                 {promptEditor}
 
-                {params("hover")}
+                {params(false)}
 
                 <ToolRunButton
                     tool="logit-lens"

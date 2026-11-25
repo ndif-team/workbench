@@ -1,6 +1,7 @@
 "use client";
 
 import { useToolArea } from "@/hooks/useToolArea";
+import { ToolOptions } from "@/lib/toolOptions";
 import { cn } from "@/lib/utils";
 import { LogitLensControls } from "./LogitLensControls";
 import type { LogitLensData } from "nnsightful";
@@ -35,7 +36,10 @@ export default function LogitLensArea({ layout = "panel" }: { layout?: "panel" |
         hasExistingData,
         modelRunnable,
     } = useToolArea<LogitLensConfig, LogitLensChart>();
-    const looped = models?.find((m) => m.name === effectiveModel)?.looped === true;
+    const options = ToolOptions.of(
+        models?.find((m) => m.name === effectiveModel),
+        "logit-lens",
+    );
 
     if (!config || isChartLoading) {
         if (layout === "floating") return null;
@@ -55,7 +59,7 @@ export default function LogitLensArea({ layout = "panel" }: { layout?: "panel" |
                 key={config.id}
                 initialConfig={config}
                 selectedModel={effectiveModel}
-                looped={looped}
+                options={options}
                 // Treat a non-runnable (cold/gone) saved model as read-only,
                 // reusing the existing models-unavailable path. The saved
                 // result still renders read-only in the Display.

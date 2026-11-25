@@ -124,13 +124,6 @@ interface NotebookToolHandler {
     buildConfigSource?(config: Record<string, unknown>): string;
 
     /**
-     * Config keys that are options of the model's version of the tool (a
-     * looped model's `patch`). Those set go into the parameters cell as
-     * `tool_options`, which the template's call spreads as keyword arguments.
-     */
-    optionKeys: string[];
-
-    /**
      * Extract visualization data from chart data for embedding.
      * Return null to skip embedding (e.g. chart hasn't been computed yet).
      */
@@ -158,7 +151,6 @@ function formatSrcPos(positions: SourcePosition[]): string {
 
 const activationPatchingHandler: NotebookToolHandler = {
     templateName: "activation-patching",
-    optionKeys: ["patch"],
 
     buildParameterSource(config) {
         const srcPrompt = escapePythonTripleDoubleQuoted((config.srcPrompt as string) ?? "");
@@ -268,11 +260,16 @@ function pythonLiteral(value: unknown): string | null {
     return null;
 }
 
-/** The parameters cell's `tool_options` line: the handler's option keys the config sets. */
-function toolOptionsSource(handler: NotebookToolHandler, config: Record<string, unknown>): string {
-    const entries = handler.optionKeys.flatMap((key) => {
-        const literal = pythonLiteral(config[key]);
-        return literal === null ? [] : [`${JSON.stringify(key)}: ${literal}`];
+/**
+ * The parameters cell's `tool_options` line: the options the config carries
+ * for its model's version of the tool (`ToolOptionValues`, such as a looped
+ * model's `patch`), which the template's call spreads as keyword arguments.
+ */
+function toolOptionsSource(config: Record<string, unknown>): string {
+    const options = (config.options ?? {}) as Record<string, unknown>;
+    const entries = Object.entries(options).flatMap(([name, value]) => {
+        const literal = pythonLiteral(value);
+        return literal === null ? [] : [`${JSON.stringify(name)}: ${literal}`];
     });
     return `tool_options = {${entries.join(", ")}}`;
 }
@@ -337,7 +334,7 @@ export async function generateNotebook(input: GenerateNotebookInput): Promise<st
     const parameterSource = [
         "# Parameters",
         handler.buildParameterSource(configData),
-        toolOptionsSource(handler, configData),
+        toolOptionsSource(configData),
     ].join("\n");
 
     // Build config source (if handler supports it)

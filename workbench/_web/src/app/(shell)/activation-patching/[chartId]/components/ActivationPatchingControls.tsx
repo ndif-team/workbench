@@ -13,14 +13,12 @@ import { useCapture } from "@/lib/analytics";
 import {
     ActivationPatchingConfigData,
     ActivationPatchingData,
-    DEFAULT_LOOPED_PATCH,
-    LoopedPatch,
     SourcePosition,
 } from "@/types/activationPatching";
-import { LoopedPatchSwitch } from "./LoopedPatchSwitch";
+import { ToolOptionControls, ToolOptionNotes } from "@/app/(shell)/components/ToolOptionControls";
 import { encodeText } from "@/lib/tokenize";
 import { cn } from "@/lib/utils";
-import { Token } from "@/types/models";
+import { Token, ToolOption } from "@/types/models";
 import { toast } from "sonner";
 import { getChartById } from "@/lib/queries/chartQueries";
 import { queryKeys } from "@/lib/queryKeys";
@@ -33,6 +31,7 @@ import {
 } from "@/components/activation-patching/toolkit";
 import { apConfigEqualsExceptModel, tokenTextSequencesEqual } from "@/lib/configModelDiff";
 import { useDraftModel } from "@/hooks/useDraftModel";
+import { useToolOptions } from "@/hooks/useToolOptions";
 import { useFocusNewChartPrompt } from "@/hooks/useFocusNewChartPrompt";
 import { useBlurTokenizeScheduler } from "@/hooks/useBlurTokenizeScheduler";
 import { useBackgroundTokenPair } from "@/hooks/useBackgroundTokenPair";
@@ -48,9 +47,9 @@ interface ActivationPatchingConfig {
 interface ActivationPatchingControlsProps {
     initialConfig: ActivationPatchingConfig;
     selectedModel: string;
-    /** Whether the selected model is a looped one, whose run takes a patch
-     * (`LoopedPatch`) picked here. */
-    looped: boolean;
+    /** The options patching takes on the selected model (`ToolOptions.of`),
+     * picked here and sent with a run. */
+    options: ToolOption[];
     modelsAvailable: boolean;
     /** True while the models query is in flight. Used to suppress the
      * "unavailable" banner during a fetch — even if the previous state was
@@ -65,7 +64,7 @@ interface ActivationPatchingControlsProps {
 export function ActivationPatchingControls({
     initialConfig,
     selectedModel,
-    looped,
+    options,
     modelsAvailable,
     modelsLoading = false,
     hasExistingData = false,
@@ -116,12 +115,8 @@ export function ActivationPatchingControls({
     const [tgtFreeze, setTgtFreeze] = useState<number[]>(initialTgtFreeze);
     const lastTokenizedTgtPromptRef = useRef<string>("");
 
-    // What a looped model's run replaces at each visit. Kept while another
-    // model is selected, but only a looped model's config and run carry it.
-    const [patch, setPatch] = useState<LoopedPatch>(
-        initialConfig.data?.patch ?? DEFAULT_LOOPED_PATCH,
-    );
-    const runPatch = looped ? patch : undefined;
+    const toolOptions = useToolOptions(options, initialConfig.data?.options);
+    const { reset: resetOptions } = toolOptions;
     const [tgtEditing, setTgtEditing] = useState(!initialTgtPrompt); // Start in view mode if prompt exists
     const [tgtTokenizedModel, setTgtTokenizedModel] = useState<string | null>(null);
     const tgtTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -236,7 +231,7 @@ export function ActivationPatchingControls({
         setSrcPos(initialConfig.data?.srcPos ?? []);
         setTgtPos(initialConfig.data?.tgtPos ?? []);
         setTgtFreeze(initialConfig.data?.tgtFreeze ?? []);
-        setPatch(initialConfig.data?.patch ?? DEFAULT_LOOPED_PATCH);
+        resetOptions();
         setDraftModel(m);
         restoreWorkspaceModel(m);
 
@@ -276,6 +271,7 @@ export function ActivationPatchingControls({
         setSrcPos,
         setTgtPos,
         setTgtFreeze,
+        resetOptions,
         setDraftModel,
         restoreWorkspaceModel,
         srcBlurTokenize,
@@ -651,7 +647,7 @@ export function ActivationPatchingControls({
             srcPos,
             tgtPos,
             tgtFreeze,
-            patch: runPatch,
+            options: toolOptions.values,
         };
 
         try {
@@ -694,7 +690,7 @@ export function ActivationPatchingControls({
         srcPos,
         tgtPos,
         tgtFreeze,
-        runPatch,
+        toolOptions.values,
         selectedModel,
         chartId,
         initialConfig.id,
@@ -752,7 +748,7 @@ export function ActivationPatchingControls({
                         srcPos: initialSrcPos,
                         tgtPos: initialTgtPos,
                         tgtFreeze: initialTgtFreeze,
-                        patch: runPatch,
+                        options: toolOptions.values,
                     };
 
                     // Save config with the selection cleared before compute
@@ -796,7 +792,7 @@ export function ActivationPatchingControls({
         initialSrcPos,
         initialTgtPos,
         initialTgtFreeze,
-        runPatch,
+        toolOptions.values,
         chartId,
         initialConfig.id,
         initialConfig.data,
@@ -825,9 +821,16 @@ export function ActivationPatchingControls({
                 srcPos,
                 tgtPos,
                 tgtFreeze,
-                patch: runPatch,
-            }),
-        [initialConfig.data, srcPrompt, tgtPrompt, srcPos, tgtPos, tgtFreeze, runPatch],
+            }) && toolOptions.matchesSaved,
+        [
+            initialConfig.data,
+            srcPrompt,
+            tgtPrompt,
+            srcPos,
+            tgtPos,
+            tgtFreeze,
+            toolOptions.matchesSaved,
+        ],
     );
 
     // Draft is dirty if any non-model field differs OR the draft model differs
@@ -943,21 +946,32 @@ export function ActivationPatchingControls({
         onSync: updateConfigModel,
     };
 
-    const patchSwitch = (explain: "hover" | "inline") =>
-        looped ? (
-            <LoopedPatchSwitch
-                value={patch}
-                onChange={setPatch}
-                disabled={!interactive}
-                explain={explain}
-            />
-        ) : undefined;
+    const offersOptions = toolOptions.options.length > 0;
+    const optionControls = (touch: boolean) => (
+        <ToolOptionControls
+            options={toolOptions.options}
+            values={toolOptions.values}
+            onPick={toolOptions.pick}
+            disabled={!interactive}
+            touch={touch}
+        />
+    );
 
     if (floating) {
         return (
             <FloatingToolComposer
                 title="Activation Patching"
-                params={patchSwitch("inline")}
+                params={
+                    offersOptions ? (
+                        <div className="flex flex-col gap-2">
+                            {optionControls(true)}
+                            <ToolOptionNotes
+                                options={toolOptions.options}
+                                values={toolOptions.values}
+                            />
+                        </div>
+                    ) : undefined
+                }
                 prompt={
                     <>
                         {sourcePrompt}
@@ -1007,16 +1021,20 @@ export function ActivationPatchingControls({
                 {sourcePrompt}
                 {targetPrompt}
 
-                {/* The patch tools, a looped model's patch switch, and the hint for the next pick, on a row
-                    of their own; what a panel is too narrow for goes under the tools. */}
+                {/* The patch tools, the options the model's patching takes, and the hint for the next
+                    pick, on a row of their own; what a panel is too narrow for goes under the tools. */}
                 <div
                     className={cn(
                         "-my-1.5 flex flex-wrap items-center gap-x-1",
-                        looped && "min-h-8",
+                        offersOptions && "min-h-8",
                     )}
                 >
                     {patchTools}
-                    {looped && <span className="ml-1">{patchSwitch("hover")}</span>}
+                    {offersOptions && (
+                        <span className="ml-1 flex items-center gap-2">
+                            {optionControls(false)}
+                        </span>
+                    )}
                     <span
                         aria-live="polite"
                         className="min-w-24 flex-1 text-balance text-right text-xs text-muted-foreground"
