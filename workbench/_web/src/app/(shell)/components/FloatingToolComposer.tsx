@@ -123,7 +123,7 @@ export function FloatingToolComposer({
                                 align="start"
                                 className={cn(
                                     popoverMenuShellClass(false),
-                                    "flex w-64 flex-col gap-4",
+                                    "flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-4",
                                 )}
                             >
                                 {params}
