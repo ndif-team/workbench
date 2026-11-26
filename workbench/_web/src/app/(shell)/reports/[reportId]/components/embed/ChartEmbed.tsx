@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TruncatedText } from "@/components/ui/truncated-text";
+import { splitRepo } from "@/components/model-selector/status";
 import { toolMeta } from "@/app/(shell)/components/toolMeta";
 import { chartLabel } from "@/app/(shell)/components/items/itemLabel";
 import type { ChartEmbedNode } from "../nodes/ChartEmbedNode";
@@ -149,23 +150,42 @@ export function ChartEmbed({
                 editor.focus();
             }}
         >
-            <div className="flex items-center gap-2 border-b px-3 py-1.5">
+            {/* On a phone the tool and model take a line of their own under
+                the title, and the model goes by its name without its publisher. */}
+            <div className="flex items-center gap-x-2 border-b px-3 py-1.5 max-sm:flex-wrap">
                 {tool && <tool.Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                 {title && (
-                    <TruncatedText className="min-w-0 text-sm font-medium">{title}</TruncatedText>
+                    <TruncatedText className="min-w-0 text-sm font-medium max-sm:flex-1">
+                        {title}
+                    </TruncatedText>
                 )}
                 {(tool || model) && (
-                    <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                    <span
+                        className={cn(
+                            "flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground",
+                            title ? "max-sm:order-last max-sm:basis-full" : "max-sm:flex-1",
+                        )}
+                    >
                         {tool && <span className="shrink-0">{tool.label}</span>}
                         {tool && model && <span aria-hidden="true">·</span>}
-                        {model && <TruncatedText className="font-mono">{model}</TruncatedText>}
+                        {model && (
+                            <>
+                                <TruncatedText className="font-mono max-sm:hidden">
+                                    {model}
+                                </TruncatedText>
+                                <TruncatedText className="font-mono sm:hidden">
+                                    {splitRepo(model).label}
+                                </TruncatedText>
+                            </>
+                        )}
                     </span>
                 )}
                 <div className="ml-auto flex shrink-0 items-center gap-1">
                     {shownRows &&
                         (isSelected ? (
                             <span className="px-1 text-xs text-muted-foreground tabular-nums">
-                                {rowWindowLabel(shownRows)} · scroll to change
+                                {rowWindowLabel(shownRows)}
+                                <span className="max-sm:hidden"> · scroll to change</span>
                             </span>
                         ) : (
                             <Tooltip>
