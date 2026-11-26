@@ -197,7 +197,7 @@ export function ChartEmbed({
                         )}
                     </span>
                 )}
-                <div className="ml-auto flex shrink-0 items-center gap-1">
+                <div className="ml-auto flex shrink-0 items-center gap-1 max-sm:-mr-1.5 max-sm:gap-0">
                     {shownRows &&
                         (isSelected ? (
                             <span className="px-1 text-xs text-muted-foreground tabular-nums">
@@ -225,7 +225,7 @@ export function ChartEmbed({
                                     size="sm"
                                     aria-pressed={!!lock}
                                     className={cn(
-                                        "h-7 px-2",
+                                        "h-7 px-2 max-sm:gap-1 max-sm:px-1.5 max-sm:text-xs",
                                         lock ? "text-foreground" : "text-muted-foreground",
                                     )}
                                     onClick={toggleLock}
@@ -249,7 +249,7 @@ export function ChartEmbed({
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 px-2 text-muted-foreground"
+                            className="h-7 px-2 text-muted-foreground max-sm:gap-1 max-sm:px-1.5 max-sm:text-xs"
                             asChild
                         >
                             {/* Opens in place (Cmd/Ctrl-click: a new tab) without selecting the embed. */}
