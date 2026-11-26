@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 
+import { PhoneMenu } from "@/components/ui/phone-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -116,6 +117,8 @@ export function PillPopover({
     widthPx,
 }: PillPopoverProps) {
     const [open, setOpen] = React.useState(false);
+    const [side, setSide] = React.useState<"top" | "bottom">("bottom");
+    const triggerRef = React.useRef<HTMLButtonElement>(null);
     const [query, setQuery] = React.useState("");
 
     const searchEnabled = showSearch ?? options.length > 8;
@@ -196,9 +199,20 @@ export function PillPopover({
     };
 
     return (
-        <Popover open={open} onOpenChange={setOpen} modal={modal}>
+        <Popover
+            open={open}
+            onOpenChange={(next) => {
+                if (next) {
+                    const room = PhoneMenu.roomFor(options.length, PillPopover.CHROME);
+                    setSide(PhoneMenu.side(triggerRef.current, "bottom", room));
+                }
+                setOpen(next);
+            }}
+            modal={modal}
+        >
             <PopoverTrigger asChild>
                 <button
+                    ref={triggerRef}
                     type="button"
                     disabled={disabled}
                     aria-label={ariaLabel}
@@ -212,13 +226,15 @@ export function PillPopover({
             </PopoverTrigger>
             <PopoverContent
                 align={align}
-                side="bottom"
-                // Never flip up: the menu always opens below the trigger and
-                // instead shrinks to the room available there, letting the list
-                // scroll (maxHeight below). Avoids the jarring upward flip when
-                // a trigger sits low in the viewport. NOTE: this also disables
-                // horizontal shift — fine for the current left-aligned triggers
-                // (room to the right); revisit if used on a right-edge trigger.
+                side={side}
+                // Never flips while open: the menu opens on the side picked as
+                // it opened (below the trigger, or above it on a phone short
+                // of room there; `PhoneMenu.side`) and shrinks to the room
+                // available on that side, letting the list scroll (maxHeight
+                // below). Avoids the jarring flip when a trigger sits low in
+                // the viewport. NOTE: this also disables horizontal shift —
+                // fine for the current left-aligned triggers (room to the
+                // right); revisit if used on a right-edge trigger.
                 avoidCollisions={false}
                 sideOffset={6}
                 collisionPadding={8}
@@ -246,18 +262,29 @@ export function PillPopover({
                         maxHeight: "var(--radix-popover-content-available-height)",
                         ...popoverMenuShellStyle(compact),
                     }}
-                    className={cn(popoverMenuShellClass(compact), "flex flex-col")}
+                    className={cn(
+                        popoverMenuShellClass(compact),
+                        "flex max-w-[calc(100vw-1rem)] flex-col",
+                    )}
                 >
                     {searchEnabled && (
-                        <div className="flex shrink-0 items-center gap-2 px-3 py-2.5 border-b border-primary/10">
-                            <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <div
+                            className={cn(
+                                "flex shrink-0 items-center gap-2 px-3 py-2.5 border-b border-primary/10",
+                                PhoneMenu.SEARCH,
+                            )}
+                        >
+                            <Search className="size-3.5 text-muted-foreground shrink-0 max-md:size-4" />
                             <input
                                 autoFocus
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 placeholder={searchPlaceholder}
                                 aria-label="Search options"
-                                className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground min-w-0"
+                                className={cn(
+                                    "flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground min-w-0",
+                                    PhoneMenu.SEARCH_INPUT,
+                                )}
                             />
                         </div>
                     )}
@@ -267,17 +294,28 @@ export function PillPopover({
                         role="listbox"
                         tabIndex={-1}
                         aria-label={ariaLabel}
-                        className="max-h-[260px] min-h-0 flex-auto overflow-y-auto py-1 outline-none"
+                        className="max-h-[260px] min-h-0 flex-auto overflow-y-auto py-1 outline-none max-md:max-h-72"
                     >
                         {filtered.length === 0 ? (
-                            <div className="text-center py-6 text-muted-foreground text-xs px-3">
+                            <div
+                                className={cn(
+                                    "text-center py-6 text-muted-foreground text-xs px-3",
+                                    PhoneMenu.NOTE,
+                                )}
+                            >
                                 No matches
                             </div>
                         ) : (
                             groups.map(([groupName, rows], gi) => (
                                 <div key={groupName || `__ungrouped_${gi}`}>
                                     {groupName && (
-                                        <div className="px-3 pt-1.5 pb-0.5 text-xs font-medium text-muted-foreground">
+                                        <div
+                                            className={cn(
+                                                "px-3 pt-1.5 pb-0.5 text-xs font-medium text-muted-foreground",
+                                                "max-md:px-4 max-md:pt-3 max-md:pb-1",
+                                                PhoneMenu.NOTE,
+                                            )}
+                                        >
                                             {groupName}
                                         </div>
                                     )}
@@ -312,6 +350,10 @@ export function PillPopover({
     );
 }
 
+/** Room a phone's menu takes beyond its rows: a group heading, the search
+ *  field and the list's padding, with the gap to its trigger. */
+PillPopover.CHROME = 96;
+
 interface RowProps {
     option: PillPopoverOption;
     selected: boolean;
@@ -340,14 +382,17 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
             className={cn(
                 "w-full flex items-center gap-2 text-left cursor-pointer outline-none",
                 compact ? "py-1" : "py-1.5",
+                PhoneMenu.ROW,
                 selected
                     ? cn(
                           "bg-primary/[0.06] border-l-2 border-primary",
                           compact ? "pl-[6px] pr-2" : "pl-[10px] pr-3",
+                          PhoneMenu.ROW_INSET_MARKED,
                       )
                     : cn(
                           "border-l-2 border-transparent",
                           compact ? "px-2" : "px-3",
+                          PhoneMenu.ROW_INSET,
                           active && "bg-accent",
                       ),
                 option.disabled && "opacity-50 cursor-not-allowed",
@@ -355,14 +400,14 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
         >
             {option.dotColor && (
                 <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    className={cn("size-1.5 rounded-full shrink-0", PhoneMenu.DOT)}
                     style={{ background: option.dotColor }}
                 />
             )}
             {option.icon && (
                 <span
                     className={cn(
-                        "shrink-0 inline-flex items-center [&_svg]:w-3.5 [&_svg]:h-3.5",
+                        "shrink-0 inline-flex items-center [&_svg]:w-3.5 [&_svg]:h-3.5 max-md:[&_svg]:size-5",
                         primary ? "text-primary" : "text-muted-foreground",
                     )}
                 >
@@ -370,17 +415,23 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
                 </span>
             )}
             <span className="flex items-baseline gap-2 min-w-0 flex-1">
-                <span className={cn("truncate text-xs font-normal", primary && "text-primary")}>
+                <span
+                    className={cn(
+                        "truncate text-xs font-normal",
+                        PhoneMenu.TEXT,
+                        primary && "text-primary",
+                    )}
+                >
                     {option.label}
                 </span>
                 {option.description && (
-                    <span className="text-xs text-muted-foreground truncate">
+                    <span className={cn("text-xs text-muted-foreground truncate", PhoneMenu.NOTE)}>
                         {option.description}
                     </span>
                 )}
             </span>
             {option.trailing}
-            {selected && <Check className="w-3 h-3 text-primary shrink-0" />}
+            {selected && <Check className={cn("size-3 text-primary shrink-0", PhoneMenu.CHECK)} />}
         </button>
     );
 });

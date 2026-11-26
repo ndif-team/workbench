@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 
+import { PhoneMenu } from "@/components/ui/phone-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -122,6 +123,7 @@ export function ModelControl({
 
     const [open, setOpen] = React.useState(false);
     const [alignOffset, setAlignOffset] = React.useState(0);
+    const [openSide, setOpenSide] = React.useState(side);
     const triggerRef = React.useRef<HTMLButtonElement>(null);
 
     // The tool of the chart currently open (from the route), so the picker can
@@ -251,7 +253,10 @@ export function ModelControl({
         <Popover
             open={open}
             onOpenChange={(next) => {
-                if (next) setAlignOffset(ModelPopover.alignOffsetFor(triggerRef.current));
+                if (next) {
+                    setAlignOffset(ModelPopover.alignOffsetFor(triggerRef.current));
+                    setOpenSide(PhoneMenu.side(triggerRef.current, side));
+                }
                 setOpen(next);
             }}
         >
@@ -283,9 +288,10 @@ export function ModelControl({
             </PopoverTrigger>
             <PopoverContent
                 align="start"
-                side={side}
-                // Never flip up — the menu caps to the room below (the shell
-                // reads --radix-popover-content-available-height) and scrolls.
+                side={openSide}
+                // Never flips while open — the menu caps to the room on the
+                // side picked as it opened (`PhoneMenu.side`; the shell reads
+                // --radix-popover-content-available-height) and scrolls.
                 avoidCollisions={false}
                 alignOffset={alignOffset}
                 collisionPadding={8}

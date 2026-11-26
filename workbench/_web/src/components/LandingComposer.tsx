@@ -18,6 +18,7 @@ import { newChartPath } from "@/lib/chartRoutes";
 import { ChartOrigins, launchTool, type ChartOrigin } from "@/lib/chartLaunch";
 import { useCapture } from "@/lib/analytics";
 import { useLaunchChart } from "@/hooks/useLaunchChart";
+import { PhoneMenu } from "@/components/ui/phone-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelPopover } from "@/components/model-selector/ModelPopover";
 import {
@@ -154,6 +155,7 @@ function ModelTriggerPopover({
 }) {
     const [open, setOpen] = useState(false);
     const [alignOffset, setAlignOffset] = useState(0);
+    const [side, setSide] = useState<"top" | "bottom">("bottom");
     const triggerRef = useRef<HTMLButtonElement>(null);
 
     const model = models.find((m) => m.name === selectedModel);
@@ -162,7 +164,10 @@ function ModelTriggerPopover({
         <Popover
             open={open}
             onOpenChange={(next) => {
-                if (next) setAlignOffset(ModelPopover.alignOffsetFor(triggerRef.current));
+                if (next) {
+                    setAlignOffset(ModelPopover.alignOffsetFor(triggerRef.current));
+                    setSide(PhoneMenu.side(triggerRef.current));
+                }
                 setOpen(next);
             }}
         >
@@ -190,9 +195,10 @@ function ModelTriggerPopover({
             </PopoverTrigger>
             <PopoverContent
                 align="start"
-                side="bottom"
-                // Never flip up — the menu caps to the room below (the shell
-                // reads --radix-popover-content-available-height) and scrolls.
+                side={side}
+                // Never flips while open — the menu caps to the room on the
+                // side picked as it opened (`PhoneMenu.side`; the shell reads
+                // --radix-popover-content-available-height) and scrolls.
                 // This also disables horizontal shift, so `alignOffset` keeps
                 // the menu on a phone's screen.
                 avoidCollisions={false}
@@ -222,7 +228,10 @@ function ModelTriggerPopover({
                         moreCount > 0 ? (
                             <Link
                                 href={loggedIn ? "/models" : "/login"}
-                                className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors group"
+                                className={cn(
+                                    "flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors group",
+                                    PhoneMenu.FOOTER,
+                                )}
                             >
                                 <span>
                                     <span className="text-foreground font-medium tabular-nums">
@@ -236,7 +245,7 @@ function ModelTriggerPopover({
                                         </span>
                                     )}
                                 </span>
-                                <ArrowRight className="size-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+                                <ArrowRight className="size-3 opacity-60 group-hover:translate-x-0.5 transition-transform max-md:size-4" />
                             </Link>
                         ) : null
                     }

@@ -5,6 +5,7 @@ import { Check, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PhoneMenu } from "@/components/ui/phone-menu";
 import { popoverMenuShellClass, popoverMenuShellStyle } from "@/components/ui/pill-popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -43,7 +44,8 @@ interface ModelPopoverProps {
     /** Tighter dimensions + minimal row chrome (drops org and uppercase
      * heat label; the heat dot still encodes status). Use on the landing
      * popover where the model set is already small and pre-filtered. A phone
-     * gets a narrower menu with the same minimal rows either way. */
+     * gets a narrower menu with the same minimal rows either way, at its
+     * own scale (`PhoneMenu`). */
     compact?: boolean;
     /** When true, only runnable (hot/warm) models are listed — cold models
      * must be deployed first and aren't offered as active choices. The
@@ -222,17 +224,21 @@ export function ModelPopover({
                 <div
                     className={cn(
                         "flex shrink-0 items-center gap-2 px-3 py-2.5 border-b",
+                        PhoneMenu.SEARCH,
                         compact && "border-primary/10",
                     )}
                 >
-                    <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <Search className="size-3.5 text-muted-foreground shrink-0 max-md:size-4" />
                     <input
                         autoFocus
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="Search models…"
                         aria-label="Search models"
-                        className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground min-w-0"
+                        className={cn(
+                            "flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground min-w-0",
+                            PhoneMenu.SEARCH_INPUT,
+                        )}
                     />
                     <kbd
                         className={cn(
@@ -249,7 +255,7 @@ export function ModelPopover({
                 <div
                     role="tablist"
                     aria-label="Model type"
-                    className="flex shrink-0 items-center gap-0.5 border-b px-2 py-1"
+                    className="flex shrink-0 items-center gap-0.5 border-b px-2 py-1 max-md:gap-1 max-md:py-1.5"
                 >
                     {(
                         [
@@ -267,6 +273,7 @@ export function ModelPopover({
                             onClick={() => setTab(value)}
                             className={cn(
                                 "h-6 gap-1 px-2 text-xs text-muted-foreground",
+                                PhoneMenu.TAB,
                                 tab === value && "bg-accent text-foreground dark:bg-accent/50",
                             )}
                         >
@@ -395,12 +402,14 @@ function Group({
                     className={cn(
                         "flex items-baseline gap-1.5 shrink-0",
                         compact ? "pt-1.5 pb-0.5 px-2" : "pt-2.5 pb-1 px-3",
+                        "max-md:px-4 max-md:pt-3 max-md:pb-1",
                     )}
                 >
                     <span
                         className={cn(
                             "font-medium text-muted-foreground",
                             compact ? "text-[10px] uppercase tracking-wide" : "text-xs",
+                            PhoneMenu.NOTE,
                         )}
                     >
                         {title}
@@ -409,6 +418,7 @@ function Group({
                         className={cn(
                             "text-muted-foreground/70 tabular-nums",
                             compact ? "text-[10px]" : "text-xs",
+                            PhoneMenu.NOTE,
                         )}
                     >
                         {rows.length}
@@ -418,7 +428,10 @@ function Group({
             <div
                 ref={listRef}
                 onScroll={measure}
-                className={cn("overflow-y-auto pb-1", compact ? "max-h-[140px]" : "max-h-[180px]")}
+                className={cn(
+                    "overflow-y-auto pb-1 max-md:max-h-64",
+                    compact ? "max-h-[140px]" : "max-h-[180px]",
+                )}
                 style={fadeMask ? { maskImage: fadeMask, WebkitMaskImage: fadeMask } : undefined}
             >
                 {rows.map((m) => (
@@ -464,9 +477,11 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
     // as muted; a tool-unsupported model is additionally non-selectable.
     const muted = heat === "gated" || heat === "unavailable" || disabled;
 
-    const padX = compact ? "px-2" : "px-3";
-    const selectedPadL = compact ? "pl-[6px]" : "pl-[10px]";
-    const selectedPadR = compact ? "pr-2" : "pr-3";
+    const padX = cn(compact ? "px-2" : "px-3", PhoneMenu.ROW_INSET);
+    const selectedPad = cn(
+        compact ? "pl-[6px] pr-2" : "pl-[10px] pr-3",
+        PhoneMenu.ROW_INSET_MARKED,
+    );
 
     const button = (
         <button
@@ -484,14 +499,16 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
                 compact
                     ? "gap-2 py-1 grid-cols-[8px_1fr_auto]"
                     : "gap-2.5 py-1.5 grid-cols-[10px_1fr_auto]",
+                PhoneMenu.ROW,
+                "max-md:grid-cols-[10px_1fr_auto]",
                 selected
-                    ? cn("bg-primary/[0.06] border-l-2 border-primary", selectedPadL, selectedPadR)
+                    ? cn("bg-primary/[0.06] border-l-2 border-primary", selectedPad)
                     : cn("border-l-2 border-transparent", padX),
                 muted && "opacity-70",
             )}
         >
             <span
-                className={cn("rounded-full", compact ? "w-1.5 h-1.5" : "w-2 h-2")}
+                className={cn("rounded-full", compact ? "size-1.5" : "size-2", PhoneMenu.DOT)}
                 style={{
                     backgroundColor: meta.color,
                     boxShadow: `0 0 0 ${compact ? 2 : 3}px color-mix(in oklab, ${meta.color} 13%, transparent)`,
@@ -502,6 +519,7 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
                     className={cn(
                         "font-mono truncate",
                         compact ? "text-[11px]" : "text-xs",
+                        PhoneMenu.MONO,
                         selected ? "font-semibold" : "font-medium",
                         muted ? "text-muted-foreground" : "text-foreground",
                     )}
@@ -522,7 +540,7 @@ const Row = React.forwardRef<HTMLButtonElement, RowProps>(function Row(
                 style={{ color: selected ? "hsl(var(--primary))" : meta.color }}
             >
                 {selected ? (
-                    <Check className="w-3 h-3" />
+                    <Check className={cn("size-3", PhoneMenu.CHECK)} />
                 ) : compact ? null : (
                     <span className="text-xs font-semibold uppercase tracking-wide max-sm:hidden">
                         {meta.label}
