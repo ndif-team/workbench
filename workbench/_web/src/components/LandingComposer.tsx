@@ -737,7 +737,7 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                     </span>
                 </h1>
 
-                <p className="text-base sm:text-lg md:text-xl monitor:text-2xl wide:text-3xl text-muted-foreground max-w-2xl monitor:max-w-3xl wide:max-w-5xl mx-auto leading-relaxed pt-0">
+                <p className="text-balance text-sm sm:text-lg md:text-xl monitor:text-2xl wide:text-3xl text-muted-foreground max-w-2xl monitor:max-w-3xl wide:max-w-5xl mx-auto leading-relaxed max-sm:leading-6 pt-0">
                     Explore LLM internals and build your experiments interactively.
                 </p>
 
@@ -747,10 +747,13 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 </p> */}
             </motion.div>
 
+            {/* The example lens. A phone leaves it out: wrapped onto two lines
+                there it reads poorly, and its room goes to the composer. */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
+                className="max-sm:hidden"
             >
                 <PromptVisualization />
             </motion.div>
@@ -760,9 +763,9 @@ export function LandingComposer({ loggedIn }: { loggedIn: boolean }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
-                // Narrower than the hero's column. On a phone the example above
-                // wraps, and its prediction's probability hangs below it.
-                className="mx-auto w-full max-w-3xl monitor:max-w-4xl wide:max-w-5xl pt-8 max-sm:pt-10"
+                // Narrower than the hero's column. A phone has no example
+                // above it, and keeps a little more room under the hero there.
+                className="mx-auto w-full max-w-3xl monitor:max-w-4xl wide:max-w-5xl pt-8 max-sm:pt-11"
             >
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                     {selectedTool !== "Activation Patching" ? (
