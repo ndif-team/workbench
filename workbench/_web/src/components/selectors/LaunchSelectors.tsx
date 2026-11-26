@@ -21,7 +21,7 @@ type WorkspaceListItem = Awaited<ReturnType<typeof getUserWorkspaces>>[number];
 
 /** "New" badge marking a recently added tool in the picker. */
 const NewBadge = () => (
-    <span className="shrink-0 rounded-full bg-purple-500/15 px-1.5 py-0.5 text-xs font-medium leading-none text-purple-600 dark:text-purple-400">
+    <span className="shrink-0 rounded-full bg-purple-500/15 px-1.5 py-0.5 text-xs font-medium leading-none text-purple-600 dark:text-purple-400 max-md:px-2 max-md:py-1 max-md:text-sm max-md:leading-none">
         New
     </span>
 );
