@@ -169,7 +169,7 @@ export function ToolOptionNotes({ options, values }: ToolOptionNotesProps) {
                     <p
                         key={option.name}
                         aria-live="polite"
-                        className="text-pretty text-xs text-muted-foreground"
+                        className="text-pretty text-xs text-muted-foreground max-md:text-sm"
                     >
                         {toggle && <span className="font-medium">{choice?.label}. </span>}
                         {choice?.description}

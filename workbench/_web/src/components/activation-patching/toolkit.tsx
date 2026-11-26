@@ -1329,13 +1329,15 @@ function PatchList({
     return (
         <>
             <div className="flex h-6 items-center justify-between">
-                <h3 className="text-xs font-medium text-muted-foreground">Patches</h3>
+                <h3 className="text-xs font-medium text-muted-foreground max-md:text-sm">
+                    Patches
+                </h3>
                 {!empty && (
                     <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="-mr-1 h-6 px-1.5 text-xs text-muted-foreground"
+                        className="-mr-1 h-6 px-1.5 text-xs text-muted-foreground max-md:h-8 max-md:px-2 max-md:text-sm"
                         onClick={onClear}
                         disabled={disabled}
                     >
@@ -1344,7 +1346,7 @@ function PatchList({
                 )}
             </div>
             {srcPos.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground max-md:text-sm">
                     Pick a source token, then the target token to patch it into.
                 </p>
             ) : (
@@ -1353,7 +1355,10 @@ function PatchList({
                         const color = PATCH_COLORS[index % PATCH_COLORS.length];
                         const target = tgtTokens[tgtPos[index]]?.text.trim();
                         return (
-                            <li key={index} className="flex min-w-0 items-center gap-1.5 text-sm">
+                            <li
+                                key={index}
+                                className="flex min-w-0 items-center gap-1.5 text-sm max-md:min-h-11 max-md:gap-2 max-md:text-base"
+                            >
                                 <span
                                     className="min-w-0 truncate rounded-sm px-1"
                                     style={{ backgroundColor: color.bg, color: color.fg }}
@@ -1379,7 +1384,7 @@ function PatchList({
                                     type="button"
                                     variant="ghost"
                                     size="icon"
-                                    className="-mr-1 ml-auto size-6 [&_svg]:size-3.5"
+                                    className="-mr-1 ml-auto size-6 max-md:size-9 [&_svg]:size-3.5 max-md:[&_svg]:size-4"
                                     aria-label="Remove patch"
                                     onClick={() => onRemove(index)}
                                     disabled={disabled}
@@ -1392,8 +1397,8 @@ function PatchList({
                 </ul>
             )}
             {tgtFreeze.length > 0 && (
-                <p className="flex items-center gap-1 text-xs text-cyan-700 dark:text-cyan-400">
-                    <Snowflake className="size-3 shrink-0" />
+                <p className="flex items-center gap-1 text-xs text-cyan-700 dark:text-cyan-400 max-md:text-sm">
+                    <Snowflake className="size-3 shrink-0 max-md:size-3.5" />
                     {tgtFreeze
                         .slice()
                         .sort((a, b) => a - b)
@@ -1466,7 +1471,7 @@ export function PatchTools({
                     align="start"
                     className={cn(
                         popoverMenuShellClass(false),
-                        "flex w-56 flex-col gap-1.5 px-3 py-2",
+                        "flex w-56 flex-col gap-1.5 px-3 py-2 max-md:w-72",
                     )}
                 >
                     <PatchList

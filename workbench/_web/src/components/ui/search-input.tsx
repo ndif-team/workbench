@@ -11,17 +11,19 @@ type SearchInputProps = Omit<React.ComponentProps<"input">, "value" | "onChange"
     onValueChange: (value: string) => void;
 };
 
-/** A compact search field: a search icon, the input, and a button that clears it. */
+/** A compact search field: a search icon, the input, and a button that
+ *  clears it. On a phone it is a size larger, with 16px text, which also
+ *  keeps iOS from zooming into it. */
 const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
     ({ value, onValueChange, className, ...props }, ref) => (
         <div className={cn("relative", className)}>
-            <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground max-md:left-2.5 max-md:size-4" />
             <Input
                 ref={ref}
                 type="text"
                 value={value}
                 onChange={(e) => onValueChange(e.target.value)}
-                className="h-7 w-full bg-card pl-7 pr-7 text-xs shadow-xs dark:bg-input/30"
+                className="h-7 w-full bg-card pl-7 pr-7 text-xs shadow-xs dark:bg-input/30 max-md:h-10 max-md:pl-9 max-md:pr-9 max-md:text-base"
                 {...props}
             />
             {value && (
@@ -29,9 +31,9 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
                     type="button"
                     onClick={() => onValueChange("")}
                     aria-label="Clear search"
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground max-md:right-2.5"
                 >
-                    <X className="size-3" />
+                    <X className="size-3 max-md:size-4" />
                 </button>
             )}
         </div>

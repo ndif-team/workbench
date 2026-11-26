@@ -170,11 +170,13 @@ function FilterControls({
                 onValueChange={onQuery}
                 placeholder="search models…"
                 aria-label="Search models"
-                className="w-44 md:order-last"
+                className="w-44 max-md:w-full md:order-last"
             />
 
             <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">type</span>
+                <span className="text-xs text-muted-foreground max-md:w-12 max-md:text-sm">
+                    type
+                </span>
                 <SegmentedGroup label="Filter by model type">
                     {GROUPS.map((g) => (
                         <FilterChip
@@ -189,7 +191,9 @@ function FilterControls({
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">status</span>
+                <span className="text-xs text-muted-foreground max-md:w-12 max-md:text-sm">
+                    status
+                </span>
                 <SegmentedGroup label="Filter by status">
                     {FILTERABLE_HEAT.map((k) => (
                         <FilterChip
@@ -261,13 +265,14 @@ function FilterChip({
             aria-pressed={active}
             className={cn(
                 "inline-flex items-center gap-1.5 h-6 px-2 rounded-sm text-xs font-medium transition-colors",
+                "max-md:h-9 max-md:gap-2 max-md:px-3 max-md:text-sm",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                 !active && "text-muted-foreground hover:text-foreground hover:bg-accent",
             )}
             style={activeStyle}
         >
             <span
-                className="w-1.5 h-1.5 rounded-full"
+                className="size-1.5 rounded-full max-md:size-2"
                 style={{
                     background: color,
                     opacity: active ? 1 : isDark ? 0.7 : 0.55,
