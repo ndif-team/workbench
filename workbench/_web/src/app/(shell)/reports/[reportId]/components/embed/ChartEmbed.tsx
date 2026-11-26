@@ -22,9 +22,11 @@ import type { LogitLensRowWindow } from "nnsightful";
 import {
     chartFigure,
     chartFigureGapText,
+    chartOptionLabels,
     chartPrompt,
     rowWindowLabel,
 } from "@/lib/report/chartFigure";
+import { useModelsQuery } from "@/lib/api/modelsApi";
 import { lockChart, rerunSinceLock, withView, type ChartLock } from "@/lib/report/chartLock";
 import { useIsDark } from "@/hooks/useIsDark";
 import { cn } from "@/lib/utils";
@@ -95,6 +97,15 @@ export function ChartEmbed({
     const toolType = config?.type ?? chart?.type ?? chartType;
     const tool = toolMeta(toolType);
     const model = (config?.data as { model?: string } | undefined)?.model;
+    const { data: models } = useModelsQuery();
+    const options = React.useMemo(
+        () =>
+            chartOptionLabels(
+                config,
+                models?.find((m) => m.name === model),
+            ),
+        [config, models, model],
+    );
     // Labelled as in the sidebar; with neither a name nor a prompt, no title.
     const label = chartLabel({ name: chart?.name, prompt: chartPrompt(chart, config) });
     const title = label.placeholder ? null : label.text;
@@ -167,6 +178,12 @@ export function ChartEmbed({
                         )}
                     >
                         {tool && <span className="shrink-0">{tool.label}</span>}
+                        {options.map((option) => (
+                            <React.Fragment key={option}>
+                                <span aria-hidden="true">·</span>
+                                <span className="shrink-0">{option}</span>
+                            </React.Fragment>
+                        ))}
                         {tool && model && <span aria-hidden="true">·</span>}
                         {model && (
                             <>

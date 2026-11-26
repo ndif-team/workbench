@@ -14,6 +14,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import {
     chartFigure,
     chartFigureGapText,
+    chartOptionLabels,
     chartPrompt,
     REPORT_MAX_ROWS,
     rowWindowLabel,
@@ -29,6 +30,7 @@ import {
 import { downloadPdf } from "@/lib/report/pdfmake";
 import { toolMeta } from "@/app/(shell)/components/toolMeta";
 import { chartLabel } from "@/app/(shell)/components/items/itemLabel";
+import type { Model } from "@/types/models";
 
 // Layout size of a chart snapshot, CSS px. The PDF draws it at the page's
 // content width (~484 pt), so this sets how small its text comes out.
@@ -72,7 +74,12 @@ async function pdfChart(
     // As in the embed: labelled as in the sidebar, else no title.
     const label = chartLabel({ name: chart?.name, prompt: chartPrompt(chart, config) });
     const title = label.placeholder ? undefined : label.text;
-    const subtitle = [tool?.label, model].filter(Boolean).join(" · ") || undefined;
+    const catalog = queryClient.getQueryData<Model[]>(queryKeys.models.all);
+    const options = chartOptionLabels(
+        config,
+        catalog?.find((m) => m.name === model),
+    );
+    const subtitle = [tool?.label, ...options, model].filter(Boolean).join(" · ") || undefined;
 
     const figure = chartFigure(chart, lock ? withView(config, lock.view) : config);
     if (figure.gap) return { title, subtitle, note: chartFigureGapText(figure.gap, tool?.label) };
