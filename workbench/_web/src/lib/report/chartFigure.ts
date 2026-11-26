@@ -12,7 +12,9 @@ import type {
     LogitLensData,
     LogitLensUIState,
 } from "nnsightful";
-import { normalizeToolType, toolTypes } from "@/types/charts";
+import { ToolOptions } from "@/lib/toolOptions";
+import { normalizeToolType, toolTypes, type ToolType } from "@/types/charts";
+import type { Model, ToolOptionValues } from "@/types/models";
 
 /** Why a report can't draw a chart. */
 export type ChartFigureGap = "missing" | "not-run" | "unsupported" | "retired";
@@ -115,6 +117,23 @@ export function chartPrompt(chart: Row, config: Row): string | undefined {
     const settings = (config?.data ?? {}) as { prompt?: string; srcPrompt?: string };
     const data = (chart?.data ?? {}) as { sourcePrompt?: string };
     return settings.prompt || settings.srcPrompt || data.sourcePrompt || undefined;
+}
+
+/**
+ * What a chart ran with beyond its tool's defaults, as the labels of the
+ * choices its config picks ("Coda lens"): what tells two charts of one tool
+ * and model apart. `model` is the chart's catalog entry, which lists the
+ * options its tool takes; none for a model the catalog doesn't list.
+ */
+export function chartOptionLabels(config: Row, model: Model | undefined): string[] {
+    const tool = normalizeToolType(config?.type ?? null) as ToolType | null;
+    const picked = (config?.data as { options?: ToolOptionValues } | undefined)?.options;
+    return ToolOptions.of(model, tool).flatMap((option) => {
+        const value = picked?.[option.name];
+        if (value === undefined || value === option.default) return [];
+        const choice = option.choices.find((c) => c.value === value);
+        return choice ? [choice.label] : [];
+    });
 }
 
 /** One line on why a chart isn't drawn; `toolLabel` names its tool. */

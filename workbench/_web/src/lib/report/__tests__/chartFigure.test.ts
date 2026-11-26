@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
+import type { Model } from "@/types/models";
 import {
     chartFigure,
     chartFigureGapText,
+    chartOptionLabels,
     chartPrompt,
     rowWindowLabel,
     withoutLinePlot,
@@ -150,5 +152,44 @@ describe("chartPrompt", () => {
 describe("rowWindowLabel", () => {
     it("counts rows from 1", () => {
         expect(rowWindowLabel({ start: 87, end: 110, total: 111 })).toBe("rows 88–111 of 111");
+    });
+});
+
+describe("chartOptionLabels", () => {
+    const looped = {
+        name: "org/looped",
+        tool_options: {
+            "logit-lens": [
+                {
+                    name: "lens",
+                    label: "Lens",
+                    default: "logit",
+                    choices: [
+                        { value: "logit", label: "Logit lens", description: "" },
+                        { value: "coda", label: "Coda lens", description: "" },
+                    ],
+                },
+            ],
+        },
+    } as unknown as Model;
+
+    it("names the choices a chart's config picks away from the defaults", () => {
+        const config = { type: "logit-lens", data: { options: { lens: "coda" } } };
+        expect(chartOptionLabels(config, looped)).toEqual(["Coda lens"]);
+    });
+
+    it("names nothing for a default pick, no pick, or a value no longer offered", () => {
+        for (const options of [{ lens: "logit" }, {}, undefined, { lens: "gone" }]) {
+            expect(chartOptionLabels({ type: "logit-lens", data: { options } }, looped)).toEqual(
+                [],
+            );
+        }
+    });
+
+    it("names nothing for another tool, or a model the catalog doesn't list", () => {
+        const data = { options: { lens: "coda" } };
+        expect(chartOptionLabels({ type: "activation-patching", data }, looped)).toEqual([]);
+        expect(chartOptionLabels({ type: "logit-lens", data }, undefined)).toEqual([]);
+        expect(chartOptionLabels(null, looped)).toEqual([]);
     });
 });
