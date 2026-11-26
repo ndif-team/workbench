@@ -24,7 +24,7 @@ dependencies = [
     # first release with the looped Inkling 2 models (Inkling 2 Mini,
     # TML-d24-varloop-research).
     "transformers>=5.24.0",
-    "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git@64e917e3684773a37c0ea70ecd04cf6d5d2bb99a",
+    "nnsightful @ git+https://github.com/AdamBelfki3/nnsightful.git@47214050592ebf346003d5313fcdb0f1d6243e70",
     # The backend wraps every model in nnterp's StandardizedTransformer;
     # 2.0.0rc1 is nnterp's first release on nnsight 0.8.
     "nnterp==2.0.0rc1",
